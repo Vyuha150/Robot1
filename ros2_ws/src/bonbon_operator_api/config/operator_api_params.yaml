@@ -1,0 +1,10 @@
+bonbon_operator_api:
+  ros__parameters:
+    # Server settings
+    host: "0.0.0.0"
+    port: 8080
+    log_level: "INFO"
+
+    # ROS2 bridge
+    ros2_enabled: true
+    offline_timeout_sec: 15.0
