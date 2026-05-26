@@ -1,0 +1,112 @@
+# safety_policy.yaml
+# Declarative policy rules for SafetyPolicy.from_yaml().
+# Each key is a SafetyLevel name.  Lists map to PolicyAction enum values.
+#
+# Audio files are relative to bonbon_tts/assets/filler_audio/.
+# Modify this file to change robot behaviour per deployment site without
+# touching Python code.
+
+rules:
+
+  INITIALIZING:
+    on_enter:
+      - disable_actuation
+      - update_led_eyes
+      - update_display
+    led_state: "thinking"
+    display_text: "⚙ Starting up…"
+
+  NORMAL:
+    on_enter:
+      - enable_actuation
+      - update_led_eyes
+      - update_display
+    led_state: "happy"
+    display_text: ""
+
+  CAUTION:
+    on_enter:
+      - cap_velocity
+      - announce_audio
+      - update_led_eyes
+      - update_display
+      - notify_operator
+      - log_incident
+    on_exit:
+      - update_led_eyes
+    audio_file: "caution_slow_down.wav"
+    led_state: "alert"
+    display_text: "⚠ Slowing down"
+    announce_text: "Slowing down — someone is nearby."
+
+  DANGER:
+    on_enter:
+      - zero_velocity
+      - cancel_navigation
+      - disable_actuation
+      - announce_audio
+      - update_led_eyes
+      - update_display
+      - log_incident
+      - notify_operator
+    on_exit:
+      - enable_actuation
+      - update_led_eyes
+    audio_file: "danger_stop.wav"
+    led_state: "warning"
+    display_text: "⛔ STOP"
+    announce_text: "Please step back."
+
+  FAULT:
+    on_enter:
+      - zero_velocity
+      - cancel_navigation
+      - disable_actuation
+      - announce_audio
+      - update_led_eyes
+      - update_display
+      - log_incident
+      - notify_operator
+      - request_human_help
+    audio_file: "fault_alert.wav"
+    led_state: "error"
+    display_text: "🔴 FAULT — Operator required"
+    announce_text: "I have a problem. Please call for assistance."
+
+  SAFE_STOP:
+    on_enter:
+      - trigger_estop
+      - update_led_eyes
+      - update_display
+      - log_incident
+      - notify_operator
+    led_state: "off"
+    display_text: "🔴 EMERGENCY STOP"
+
+  DOCKING:
+    on_enter:
+      - cancel_navigation
+      - initiate_docking
+      - announce_audio
+      - update_led_eyes
+      - update_display
+      - notify_operator
+    on_exit:
+      - update_led_eyes
+    audio_file: "low_battery_docking.wav"
+    led_state: "thinking"
+    display_text: "🔋 Battery low — returning to dock"
+    announce_text: "My battery is low. I am returning to my charging station."
+
+  DEGRADED:
+    on_enter:
+      - cap_velocity
+      - update_led_eyes
+      - update_display
+      - notify_operator
+      - log_incident
+    on_exit:
+      - update_led_eyes
+    led_state: "alert"
+    display_text: "⚠ Reduced capability"
+    announce_text: "I am operating in reduced mode. Some features may be unavailable."

@@ -1,0 +1,15 @@
+# GetNearestCharger.srv
+# Returns the nearest available charging station from the robot's current pose.
+# Server: bonbon_navigation/navigation_node
+
+# Request
+bool prefer_available_only   # true = skip chargers already in use
+
+---
+
+# Response
+bool    found
+string  charger_id                         # "charger_a" | "charger_b" etc.
+geometry_msgs/PoseStamped  charger_pose    # docking approach pose (map frame)
+float32 distance_m                         # path distance (not Euclidean)
+string  message

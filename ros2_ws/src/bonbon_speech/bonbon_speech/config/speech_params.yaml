@@ -1,0 +1,64 @@
+# bonbon_speech default parameters
+# ----------------------------------
+# Override per-deployment with a launch argument:
+#   ros2 launch bonbon_speech speech.launch.py params_file:=/path/to/override.yaml
+#
+# All model paths are intentionally empty — set them at deployment time.
+
+speech_node:
+  ros__parameters:
+    # ── Audio ──────────────────────────────────────────────────
+    audio_sample_rate:    16000     # Hz — must be 8000 or 16000 (Silero VAD)
+    audio_channels:       1         # mono
+    audio_chunk_samples:  512       # Silero-compatible: 256/512/768/1024/1536
+    audio_max_buffer_sec: 30.0      # hard cap on rolling buffer (privacy)
+    audio_prebuffer_sec:  0.5       # pre-speech capture window
+
+    # ── VAD ────────────────────────────────────────────────────
+    vad_backend:          "silero"  # "silero" | "mock"
+    vad_model_path:       ""        # local path to silero_vad.jit; empty = torch.hub
+    vad_start_threshold:  0.50      # speech onset probability gate
+    vad_end_threshold:    0.35      # speech end probability gate (< start)
+    vad_min_speech_frames: 8        # consecutive frames to confirm onset
+    vad_silence_frames:   5         # silence frames to confirm end
+    vad_max_speech_sec:   15.0      # force-cut if segment exceeds this
+    vad_speech_pad_ms:    300.0     # ms of audio appended after speech ends
+
+    # ── STT ────────────────────────────────────────────────────
+    stt_backend:          "mock"    # "whisper" | "faster_whisper" | "mock"
+    stt_model_size:       "base"    # tiny / base / small / medium / large
+    stt_model_dir:        ""        # absolute path to model cache; empty = default
+    stt_device:           ""        # "" = auto | "cpu" | "cuda"
+    stt_language:         ""        # "" = auto-detect | "en" | "zh" | "ja" ...
+    stt_task:             "transcribe"  # "transcribe" | "translate"
+    stt_confidence_threshold: 0.50
+    stt_timeout_sec:      15.0
+    stt_max_timeouts:     3
+    stt_word_timestamps:  false
+
+    # ── Diarization ───────────────────────────────────────────
+    diarization_enabled:  false
+    diarization_backend:  "mock"    # "pyannote" | "mock"
+    diarization_hf_token: ""        # HuggingFace token — set via env or secret
+    diarization_pipeline_path: ""   # local pipeline path; empty = HF download
+    diarization_min_speakers: 1
+    diarization_max_speakers: 5
+    diarization_timeout_sec: 10.0
+
+    # ── Wake word ─────────────────────────────────────────────
+    wake_word_enabled:    false
+    wake_word_backend:    "mock"    # "openwakeword" | "porcupine" | "mock"
+    wake_word_keyword:    "hey bonbon"
+    wake_word_model_path: ""        # path to custom wake-word model
+    wake_word_threshold:  0.50
+    wake_word_listen_timeout: 8.0   # seconds to listen after wake word
+    wake_word_access_key: ""        # Porcupine access key
+
+    # ── Privacy ───────────────────────────────────────────────
+    privacy_store_audio:        false
+    privacy_anonymize_speaker:  false
+
+    # ── Node ─────────────────────────────────────────────────
+    health_rate_hz:        1.0
+    allow_degraded:        true
+    publish_detail:        true

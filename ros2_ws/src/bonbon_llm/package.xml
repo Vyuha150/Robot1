@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+            schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_llm</name>
+  <version>1.0.0</version>
+  <description>
+    LLM + Response Generation Module for the BonBon service robot.
+    Orchestrates Ollama local inference, LangChain chains, ChromaDB/FAISS RAG,
+    safety-filtered command interpretation, robot personality, tool calling,
+    command authorization, hallucination prevention and response logging.
+
+    LLM output NEVER directly controls actuators or navigation.
+    All behavior commands are routed through the Safety Supervisor.
+  </description>
+
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <!-- ROS2 core -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>bonbon_msgs</exec_depend>
+  <exec_depend>bonbon_srvs</exec_depend>
+
+  <!-- Required Python -->
+  <exec_depend>python3-numpy</exec_depend>
+
+  <!-- Optional backends (pip install) -->
+  <!-- pip install langchain langchain-community langchain-chroma -->
+  <!-- pip install chromadb                (vector store, recommended) -->
+  <!-- pip install faiss-cpu               (fallback vector store)     -->
+  <!-- pip install ollama                  (Ollama Python SDK)         -->
+  <!-- pip install sentence-transformers   (local embeddings)          -->
+  <!-- pip install pydantic>=2             (tool schema validation)    -->
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

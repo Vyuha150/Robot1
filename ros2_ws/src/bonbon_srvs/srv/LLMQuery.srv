@@ -1,0 +1,19 @@
+# LLMQuery.srv
+# Synchronous LLM query for operator tools and dashboard.
+# Server: bonbon_llm/llm_orchestrator_node
+# Clients: bonbon_dashboard, operator CLI
+
+# Request
+string query_text           # natural language query
+string speaker_id           # caller identity for auth ("operator", "user", …)
+string context_json         # optional JSON context blob (scene, state, etc.)
+float32 timeout_sec         # max seconds to wait; 0 = use node default
+bool    require_grounding   # if true, reject ungrounded responses
+---
+# Response
+bool    success
+string  response_text       # final response after filters
+string  response_id         # UUID of the LLMResponse published on /llm/response
+float32 confidence
+string  status              # "ok" | "low_conf" | "safety_block" | "hallucination" | "error"
+string  message             # human-readable detail on failure

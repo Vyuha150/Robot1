@@ -1,0 +1,106 @@
+# hal_params.yaml
+# Runtime parameters for all BonBon HAL hardware nodes.
+# Set driver_mode: "real" on hardware; "mock" for simulation / CI.
+#
+# DO NOT change hardware port paths without a corresponding physical audit.
+# Override per deployment with a second YAML in the launch file.
+
+# ── Camera node (Orbbec Astra Mini) ──────────────────────────────────────────
+camera_node:
+  ros__parameters:
+    driver_mode:   "mock"      # "real" | "mock"
+    data_rate_hz:  30.0
+    width:         640
+    height:        480
+    fps:           30
+    frame_id_color: "camera_color_optical_frame"
+    frame_id_depth: "camera_depth_optical_frame"
+    reconnect_max_attempts:   5
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  30.0
+
+# ── LIDAR node (RPLIDAR S2) ───────────────────────────────────────────────────
+lidar_node:
+  ros__parameters:
+    driver_mode:   "mock"
+    data_rate_hz:  10.0
+    port:          "/dev/ttyUSB0"
+    baudrate:      115200
+    reconnect_max_attempts:   5
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  30.0
+
+# ── IMU node (MPU-6050) ───────────────────────────────────────────────────────
+imu_node:
+  ros__parameters:
+    driver_mode:   "mock"
+    data_rate_hz:  100.0
+    i2c_bus:       1
+    i2c_addr:      0x68       # AD0 = GND
+    frame_id:      "imu_link"
+    run_calibration: false    # set true on first deploy
+    reconnect_max_attempts:   5
+    reconnect_base_delay_sec: 0.5
+    reconnect_max_delay_sec:  10.0
+
+# ── Servo node (Dynamixel) ────────────────────────────────────────────────────
+servo_node:
+  ros__parameters:
+    driver_mode:   "mock"
+    data_rate_hz:  20.0
+    port:          "/dev/ttyUSB1"
+    baudrate:      57600
+    servo_ids:     [1, 2, 3, 4]   # 1=neck, 2-4=arm
+    neck_servo_id: 1
+    reconnect_max_attempts:   3
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  15.0
+
+# ── Battery node (INA226) ─────────────────────────────────────────────────────
+battery_node:
+  ros__parameters:
+    driver_mode:   "mock"
+    data_rate_hz:  1.0
+    i2c_bus:       1
+    i2c_addr:      0x40       # A0=GND, A1=GND
+    shunt_ohm:     0.01       # 10 mΩ shunt resistor
+    capacity_ah:   40.0       # 40 Ah LiPo
+    reconnect_max_attempts:   5
+    reconnect_base_delay_sec: 2.0
+    reconnect_max_delay_sec:  30.0
+
+# ── Microphone node (ReSpeaker v2.0) ─────────────────────────────────────────
+mic_node:
+  ros__parameters:
+    driver_mode:   "mock"
+    data_rate_hz:  16.0       # 16 chunks/s × 1024 samples = 16 kHz
+    sample_rate:   16000
+    channels:      1
+    chunk_frames:  1024
+    reconnect_max_attempts:   5
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  20.0
+
+# ── Speaker node (ALSA) ───────────────────────────────────────────────────────
+speaker_node:
+  ros__parameters:
+    driver_mode:   "mock"
+    data_rate_hz:  1.0
+    volume_pct:    80.0
+    alsa_device:   "default"
+    amixer_control: "Master"
+    reconnect_max_attempts:   3
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  15.0
+
+# ── E-stop node (GPIO) ────────────────────────────────────────────────────────
+estop_hal_node:
+  ros__parameters:
+    driver_mode:   "mock"     # ALWAYS "real" on physical hardware
+    data_rate_hz:  50.0       # 20 ms polling interval
+    input_pin:     17         # BCM GPIO 17 (active LOW)
+    relay_pin:     18         # BCM GPIO 18 (active HIGH = cut power)
+    poll_hz:       50.0
+    reconnect_max_attempts:   10
+    reconnect_base_delay_sec: 0.5
+    reconnect_max_delay_sec:  5.0
