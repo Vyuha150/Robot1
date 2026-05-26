@@ -1,0 +1,22 @@
+data_store_node:
+  ros__parameters:
+    # Root data directory — all sub-paths are derived from this.
+    data_dir: "/tmp/bonbon/data"
+
+    # Privacy — raw audio and biometric data never stored by default.
+    store_audio: false
+    store_face_data: false
+
+    # Embedding model (HuggingFace identifier).
+    # NEVER hardcode API tokens here — inject via environment or ROS2 secret.
+    embedding_model: "all-MiniLM-L6-v2"
+
+    # Optional subsystems — can be disabled on low-memory platforms.
+    faiss_enabled: true
+    chroma_enabled: true
+
+    # How often (seconds) the retention sweep runs.
+    retention_sweep_interval_sec: 3600
+
+    # Logging
+    log_level: "INFO"
