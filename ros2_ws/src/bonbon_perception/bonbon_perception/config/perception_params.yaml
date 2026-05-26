@@ -1,0 +1,53 @@
+# bonbon_perception/config/perception_params.yaml
+# Default parameters for all perception nodes.
+# Override per deployment via launch argument: override_params_file:=/etc/bonbon/site.yaml
+
+/bonbon/detection_node:
+  ros__parameters:
+    # "mock" | "hog" | "yolo"
+    detector_mode: "mock"
+
+    # YOLO model (used only when detector_mode=yolo)
+    model_path: "yolov8n.pt"
+
+    # Detector confidence threshold (0.0–1.0)
+    confidence_threshold: 0.50
+
+    # Camera horizontal field of view in degrees
+    hfov_deg: 60.0
+
+    # Detection + tracking run rate (Hz)
+    detection_rate_hz: 10.0
+
+    # Health publish rate (Hz)
+    health_rate_hz: 1.0
+
+    # IoU threshold for tracker association
+    iou_threshold: 0.30
+
+    # Frames of no-match before a track is deleted
+    max_lost_frames: 15
+
+    # Publish TENTATIVE (unconfirmed) tracks too?
+    publish_all_states: false
+
+    # Mock detector settings (used when detector_mode=mock)
+    mock_num_persons: 1
+    mock_base_distance_m: 2.0
+
+/bonbon/face_node:
+  ros__parameters:
+    # "mock" | "opencv_lbp" | "deepface" | "insightface"
+    face_mode: "mock"
+
+    # Path to SQLite face embedding database
+    face_db_path: "/var/lib/bonbon/face_db.sqlite"
+
+    # Cosine distance threshold for recognition (lower = stricter)
+    recognition_threshold: 0.40
+
+    # Health publish rate (Hz)
+    health_rate_hz: 1.0
+
+    # Bounding box expansion factor when cropping face ROI
+    crop_scale: 1.3

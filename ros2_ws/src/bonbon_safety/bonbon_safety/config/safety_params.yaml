@@ -1,0 +1,53 @@
+# safety_params.yaml
+# Runtime parameters for the BonBon safety supervisor, watchdog, and estop nodes.
+# Loaded by safety.launch.py and passed to each node via ROS2 parameter files.
+#
+# Override per deployment by providing a second YAML in the launch file.
+# NEVER change hardware limits here without a corresponding hardware review.
+
+safety_supervisor_node:
+  ros__parameters:
+    # Core timing
+    supervisor_rate_hz: 10.0          # FSM evaluation rate (do not lower below 5.0)
+    startup_timeout_sec: 15.0         # time to wait for all sensors before FAULT
+
+    # Policy
+    policy_file: ""                   # leave empty to use built-in default policy
+    incident_db_path: "/var/lib/bonbon/safety_incidents.db"
+    robot_id: "bonbon-01"             # override per physical unit
+
+    # Human proximity thresholds (metres)
+    human_caution_m: 2.0              # NORMAL → CAUTION
+    human_danger_m: 0.5               # CAUTION/NORMAL → DANGER (full stop)
+
+    # Battery thresholds (percent)
+    battery_caution_pct: 20.0         # enter CAUTION, start planning dock route
+    battery_dock_pct: 10.0            # force DOCKING regardless of current task
+
+    # Sensor failure policy
+    lidar_stale_danger: true          # true = LIDAR loss → DANGER; false = CAUTION
+
+    # Thermal limits (°C)
+    cpu_temp_caution_c: 75.0          # throttle AI inference
+    cpu_temp_fault_c:   90.0          # hardware damage risk → FAULT
+
+    # Hysteresis (consecutive clear cycles before relaxing state)
+    hysteresis_cycles_caution: 3      # cycles at 10 Hz = 300 ms
+    hysteresis_cycles_danger:  5      # cycles at 10 Hz = 500 ms
+
+    # Staleness detection
+    lidar_max_age_sec:   0.5          # RPLIDAR S2 at 10 Hz
+    imu_max_age_sec:     0.1          # 9-DOF IMU at 100 Hz
+    camera_max_age_sec:  0.2          # cameras at 30 FPS
+    person_max_age_sec:  1.0          # person tracking coasts 1 s
+
+watchdog_node:
+  ros__parameters:
+    watchdog_rate_hz: 2.0             # check cycle (2 Hz = 500 ms resolution)
+    startup_grace_sec: 30.0           # ignore stale nodes during startup
+
+estop_node:
+  ros__parameters:
+    estop_input_pin:  17              # BCM GPIO pin — e-stop button (active LOW)
+    relay_output_pin: 18              # BCM GPIO pin — motor power relay (active HIGH)
+    poll_hz:          50.0            # 50 Hz = 20 ms max detection latency

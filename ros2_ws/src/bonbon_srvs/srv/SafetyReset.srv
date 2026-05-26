@@ -1,0 +1,12 @@
+# SafetyReset.srv
+# Resets the safety supervisor from FAULT or SAFE_STOP → INITIALIZING.
+# Server: bonbon_safety/safety_supervisor_node
+# Client: bonbon_dashboard/api_node, operator CLI
+
+# Request
+string operator_id      # identifies the human authorising the reset (for audit)
+string reason           # free-text reason recorded in incident log
+---
+# Response
+bool   success
+string message          # human-readable result ("Reset accepted" or error text)

@@ -1,0 +1,66 @@
+# bonbon_vision — default node parameters
+# =========================================
+# Every value here can be overridden via:
+#   ros2 run bonbon_vision vision_node --ros-args -p detector.backend:=yolo
+# or via a launch-file parameter file.
+#
+# Model paths are intentionally empty: the deployer must supply them.
+# Running with backend="mock" is safe and requires no paths.
+
+vision_node:
+  ros__parameters:
+
+    # ── Frame rate ──────────────────────────────────────────────────────────
+    detection_rate_hz: 10.0      # target inference frames-per-second
+
+    # ── Camera geometry ─────────────────────────────────────────────────────
+    hfov_deg: 60.0               # horizontal FoV for bearing calculations
+
+    # ── Publishing ──────────────────────────────────────────────────────────
+    publish_annotated_image: false  # set true for debugging; adds latency
+    allow_degraded_startup: true    # allow startup even if model fails to load
+
+    # ── Object detector ─────────────────────────────────────────────────────
+    detector.backend: "mock"     # "mock" | "yolo"
+    detector.model_path: ""      # absolute path — required when backend=yolo
+    detector.confidence_threshold: 0.45
+    detector.nms_iou_threshold: 0.45
+    detector.device: ""          # "" = auto (cpu/cuda), or "cpu", "cuda:0"
+    detector.img_size: 640
+    detector.classes: []         # [] = all COCO classes; [0] = person only
+    detector.inference_timeout_sec: 1.0
+    detector.max_consecutive_timeouts: 3
+    detector.half_precision: false
+
+    # ── Face pipeline ────────────────────────────────────────────────────────
+    face.detect_backend: "mock"        # "mock" | "opencv_dnn" | "insightface"
+    face.recognize_backend: "mock"     # "mock" | "insightface" | "deepface"
+    face.db_path: ""                   # path to face database — required for recognition
+    face.recognition_threshold: 0.40   # cosine distance threshold (lower = stricter)
+    face.dnn_prototxt_path: ""         # opencv_dnn detector — deploy.prototxt
+    face.dnn_weights_path: ""          # opencv_dnn detector — res10_300x300.caffemodel
+    face.inference_timeout_sec: 0.5
+    face.min_face_confidence: 0.70
+
+    # ── Preprocessing ────────────────────────────────────────────────────────
+    preprocess.resize_width: 640
+    preprocess.resize_height: 480
+    preprocess.enable_clahe: true
+    preprocess.clahe_clip_limit: 2.0
+    preprocess.clahe_tile_grid_size: 8
+    preprocess.enable_denoise: false
+    preprocess.brightness_threshold: 50.0   # below → LOW_LIGHT (still processed)
+    preprocess.min_mean_brightness: 2.0     # below → EMPTY (skipped)
+
+    # ── Privacy ──────────────────────────────────────────────────────────────
+    privacy.enabled: false
+    privacy.blur_faces: true
+    privacy.blur_kernel_size: 51        # must be odd ≥ 3
+    privacy.pixelate_faces: false
+    privacy.suppress_identity: true     # omit face_id from published msgs
+    privacy.disable_annotated_publish: false
+
+    # ── Tracking ─────────────────────────────────────────────────────────────
+    tracking.iou_threshold: 0.30
+    tracking.max_lost_frames: 15
+    tracking.max_tracks: 20

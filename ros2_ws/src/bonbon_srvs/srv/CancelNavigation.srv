@@ -1,0 +1,14 @@
+# CancelNavigation.srv
+# Cancel the active navigation goal (or a specific queued goal).
+# Server: bonbon_navigation/navigation_node
+
+# Request
+string  goal_id      # UUID to cancel; empty = cancel all active goals
+string  reason       # for audit log
+
+---
+
+# Response
+bool    success
+string  message
+uint8   goals_cancelled   # how many goals were removed
