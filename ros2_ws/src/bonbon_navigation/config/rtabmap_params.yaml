@@ -1,0 +1,135 @@
+# =============================================================================
+# BonBon Service Robot — RTAB-Map Parameters
+# =============================================================================
+# Two modes:
+#   slam         — build map while navigating (Mapping.localization_mode: false)
+#   localization — localise against saved map  (Mapping.localization_mode: true)
+#
+# The launch files set the appropriate overrides for each mode.
+# =============================================================================
+
+rtabmap:
+  ros__parameters:
+    use_sim_time: false
+
+    # -- Frame IDs -------------------------------------------------------------
+    frame_id:          base_link
+    odom_frame_id:     odom
+    map_frame_id:      map
+
+    # -- Subscribed topics -----------------------------------------------------
+    subscribe_depth:   false
+    subscribe_rgb:     false
+    subscribe_stereo:  false
+    subscribe_rgbd:    false
+    subscribe_scan:    true
+    subscribe_scan_cloud: false
+    subscribe_odom_info: false
+
+    # -- Database ---------------------------------------------------------------
+    database_path: "/var/lib/bonbon/rtabmap.db"
+
+    # -- RTAB-Map core parameters ----------------------------------------------
+    Rtabmap/DetectionRate:       "1"       # Hz — map update rate
+    Rtabmap/TimeThr:             "700"     # ms — max processing time
+    Rtabmap/MemoryThr:           "0"       # 0=unlimited
+    Rtabmap/LoopThr:             "0.11"    # loop closure threshold (lower=more)
+    Rtabmap/ImageDecimation:     "1"
+
+    # -- Memory parameters -----------------------------------------------------
+    Mem/InitWMWithAllNodes:      "false"   # localization: load all nodes into WM
+    Mem/STMSize:                 "30"      # short-term memory size
+    Mem/BadSignaturesIgnored:    "false"
+
+    # -- Loop closure ----------------------------------------------------------
+    Kp/MaxFeatures:              "400"
+    Kp/MaxDepth:                 "0"
+    Kp/RoiRatios:                "0.0 0.0 0.0 0.0"
+    Kp/DetectorStrategy:         "0"      # 0=SURF, 1=SIFT, 6=ORB
+    Kp/NNStrategy:               "1"      # 1=KD-tree
+
+    # -- Laser scan registration -----------------------------------------------
+    LccIcp/Type:                 "2"      # 2=point-to-plane ICP
+    LccIcp/MaxDistance:          "0.1"
+    LccIcp/MaxIterations:        "100"
+    Icp/PointToPlane:            "false"
+    Icp/Iterations:              "30"
+    Icp/MaxTranslation:          "3.0"
+    Icp/MaxCorrespondenceDistance: "0.1"
+    Icp/PM:                      "true"   # use libpointmatcher
+    Icp/PMOutlierRatio:          "0.65"
+    Icp/VoxelSize:               "0.05"
+    Icp/DownsamplingStep:        "1"
+    Icp/MaxRotation:             "0.785"  # 45°
+
+    # -- Odometry (from external source — we publish /odom) --------------------
+    Odom/Strategy:               "0"
+    Odom/GuessMotion:            "true"
+    OdomF2M/MaxSize:             "1000"
+    OdomF2M/ScanSubtractRadius:  "0.05"
+    OdomF2M/ScanMaxSize:         "10000"
+
+    # -- Occupancy grid --------------------------------------------------------
+    Grid/CellSize:               "0.05"
+    Grid/RangeMin:               "0.20"   # ignore points < 20 cm (robot self)
+    Grid/RangeMax:               "5.0"
+    Grid/ClusterRadius:          "0.1"
+    Grid/MinClusterSize:         "10"
+    Grid/MaxObstacleHeight:      "0.0"   # 0 = no filter
+    Grid/RayTracing:             "true"
+    Grid/FootprintLength:        "0.70"  # 2 × robot_radius
+    Grid/FootprintWidth:         "0.70"
+    Grid/FootprintHeight:        "1.30"  # robot height
+
+    # -- Vis (visual features for localization quality) -----------------------
+    Vis/MinInliers:              "15"
+    Vis/InlierDistance:          "0.1"
+    Vis/MaxFeatures:             "400"
+
+    # -- Proximity detection ---------------------------------------------------
+    Prox/MaxGraphDepth:          "0"
+    Prox/PathFilteringRadius:    "1.0"
+    Prox/ScanPositionRadius:     "2.0"
+
+    # -- Map publishing --------------------------------------------------------
+    publish_tf:                  false    # RTAB-Map odom→map TF (use rtabmap_odom instead)
+    approx_sync:                 true
+    sync_queue_size:             10
+    queue_size:                  10
+
+    # -- Localization mode overrides (set by launch file) ----------------------
+    # SLAM mode:         Mem/IncrementalMemory=true,  Mem/InitWMWithAllNodes=false
+    # Localization mode: Mem/IncrementalMemory=false, Mem/InitWMWithAllNodes=true
+    Mem/IncrementalMemory: "true"   # default: SLAM
+
+# =============================================================================
+# RTAB-Map Odometry node (scan-based odometry)
+# =============================================================================
+rtabmap_odom:
+  ros__parameters:
+    use_sim_time: false
+    frame_id:          base_link
+    odom_frame_id:     odom
+    publish_tf:        true
+    subscribe_scan:    true
+    wait_for_transform_duration: 0.2
+    guess_frame_id:    ""
+    expected_update_rate: 0.0
+    approx_sync:       true
+    sync_queue_size:   10
+    queue_size:        10
+
+    Odom/Strategy:     "0"        # 0=Frame-to-Map, 1=Frame-to-Frame
+    Odom/GuessMotion:  "true"
+    Odom/ResetCountdown: "0"
+    OdomF2M/MaxSize:   "1000"
+    OdomF2M/ScanMaxSize: "10000"
+    OdomF2M/ScanSubtractRadius: "0.05"
+    Icp/VoxelSize:     "0.05"
+    Icp/DownsamplingStep: "1"
+    Icp/MaxCorrespondenceDistance: "0.1"
+    Icp/PM:            "true"
+    Icp/PMOutlierRatio: "0.65"
+    Icp/MaxTranslation: "0.5"
+    Icp/MaxRotation:   "0.523"    # 30°
+    Icp/Iterations:    "30"

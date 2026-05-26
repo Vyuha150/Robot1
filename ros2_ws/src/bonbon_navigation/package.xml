@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+            schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_navigation</name>
+  <version>1.0.0</version>
+  <description>
+    Autonomous Navigation Module for the BonBon service robot.
+
+    Provides Nav2-backed global + local planning, RTAB-Map SLAM/localization,
+    dynamic obstacle avoidance, human-aware navigation, docking/charging,
+    stuck detection, recovery behaviors, low-battery routing, and
+    safety-stop integration.
+
+    The module NEVER issues raw cmd_vel commands that bypass the Safety Gate.
+    All velocity commands go through /bonbon/safety_gate/cmd_vel.
+  </description>
+
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <!-- ROS2 core -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>action_msgs</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
+
+  <!-- Nav2 -->
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>nav2_simple_commander</exec_depend>
+
+  <!-- Custom messages / services -->
+  <exec_depend>bonbon_msgs</exec_depend>
+  <exec_depend>bonbon_srvs</exec_depend>
+
+  <!-- Python -->
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <!-- Test deps -->
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>launch_ros</test_depend>
+  <test_depend>launch_testing</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

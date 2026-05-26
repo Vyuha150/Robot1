@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_tts</name>
+  <version>1.0.0</version>
+  <description>
+    Speech synthesis module for the BonBon service robot.
+
+    Provides Piper TTS synthesis, priority-based utterance queuing,
+    filler audio playback, emergency announcement pre-emption,
+    TTS failure fallback, low-latency streaming playback via the HAL
+    speaker abstraction, and structured health reporting.
+  </description>
+
+  <maintainer email="bonbon@example.com">Bonbon Robotics</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>lifecycle_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>bonbon_msgs</depend>
+
+  <!-- HAL speaker driver (soft dependency — TTS degrades gracefully if absent) -->
+  <exec_depend>bonbon_hal</exec_depend>
+
+  <!-- Piper TTS (soft dependency — falls back to mock if not installed) -->
+  <exec_depend>python3-piper-tts</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>ament_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

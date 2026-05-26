@@ -1,0 +1,127 @@
+# =============================================================================
+# BonBon Navigation Node Parameters
+# bonbon_navigation/NavigationNode
+# =============================================================================
+
+/**:
+  ros__parameters:
+    use_sim_time: false
+
+bonbon_navigation_node:
+  ros__parameters:
+    use_sim_time: false
+
+    # -- Robot footprint -------------------------------------------------------
+    robot_radius_m:            0.35
+    robot_height_m:            1.30
+
+    # -- Speed limits ----------------------------------------------------------
+    max_speed_mps:             0.80   # NORMAL safety state
+    caution_speed_mps:         0.30   # CAUTION / DEGRADED safety state
+    dock_speed_mps:            0.15   # DOCKING safety state
+
+    # -- Nav2 configuration ---------------------------------------------------
+    nav2_goal_tolerance_m:     0.10   # arrival tolerance (xy)
+    nav2_yaw_tolerance_rad:    0.15   # arrival tolerance (yaw)
+    global_planner:            "GridBased"
+    local_controller:          "FollowPath"
+
+    # -- RTAB-Map / localization -----------------------------------------------
+    rtabmap_database_path:     "/var/lib/bonbon/rtabmap.db"
+    localization_mode:         "localization"   # "slam" | "localization"
+    localization_quality_threshold:   2         # 1=GOOD, 2=DEGRADED, 3=LOST
+    localization_cov_warning:  0.10             # covariance trace warning threshold
+
+    # -- Map -------------------------------------------------------------------
+    map_yaml_path:             ""               # set to absolute path at launch
+
+    # -- Named locations -------------------------------------------------------
+    # Format: "name:x,y,yaw"  (map-frame, metres, radians)
+    named_locations:
+      - "entrance:0.0,0.0,0.0"
+      - "counter:3.5,1.0,1.5708"
+      - "table_1:5.0,2.0,3.1416"
+      - "table_2:5.0,4.0,3.1416"
+      - "table_3:5.0,6.0,3.1416"
+      - "table_4:7.0,2.0,3.1416"
+      - "table_5:7.0,4.0,3.1416"
+      - "table_6:7.0,6.0,3.1416"
+      - "table_7:9.0,2.0,3.1416"
+      - "table_8:9.0,4.0,3.1416"
+      - "table_9:9.0,6.0,3.1416"
+      - "table_10:11.0,4.0,3.1416"
+      - "charger_a:1.0,1.0,0.0"
+      - "charger_b:1.0,8.0,0.0"
+
+    # -- Charger locations (id:x,y,yaw) ---------------------------------------
+    charger_locations:
+      - "charger_a:1.0,1.0,0.0"
+      - "charger_b:1.0,8.0,0.0"
+
+    # -- Stuck detection -------------------------------------------------------
+    stuck_window_sec:          5.0    # rolling window duration
+    stuck_min_progress_m:      0.10   # minimum movement to be "not stuck"
+    stuck_threshold_count:     3      # consecutive failures before stuck declared
+    stuck_zero_vel_window_sec: 2.0    # window for zero-velocity check
+
+    # -- Recovery behaviors ----------------------------------------------------
+    recovery_enabled:          true
+    recovery_max_retries:      10
+    recovery_behavior_sequence:
+      - "wait"
+      - "clear_costmap"
+      - "backup"
+      - "spin"
+      - "replan"
+      - "announce"
+      - "escalate"
+    recovery_wait_sec:         3.0
+    recovery_backup_distance_m: 0.30
+    recovery_backup_speed_mps:  0.10
+    recovery_spin_speed_rps:   0.50
+    recovery_spin_rotations:   1
+    recovery_announce_repeat_sec: 5.0
+
+    # -- Docking ---------------------------------------------------------------
+    docking_enabled:           true
+    docking_pre_dock_distance_m:      0.60
+    docking_final_approach_speed_mps: 0.06
+    docking_max_alignment_error_m:    0.05
+    docking_max_heading_error_rad:    0.10
+    docking_alignment_timeout_sec:    30.0
+    docking_final_approach_timeout_sec: 20.0
+    docking_max_attempts:      3
+    docking_use_aruco_marker:  true
+    docking_aruco_marker_id:   42
+    docking_use_ir_beacon:     true
+    docking_undock_reverse_distance_m: 0.50
+    docking_undock_speed_mps:  0.10
+
+    # -- Battery routing -------------------------------------------------------
+    battery_low_threshold_pct:       20.0
+    battery_critical_threshold_pct:  10.0
+    battery_resume_threshold_pct:    80.0
+    battery_routing_enabled:         true
+
+    # -- Human-aware navigation ------------------------------------------------
+    human_aware_enabled:              true
+    person_inflation_radius_m:        0.80
+    vulnerable_inflation_radius_m:    1.20    # children / elderly
+    facing_multiplier:                1.30    # person facing robot
+    person_cost_scaling:              2.0     # exponential cost falloff factor
+    announce_passing_intent:          true
+    announce_distance_m:              2.0
+    person_decay_sec:                 3.0
+
+    # -- Safety watchdog -------------------------------------------------------
+    safety_watchdog_timeout_sec:      2.0
+
+    # -- Goal queue ------------------------------------------------------------
+    max_queued_goals:          10
+    default_goal_timeout_sec:  120.0
+    default_arrival_tolerance_m: 0.15
+
+    # -- Health / status publishing -------------------------------------------
+    status_publish_hz:         5.0
+    health_publish_hz:         1.0
+    nav_loop_hz:               10.0

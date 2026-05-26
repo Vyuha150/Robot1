@@ -1,0 +1,160 @@
+<?xml version="1.0" ?>
+<!--
+  BonBon Hospital Corridor — Navigation test world
+  Scenario: 30 m × 3 m corridor with:
+    - Tight 3 m width (challenges 0.35 m robot radius in dynamic environments)
+    - Medical equipment alcoves (creates narrow passing areas)
+    - 2 static obstacles (carts) partially blocking the corridor
+    - 2 waypoints: corridor_start (0,0) → corridor_end (28,0)
+    - Crossing pedestrian path at midpoint (x=15)
+
+  Tests validated here:
+    - Navigation through narrow corridor
+    - Recovery when corridor is blocked
+    - Human awareness when pedestrian crosses at x=15
+    - Battery routing if battery low at midpoint
+-->
+<sdf version="1.9">
+  <world name="hospital_corridor">
+
+    <physics name="default_physics" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <light name="sun" type="directional">
+      <cast_shadows>false</cast_shadows>
+      <pose>15 1.5 6 0 0 0</pose>
+      <diffuse>0.9 0.9 0.95 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <direction>0 0 -1</direction>
+    </light>
+
+    <!-- Ground -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="c"><geometry><plane><normal>0 0 1</normal><size>50 20</size></plane></geometry></collision>
+        <visual name="v"><geometry><plane><normal>0 0 1</normal><size>50 20</size></plane></geometry>
+          <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ── Corridor walls (30 m long, 3 m wide) ───────────────────────────── -->
+    <!-- South wall (y = -1.5) -->
+    <model name="wall_south">
+      <static>true</static>
+      <pose>15 -1.575 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>30 0.15 3.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>30 0.15 3.0</size></box></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>0.95 0.95 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <!-- North wall (y = +1.5) -->
+    <model name="wall_north">
+      <static>true</static>
+      <pose>15 1.575 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>30 0.15 3.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>30 0.15 3.0</size></box></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>0.95 0.95 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <!-- West end wall -->
+    <model name="wall_west">
+      <static>true</static>
+      <pose>-0.075 0 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.15 3.0 3.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.15 3.0 3.0</size></box></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>0.95 0.95 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <!-- East end wall -->
+    <model name="wall_east">
+      <static>true</static>
+      <pose>30.075 0 1.5 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.15 3.0 3.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.15 3.0 3.0</size></box></geometry>
+          <material><ambient>0.95 0.95 0.95 1</ambient><diffuse>0.95 0.95 0.95 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ── Medical equipment alcoves ──────────────────────────────────────── -->
+    <!-- Alcove south at x=8 (protrudes 0.4 m into corridor) -->
+    <model name="alcove_south_8">
+      <static>true</static>
+      <pose>8 -1.1 0.75 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>1.5 0.4 1.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.5 0.4 1.5</size></box></geometry>
+          <material><ambient>0.8 0.8 0.85 1</ambient><diffuse>0.8 0.8 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <!-- Alcove north at x=20 -->
+    <model name="alcove_north_20">
+      <static>true</static>
+      <pose>20 1.1 0.75 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>1.5 0.4 1.5</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>1.5 0.4 1.5</size></box></geometry>
+          <material><ambient>0.8 0.8 0.85 1</ambient><diffuse>0.8 0.8 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ── Static obstacles — medical carts ──────────────────────────────── -->
+    <!-- Cart partially blocking at x=12, y=-0.5 (leaves ~1.0 m gap north) -->
+    <model name="medical_cart_1">
+      <static>true</static>
+      <pose>12 -0.5 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.7 0.45 1.0</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.7 0.45 1.0</size></box></geometry>
+          <material><ambient>0.7 0.7 0.8 1</ambient><diffuse>0.7 0.7 0.8 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ── Charging dock at corridor start ───────────────────────────────── -->
+    <model name="charger_corridor">
+      <static>true</static>
+      <pose>1.0 1.0 0.05 0 0 0</pose>
+      <link name="link">
+        <collision name="c"><geometry><box><size>0.3 0.2 0.10</size></box></geometry></collision>
+        <visual name="v"><geometry><box><size>0.3 0.2 0.10</size></box></geometry>
+          <material><ambient>0.1 0.7 0.1 1</ambient><diffuse>0.1 0.7 0.1 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ── ArUco marker on east end wall (for docking test) ──────────────── -->
+    <model name="aruco_marker_42">
+      <static>true</static>
+      <pose>29.9 0 1.0 0 0 3.1416</pose>
+      <link name="link">
+        <visual name="v">
+          <geometry><box><size>0.01 0.20 0.20</size></box></geometry>
+          <material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

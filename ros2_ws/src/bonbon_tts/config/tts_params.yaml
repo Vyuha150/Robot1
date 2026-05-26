@@ -1,0 +1,94 @@
+tts_node:
+  ros__parameters:
+    # ── Piper TTS backend ──────────────────────────────────────────────────
+    piper:
+      # Absolute path to the .onnx model file.
+      # Leave empty to use the default Piper voice (if installed system-wide).
+      model_path: ""
+
+      # Path to the .onnx.json config file (optional).
+      config_path: ""
+
+      # Use subprocess mode (recommended for memory isolation).
+      # Set to false to use the piper_tts Python API directly (lower latency).
+      use_subprocess: true
+
+      # Voice identifier used when model_path is empty.
+      voice: "en_US-lessac-medium"
+
+      # Piper executable name or absolute path.
+      executable: "piper"
+
+      # Speed control: >1.0 = slower, <1.0 = faster.
+      length_scale: 1.0
+
+      # Phoneme variation (expressiveness).
+      noise_scale: 0.667
+
+      # Prosody noise.
+      noise_w: 0.8
+
+      # Silence between sentences (seconds).
+      sentence_silence_sec: 0.2
+
+      # Maximum time to wait for Piper subprocess (seconds).
+      synthesis_timeout_sec: 10.0
+
+      # Enable CUDA inference (requires GPU + CUDA-enabled Piper build).
+      cuda: false
+
+    # ── Filler audio ───────────────────────────────────────────────────────
+    filler:
+      # Enable filler clips ("one moment", etc.).
+      enabled: true
+
+      # Directory containing *.wav filler clips.
+      # Leave empty to use built-in generated beep clips.
+      filler_dir: ""
+
+      # Minimum utterances in queue before filler is eligible.
+      trigger_queue_depth: 2
+
+      # Minimum pipeline silence (ms) before filler is played.
+      trigger_latency_ms: 400.0
+
+      # Minimum seconds between consecutive filler plays.
+      cooldown_sec: 3.0
+
+    # ── Utterance queue ────────────────────────────────────────────────────
+    queue:
+      # Maximum number of pending utterances.
+      max_depth: 32
+
+      # Silently replace older queued utterances with the same dedup_key.
+      dedup_enabled: true
+
+      # Default utterance expiry (seconds).  0 = never expire.
+      default_max_age_sec: 30.0
+
+      # Expiry for EMERGENCY utterances.
+      emergency_max_age_sec: 120.0
+
+    # ── Speaker / audio output ─────────────────────────────────────────────
+    speaker:
+      # "mock" (test double) or "hal" (bonbon_hal.SpeakerDriver).
+      driver: "mock"
+
+      # ALSA/PulseAudio device string (used by HAL driver).
+      device: "default"
+
+      # Playback volume (0–100).
+      volume_pct: 80.0
+
+      # Expected audio sample rate from the TTS backend.
+      sample_rate: 22050
+
+      # Audio channels (1 = mono, 2 = stereo).
+      channels: 1
+
+    # ── Health ─────────────────────────────────────────────────────────────
+    # Rate (Hz) at which /bonbon/tts/health is published.
+    health_rate_hz: 1.0
+
+    # Allow startup even when the primary TTS backend is unavailable.
+    allow_degraded_startup: true
