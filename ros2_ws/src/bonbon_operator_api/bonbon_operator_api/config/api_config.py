@@ -43,7 +43,7 @@ class JWTConfig(BaseModel):
                 else:
                     raise ValueError(
                         "BONBON_JWT_SECRET environment variable must be set. "
-                        "Example: export BONBON_JWT_SECRET=$(openssl rand -hex 32)"
+                        "Generate one with: openssl rand -hex 32, then export it."
                     )
             else:
                 object.__setattr__(self, "secret", env_secret)
