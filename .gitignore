@@ -47,3 +47,6 @@ Thumbs.db
 *.key
 credentials.json
 .claude/
+
+# Cloned remote placeholder (not part of this repo)
+Bonbon-robot/
