@@ -1,0 +1,15 @@
+name: elderly_slowdown
+world: hospital_patient_room
+environment: hospital patient room
+seed: 1003
+start: [0.0, 0.0]
+goal: [5.0, 0.0]
+duration_sec: 30
+entities:
+  - {type: slow_elderly_pedestrian, name: elderly_person, x: 2.2, y: 0.8}
+events:
+  - time_sec: 1.0
+    type: near_miss
+    target: elderly_person
+criteria:
+  max_collisions: 0

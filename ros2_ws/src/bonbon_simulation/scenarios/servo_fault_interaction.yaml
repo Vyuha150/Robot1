@@ -1,0 +1,13 @@
+name: servo_fault_interaction
+world: hospital_patient_room
+environment: hospital patient room
+seed: 1017
+start: [0.0, 0.0]
+goal: [5.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: servo_fault
+    target: head_pan
+criteria:
+  max_collisions: 0

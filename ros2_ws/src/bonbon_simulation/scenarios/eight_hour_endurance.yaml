@@ -1,0 +1,12 @@
+name: eight_hour_endurance
+world: obstacle_heavy_zone
+environment: obstacle-heavy zone
+seed: 1020
+start: [0.0, 0.0]
+goal: [12.0, 0.0]
+duration_sec: 28800
+entities:
+  - {type: moving_cart, name: endurance_cart, x: 4.0, y: 0.9, vy: -0.1, radius_m: 0.45}
+criteria:
+  max_collisions: 0
+  min_navigation_success_rate: 0.95

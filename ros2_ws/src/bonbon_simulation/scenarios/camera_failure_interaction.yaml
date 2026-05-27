@@ -1,0 +1,13 @@
+name: camera_failure_interaction
+world: classroom_corridor
+environment: classroom/university corridor
+seed: 1009
+start: [0.0, 0.0]
+goal: [5.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 2.0
+    type: sensor_failure
+    target: camera
+criteria:
+  max_collisions: 0

@@ -1,0 +1,15 @@
+name: blocked_path_recovery
+world: narrow_passage
+environment: narrow passage
+seed: 1004
+start: [0.0, 0.0]
+goal: [6.0, 0.0]
+duration_sec: 35
+events:
+  - time_sec: 1.0
+    type: blocked_path
+    target: person_blocking_path
+    params: {x: 0.8, y: 0.0}
+criteria:
+  max_collisions: 0
+  max_replanning_latency_ms: 1000

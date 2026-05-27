@@ -1,0 +1,98 @@
+name: BonBon CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Python tooling
+        run: python -m pip install --upgrade pip ruff black mypy pytest PyYAML
+      - name: Python lint with ruff
+        run: ruff check .
+      - name: Formatting check with black
+        run: black --check .
+      - name: Type check with mypy
+        run: mypy devops ros2_ws/src/bonbon_simulation
+      - name: Documentation check
+        run: test -f deployment/docs/README.md && test -f ros2_ws/src/bonbon_simulation/README.md
+      - name: Secret scan
+        run: |
+          ! grep -R --line-number --exclude-dir=.git --exclude=.env.example -E 'BONBON_JWT_SECRET=.+|BONBON_ADMIN_PASSWORD=.+' .
+
+  ros2-build-test:
+    runs-on: ubuntu-22.04
+    container: ros:humble-ros-base-jammy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Dependency install
+        run: |
+          apt-get update
+          apt-get install -y python3-pip python3-colcon-common-extensions python3-rosdep python3-pytest python3-yaml
+          pip3 install pytest PyYAML
+      - name: ROS2 dependency check with rosdep
+        run: |
+          rosdep update
+          rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble
+      - name: ROS2 build with colcon
+        run: |
+          . /opt/ros/humble/setup.sh
+          cd ros2_ws
+          colcon build --symlink-install --event-handlers console_direct+
+      - name: Unit tests
+        run: |
+          cd ros2_ws/src/bonbon_operator_api && python3 -m pytest tests/ -q
+          cd ../bonbon_data_stores && python3 -m pytest tests/ -q
+      - name: Integration tests
+        run: |
+          cd ros2_ws/src/bonbon_simulation && python3 -m pytest tests/ -q
+      - name: Safety tests
+        run: |
+          cd ros2_ws/src/bonbon_operator_api && python3 -m pytest tests/test_safety_gate.py tests/test_commands.py -q
+      - name: Simulation smoke test
+        run: |
+          cd ros2_ws/src/bonbon_simulation && python3 -m pytest tests/test_simulation_suite.py::test_ci_headless_run -q
+      - name: Artifact upload
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ros2-build-test-artifacts
+          path: |
+            ros2_ws/log
+            ros2_ws/src/bonbon_simulation/simulation_reports
+
+  docker-security:
+    runs-on: ubuntu-22.04
+    needs: [quality]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker image build
+        run: |
+          docker build -f deployment/docker/Dockerfile.dashboard -t bonbon/dashboard:${{ github.sha }} .
+      - name: Security scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: bonbon/dashboard:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+      - name: Docker artifact metadata
+        run: |
+          mkdir -p deployment/ota
+          docker image inspect bonbon/dashboard:${{ github.sha }} > deployment/ota/dashboard-image.json
+      - name: Upload Docker metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-metadata
+          path: deployment/ota/dashboard-image.json

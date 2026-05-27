@@ -1,0 +1,22 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = '\.py$'
+extend-exclude = '''
+/(build|install|log|\.venv|\.git)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["build", "install", "log", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+exclude = "(build|install|log|\\.venv)"

@@ -1,0 +1,17 @@
+name: dashboard_emergency_stop
+world: hotel_lobby
+environment: hotel lobby
+seed: 1015
+start: [0.0, 0.0]
+goal: [6.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: dashboard_estop
+    target: operator_api
+  - time_sec: 1.1
+    type: emergency_stop
+    target: estop
+criteria:
+  expect_dashboard_command: true
+  max_estop_reaction_ms: 300

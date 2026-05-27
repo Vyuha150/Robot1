@@ -1,0 +1,17 @@
+environment: staging_robot
+services:
+  core: required
+  navigation: required
+  perception: required
+  speech: required
+  tts: required
+  safety: required
+  dashboard: required
+  monitoring: required
+safety:
+  min_battery_pct: 50
+  require_estop: true
+  require_operator_authorization: true
+deployment:
+  require_signed_artifacts: true
+  require_rollback_version: true

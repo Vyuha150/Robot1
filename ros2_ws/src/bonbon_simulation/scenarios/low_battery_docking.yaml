@@ -1,0 +1,15 @@
+name: low_battery_docking
+world: charging_dock_area
+environment: charging dock area
+seed: 1006
+start: [0.0, 0.0]
+goal: [8.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: low_battery
+    target: battery
+    params: {percentage: 8.0}
+criteria:
+  dock_below_pct: 10.0
+  min_docking_success_rate: 0.95
