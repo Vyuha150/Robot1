@@ -206,10 +206,9 @@ class RAGRetriever:
         query: str,
         k: Optional[int]     = None,
         threshold: Optional[float] = None,
-    ) -> List[RAGDocument]:
-        """Return up to k documents above similarity threshold."""
-        results = self.retrieve_with_scores(query, k=k, threshold=threshold)
-        return [r.document for r in results]
+    ) -> List["RetrievalResult"]:
+        """Return up to k RetrievalResult objects above similarity threshold."""
+        return self.retrieve_with_scores(query, k=k, threshold=threshold)
 
     def retrieve_with_scores(
         self,
@@ -243,8 +242,22 @@ class RAGRetriever:
             for i, (d, s) in enumerate(scored[:top_k])
         ]
 
-    def build_context_string(self, results: List[RetrievalResult]) -> str:
-        """Format retrieved documents into a prompt-injectable string."""
+    def build_context_string(
+        self,
+        query_or_results,   # str | List[RetrievalResult]
+    ) -> str:
+        """
+        Format retrieved documents into a prompt-injectable string.
+
+        Accepts either:
+          - a query string (retrieval performed internally), or
+          - a pre-computed list of RetrievalResult objects.
+        """
+        if isinstance(query_or_results, str):
+            results = self.retrieve_with_scores(query_or_results)
+        else:
+            results = list(query_or_results)
+
         if not results:
             return ""
         parts = []

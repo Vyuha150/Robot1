@@ -7,10 +7,10 @@ Every LLM interaction is recorded with:
   - full prompt (truncated to 2048 chars for storage)
   - raw LLM output
   - final filtered/personalised response
-  - safety decision
+  - pipeline status (ok / safety_block / hallucination / low_confidence / llm_error)
   - hallucination flag
   - latency breakdown
-  - safety state snapshot at time of request
+  - list of tools called
 
 In-process store: a fixed-size deque (default 1 000 entries) so memory
 is bounded even in long deployments.  The ROS2 node additionally
@@ -34,36 +34,27 @@ _MAX_ENTRIES  = 1_000   # in-memory log ring size
 
 @dataclass
 class LogEntry:
-    log_id:              str
     response_id:         str
     intent_id:           str
     speaker_id:          str
     timestamp:           float
-
-    # Timing
-    llm_latency_ms:      float
-    rag_latency_ms:      float
-    total_latency_ms:    float
 
     # Content
     raw_prompt:          str
     raw_llm_output:      str
     final_response:      str
 
-    # Safety
-    safety_filter_result:str     # "SAFE" | "RISKY" | "BLOCKED"
-    safety_filter_reason:str
-    hallucination_flagged:bool
-    hallucination_reason: str
+    # Pipeline outcome
+    status:              str    # "ok" | "safety_block" | "hallucination" | "low_confidence" | "llm_error"
+    confidence:          float  # LLM self-reported confidence 0–1
+    hallucination_flagged: bool
 
-    # RAG
-    rag_doc_ids:         List[str] = field(default_factory=list)
-    rag_scores:          List[float] = field(default_factory=list)
+    # Timing
+    llm_latency_ms:      float
+    rag_latency_ms:      float
 
-    # Safety state snapshot
-    safety_state:        int   = 0
-    actuation_permitted: bool  = True
-    navigation_permitted:bool  = True
+    # Tools
+    tools_called:        List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -92,53 +83,58 @@ class ResponseLogger:
 
     def record(
         self,
-        response_id:          str,
         intent_id:            str,
         speaker_id:           str,
         raw_prompt:           str,
         raw_llm_output:       str,
         final_response:       str,
-        safety_filter_result: str,
-        safety_filter_reason: str,
-        hallucination_flagged:bool,
-        hallucination_reason: str,
-        llm_latency_ms:       float,
-        rag_latency_ms:       float,
-        total_latency_ms:     float,
-        rag_doc_ids:          Optional[List[str]] = None,
-        rag_scores:           Optional[List[float]] = None,
-        safety_state:         int   = 0,
-        actuation_permitted:  bool  = True,
-        navigation_permitted: bool  = True,
-    ) -> LogEntry:
+        status:               str   = "ok",
+        confidence:           float = 1.0,
+        llm_latency_ms:       float = 0.0,
+        rag_latency_ms:       float = 0.0,
+        tools_called:         Optional[List[str]] = None,
+        hallucination_flagged:bool  = False,
+    ) -> str:
+        """
+        Record an LLM interaction and return the auto-generated response_id.
+
+        Parameters
+        ----------
+        intent_id:            Identifier for the intent / request.
+        speaker_id:           Anonymous speaker identifier.
+        raw_prompt:           Original user utterance (truncated to 2048 chars).
+        raw_llm_output:       Raw LLM output before filtering.
+        final_response:       Final response sent to TTS.
+        status:               Pipeline outcome string.
+        confidence:           LLM self-reported confidence (0–1).
+        llm_latency_ms:       Time spent waiting for the LLM (ms).
+        rag_latency_ms:       Time spent on RAG retrieval (ms).
+        tools_called:         List of tool names invoked during this turn.
+        hallucination_flagged:True if the hallucination guard fired.
+        """
+        response_id = str(uuid.uuid4())
         entry = LogEntry(
-            log_id               = str(uuid.uuid4()),
             response_id          = response_id,
             intent_id            = intent_id,
             speaker_id           = speaker_id,
             timestamp            = time.time(),
-            llm_latency_ms       = llm_latency_ms,
-            rag_latency_ms       = rag_latency_ms,
-            total_latency_ms     = total_latency_ms,
             raw_prompt           = raw_prompt[:_MAX_TEXT_LEN],
             raw_llm_output       = raw_llm_output[:_MAX_TEXT_LEN],
             final_response       = final_response[:_MAX_TEXT_LEN],
-            safety_filter_result = safety_filter_result,
-            safety_filter_reason = safety_filter_reason,
+            status               = status,
+            confidence           = confidence,
             hallucination_flagged= hallucination_flagged,
-            hallucination_reason = hallucination_reason,
-            rag_doc_ids          = rag_doc_ids or [],
-            rag_scores           = rag_scores or [],
-            safety_state         = safety_state,
-            actuation_permitted  = actuation_permitted,
-            navigation_permitted = navigation_permitted,
+            llm_latency_ms       = llm_latency_ms,
+            rag_latency_ms       = rag_latency_ms,
+            tools_called         = list(tools_called) if tools_called else [],
         )
         self._log.append(entry)
-        logger.debug("LLM log [%s] safety=%s hallucination=%s latency=%.1fms",
-                     entry.log_id[:8], safety_filter_result,
-                     hallucination_flagged, total_latency_ms)
+        logger.debug(
+            "LLM log [%s] status=%s hallucination=%s latency=%.1fms",
+            response_id[:8], status, hallucination_flagged, llm_latency_ms,
+        )
         self._publish_ros(entry)
-        return entry
+        return response_id
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
@@ -152,6 +148,10 @@ class ResponseLogger:
                 return entry
         return None
 
+    def clear_log(self) -> None:
+        """Empty the in-memory log (does not affect ROS2 sink)."""
+        self._log.clear()
+
     @property
     def entry_count(self) -> int:
         return len(self._log)
@@ -163,28 +163,19 @@ class ResponseLogger:
             return
         try:
             from bonbon_msgs.msg import LLMLog  # type: ignore
-            from std_msgs.msg import Header      # type: ignore
-            import rclpy.time                    # type: ignore
             msg = LLMLog()
-            msg.log_id              = entry.log_id
             msg.response_id         = entry.response_id
             msg.intent_id           = entry.intent_id
             msg.speaker_id          = entry.speaker_id
-            msg.llm_latency_ms      = float(entry.llm_latency_ms)
-            msg.rag_latency_ms      = float(entry.rag_latency_ms)
-            msg.total_latency_ms    = float(entry.total_latency_ms)
             msg.raw_prompt          = entry.raw_prompt
             msg.raw_llm_output      = entry.raw_llm_output
             msg.final_response      = entry.final_response
-            msg.safety_filter_result= entry.safety_filter_result
-            msg.safety_filter_reason= entry.safety_filter_reason
-            msg.hallucination_flagged=entry.hallucination_flagged
-            msg.hallucination_reason= entry.hallucination_reason
-            msg.rag_doc_ids         = list(entry.rag_doc_ids)
-            msg.rag_scores          = [float(s) for s in entry.rag_scores]
-            msg.safety_state        = entry.safety_state
-            msg.actuation_permitted = entry.actuation_permitted
-            msg.navigation_permitted= entry.navigation_permitted
+            msg.status              = entry.status
+            msg.confidence          = float(entry.confidence)
+            msg.llm_latency_ms      = float(entry.llm_latency_ms)
+            msg.rag_latency_ms      = float(entry.rag_latency_ms)
+            msg.hallucination_flagged = entry.hallucination_flagged
+            msg.tools_called        = list(entry.tools_called)
             self._ros_publisher.publish(msg)
         except Exception as exc:
             logger.debug("LLMLog publish error (non-fatal): %s", exc)

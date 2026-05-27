@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 # Enable test mode so config works without BONBON_JWT_SECRET
 os.environ.setdefault("BONBON_TEST_MODE", "1")
+os.environ.setdefault("BONBON_ADMIN_PASSWORD", "BonBon@dmin2025!")
 
 
 # ---------------------------------------------------------------------------

@@ -16,7 +16,12 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 class CORSConfig(BaseModel):
     allowed_origins: List[str] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://localhost:8080"]
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:8080",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:8080",
+        ]
     )
     allow_credentials: bool = True
     allowed_methods: List[str] = Field(default_factory=lambda: ["*"])

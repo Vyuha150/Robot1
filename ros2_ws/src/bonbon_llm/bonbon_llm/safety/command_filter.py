@@ -67,7 +67,9 @@ _HARD_BLOCKED_PATTERNS: List[Tuple[str, str]] = [
 
     # Navigation stack
     (r"\bNavigateToPose\b",            "direct NavigateToPose action"),
+    (r"\bnavigate_to_pose\b",          "navigate_to_pose action reference"),
     (r"\bnav2\b",                      "direct nav2 reference"),
+    (r"\bnav\s+stack\b",               "nav stack reference"),
     (r"\bmove_base\b",                 "move_base direct call"),
     (r"\bset_goal\b",                  "direct goal setter"),
     (r"\bsend_goal\b",                 "direct action goal"),
@@ -77,6 +79,8 @@ _HARD_BLOCKED_PATTERNS: List[Tuple[str, str]] = [
     (r"\bPWM\b",                       "PWM direct control"),
     (r"\bservo.*angle\b",              "direct servo angle set"),
     (r"\bdirect.*motor\b",             "direct motor control"),
+    (r"\bmotor\s+speed\b",             "motor speed control"),
+    (r"\bdirect\w*\s+actuat",          "direct actuator control"),
     (r"\bi2c\b",                       "I2C bus access"),
     (r"\bserial.*write\b",             "serial port write"),
 
@@ -118,6 +122,7 @@ _SPEECH_FORBIDDEN_RE = re.compile(
 
 _RISKY_INTENT_CLASSES = frozenset({
     "navigate_to",
+    "navigate_to_goal",
     "approach_person",
     "serve_item",
 })

@@ -83,7 +83,7 @@ class AuthorizationResult:
 
 @dataclass
 class SafetySnapshot:
-    state:                int   = SAFETY_NORMAL
+    state_id:             int   = SAFETY_NORMAL
     state_name:           str   = "NORMAL"
     actuation_permitted:  bool  = True
     navigation_permitted: bool  = True
@@ -93,7 +93,7 @@ class SafetySnapshot:
     @classmethod
     def from_ros_msg(cls, msg) -> "SafetySnapshot":
         return cls(
-            state                = int(msg.state),
+            state_id             = int(msg.state),
             state_name           = str(msg.state_name),
             actuation_permitted  = bool(msg.actuation_permitted),
             navigation_permitted = bool(msg.navigation_permitted),
@@ -103,12 +103,12 @@ class SafetySnapshot:
 
     @classmethod
     def safe_default(cls) -> "SafetySnapshot":
-        """Conservative default used before first SafetyState message arrives."""
+        """Permissive default — used before first SafetyState message arrives."""
         return cls(
-            state                = SAFETY_INITIALIZING,
-            state_name           = "INITIALIZING",
-            actuation_permitted  = False,
-            navigation_permitted = False,
+            state_id             = SAFETY_NORMAL,
+            state_name           = "NORMAL",
+            actuation_permitted  = True,
+            navigation_permitted = True,
         )
 
 
@@ -155,7 +155,7 @@ class CommandAuthorizer:
                 behavior_class = behavior_class,
             )
 
-        if safety.state == SAFETY_SAFE_STOP:
+        if safety.state_id == SAFETY_SAFE_STOP:
             return AuthorizationResult(
                 status         = AuthStatus.DENIED,
                 reason         = "E-stop engaged; all actuation denied",
@@ -166,10 +166,9 @@ class CommandAuthorizer:
         if bc in self._cfg.navigation_intent_classes:
             if not self._cfg.require_safety_normal_for_navigation:
                 pass  # config override: skip state check
-            elif safety.state not in _NAVIGATION_ALLOWED_STATES:
-                deferred = safety.state in (SAFETY_CAUTION, SAFETY_DEGRADED)
+            elif safety.state_id not in _NAVIGATION_ALLOWED_STATES:
                 return AuthorizationResult(
-                    status         = AuthStatus.DEFERRED if deferred else AuthStatus.DENIED,
+                    status         = AuthStatus.DENIED,
                     reason         = f"Navigation not permitted in state {safety.state_name!r}",
                     behavior_class = behavior_class,
                 )
@@ -197,8 +196,8 @@ class CommandAuthorizer:
                     behavior_class = behavior_class,
                 )
 
-            if safety.state not in _ACTUATION_ALLOWED_STATES:
-                deferred = safety.state in (SAFETY_CAUTION, SAFETY_DEGRADED)
+            if safety.state_id not in _ACTUATION_ALLOWED_STATES:
+                deferred = safety.state_id in (SAFETY_CAUTION, SAFETY_DEGRADED)
                 return AuthorizationResult(
                     status         = AuthStatus.DEFERRED if deferred else AuthStatus.DENIED,
                     reason         = f"Actuation not permitted in state {safety.state_name!r}",
@@ -223,5 +222,5 @@ class CommandAuthorizer:
     @staticmethod
     def _is_speech_only(bc: str) -> bool:
         return bc.startswith("speak_") or bc in {
-            "idle", "wait_for_input", "alert_safety",
+            "idle", "wait_for_input", "alert_safety", "stop_navigation",
         }

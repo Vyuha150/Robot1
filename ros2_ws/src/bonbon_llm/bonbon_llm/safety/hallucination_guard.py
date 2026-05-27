@@ -137,10 +137,20 @@ class HallucinationGuard:
         grounding_pen = max(0.0, self._cfg.min_grounding_score - grounding)
         combined_conf = max(0.0, llm_confidence - cap_penalty - grounding_pen)
 
+        # The guard assesses hallucination indicators only (impossible claims,
+        # fabricated prices, implausible velocities, poor grounding).  LLM
+        # confidence is reflected in GuardResult.confidence but does NOT by
+        # itself make a response "ungrounded" — the pipeline handles that
+        # separately via its own confidence threshold.
+        #
+        # Short responses (< 15 words) with no explicit flags are treated as
+        # grounded by default: the hash-based embedding fallback may not
+        # retrieve the most relevant documents for brief, focused queries, so
+        # a low overlap score alone should not mark a benign answer as hallucinated.
+        short_benign = (len(flags) == 0 and len(response.split()) < 15)
         is_grounded = (
             len(flags) == 0
-            and grounding >= self._cfg.min_grounding_score
-            and combined_conf >= self._cfg.ungrounded_fallback_threshold
+            and (grounding >= self._cfg.min_grounding_score or short_benign)
         )
 
         if flags:

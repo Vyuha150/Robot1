@@ -267,6 +267,9 @@ class SafetyStateMachine:
         self._history: List[StateTransition] = []
         self._max_history = 100
 
+        # Startup sequence flag — set by mark_startup_complete(), consumed by update()
+        self._startup_complete_pending: bool = False
+
         # Transition callbacks (set by supervisor node)
         self._on_transition: List[Callable[[StateTransition], None]] = []
 
@@ -292,6 +295,11 @@ class SafetyStateMachine:
     @property
     def time_in_state_sec(self) -> float:
         return time.monotonic() - self._state_entry_time
+
+    @property
+    def history(self) -> List[StateTransition]:
+        """Return a copy of the recent state transition history (newest last)."""
+        return list(self._history)
 
     @property
     def degraded_modules(self) -> FrozenSet[str]:
@@ -340,15 +348,19 @@ class SafetyStateMachine:
             SafetyLevel.INITIALIZING, f"Manual reset by operator '{operator_id}'"
         )
 
-    def mark_startup_complete(self) -> Optional[StateTransition]:
+    def mark_startup_complete(self) -> None:
         """
         Called by supervisor after all critical sensors have confirmed online.
-        Transitions INITIALIZING → NORMAL.
+
+        Sets an internal flag so that the INITIALIZING → NORMAL transition
+        fires on the next ``update()`` call.  This ensures the caller always
+        receives the transition via ``update()`` rather than via this method,
+        keeping the single-source-of-truth invariant for transition records.
         """
         if self._state != SafetyLevel.INITIALIZING:
-            return None
-        logger.info("Startup complete — transitioning to NORMAL")
-        return self._transition(SafetyLevel.NORMAL, "All critical sensors confirmed online")
+            return
+        logger.info("Startup complete — NORMAL transition pending next update()")
+        self._startup_complete_pending = True
 
     def mark_startup_failed(self, reason: str) -> StateTransition:
         """
@@ -388,11 +400,12 @@ class SafetyStateMachine:
 
         # ── 1. Hardware e-stop is unconditional ───────────────────────────────
         if snapshot.estop_hardware and current != SafetyLevel.SAFE_STOP:
-            return self._state, self._transition(
+            tx = self._transition(
                 SafetyLevel.SAFE_STOP,
                 "Hardware emergency stop button pressed",
                 snapshot,
             )
+            return self._state, tx
 
         # ── 2. States that block further evaluation ───────────────────────────
         if current in (SafetyLevel.SAFE_STOP, SafetyLevel.FAULT):
@@ -400,57 +413,84 @@ class SafetyStateMachine:
             return current, None
 
         if current == SafetyLevel.INITIALIZING:
-            # Startup sequence is driven by mark_startup_complete / mark_startup_failed
+            # Startup sequence: mark_startup_complete() sets the pending flag;
+            # the actual transition fires here so all transitions come from update().
+            if self._startup_complete_pending:
+                self._startup_complete_pending = False
+                tx = self._transition(
+                    SafetyLevel.NORMAL,
+                    "All critical sensors confirmed online",
+                    snapshot,
+                )
+                return self._state, tx
             return current, None
 
         # ── 3. Docking state: only exit on docking_complete() ─────────────────
         if current == SafetyLevel.DOCKING:
             # But e-stop and critical faults can still interrupt
             if self._is_fault_condition(snapshot):
-                return self._state, self._transition(
+                tx = self._transition(
                     SafetyLevel.FAULT,
                     self._fault_reason(snapshot),
                     snapshot,
                 )
+                return self._state, tx
             if self._is_danger_condition(snapshot):
-                return self._state, self._transition(
+                tx = self._transition(
                     SafetyLevel.DANGER,
                     self._danger_reason(snapshot),
                     snapshot,
                 )
+                return self._state, tx
             return current, None
 
         # ── 4. Critical fault conditions (from any non-terminal state) ────────
         if self._is_fault_condition(snapshot):
             self._clear_cycles = 0
-            return self._state, self._transition(
+            tx = self._transition(
                 SafetyLevel.FAULT,
                 self._fault_reason(snapshot),
                 snapshot,
             )
+            return self._state, tx
 
-        # ── 5. Battery → force docking ────────────────────────────────────────
+        # ── 5. Hardware degraded conditions (before DANGER/CAUTION priority) ─────
+        if self._is_degraded_condition(snapshot):
+            if current in (SafetyLevel.NORMAL, SafetyLevel.CAUTION):
+                tx = self._transition(
+                    SafetyLevel.DEGRADED,
+                    self._degraded_reason(snapshot),
+                    snapshot,
+                )
+                return self._state, tx
+            if current == SafetyLevel.DEGRADED:
+                return current, None
+            # DANGER or higher: fall through — more restrictive state wins
+
+        # ── 6. Battery → force docking ────────────────────────────────────────
         if (
             snapshot.battery_percent >= 0
             and snapshot.battery_percent <= self.battery_dock_pct
             and current != SafetyLevel.DOCKING
         ):
             self._clear_cycles = 0
-            return self._state, self._transition(
+            tx = self._transition(
                 SafetyLevel.DOCKING,
                 f"Battery critically low ({snapshot.battery_percent:.0f}%)",
                 snapshot,
             )
+            return self._state, tx
 
         # ── 6. DANGER conditions ──────────────────────────────────────────────
         if self._is_danger_condition(snapshot):
             self._clear_cycles = 0
             if current != SafetyLevel.DANGER:
-                return self._state, self._transition(
+                tx = self._transition(
                     SafetyLevel.DANGER,
                     self._danger_reason(snapshot),
                     snapshot,
                 )
+                return self._state, tx
             return current, None  # already in DANGER
 
         # ── 7. CAUTION conditions ─────────────────────────────────────────────
@@ -458,17 +498,19 @@ class SafetyStateMachine:
             self._clear_cycles = 0
             if current == SafetyLevel.DANGER:
                 # Danger clearing through caution on the way to normal
-                return self._state, self._transition(
+                tx = self._transition(
                     SafetyLevel.CAUTION,
                     self._caution_reason(snapshot),
                     snapshot,
                 )
+                return self._state, tx
             if current in (SafetyLevel.NORMAL, SafetyLevel.DEGRADED):
-                return self._state, self._transition(
+                tx = self._transition(
                     SafetyLevel.CAUTION,
                     self._caution_reason(snapshot),
                     snapshot,
                 )
+                return self._state, tx
             return current, None  # already in CAUTION or more restrictive
 
         # ── 8. All-clear hysteresis ───────────────────────────────────────────
@@ -482,20 +524,22 @@ class SafetyStateMachine:
                     if self._any_caution_condition(snapshot)
                     else SafetyLevel.NORMAL
                 )
-                return self._state, self._transition(
+                tx = self._transition(
                     target,
                     f"Danger condition cleared for {self._hysteresis_danger} cycles",
                     snapshot,
                 )
+                return self._state, tx
 
         elif current == SafetyLevel.CAUTION:
             if self._clear_cycles >= self._hysteresis_caution:
                 self._clear_cycles = 0
-                return self._state, self._transition(
+                tx = self._transition(
                     SafetyLevel.NORMAL,
                     f"Caution condition cleared for {self._hysteresis_caution} cycles",
                     snapshot,
                 )
+                return self._state, tx
 
         return current, None
 
@@ -548,6 +592,18 @@ class SafetyStateMachine:
             return "IMU drift detected — localization unreliable"
         return "Danger condition"
 
+    def _is_degraded_condition(self, s: SensorSnapshot) -> bool:
+        """Conditions that indicate hardware degradation but not immediate danger.
+        These trigger DEGRADED state (not CAUTION) so the distinction is visible."""
+        return s.servo_fault or s.odrive_fault
+
+    def _degraded_reason(self, s: SensorSnapshot) -> str:
+        if s.servo_fault:
+            return "Servo fault detected"
+        if s.odrive_fault:
+            return "Wheel motor fault detected"
+        return "Hardware degradation detected"
+
     def _is_caution_condition(self, s: SensorSnapshot) -> bool:
         """Conditions that require speed reduction."""
         human_caution = (
@@ -559,8 +615,7 @@ class SafetyStateMachine:
             s.lidar_stale and not self.lidar_stale_danger,
             s.camera_stale,
             s.imu_stale,
-            s.servo_fault,
-            s.odrive_fault,
+            # Note: servo_fault / odrive_fault → DEGRADED (not CAUTION)
             s.important_node_crashed,
             0 <= s.battery_percent <= self.battery_caution_pct,
             s.cpu_temp_c >= self.cpu_temp_caution_c,
@@ -577,10 +632,6 @@ class SafetyStateMachine:
             return "Camera offline — reduced speed mode"
         if s.imu_stale:
             return "IMU data stale — reduced speed mode"
-        if s.servo_fault:
-            return "Servo fault detected"
-        if s.odrive_fault:
-            return "Wheel motor fault detected"
         if s.important_node_crashed:
             return "Important navigation/perception node crashed"
         if 0 <= s.battery_percent <= self.battery_caution_pct:

@@ -340,7 +340,7 @@ class ToolRegistry:
         if not results:
             return ToolResult("get_menu_info", True, f"No information found for {item!r}")
 
-        snippets = "\n".join(r.text for r in results[:2])
+        snippets = "\n".join(r.document.text for r in results[:2])
         return ToolResult("get_menu_info", True, snippets)
 
     def _handle_scene(self, _: Dict[str, Any]) -> ToolResult:

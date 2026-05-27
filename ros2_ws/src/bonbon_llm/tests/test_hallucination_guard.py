@@ -32,7 +32,7 @@ def _guard(enabled: bool = True, min_grounding: float = 0.30) -> HallucinationGu
 
 def _rag(text: str, score: float = 0.80) -> RetrievalResult:
     doc = RAGDocument(text=text, doc_id="test_doc", metadata={"source": "test"})
-    return RetrievalResult(document=doc, score=score)
+    return RetrievalResult(document=doc, score=score, rank=0)
 
 
 # ── Impossible capability detection ───────────────────────────────────────────

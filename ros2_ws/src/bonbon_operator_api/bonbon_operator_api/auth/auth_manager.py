@@ -133,7 +133,15 @@ class AuthManager:
         with self._get_conn() as conn:
             row = conn.execute("SELECT COUNT(*) FROM users;").fetchone()
             if row[0] == 0:
-                pw = os.environ.get(_DEFAULT_ADMIN_PASSWORD_ENV, "BonBon@dmin2025!")
+                pw = os.environ.get(_DEFAULT_ADMIN_PASSWORD_ENV, "")
+                if not pw:
+                    if os.environ.get("BONBON_TEST_MODE", "0") == "1":
+                        pw = "BonBon-test-admin-only!"
+                    else:
+                        raise ValueError(
+                            f"{_DEFAULT_ADMIN_PASSWORD_ENV} must be set before "
+                            "the first operator API startup."
+                        )
                 self.create_user(UserCreate(
                     username=_DEFAULT_ADMIN_USERNAME,
                     password=pw,
@@ -141,7 +149,7 @@ class AuthManager:
                 ))
                 logger.warning(
                     "Default admin account created. "
-                    "Set %s env var to override the default password.",
+                    "Password came from %s.",
                     _DEFAULT_ADMIN_PASSWORD_ENV,
                 )
 

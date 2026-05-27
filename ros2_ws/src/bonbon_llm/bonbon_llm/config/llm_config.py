@@ -71,7 +71,7 @@ class SafetyFilterConfig:
         "cmd_vel", "geometry_msgs", "Twist", "publish.*velocity",
         "NavigateToPose", "nav2", "move_base", "set_goal",
         "GPIO", "servo.*angle", "direct.*motor", "PWM",
-        "os.system", "subprocess", "eval(", "exec(",
+        r"os\.system", "subprocess", r"eval\(", r"exec\(",
     ])
 
     # Commands requiring SafetyState.actuation_permitted before dispatch.
@@ -138,7 +138,7 @@ class AuthorizationConfig:
     authorization_timeout_sec: float             = 5.0
     # intent classes that need confirmed Safety NORMAL before dispatch
     navigation_intent_classes: List[str] = field(default_factory=lambda: [
-        "navigate_to", "approach_person",
+        "navigate_to", "navigate_to_goal", "approach_person",
     ])
     actuation_intent_classes: List[str] = field(default_factory=lambda: [
         "serve_item",

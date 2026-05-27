@@ -37,6 +37,17 @@ class ThreatAssessorConfig:
     person_max_age_sec: float = 1.0     # Perception fusion tracks up to 1s after last detection
     imu_drift_threshold_rads: float = 0.1  # rad/s angular drift
 
+    def __post_init__(self) -> None:
+        for field_name in (
+            "lidar_max_age_sec", "imu_max_age_sec", "camera_max_age_sec",
+            "battery_max_age_sec", "servo_max_age_sec", "person_max_age_sec",
+        ):
+            val = getattr(self, field_name)
+            if val < 0:
+                raise ValueError(
+                    f"ThreatAssessorConfig.{field_name} must be >= 0, got {val}"
+                )
+
 
 class ThreatAssessor:
     """
@@ -84,7 +95,12 @@ class ThreatAssessor:
     # ── Update methods (called from ROS2 subscriber callbacks) ───────────────
 
     def update_lidar_scan(
-        self, nearest_obstacle_m: float, *, has_cliff_left: bool = False, has_cliff_right: bool = False
+        self,
+        nearest_obstacle_m: float,
+        *,
+        has_cliff_left: bool = False,
+        has_cliff_right: bool = False,
+        timestamp: Optional[float] = None,
     ) -> None:
         """
         Called when a new LaserScan message arrives.
@@ -94,41 +110,85 @@ class ThreatAssessor:
         nearest_obstacle_m:
             Minimum range in the scan (already filtered for noise/glass).
             Pass -1.0 if the scan data is invalid.
+        timestamp:
+            Optional ROS2 message timestamp (seconds).  If not provided,
+            the current monotonic time is used.
         """
         self._nearest_obstacle_m = nearest_obstacle_m
         self._cliff_left = has_cliff_left
         self._cliff_right = has_cliff_right
-        self._t_lidar = time.monotonic()
+        self._t_lidar = timestamp if timestamp is not None else time.monotonic()
 
-    def update_imu(self, angular_velocity_norm_rads: float) -> None:
+    def update_imu(
+        self,
+        angular_velocity_norm_rads: float = 0.0,
+        *,
+        angular_velocity_z: Optional[float] = None,
+        linear_accel_x: float = 0.0,
+        linear_accel_y: float = 0.0,
+        linear_accel_z: float = 9.81,
+        timestamp: Optional[float] = None,
+    ) -> None:
         """
         Called when a new Imu message arrives.
+
+        Accepts either the pre-computed angular velocity norm or individual
+        axis values (angular_velocity_z is used as the primary signal when
+        provided; full 3-axis norm can be computed by callers if needed).
 
         Parameters
         ----------
         angular_velocity_norm_rads:
-            |omega| in rad/s.  The assessor compares this against the drift
-            threshold to detect runaway gyro readings.
+            |omega| in rad/s (positional, legacy parameter).
+        angular_velocity_z:
+            Z-axis angular velocity in rad/s (yaw rate).  When provided,
+            it is used as the norm estimate for drift detection.
+        linear_accel_*:
+            Linear acceleration components (currently stored for future use).
+        timestamp:
+            Optional source timestamp; defaults to monotonic time.
         """
-        self._imu_angular_velocity_norm = angular_velocity_norm_rads
-        self._t_imu = time.monotonic()
+        if angular_velocity_z is not None:
+            self._imu_angular_velocity_norm = abs(angular_velocity_z)
+        else:
+            self._imu_angular_velocity_norm = angular_velocity_norm_rads
+        self._t_imu = timestamp if timestamp is not None else time.monotonic()
 
     def update_camera(self) -> None:
         """Called when any camera frame is successfully processed."""
         self._t_camera = time.monotonic()
 
-    def update_persons(self, nearest_human_m: float) -> None:
+    def update_persons(
+        self,
+        persons,
+        *,
+        timestamp: Optional[float] = None,
+    ) -> None:
         """
-        Called by perception fusion with the closest tracked person distance.
+        Called by perception fusion with tracked person data.
 
         Parameters
         ----------
-        nearest_human_m:
-            Distance to the closest confirmed human.  Pass -1.0 if no persons
-            are currently tracked.
+        persons:
+            Either a float (nearest_human_m legacy value), or a list of
+            dicts with ``track_id`` and ``distance_m`` keys.
+            Pass an empty list (or -1.0) when no persons are tracked.
+        timestamp:
+            Optional source timestamp; defaults to monotonic time.
         """
-        self._nearest_human_m = nearest_human_m
-        self._t_person = time.monotonic()
+        if isinstance(persons, (int, float)):
+            # Legacy float interface: nearest_human_m directly
+            self._nearest_human_m = float(persons)
+        elif isinstance(persons, list):
+            if persons:
+                self._nearest_human_m = min(
+                    float(p.get("distance_m", -1.0)) for p in persons
+                )
+            else:
+                self._nearest_human_m = -1.0
+        else:
+            self._nearest_human_m = -1.0
+        self._t_person = timestamp if timestamp is not None else time.monotonic()
 
     def update_bumpers(self, front: bool, rear: bool) -> None:
         self._bumper_front = front
@@ -138,11 +198,41 @@ class ThreatAssessor:
         self._cliff_left = left
         self._cliff_right = right
 
-    def update_battery(self, percent: float) -> None:
+    def update_battery(
+        self,
+        percent: float,
+        *,
+        voltage_v: float = 0.0,
+        current_a: float = 0.0,
+    ) -> None:
+        """
+        Update battery state.
+
+        Parameters
+        ----------
+        percent:    State-of-charge percentage 0–100.
+        voltage_v:  Pack voltage (stored for future diagnostics; not currently used).
+        current_a:  Pack current in amps (negative = discharging).
+        """
         self._battery_percent = max(0.0, min(100.0, percent))
         self._t_battery = time.monotonic()
 
-    def update_temperature(self, cpu_temp_c: float, motor_temp_c: float) -> None:
+    def update_temperature(
+        self,
+        cpu_temp_c: float,
+        motor_temp_c: float,
+        *,
+        battery_temp_c: float = 25.0,
+    ) -> None:
+        """
+        Update temperature readings.
+
+        Parameters
+        ----------
+        cpu_temp_c:     SoC CPU temperature in °C.
+        motor_temp_c:   Highest drive-motor winding temperature in °C.
+        battery_temp_c: Battery pack temperature (stored for future diagnostics).
+        """
         self._cpu_temp_c = cpu_temp_c
         self._motor_temp_c = motor_temp_c
 

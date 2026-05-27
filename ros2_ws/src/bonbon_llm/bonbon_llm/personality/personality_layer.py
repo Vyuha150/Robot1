@@ -126,7 +126,7 @@ class PersonalityLayer:
 
     def _tts_format(self, text: str) -> str:
         # Expand S$ to Singapore dollars
-        text = re.sub(r"S\$\s*(\d)", r"S\$\1", text)      # normalise spacing
+        text = re.sub(r"S\$\s*(\d)", r"S$\1", text)       # normalise spacing
         text = re.sub(r"S\$(\d+\.?\d*)", r"\1 Singapore dollars", text)
         # Expand common abbreviations
         text = re.sub(r"\bm/s\b", "metres per second", text, flags=re.I)
