@@ -1,0 +1,16 @@
+[Unit]
+Description=BonBon Navigation Runtime
+After=bonbon-safety.service bonbon-core.service
+Requires=bonbon-safety.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.robot.yml up -d navigation
+ExecStop=/usr/bin/docker compose -f docker-compose.robot.yml stop navigation
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

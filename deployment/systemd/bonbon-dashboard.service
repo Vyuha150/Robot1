@@ -1,0 +1,15 @@
+[Unit]
+Description=BonBon Dashboard API
+After=bonbon-core.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.robot.yml up -d dashboard-api
+ExecStop=/usr/bin/docker compose -f docker-compose.robot.yml stop dashboard-api
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+{
+  "uid": "bonbon-logs-errors",
+  "title": "BonBon Logs and Errors",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["bonbon", "logs"],
+  "panels": [
+    {"type": "stat", "title": "Critical Errors", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "increase(bonbon_critical_errors_total[1h])"}]},
+    {"type": "stat", "title": "Module Availability", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "avg(bonbon_module_available)"}]},
+    {"type": "logs", "title": "Recent Errors", "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8}, "targets": [{"expr": "{app=\"bonbon\"} |= \"ERROR\""}]}
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "uid": "bonbon-safety-status",
+  "title": "BonBon Safety Status",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["bonbon", "safety"],
+  "panels": [
+    {"type": "stat", "title": "Emergency Stop Events", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "increase(bonbon_emergency_stop_events_total[1h])"}]},
+    {"type": "stat", "title": "Safety Events", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "targets": [{"expr": "increase(bonbon_safety_events_total[1h])"}]},
+    {"type": "timeseries", "title": "Safety State", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "targets": [{"expr": "bonbon_safety_state"}]},
+    {"type": "timeseries", "title": "Actuation Errors", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "targets": [{"expr": "increase(bonbon_actuation_errors_total[5m])"}]}
+  ]
+}

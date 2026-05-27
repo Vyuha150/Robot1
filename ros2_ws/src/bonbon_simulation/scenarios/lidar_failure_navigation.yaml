@@ -1,0 +1,13 @@
+name: lidar_failure_navigation
+world: mall_walkway
+environment: mall walkway
+seed: 1008
+start: [0.0, 0.0]
+goal: [10.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 2.0
+    type: sensor_failure
+    target: lidar
+criteria:
+  max_collisions: 0

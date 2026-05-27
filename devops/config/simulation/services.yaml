@@ -1,0 +1,10 @@
+environment: simulation
+services:
+  simulation: required
+  safety: required
+  dashboard: optional
+  monitoring: required
+safety:
+  min_battery_pct: 20
+  require_estop: true
+  require_operator_authorization: false

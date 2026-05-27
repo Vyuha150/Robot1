@@ -1,0 +1,13 @@
+name: noisy_speech_navigation
+world: mall_walkway
+environment: mall walkway
+seed: 1013
+start: [0.0, 0.0]
+goal: [6.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: speech_noise
+    target: microphone
+criteria:
+  max_collisions: 0

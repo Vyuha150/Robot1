@@ -1,0 +1,31 @@
+random_seed: 4242
+time_step_sec: 0.1
+accelerated_endurance: true
+report_dir: simulation_reports
+artifact_dir: simulation_artifacts
+robot:
+  length_m: 0.72
+  width_m: 0.48
+  height_m: 1.15
+  footprint_radius_m: 0.36
+  wheel_radius_m: 0.075
+  wheel_separation_m: 0.42
+sensors:
+  lidar_topic: /scan
+  imu_topic: /imu/data
+  rgb_topic: /camera/color/image_raw
+  depth_topic: /camera/depth/image_raw
+  mic_event_topic: /bonbon/speech/mic_event
+  battery_topic: /bonbon/battery/state
+  estop_topic: /bonbon/estop/state
+  servo_topic: /bonbon/servo/state
+  publish_timeout_sec: 0.8
+targets:
+  max_collisions: 0
+  max_estop_reaction_ms: 300.0
+  max_lidar_failure_detection_ms: 1000.0
+  max_replanning_latency_ms: 1000.0
+  max_blocked_path_recovery_sec: 10.0
+  min_docking_success_rate: 0.95
+  min_navigation_success_rate: 0.95
+  min_repeatability: 0.99

@@ -24,6 +24,15 @@ install/
 build/
 log/
 
+# Deployment/runtime artefacts
+deployment/logs/
+deployment/ota/release_metadata.env
+deployment/ota/*.tar.gz
+deployment/ota/*.sha256
+deployment/ota/*.sig
+simulation_reports/
+simulation_artifacts/
+
 # Editor / OS
 .vscode/
 .idea/

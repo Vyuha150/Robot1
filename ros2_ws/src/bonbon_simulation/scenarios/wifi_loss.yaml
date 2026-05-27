@@ -1,0 +1,13 @@
+name: wifi_loss
+world: hotel_lobby
+environment: hotel lobby
+seed: 1019
+start: [0.0, 0.0]
+goal: [5.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: wifi_loss
+    target: operator_api
+criteria:
+  max_collisions: 0

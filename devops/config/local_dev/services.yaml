@@ -1,0 +1,14 @@
+environment: local_dev
+services:
+  core: optional
+  navigation: optional
+  perception: optional
+  speech: optional
+  tts: optional
+  safety: required
+  dashboard: required
+  monitoring: optional
+safety:
+  min_battery_pct: 20
+  require_estop: false
+  require_operator_authorization: false
