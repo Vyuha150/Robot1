@@ -1,0 +1,14 @@
+name: unreachable_goal_recovery
+world: office_hallway
+environment: office hallway
+seed: 1005
+start: [0.0, 0.0]
+goal: [9.0, 0.0]
+duration_sec: 40
+events:
+  - time_sec: 3.0
+    type: map_mismatch
+    target: nav2
+criteria:
+  expect_unreachable_recovery: true
+  max_replanning_latency_ms: 1000

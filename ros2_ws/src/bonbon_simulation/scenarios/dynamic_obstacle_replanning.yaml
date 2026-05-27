@@ -1,0 +1,14 @@
+name: dynamic_obstacle_replanning
+world: crowded_waiting_area
+environment: crowded waiting area
+seed: 1012
+start: [0.0, 0.0]
+goal: [7.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 2.0
+    type: dynamic_obstacle
+    target: moving_cart
+    params: {name: moving_cart, kind: moving_cart, x: 2.0, y: 0.6, vy: -0.3, radius_m: 0.45, detection_latency_ms: 200}
+criteria:
+  max_replanning_latency_ms: 1000

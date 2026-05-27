@@ -1,0 +1,13 @@
+{
+  "uid": "bonbon-ai-inference",
+  "title": "BonBon AI Inference Performance",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["bonbon", "ai"],
+  "panels": [
+    {"type": "timeseries", "title": "TTS Latency", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 8}, "targets": [{"expr": "histogram_quantile(0.95, rate(bonbon_tts_latency_seconds_bucket[5m]))"}]},
+    {"type": "timeseries", "title": "STT Latency", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 8}, "targets": [{"expr": "histogram_quantile(0.95, rate(bonbon_stt_latency_seconds_bucket[5m]))"}]},
+    {"type": "timeseries", "title": "Perception Latency", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8}, "targets": [{"expr": "histogram_quantile(0.95, rate(bonbon_perception_latency_seconds_bucket[5m]))"}]},
+    {"type": "timeseries", "title": "LLM Latency", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8}, "targets": [{"expr": "histogram_quantile(0.95, rate(bonbon_llm_latency_seconds_bucket[5m]))"}]}
+  ]
+}

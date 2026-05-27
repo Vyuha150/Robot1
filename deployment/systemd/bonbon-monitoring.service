@@ -1,0 +1,16 @@
+[Unit]
+Description=BonBon Monitoring Stack
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.robot.yml up -d monitoring
+ExecStop=/usr/bin/docker compose -f docker-compose.robot.yml stop monitoring
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

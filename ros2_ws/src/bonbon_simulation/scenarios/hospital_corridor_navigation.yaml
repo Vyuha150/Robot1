@@ -1,0 +1,13 @@
+name: hospital_corridor_navigation
+world: hospital_corridor
+environment: hospital corridor
+seed: 1001
+start: [0.0, 0.0]
+goal: [8.0, 0.0]
+duration_sec: 30
+headless: true
+entities:
+  - {type: dropped_object, name: dropped_clipboard, x: 3.0, y: 0.9, radius_m: 0.15}
+criteria:
+  max_collisions: 0
+  min_navigation_success_rate: 0.95

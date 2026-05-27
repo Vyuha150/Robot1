@@ -1,0 +1,32 @@
+services:
+  ros2-core:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile.ros2
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:-dev}
+    env_file: ../../.env.example
+    environment:
+      BONBON_ENV: local_dev
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-42}
+    volumes:
+      - ../../ros2_ws/src:/opt/bonbon/ros2_ws/src:rw
+      - bonbon_logs:/var/log/bonbon
+      - bonbon_config:/config:ro
+    command: "source /opt/ros/humble/setup.bash && sleep infinity"
+    security_opt: ["no-new-privileges:true"]
+
+  dashboard-api:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile.dashboard
+    image: bonbon/dashboard:${BONBON_IMAGE_TAG:-dev}
+    env_file: ../../.env.example
+    ports:
+      - "${BONBON_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - bonbon_logs:/var/log/bonbon
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  bonbon_logs:
+  bonbon_config:

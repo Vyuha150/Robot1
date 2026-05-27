@@ -1,0 +1,35 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: bonbon-dashboard
+    static_configs:
+      - targets: ["127.0.0.1:8080"]
+        labels:
+          module: dashboard
+
+  - job_name: bonbon-ros2-health
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["127.0.0.1:9101"]
+        labels:
+          module: ros2
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["127.0.0.1:9100"]
+        labels:
+          module: system
+
+  - job_name: bonbon-safety
+    static_configs:
+      - targets: ["127.0.0.1:9201"]
+        labels:
+          module: safety
+
+  - job_name: bonbon-ai
+    static_configs:
+      - targets: ["127.0.0.1:9301"]
+        labels:
+          module: ai

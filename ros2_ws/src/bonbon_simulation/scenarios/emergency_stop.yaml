@@ -1,0 +1,14 @@
+name: emergency_stop
+world: hotel_lobby
+environment: hotel lobby
+seed: 1007
+start: [0.0, 0.0]
+goal: [8.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.5
+    type: emergency_stop
+    target: estop
+criteria:
+  max_estop_reaction_ms: 300
+  estop_reaction_ms: 120

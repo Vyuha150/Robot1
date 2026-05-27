@@ -1,0 +1,37 @@
+services:
+  simulation:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile.ros2
+    image: bonbon/simulation:${BONBON_IMAGE_TAG:-sim}
+    env_file: ../../.env.example
+    environment:
+      BONBON_ENV: simulation
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-43}
+    volumes:
+      - ../../ros2_ws/src/bonbon_simulation/simulation_reports:/opt/bonbon/simulation_reports
+      - ../../ros2_ws/src/bonbon_simulation/simulation_artifacts:/opt/bonbon/simulation_artifacts
+      - bonbon_maps:/maps:ro
+      - bonbon_logs:/var/log/bonbon
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_simulation headless_ci.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${BONBON_PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    volumes:
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${BONBON_GRAFANA_PORT:-3000}:3000"
+
+volumes:
+  bonbon_maps:
+  bonbon_logs:

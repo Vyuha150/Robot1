@@ -1,0 +1,95 @@
+services:
+  core:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/lib/bonbon:/data
+      - /var/log/bonbon:/logs
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_bringup bringup.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  navigation:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /opt/bonbon/maps:/maps:ro
+      - /var/log/bonbon:/logs
+    security_opt: ["no-new-privileges:true"]
+
+  ai:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /opt/bonbon/models:/models:ro
+      - /var/log/bonbon:/logs
+    security_opt: ["no-new-privileges:true"]
+
+  perception:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /opt/bonbon/models:/models:ro
+      - /var/log/bonbon:/logs
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_perception_ai perception.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  speech:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_speech speech.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  tts:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_tts tts.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  safety:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_safety safety.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  dashboard-api:
+    image: bonbon/dashboard:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    security_opt: ["no-new-privileges:true"]
+
+  monitoring:
+    image: prom/prometheus:v2.52.0
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - /etc/bonbon/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /var/lib/bonbon/prometheus:/prometheus

@@ -1,0 +1,13 @@
+name: dashboard_pause_command
+world: office_hallway
+environment: office hallway
+seed: 1014
+start: [0.0, 0.0]
+goal: [6.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: dashboard_pause
+    target: operator_api
+criteria:
+  expect_dashboard_command: true

@@ -1,0 +1,41 @@
+bonbon_simulation:
+  ros__parameters:
+    use_sim_time: true
+    lidar:
+      model: simulated_rplidar
+      topic: /scan
+      frame_id: lidar_link
+      range_min_m: 0.12
+      range_max_m: 12.0
+      samples: 720
+      update_rate_hz: 10.0
+    imu:
+      topic: /imu/data
+      frame_id: imu_link
+      update_rate_hz: 100.0
+      drift_injection_enabled: true
+    camera:
+      rgb_topic: /camera/color/image_raw
+      depth_topic: /camera/depth/image_raw
+      info_topic: /camera/color/camera_info
+      frame_id: camera_link
+      width: 640
+      height: 480
+      update_rate_hz: 30.0
+    microphone:
+      event_topic: /bonbon/speech/mic_event
+      simulated_noise_profiles: [quiet, lobby, crowd, emergency]
+    speaker:
+      tts_event_topic: /bonbon/tts/event
+      emergency_announcement_required: true
+    servos:
+      state_topic: /bonbon/servo/state
+      joints: [head_pan_joint, head_tilt_joint]
+    battery:
+      topic: /bonbon/battery/state
+      nominal_voltage_v: 25.2
+      low_pct: 20.0
+      critical_pct: 10.0
+    estop:
+      topic: /bonbon/estop/state
+      max_reaction_ms: 300.0

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <world name="hospital_corridor">
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <include><uri>model://sun</uri></include>
+    <include><uri>model://ground_plane</uri></include>
+    <model name="north_wall"><static>true</static><pose>7 1.5 1 0 0 0</pose><link name="link"><collision name="c"><geometry><box><size>14 0.15 2</size></box></geometry></collision><visual name="v"><geometry><box><size>14 0.15 2</size></box></geometry></visual></link></model>
+    <model name="south_wall"><static>true</static><pose>7 -1.5 1 0 0 0</pose><link name="link"><collision name="c"><geometry><box><size>14 0.15 2</size></box></geometry></collision><visual name="v"><geometry><box><size>14 0.15 2</size></box></geometry></visual></link></model>
+    <model name="medical_cart"><static>true</static><pose>4 -0.7 0.45 0 0 0</pose><link name="link"><collision name="c"><geometry><box><size>0.7 0.45 0.9</size></box></geometry></collision><visual name="v"><geometry><box><size>0.7 0.45 0.9</size></box></geometry></visual></link></model>
+  </world>
+</sdf>

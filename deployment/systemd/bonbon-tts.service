@@ -1,0 +1,15 @@
+[Unit]
+Description=BonBon TTS Runtime
+After=bonbon-core.service bonbon-safety.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.robot.yml up -d tts
+ExecStop=/usr/bin/docker compose -f docker-compose.robot.yml stop tts
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

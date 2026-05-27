@@ -1,0 +1,13 @@
+name: robot_pushed
+world: home_environment
+environment: home environment
+seed: 1018
+start: [0.0, 0.0]
+goal: [5.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: robot_pushed
+    target: base_link
+criteria:
+  max_replanning_latency_ms: 1000

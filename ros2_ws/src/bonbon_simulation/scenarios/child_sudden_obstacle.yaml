@@ -1,0 +1,15 @@
+name: child_sudden_obstacle
+world: hospital_reception
+environment: hospital reception
+seed: 1002
+start: [0.0, 0.0]
+goal: [7.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 2.0
+    type: dynamic_obstacle
+    target: child
+    params: {name: child_runner, kind: child_running, x: 2.0, y: 0.5, vy: -0.5, radius_m: 0.28, detection_latency_ms: 160}
+criteria:
+  max_collisions: 0
+  max_replanning_latency_ms: 1000

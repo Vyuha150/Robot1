@@ -1,0 +1,13 @@
+name: tts_emergency_announcement
+world: hospital_reception
+environment: hospital reception
+seed: 1016
+start: [0.0, 0.0]
+goal: [5.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 1.0
+    type: tts_emergency
+    target: tts
+criteria:
+  expect_tts_emergency: true

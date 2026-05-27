@@ -1,0 +1,14 @@
+name: imu_drift_movement
+world: office_hallway
+environment: office hallway
+seed: 1010
+start: [0.0, 0.0]
+goal: [6.0, 0.0]
+duration_sec: 30
+events:
+  - time_sec: 2.0
+    type: sensor_drift
+    target: imu
+    params: {amount: 0.15}
+criteria:
+  max_collisions: 0
