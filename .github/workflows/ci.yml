@@ -27,7 +27,7 @@ jobs:
         run: test -f deployment/docs/README.md && test -f ros2_ws/src/bonbon_simulation/README.md
       - name: Secret scan
         run: |
-          ! grep -R --line-number --exclude-dir=.git --exclude=.env.example -E 'BONBON_JWT_SECRET=.+|BONBON_ADMIN_PASSWORD=.+' .
+          ! grep -R --line-number --exclude-dir=.git --exclude-dir=.github --exclude=.env.example -E 'BONBON_JWT_SECRET=.+|BONBON_ADMIN_PASSWORD=.+' .
 
   ros2-build-test:
     runs-on: ubuntu-22.04

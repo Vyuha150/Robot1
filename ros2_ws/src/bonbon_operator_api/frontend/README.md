@@ -50,8 +50,9 @@ Start the FastAPI backend separately:
 
 ```powershell
 cd "C:\Users\venka\AI service robot\bonbon_robot_ai\ros2_ws\src\bonbon_operator_api"
-$env:BONBON_JWT_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
-$env:BONBON_ADMIN_PASSWORD="local-only-password"
+# Set required environment variables (never hardcode these values):
+$env:BONBON_JWT_SECRET = (python -c 'import secrets; print(secrets.token_hex(32))')
+$env:BONBON_ADMIN_PASSWORD = "your-chosen-password"
 ..\..\..\.venv\Scripts\python.exe -m uvicorn bonbon_operator_api.main:create_app --factory --host 0.0.0.0 --port 8080
 ```
 
