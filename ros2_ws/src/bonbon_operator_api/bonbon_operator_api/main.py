@@ -32,6 +32,7 @@ from bonbon_operator_api.api.diagnostics_api import diag_router
 from bonbon_operator_api.api.llm_test_api import llm_router
 from bonbon_operator_api.api.memory_api import memory_router
 from bonbon_operator_api.api.robot_status_api import status_router
+from bonbon_operator_api.api.testbench_api import testbench_router
 from bonbon_operator_api.audit.audit_logger import AuditLogger
 from bonbon_operator_api.auth.auth_manager import AuthManager
 from bonbon_operator_api.auth.role_permissions import RolePermissionManager
@@ -168,6 +169,7 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
     app.include_router(config_router, prefix="/api/v1")
     app.include_router(memory_router, prefix="/api/v1")
     app.include_router(llm_router,    prefix="/api/v1")
+    app.include_router(testbench_router, prefix="/api/v1")
     app.include_router(ws_router)
 
     # ------------------------------------------------------------------ #

@@ -1,4 +1,4 @@
-export type ApiEnvelope<T> = {
+﻿export type ApiEnvelope<T> = {
   success: boolean;
   data?: T;
   error?: string;
@@ -13,12 +13,66 @@ export type LoginResponse = {
 };
 
 export type LlmProvider = "ollama" | "openai_compatible";
+export type ProviderName = "ollama" | "openai_compatible" | "deepgram" | "elevenlabs" | "roboflow";
 
 export type LlmTestResponse = {
   provider: LlmProvider;
   model: string;
   response_text: string;
   latency_ms: number;
+};
+
+export type ProviderCatalogItem = {
+  id: ProviderName;
+  label: string;
+  required_secret: boolean;
+  default_base_url: string;
+  default_model: string;
+  tests: string[];
+};
+
+export type ProviderCheckResponse = {
+  provider: ProviderName;
+  ok: boolean;
+  latency_ms: number;
+  base_url?: string;
+  models?: string[];
+  voices?: string[];
+};
+
+export type TestbenchStatus = {
+  speech: Record<string, unknown>;
+  vision: Record<string, unknown>;
+  llm: Record<string, unknown>;
+  tts: Record<string, unknown>;
+  system: Record<string, unknown>;
+  safety: Record<string, unknown>;
+};
+
+export type TestSession = {
+  session_id: string;
+  title: string;
+  scenario: string;
+  started_at: number;
+  updated_at: number;
+  events: TestSessionEvent[];
+  analysis?: Record<string, unknown>;
+};
+
+export type TestSessionSummary = Omit<TestSession, "events"> & {
+  event_count: number;
+};
+
+export type TestSessionEvent = {
+  event_id: string;
+  timestamp: number;
+  module: string;
+  event_type: string;
+  status: "pass" | "fail" | "warn" | "info";
+  summary: string;
+  metrics: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  failure_label: string;
 };
 
 export class ApiClient {
@@ -89,6 +143,66 @@ export class ApiClient {
     return this.request<LlmTestResponse>("/api/v1/llm/test-query", {
       method: "POST",
       body
+    });
+  }
+
+  async testbenchStatus() {
+    return this.request<TestbenchStatus>("/api/v1/testbench/status");
+  }
+
+  async updateClientOutput(module: string, status: "idle" | "ok" | "warn" | "error", payload: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>("/api/v1/testbench/client-output", {
+      method: "POST",
+      body: { module, status, payload }
+    });
+  }
+
+  async providerCatalog() {
+    return this.request<{ providers: ProviderCatalogItem[]; secret_policy: string }>("/api/v1/testbench/providers");
+  }
+
+  async checkProvider(body: {
+    provider: ProviderName;
+    base_url: string;
+    api_key?: string;
+    model?: string;
+    timeout_sec?: number;
+  }) {
+    return this.request<ProviderCheckResponse>("/api/v1/testbench/providers/check", {
+      method: "POST",
+      body
+    });
+  }
+
+  async startSession(body: { title: string; scenario: string; operator_notes: string }) {
+    return this.request<TestSession>("/api/v1/testbench/sessions", {
+      method: "POST",
+      body
+    });
+  }
+
+  async listSessions() {
+    return this.request<{ sessions: TestSessionSummary[] }>("/api/v1/testbench/sessions");
+  }
+
+  async appendSessionEvent(sessionId: string, body: {
+    module: string;
+    event_type: string;
+    status: "pass" | "fail" | "warn" | "info";
+    summary: string;
+    metrics?: Record<string, unknown>;
+    payload?: Record<string, unknown>;
+    failure_label?: string;
+  }) {
+    return this.request<TestSessionEvent>(`/api/v1/testbench/sessions/${sessionId}/events`, {
+      method: "POST",
+      body
+    });
+  }
+
+  async analyseSession(sessionId: string) {
+    return this.request<Record<string, unknown>>(`/api/v1/testbench/sessions/${sessionId}/analysis`, {
+      method: "POST"
     });
   }
 
