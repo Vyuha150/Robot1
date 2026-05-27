@@ -1,4 +1,5 @@
 """bonbon_speech.diarization — speaker diarization backends."""
+
 from bonbon_speech.diarization.base_diarizer import (
     BaseDiarizer,
     DiarizationResult,

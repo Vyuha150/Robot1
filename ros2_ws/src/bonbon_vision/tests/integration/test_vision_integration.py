@@ -38,79 +38,111 @@ Integration scenarios
 6.  Throttler + processor integration
     * Throttler drops frames; processor only called on accepted frames
 """
+
 from __future__ import annotations
 
 import math
 import sys
-import types
 import time
+import types
 import unittest
-from unittest.mock import MagicMock
 
 import numpy as np
+
 
 # ── Stub ROS2 if not available (reuse vision_node test approach) ──────────────
 def _stub(name, **attrs):
     m = types.ModuleType(name)
-    for k, v in attrs.items(): setattr(m, k, v)
+    for k, v in attrs.items():
+        setattr(m, k, v)
     return m
+
 
 try:
     import rclpy  # noqa
 except ImportError:
     sys.modules.setdefault("rclpy", _stub("rclpy"))
-    sys.modules.setdefault("rclpy.lifecycle", _stub("rclpy.lifecycle",
-        LifecycleNode=object,
-        TransitionCallbackReturn=type("T",(),{"SUCCESS":0,"ERROR":1,"FAILURE":2}),
-        State=object))
+    sys.modules.setdefault(
+        "rclpy.lifecycle",
+        _stub(
+            "rclpy.lifecycle",
+            LifecycleNode=object,
+            TransitionCallbackReturn=type("T", (), {"SUCCESS": 0, "ERROR": 1, "FAILURE": 2}),
+            State=object,
+        ),
+    )
     for qos in ["rclpy.qos"]:
-        sys.modules.setdefault(qos, _stub(qos,
-            QoSProfile=lambda **kw: None,
-            ReliabilityPolicy=type("R",(),{"RELIABLE":1,"BEST_EFFORT":0}),
-            DurabilityPolicy=type("D",(),{"TRANSIENT_LOCAL":1,"VOLATILE":0}),
-            HistoryPolicy=type("H",(),{"KEEP_LAST":0})))
-    for pkg in ["geometry_msgs","geometry_msgs.msg","sensor_msgs",
-                "sensor_msgs.msg","std_msgs","std_msgs.msg",
-                "bonbon_msgs","bonbon_msgs.msg"]:
-        sys.modules.setdefault(pkg, _stub(pkg,
-            Point=type("P",(),{}), Image=type("I",(),{}),
-            Header=type("H",(),{}),
-            DetectedObject=type("DO",(),{}),
-            DetectedObjectArray=type("DOA",(),{}),
-            ModuleHealth=type("MH",(),{}),
-            PersonState=type("PS",(),{}),
-            PersonStateArray=type("PSA",(),{})))
+        sys.modules.setdefault(
+            qos,
+            _stub(
+                qos,
+                QoSProfile=lambda **kw: None,
+                ReliabilityPolicy=type("R", (), {"RELIABLE": 1, "BEST_EFFORT": 0}),
+                DurabilityPolicy=type("D", (), {"TRANSIENT_LOCAL": 1, "VOLATILE": 0}),
+                HistoryPolicy=type("H", (), {"KEEP_LAST": 0}),
+            ),
+        )
+    for pkg in [
+        "geometry_msgs",
+        "geometry_msgs.msg",
+        "sensor_msgs",
+        "sensor_msgs.msg",
+        "std_msgs",
+        "std_msgs.msg",
+        "bonbon_msgs",
+        "bonbon_msgs.msg",
+    ]:
+        sys.modules.setdefault(
+            pkg,
+            _stub(
+                pkg,
+                Point=type("P", (), {}),
+                Image=type("I", (), {}),
+                Header=type("H", (), {}),
+                DetectedObject=type("DO", (), {}),
+                DetectedObjectArray=type("DOA", (), {}),
+                ModuleHealth=type("MH", (), {}),
+                PersonState=type("PS", (), {}),
+                PersonStateArray=type("PSA", (), {}),
+            ),
+        )
 
 # Now safe to import
 from bonbon_vision.config.vision_config import (
-    VisionConfig, DetectorConfig, FaceConfig,
-    PreprocessConfig, PrivacyConfig, TrackingConfig,
+    DetectorConfig,
+    FaceConfig,
+    PreprocessConfig,
+    PrivacyConfig,
+    VisionConfig,
 )
-from bonbon_vision.preprocessing.frame_processor import FrameProcessor, FrameQuality
-from bonbon_vision.preprocessing.frame_throttler import FrameThrottler
 from bonbon_vision.detectors.mock_detector import MockDetector
-from bonbon_vision.detectors.base_detector import ObjectDetection
-from bonbon_vision.face.face_pipeline import FacePipeline, FaceDetection, FaceResult
+from bonbon_vision.face.face_pipeline import FacePipeline
 from bonbon_vision.face.privacy_guard import PrivacyGuard
 from bonbon_vision.models.model_manager import ModelManager, ModelState
-from bonbon_vision.nodes.vision_node import _SimpleTracker, _iou
-
+from bonbon_vision.nodes.vision_node import _SimpleTracker
+from bonbon_vision.preprocessing.frame_processor import FrameProcessor, FrameQuality
+from bonbon_vision.preprocessing.frame_throttler import FrameThrottler
 
 # ── Frame helpers ──────────────────────────────────────────────────────────────
+
 
 def _bright(h=480, w=640, b=120) -> np.ndarray:
     return np.full((h, w, 3), b, dtype=np.uint8)
 
+
 def _black(h=480, w=640) -> np.ndarray:
     return np.zeros((h, w, 3), dtype=np.uint8)
 
+
 def _dark(h=480, w=640, b=20) -> np.ndarray:
     return np.full((h, w, 3), b, dtype=np.uint8)
+
 
 def _nan_float(h=480, w=640) -> np.ndarray:
     arr = np.ones((h, w, 3), dtype=np.float32)
     arr[0, 0, 0] = math.nan
     return arr
+
 
 def _depth(val=2.0, h=480, w=640) -> np.ndarray:
     return np.full((h, w), val, dtype=np.float32)
@@ -118,33 +150,38 @@ def _depth(val=2.0, h=480, w=640) -> np.ndarray:
 
 # ── 1. Full pipeline integration ──────────────────────────────────────────────
 
+
 class TestFullPipeline(unittest.TestCase):
     """preprocess → detect → face → track → privacy all wired together."""
 
     def _build(self, privacy=False, n_det=2, brightness_threshold=50.0):
         pre_cfg = PreprocessConfig(
-            resize_width=64, resize_height=48,
-            enable_clahe=True, brightness_threshold=brightness_threshold,
+            resize_width=64,
+            resize_height=48,
+            enable_clahe=True,
+            brightness_threshold=brightness_threshold,
             min_mean_brightness=2.0,
         )
         processor = FrameProcessor(pre_cfg)
-        detector  = MockDetector(num_detections=n_det)
-        face_pipe = FacePipeline(FaceConfig(detect_backend="mock",
-                                            recognize_backend="mock"))
-        privacy_guard = PrivacyGuard(PrivacyConfig(
-            enabled=privacy, blur_kernel_size=7,
-        ))
-        tracker   = _SimpleTracker()
+        detector = MockDetector(num_detections=n_det)
+        face_pipe = FacePipeline(FaceConfig(detect_backend="mock", recognize_backend="mock"))
+        privacy_guard = PrivacyGuard(
+            PrivacyConfig(
+                enabled=privacy,
+                blur_kernel_size=7,
+            )
+        )
+        tracker = _SimpleTracker()
         return processor, detector, face_pipe, privacy_guard, tracker
 
     def _run_frame(self, frame, proc, det, face, priv, tracker, depth=None):
         pf = proc.process(frame, depth)
         if not pf.is_usable:
             return [], pf.quality, False
-        det_r  = det.detect(pf.bgr)
+        det_r = det.detect(pf.bgr)
         face_r = face.run(pf.bgr)
         tracks = tracker.update(det_r.detections)
-        annotated = priv.anonymise(pf.bgr, [f.bbox for f in face_r.faces])
+        priv.anonymise(pf.bgr, [f.bbox for f in face_r.faces])
         return tracks, pf.quality, True
 
     def test_bright_frame_full_pipeline(self):
@@ -175,7 +212,7 @@ class TestFullPipeline(unittest.TestCase):
 
     def test_privacy_mode_original_unchanged(self):
         proc, det, face, priv, tracker = self._build(privacy=True)
-        frame  = _bright()
+        frame = _bright()
         before = frame.copy()
         self._run_frame(frame, proc, det, face, priv, tracker)
         np.testing.assert_array_equal(frame, before)
@@ -196,14 +233,15 @@ class TestFullPipeline(unittest.TestCase):
 
 # ── 2. Config integration ─────────────────────────────────────────────────────
 
+
 class TestConfigIntegration(unittest.TestCase):
     def test_from_dict_full_config(self):
         d = {
-            "detector":  {"backend": "mock", "confidence_threshold": 0.5},
-            "face":      {"detect_backend": "mock"},
+            "detector": {"backend": "mock", "confidence_threshold": 0.5},
+            "face": {"detect_backend": "mock"},
             "preprocess": {"resize_width": 320, "resize_height": 240},
-            "privacy":   {"enabled": True, "blur_kernel_size": 31},
-            "tracking":  {"max_tracks": 10},
+            "privacy": {"enabled": True, "blur_kernel_size": 31},
+            "tracking": {"max_tracks": 10},
             "detection_rate_hz": 15.0,
         }
         cfg = VisionConfig.from_dict(d)
@@ -215,18 +253,18 @@ class TestConfigIntegration(unittest.TestCase):
 
     def test_validate_passes_mock_backend(self):
         cfg = VisionConfig()
-        cfg.validate()   # must not raise
+        cfg.validate()  # must not raise
 
     def test_validate_fails_yolo_without_model_path(self):
         cfg = VisionConfig()
-        cfg.detector.backend    = "yolo"
+        cfg.detector.backend = "yolo"
         cfg.detector.model_path = ""
         with self.assertRaises(ValueError):
             cfg.validate()
 
     def test_validate_fails_even_blur_kernel(self):
         cfg = VisionConfig()
-        cfg.privacy.blur_kernel_size = 4   # even → invalid
+        cfg.privacy.blur_kernel_size = 4  # even → invalid
         with self.assertRaises(ValueError):
             cfg.validate()
 
@@ -238,10 +276,10 @@ class TestConfigIntegration(unittest.TestCase):
 
     def test_to_dict_roundtrip(self):
         cfg = VisionConfig()
-        d   = cfg.to_dict()
+        d = cfg.to_dict()
         cfg2 = VisionConfig.from_dict(d)
         self.assertEqual(cfg.detector.backend, cfg2.detector.backend)
-        self.assertEqual(cfg.privacy.enabled,  cfg2.privacy.enabled)
+        self.assertEqual(cfg.privacy.enabled, cfg2.privacy.enabled)
 
     def test_summary_contains_key_fields(self):
         cfg = VisionConfig()
@@ -252,17 +290,18 @@ class TestConfigIntegration(unittest.TestCase):
 
 # ── 3. Detector → Tracker continuity ─────────────────────────────────────────
 
+
 class TestDetectorTrackerContinuity(unittest.TestCase):
     def _make(self, n=2, max_lost=5):
         detector = MockDetector(num_detections=n)
-        tracker  = _SimpleTracker(max_lost=max_lost)
+        tracker = _SimpleTracker(max_lost=max_lost)
         return detector, tracker
 
     def test_track_id_stable_over_frames(self):
         detector, tracker = self._make(n=1)
         all_ids = []
         for _ in range(8):
-            r  = detector.detect(_bright())
+            r = detector.detect(_bright())
             ts = tracker.update(r.detections)
             all_ids.extend(t.track_id for t in ts)
         # All track IDs from confirmed frames should be the same
@@ -275,7 +314,7 @@ class TestDetectorTrackerContinuity(unittest.TestCase):
         """Track should not be deleted until max_lost_frames + 1 missed."""
         detector, tracker = self._make(n=1, max_lost=3)
         det = _bright()
-        for _ in range(4):          # confirm track
+        for _ in range(4):  # confirm track
             r = detector.detect(det)
             tracker.update(r.detections)
         # Now miss 3 frames (= max_lost) — track should still be in memory
@@ -303,8 +342,8 @@ class TestDetectorTrackerContinuity(unittest.TestCase):
         for _ in range(3):
             tracker.update([])
         # New detection gets a new ID
-        r2   = detector.detect(_bright())
-        ts   = tracker.update(r2.detections)
+        r2 = detector.detect(_bright())
+        tracker.update(r2.detections)
         new_ids = {t.track_id for t in tracker._tracks.values()}
         self.assertGreater(len(new_ids), 0)
         detector.shutdown()
@@ -312,22 +351,27 @@ class TestDetectorTrackerContinuity(unittest.TestCase):
 
 # ── 4. Model lifecycle integration ───────────────────────────────────────────
 
+
 class TestModelLifecycleIntegration(unittest.TestCase):
     def test_successful_load_produces_ready_state(self):
         class GoodDetector:
             is_degraded = False
-            def load_model(self): time.sleep(0.01)
+
+            def load_model(self):
+                time.sleep(0.01)
 
         mgr = ModelManager(GoodDetector(), allow_degraded=True)
         mgr.load_async()
-        ok  = mgr.wait_ready(timeout=5.0)
+        ok = mgr.wait_ready(timeout=5.0)
         self.assertTrue(ok)
         self.assertEqual(mgr.state, ModelState.READY)
 
     def test_failed_load_with_degraded_true_no_crash(self):
         class BadDetector:
             is_degraded = False
-            def load_model(self): raise RuntimeError("no model")
+
+            def load_model(self):
+                raise RuntimeError("no model")
 
         mgr = ModelManager(BadDetector(), allow_degraded=True)
         mgr.load_async()
@@ -338,7 +382,9 @@ class TestModelLifecycleIntegration(unittest.TestCase):
     def test_reload_transitions_back_to_ready(self):
         class GoodDetector:
             is_degraded = False
-            def load_model(self): pass
+
+            def load_model(self):
+                pass
 
         mgr = ModelManager(GoodDetector())
         mgr.load_sync()
@@ -350,21 +396,20 @@ class TestModelLifecycleIntegration(unittest.TestCase):
 
 # ── 5. Privacy pipeline integration ──────────────────────────────────────────
 
+
 class TestPrivacyPipelineIntegration(unittest.TestCase):
     def test_face_id_suppressed_in_privacy_mode(self):
-        cfg  = FaceConfig(detect_backend="mock", recognize_backend="mock")
+        cfg = FaceConfig(detect_backend="mock", recognize_backend="mock")
         pipe = FacePipeline(cfg, privacy_mode=True)
         # Monkey-patch recognizer to return a name
-        pipe._recognizer = type("R", (), {
-            "identify": lambda self, *a, **k: "alice"
-        })()
+        pipe._recognizer = type("R", (), {"identify": lambda self, *a, **k: "alice"})()
         r = pipe.run(_bright())
         for face in r.faces:
             self.assertEqual(face.face_id, "")
         pipe.shutdown()
 
     def test_face_id_visible_without_privacy(self):
-        cfg  = FaceConfig(detect_backend="mock", recognize_backend="mock")
+        cfg = FaceConfig(detect_backend="mock", recognize_backend="mock")
         pipe = FacePipeline(cfg, privacy_mode=False)
         # The mock recognizer returns "" — just verify no crash
         r = pipe.run(_bright())
@@ -372,10 +417,13 @@ class TestPrivacyPipelineIntegration(unittest.TestCase):
         pipe.shutdown()
 
     def test_privacy_guard_does_not_modify_original(self):
-        guard  = PrivacyGuard(PrivacyConfig(
-            enabled=True, blur_kernel_size=7,
-        ))
-        frame  = _bright()
+        guard = PrivacyGuard(
+            PrivacyConfig(
+                enabled=True,
+                blur_kernel_size=7,
+            )
+        )
+        frame = _bright()
         before = frame.copy()
         guard.anonymise(frame, [(100, 50, 80, 100), (300, 80, 60, 80)])
         np.testing.assert_array_equal(frame, before)
@@ -383,24 +431,29 @@ class TestPrivacyPipelineIntegration(unittest.TestCase):
 
 # ── 6. Throttler + processor integration ─────────────────────────────────────
 
+
 class TestThrottlerProcessorIntegration(unittest.TestCase):
     def test_throttler_drops_frames_not_processed(self):
         """At 5 Hz throttle with 30 Hz offer rate, ~83% should be dropped."""
         import bonbon_vision.preprocessing.frame_throttler as _mod
+
         ticks = [0.0]
         original = _mod.time.monotonic
         _mod.time.monotonic = lambda: ticks[0]
 
         try:
             throttler = FrameThrottler(target_hz=5.0)
-            processor = FrameProcessor(PreprocessConfig(
-                resize_width=64, resize_height=48,
-            ))
+            processor = FrameProcessor(
+                PreprocessConfig(
+                    resize_width=64,
+                    resize_height=48,
+                )
+            )
             processed_count = 0
             for i in range(300):
-                ticks[0] = i * (1.0 / 30.0)   # simulate 30 Hz camera
+                ticks[0] = i * (1.0 / 30.0)  # simulate 30 Hz camera
                 if throttler.should_process():
-                    pf = processor.process(_bright())
+                    processor.process(_bright())
                     processed_count += 1
 
             # Expected ~50 processed (5 Hz × 10 s) ± generous margin
@@ -414,31 +467,34 @@ class TestThrottlerProcessorIntegration(unittest.TestCase):
         for _ in range(20):
             throttler.should_process()
         s = throttler.stats
-        self.assertEqual(s["offered"],
-                         s["processed"] + s["dropped"])
+        self.assertEqual(s["offered"], s["processed"] + s["dropped"])
 
 
 # ── 7. Cross-component: config → processor → detector ────────────────────────
 
+
 class TestConfigToComponentIntegration(unittest.TestCase):
     def test_vision_config_feeds_frame_processor(self):
-        cfg = VisionConfig.from_dict({
-            "preprocess": {
-                "resize_width": 64, "resize_height": 48,
-                "enable_clahe": False, "brightness_threshold": 40.0,
+        cfg = VisionConfig.from_dict(
+            {
+                "preprocess": {
+                    "resize_width": 64,
+                    "resize_height": 48,
+                    "enable_clahe": False,
+                    "brightness_threshold": 40.0,
+                }
             }
-        })
+        )
         proc = FrameProcessor(cfg.preprocess)
         pf = proc.process(_bright(b=90))
         self.assertEqual(pf.bgr.shape[:2], (48, 64))
 
     def test_vision_config_feeds_detector(self):
-        cfg = VisionConfig.from_dict({
-            "detector": {"backend": "mock", "confidence_threshold": 0.6}
-        })
+        cfg = VisionConfig.from_dict({"detector": {"backend": "mock", "confidence_threshold": 0.6}})
         detector = MockDetector(
-            cfg=DetectorConfig(backend="mock",
-                               confidence_threshold=cfg.detector.confidence_threshold)
+            cfg=DetectorConfig(
+                backend="mock", confidence_threshold=cfg.detector.confidence_threshold
+            )
         )
         r = detector.detect(_bright())
         self.assertFalse(r.is_degraded)

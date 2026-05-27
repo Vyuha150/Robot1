@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import PrivacyLevel, SafetyEvent, SafetyEventType
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
@@ -26,36 +26,39 @@ class SafetyEventRepository(BaseRepository):
             privacy_level, retention_policy, metadata
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
         """
-        self._execute(sql, (
-            event.event_id,
-            event.timestamp,
-            event.session_id,
-            event.event_type.value,
-            event.severity,
-            event.source_node,
-            event.description,
-            event.position_x,
-            event.position_y,
-            event.obstacle_distance_m,
-            int(event.resolved),
-            event.resolved_at,
-            event.privacy_level.value,
-            event.retention_policy.value,
-            json.dumps(event.metadata),
-        ))
+        self._execute(
+            sql,
+            (
+                event.event_id,
+                event.timestamp,
+                event.session_id,
+                event.event_type.value,
+                event.severity,
+                event.source_node,
+                event.description,
+                event.position_x,
+                event.position_y,
+                event.obstacle_distance_m,
+                int(event.resolved),
+                event.resolved_at,
+                event.privacy_level.value,
+                event.retention_policy.value,
+                json.dumps(event.metadata),
+            ),
+        )
         return event.event_id
 
-    def get_by_id(self, event_id: str) -> Optional[SafetyEvent]:
+    def get_by_id(self, event_id: str) -> SafetyEvent | None:
         row = self._fetchone("SELECT * FROM safety_events WHERE event_id = ?;", (event_id,))
         return self._row_to_model(row) if row else None
 
-    def get_unresolved(self) -> List[SafetyEvent]:
+    def get_unresolved(self) -> list[SafetyEvent]:
         rows = self._fetchall(
             "SELECT * FROM safety_events WHERE resolved = 0 ORDER BY timestamp DESC;"
         )
         return [self._row_to_model(r) for r in rows]
 
-    def get_by_type(self, event_type: SafetyEventType) -> List[SafetyEvent]:
+    def get_by_type(self, event_type: SafetyEventType) -> list[SafetyEvent]:
         rows = self._fetchall(
             "SELECT * FROM safety_events WHERE event_type = ? ORDER BY timestamp DESC;",
             (event_type.value,),
@@ -76,7 +79,7 @@ class SafetyEventRepository(BaseRepository):
         return self._count("safety_events")
 
     @staticmethod
-    def _row_to_model(row: Dict[str, Any]) -> SafetyEvent:
+    def _row_to_model(row: dict[str, Any]) -> SafetyEvent:
         return SafetyEvent(
             event_id=row["event_id"],
             timestamp=row["timestamp"],

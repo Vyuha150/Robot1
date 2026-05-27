@@ -1,14 +1,15 @@
 """
 Tests for bonbon_speech.audio.audio_buffer.AudioBuffer
 """
-import threading
-import pytest
-import numpy as np
 
+import threading
+
+import numpy as np
+import pytest
 from bonbon_speech.audio.audio_buffer import AudioBuffer
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 def make_buf(**kwargs) -> AudioBuffer:
     defaults = dict(sample_rate=16000, max_buffer_sec=1.0, prebuffer_sec=0.1)
@@ -22,11 +23,12 @@ def ramp(n: int, start: float = 0.0) -> np.ndarray:
 
 # ── Construction ──────────────────────────────────────────────────────────────
 
+
 class TestConstruction:
     def test_default_values(self):
         buf = make_buf()
         assert buf.sample_rate == 16000
-        assert buf.max_samples == 16000     # 1.0 sec * 16000
+        assert buf.max_samples == 16000  # 1.0 sec * 16000
         assert buf.prebuffer_samples == 1600  # 0.1 sec * 16000
 
     def test_custom_values(self):
@@ -42,6 +44,7 @@ class TestConstruction:
 
 
 # ── Push ──────────────────────────────────────────────────────────────────────
+
 
 class TestPush:
     def test_basic_push(self):
@@ -77,6 +80,7 @@ class TestPush:
 
 # ── Peek ──────────────────────────────────────────────────────────────────────
 
+
 class TestPeek:
     def test_peek_all(self):
         buf = make_buf()
@@ -110,6 +114,7 @@ class TestPeek:
 
 
 # ── Drain ─────────────────────────────────────────────────────────────────────
+
 
 class TestDrain:
     def test_drain_exact(self):
@@ -150,6 +155,7 @@ class TestDrain:
 
 # ── Prebuffer ─────────────────────────────────────────────────────────────────
 
+
 class TestPrebuffer:
     def test_prebuffer_snapshot_length(self):
         buf = make_buf(prebuffer_sec=0.1)  # 1600 samples at 16kHz
@@ -179,6 +185,7 @@ class TestPrebuffer:
 
 # ── Clear ─────────────────────────────────────────────────────────────────────
 
+
 class TestClear:
     def test_clear_empties_buffer(self):
         buf = make_buf()
@@ -195,6 +202,7 @@ class TestClear:
 
 
 # ── Thread safety ─────────────────────────────────────────────────────────────
+
 
 class TestThreadSafety:
     def test_concurrent_push_and_drain(self):

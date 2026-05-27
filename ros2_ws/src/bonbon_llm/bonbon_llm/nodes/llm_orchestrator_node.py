@@ -50,81 +50,79 @@ Safety guarantees
   fallback template so the robot always responds.
 * All responses (including blocked ones) are logged.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
 import uuid
-from typing import Dict, List, Optional
 
 import rclpy
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import (
-    QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
-)
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 logger = logging.getLogger(__name__)
 
 # ── QoS profiles ─────────────────────────────────────────────────────────────
 _RELIABLE = QoSProfile(
-    reliability = ReliabilityPolicy.RELIABLE,
-    history     = HistoryPolicy.KEEP_LAST,
-    depth       = 10,
+    reliability=ReliabilityPolicy.RELIABLE,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=10,
 )
 _TRANSIENT = QoSProfile(
-    reliability  = ReliabilityPolicy.RELIABLE,
-    durability   = DurabilityPolicy.TRANSIENT_LOCAL,
-    history      = HistoryPolicy.KEEP_LAST,
-    depth        = 1,
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=1,
 )
 _BEST_EFFORT = QoSProfile(
-    reliability = ReliabilityPolicy.BEST_EFFORT,
-    history     = HistoryPolicy.KEEP_LAST,
-    depth       = 10,
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=10,
 )
 
 
 class LLMOrchestratorNode(LifecycleNode):
     """Full LLM + Response Generation pipeline as a ROS2 LifecycleNode."""
 
-    _HEALTH_OK    = 0
-    _HEALTH_WARN  = 1
+    _HEALTH_OK = 0
+    _HEALTH_WARN = 1
     _HEALTH_ERROR = 2
 
     def __init__(self, node_name: str = "llm_orchestrator_node") -> None:
         super().__init__(node_name)
 
         # Pipeline components — wired in on_configure
-        self._cfg          = None
-        self._ollama       = None
-        self._rag          = None
-        self._filter       = None
-        self._authorizer   = None
-        self._guard        = None
-        self._personality  = None
-        self._tool_reg     = None
-        self._logger_svc   = None
-        self._lc_chain     = None   # LangChain chain (may be None if unavailable)
+        self._cfg = None
+        self._ollama = None
+        self._rag = None
+        self._filter = None
+        self._authorizer = None
+        self._guard = None
+        self._personality = None
+        self._tool_reg = None
+        self._logger_svc = None
+        self._lc_chain = None  # LangChain chain (may be None if unavailable)
 
         # Cached incoming state
-        self._last_scene    = None
-        self._last_safety   = None
-        self._last_risks:   List = []
-        self._lock          = threading.Lock()
+        self._last_scene = None
+        self._last_safety = None
+        self._last_risks: list = []
+        self._lock = threading.Lock()
 
         # Publishers / timers — wired in on_activate
-        self._pub_response  = None
-        self._pub_tts       = None
-        self._pub_behavior  = None
-        self._pub_health    = None
-        self._health_timer  = None
+        self._pub_response = None
+        self._pub_tts = None
+        self._pub_behavior = None
+        self._pub_health = None
+        self._health_timer = None
 
-        self._pipeline_ok   = False
-        self._error_msg     = ""
-        self._start_time    = time.monotonic()
+        self._pipeline_ok = False
+        self._error_msg = ""
+        self._start_time = time.monotonic()
         self._request_count = 0
-        self._error_count   = 0
+        self._error_count = 0
 
         self.get_logger().info("LLMOrchestratorNode created")
 
@@ -150,40 +148,41 @@ class LLMOrchestratorNode(LifecycleNode):
 
     def _load_config(self) -> None:
         from bonbon_llm.config.llm_config import LLMConfig
+
         self._cfg = LLMConfig.from_ros_params(self)
         self._cfg.validate()
 
     def _init_pipeline(self) -> None:
-        from bonbon_llm.core.ollama_client       import OllamaClient
-        from bonbon_llm.core.rag_retriever        import RAGRetriever
-        from bonbon_llm.core.response_logger      import ResponseLogger
-        from bonbon_llm.safety.command_filter     import SafetyCommandFilter
-        from bonbon_llm.safety.authorization      import CommandAuthorizer
-        from bonbon_llm.safety.hallucination_guard import HallucinationGuard
+        from bonbon_llm.core.ollama_client import OllamaClient
+        from bonbon_llm.core.rag_retriever import RAGRetriever
+        from bonbon_llm.core.response_logger import ResponseLogger
         from bonbon_llm.personality.personality_layer import PersonalityLayer
+        from bonbon_llm.safety.authorization import CommandAuthorizer
+        from bonbon_llm.safety.command_filter import SafetyCommandFilter
+        from bonbon_llm.safety.hallucination_guard import HallucinationGuard
 
         cfg = self._cfg
 
-        self._ollama      = OllamaClient(cfg.ollama)
-        self._rag         = RAGRetriever(cfg.rag)
+        self._ollama = OllamaClient(cfg.ollama)
+        self._rag = RAGRetriever(cfg.rag)
         self._rag.load()
 
-        self._filter      = SafetyCommandFilter(cfg.safety_filter)
-        self._authorizer  = CommandAuthorizer(cfg.authorization)
-        self._guard       = HallucinationGuard(cfg.hallucination)
+        self._filter = SafetyCommandFilter(cfg.safety_filter)
+        self._authorizer = CommandAuthorizer(cfg.authorization)
+        self._guard = HallucinationGuard(cfg.hallucination)
         self._personality = PersonalityLayer(cfg.personality)
-        self._logger_svc  = ResponseLogger()
+        self._logger_svc = ResponseLogger()
 
         # Wire tool registry
         from bonbon_llm.tools.tool_registry import ToolRegistry
-        from bonbon_llm.safety.authorization import SafetySnapshot
+
         self._tool_reg = ToolRegistry(
-            safety_filter       = self._filter,
-            rag_retriever       = self._rag,
-            scene_provider      = self._get_scene_text,
-            safety_provider     = self._get_safety_snapshot,
-            tts_dispatcher      = self._dispatch_tts,
-            behavior_dispatcher = self._dispatch_behavior,
+            safety_filter=self._filter,
+            rag_retriever=self._rag,
+            scene_provider=self._get_scene_text,
+            safety_provider=self._get_safety_snapshot,
+            tts_dispatcher=self._dispatch_tts,
+            behavior_dispatcher=self._dispatch_behavior,
         )
 
         # Try to build LangChain chain
@@ -199,44 +198,53 @@ class LLMOrchestratorNode(LifecycleNode):
         try:
             from bonbon_llm.core.langchain_bridge import build_rag_chain
             from bonbon_llm.prompts.system_prompt import SYSTEM_PROMPT, TOOL_INSTRUCTIONS
+
             chain = build_rag_chain(self._cfg, SYSTEM_PROMPT + "\n" + TOOL_INSTRUCTIONS)
             self.get_logger().info("LangChain RAG chain built OK")
             return chain
         except Exception as exc:
-            self.get_logger().warning("LangChain unavailable (%s); using OllamaClient directly", exc)
+            self.get_logger().warning(
+                "LangChain unavailable (%s); using OllamaClient directly", exc
+            )
             return None
 
     def _create_interfaces(self) -> None:
-        from bonbon_msgs.msg import (                           # type: ignore
-            UserIntent, SemanticScene, SafetyState as SafetyStateMsg,
-            RiskEvent, SpeechCommand,
-            LLMResponse, LLMLog, TTSRequest,
-            BehaviorRecommendation, ModuleHealth,
+        from bonbon_msgs.msg import (  # type: ignore
+            BehaviorRecommendation,
+            LLMLog,
+            LLMResponse,
+            ModuleHealth,
+            RiskEvent,
+            SemanticScene,
+            SpeechCommand,
+            TTSRequest,
+            UserIntent,
+        )
+        from bonbon_msgs.msg import (
+            SafetyState as SafetyStateMsg,
         )
 
         # Subscriptions
-        self.create_subscription(UserIntent,      "/perception/intent",
-                                  self._on_intent,  _RELIABLE)
-        self.create_subscription(SemanticScene,   "/perception/scene",
-                                  self._on_scene,   _BEST_EFFORT)
-        self.create_subscription(SafetyStateMsg,  "/bonbon/safety/state",
-                                  self._on_safety,  _TRANSIENT)
-        self.create_subscription(RiskEvent,       "/perception/risks",
-                                  self._on_risk,    _RELIABLE)
-        self.create_subscription(SpeechCommand,   "/speech/command",
-                                  self._on_speech,  _RELIABLE)
+        self.create_subscription(UserIntent, "/perception/intent", self._on_intent, _RELIABLE)
+        self.create_subscription(SemanticScene, "/perception/scene", self._on_scene, _BEST_EFFORT)
+        self.create_subscription(
+            SafetyStateMsg, "/bonbon/safety/state", self._on_safety, _TRANSIENT
+        )
+        self.create_subscription(RiskEvent, "/perception/risks", self._on_risk, _RELIABLE)
+        self.create_subscription(SpeechCommand, "/speech/command", self._on_speech, _RELIABLE)
 
         # Publishers
         self._pub_response = self.create_lifecycle_publisher(
-            LLMResponse, "/llm/response", _RELIABLE)
-        self._pub_log      = self.create_lifecycle_publisher(
-            LLMLog, "/llm/log", _RELIABLE)
-        self._pub_tts      = self.create_lifecycle_publisher(
-            TTSRequest, "/bonbon/tts/request", _RELIABLE)
+            LLMResponse, "/llm/response", _RELIABLE
+        )
+        self._pub_log = self.create_lifecycle_publisher(LLMLog, "/llm/log", _RELIABLE)
+        self._pub_tts = self.create_lifecycle_publisher(
+            TTSRequest, "/bonbon/tts/request", _RELIABLE
+        )
         self._pub_behavior = self.create_lifecycle_publisher(
-            BehaviorRecommendation, "/perception/behavior", _RELIABLE)
-        self._pub_health   = self.create_lifecycle_publisher(
-            ModuleHealth, "/health/llm", _RELIABLE)
+            BehaviorRecommendation, "/perception/behavior", _RELIABLE
+        )
+        self._pub_health = self.create_lifecycle_publisher(ModuleHealth, "/health/llm", _RELIABLE)
 
         self._logger_svc.set_ros_publisher(self._pub_log)
 
@@ -254,9 +262,9 @@ class LLMOrchestratorNode(LifecycleNode):
             self._health_timer.cancel()
             self._health_timer = None
         with self._lock:
-            self._last_scene  = None
+            self._last_scene = None
             self._last_safety = None
-            self._last_risks  = []
+            self._last_risks = []
         return TransitionCallbackReturn.SUCCESS
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
@@ -299,9 +307,7 @@ class LLMOrchestratorNode(LifecycleNode):
         if not self._pipeline_ok:
             return
         # Run in a thread so we don't block the ROS2 executor during Ollama call
-        t = threading.Thread(
-            target=self._process_intent, args=(msg,), daemon=True
-        )
+        t = threading.Thread(target=self._process_intent, args=(msg,), daemon=True)
         t.start()
 
     # ── Core pipeline ─────────────────────────────────────────────────────────
@@ -320,13 +326,13 @@ class LLMOrchestratorNode(LifecycleNode):
 
             # 2. Build context
             with self._lock:
-                scene  = self._last_scene
-                safety = self._last_safety
-                risks  = list(self._last_risks)
+                scene = self._last_scene
+                list(self._last_risks)
 
             safety_snap = self._get_safety_snapshot()
 
             from bonbon_llm.prompts.system_prompt import build_context_string
+
             context_str = build_context_string(scene, safety_snap)
 
             # 3. RAG retrieval
@@ -362,7 +368,7 @@ class LLMOrchestratorNode(LifecycleNode):
                 safety_status = "SAFE"
             elif filter_result and filter_result.status.value == "BLOCKED":
                 final_text = self._fallback("safety_block")
-                status     = "safety_block"
+                status = "safety_block"
                 safety_status = "BLOCKED"
                 safety_reason = filter_result.reason
                 self._error_count += 1
@@ -374,15 +380,14 @@ class LLMOrchestratorNode(LifecycleNode):
 
                 # 7. Hallucination guard
                 guard_result = self._guard.check(
-                    sanitized, rag_results,
+                    sanitized,
+                    rag_results,
                     llm_confidence=float(intent_msg.confidence),
                 )
                 if not guard_result.is_grounded:
-                    self.get_logger().warning(
-                        "Hallucination flagged: %s", guard_result.reason
-                    )
+                    self.get_logger().warning("Hallucination flagged: %s", guard_result.reason)
                     sanitized = guard_result.safe_response or self._fallback("hallucination")
-                    status    = "hallucination"
+                    status = "hallucination"
                 else:
                     status = "ok"
 
@@ -399,57 +404,59 @@ class LLMOrchestratorNode(LifecycleNode):
                 behavior_class = self._resolve_behavior(intent_msg, safety_snap)
                 if behavior_class:
                     auth = self._authorizer.authorize(
-                        behavior_class, safety_snap,
+                        behavior_class,
+                        safety_snap,
                         confidence=float(intent_msg.confidence),
                     )
                     if auth.granted:
                         slots = dict(zip(intent_msg.slot_names, intent_msg.slot_values))
-                        self._dispatch_behavior(behavior_class, slots,
-                                                float(intent_msg.confidence))
+                        self._dispatch_behavior(behavior_class, slots, float(intent_msg.confidence))
                     else:
                         self.get_logger().info(
-                            "Behavior %r %s: %s", behavior_class,
-                            auth.status.value, auth.reason
+                            "Behavior %r %s: %s", behavior_class, auth.status.value, auth.reason
                         )
                         if auth.status.value == "DENIED":
-                            denial_text = self._fallback("navigation_denied"
-                                          if "navigat" in behavior_class else "actuation_denied")
+                            denial_text = self._fallback(
+                                "navigation_denied"
+                                if "navigat" in behavior_class
+                                else "actuation_denied"
+                            )
                             self._dispatch_tts(denial_text, priority=5)
 
             # 11. Publish LLMResponse
             self._publish_response(
-                response_id     = response_id,
-                intent_msg      = intent_msg,
-                text            = final_text,
-                status          = status,
-                rag_results     = rag_results,
-                tools_called    = [r.tool_name for r in self._tool_reg.recent_calls(5)]
-                                  if self._tool_reg else [],
-                behavior_class  = self._resolve_behavior(intent_msg, safety_snap) or "",
+                response_id=response_id,
+                intent_msg=intent_msg,
+                text=final_text,
+                status=status,
+                rag_results=rag_results,
+                tools_called=(
+                    [r.tool_name for r in self._tool_reg.recent_calls(5)] if self._tool_reg else []
+                ),
+                behavior_class=self._resolve_behavior(intent_msg, safety_snap) or "",
             )
 
             # 12. Log
             total_latency = (time.perf_counter() - t_total) * 1000.0
             self._logger_svc.record(
-                response_id          = response_id,
-                intent_id            = intent_msg.intent_id,
-                speaker_id           = intent_msg.speaker_id,
-                raw_prompt           = prompt,
-                raw_llm_output       = raw_llm_out or "",
-                final_response       = final_text,
-                safety_filter_result = safety_status,
-                safety_filter_reason = safety_reason,
-                hallucination_flagged= (status == "hallucination"),
-                hallucination_reason = (guard_result.reason
-                                        if status == "hallucination" else ""),
-                llm_latency_ms       = llm_latency,
-                rag_latency_ms       = rag_latency,
-                total_latency_ms     = total_latency,
-                rag_doc_ids          = [r.document.doc_id for r in rag_results],
-                rag_scores           = [r.score for r in rag_results],
-                safety_state         = safety_snap.state,
-                actuation_permitted  = safety_snap.actuation_permitted,
-                navigation_permitted = safety_snap.navigation_permitted,
+                response_id=response_id,
+                intent_id=intent_msg.intent_id,
+                speaker_id=intent_msg.speaker_id,
+                raw_prompt=prompt,
+                raw_llm_output=raw_llm_out or "",
+                final_response=final_text,
+                safety_filter_result=safety_status,
+                safety_filter_reason=safety_reason,
+                hallucination_flagged=(status == "hallucination"),
+                hallucination_reason=(guard_result.reason if status == "hallucination" else ""),
+                llm_latency_ms=llm_latency,
+                rag_latency_ms=rag_latency,
+                total_latency_ms=total_latency,
+                rag_doc_ids=[r.document.doc_id for r in rag_results],
+                rag_scores=[r.score for r in rag_results],
+                safety_state=safety_snap.state,
+                actuation_permitted=safety_snap.actuation_permitted,
+                navigation_permitted=safety_snap.navigation_permitted,
             )
 
         except Exception as exc:
@@ -469,6 +476,7 @@ class LLMOrchestratorNode(LifecycleNode):
         if self._lc_chain is not None:
             try:
                 from bonbon_llm.core.langchain_bridge import invoke_chain
+
                 text = invoke_chain(self._lc_chain, prompt, context)
                 return text, None
             except Exception as exc:
@@ -477,9 +485,8 @@ class LLMOrchestratorNode(LifecycleNode):
         # Direct Ollama client fallback
         if self._ollama:
             from bonbon_llm.prompts.system_prompt import SYSTEM_PROMPT
-            resp = self._ollama.generate(
-                prompt, system=SYSTEM_PROMPT + "\n\n" + context
-            )
+
+            resp = self._ollama.generate(prompt, system=SYSTEM_PROMPT + "\n\n" + context)
             if resp.is_error:
                 return None, resp.error
             return resp.text, None
@@ -495,24 +502,24 @@ class LLMOrchestratorNode(LifecycleNode):
             return f"[{intent_msg.intent_class}]"
         if intent_msg.slot_names:
             slots = ", ".join(
-                f"{n}={v}"
-                for n, v in zip(intent_msg.slot_names, intent_msg.slot_values)
+                f"{n}={v}" for n, v in zip(intent_msg.slot_names, intent_msg.slot_values)
             )
             return f"{text}  [intent={intent_msg.intent_class}, slots: {slots}]"
         return text
 
-    def _resolve_behavior(self, intent_msg, safety_snap) -> Optional[str]:
+    def _resolve_behavior(self, intent_msg, safety_snap) -> str | None:
         """Map intent_class → behavior_class (None = speech-only)."""
         _MAP = {
-            "order_item":   "serve_item",
-            "navigate_to":  "navigate_to_goal",
-            "cancel":       "stop_navigation",
+            "order_item": "serve_item",
+            "navigate_to": "navigate_to_goal",
+            "cancel": "stop_navigation",
             "help_request": "alert_safety",
         }
         return _MAP.get(intent_msg.intent_class)
 
     def _fallback(self, situation: str) -> str:
         from bonbon_llm.prompts.response_templates import get_fallback
+
         name = self._cfg.personality.name if self._cfg else "BonBon"
         return get_fallback(situation, prefer_short=True, name=name)
 
@@ -526,10 +533,12 @@ class LLMOrchestratorNode(LifecycleNode):
         if scene is None:
             return "No scene data available"
         from bonbon_llm.prompts.system_prompt import build_context_string
+
         return build_context_string(scene, None)
 
     def _get_safety_snapshot(self):
         from bonbon_llm.safety.authorization import SafetySnapshot
+
         with self._lock:
             msg = self._last_safety
         if msg is None:
@@ -543,12 +552,13 @@ class LLMOrchestratorNode(LifecycleNode):
             return
         try:
             from bonbon_msgs.msg import TTSRequest  # type: ignore
+
             msg = TTSRequest()
-            msg.text        = text
-            msg.priority    = priority
-            msg.language    = "en-US"
-            msg.request_id  = str(uuid.uuid4())
-            msg.speed_factor= 1.0
+            msg.text = text
+            msg.priority = priority
+            msg.language = "en-US"
+            msg.request_id = str(uuid.uuid4())
+            msg.speed_factor = 1.0
             self._pub_tts.publish(msg)
         except Exception as exc:
             self.get_logger().debug("TTS dispatch error: %s", exc)
@@ -556,23 +566,24 @@ class LLMOrchestratorNode(LifecycleNode):
     def _dispatch_behavior(
         self,
         behavior_class: str,
-        params: Dict[str, str],
+        params: dict[str, str],
         confidence: float,
     ) -> None:
         if not self._pub_behavior:
             return
         try:
             from bonbon_msgs.msg import BehaviorRecommendation  # type: ignore
+
             msg = BehaviorRecommendation()
             msg.recommendation_id = str(uuid.uuid4())
-            msg.behavior_class    = behavior_class
-            msg.confidence        = float(confidence)
-            msg.priority          = 1   # PRIORITY_NORMAL
-            msg.trigger_type      = "user_intent"
-            msg.trigger_id        = str(uuid.uuid4())
-            msg.param_names       = list(params.keys())
-            msg.param_values      = list(params.values())
-            msg.timeout_sec       = 30.0
+            msg.behavior_class = behavior_class
+            msg.confidence = float(confidence)
+            msg.priority = 1  # PRIORITY_NORMAL
+            msg.trigger_type = "user_intent"
+            msg.trigger_id = str(uuid.uuid4())
+            msg.param_names = list(params.keys())
+            msg.param_values = list(params.values())
+            msg.timeout_sec = 30.0
             self._pub_behavior.publish(msg)
             self.get_logger().debug("Dispatched behavior: %s %s", behavior_class, params)
         except Exception as exc:
@@ -582,35 +593,40 @@ class LLMOrchestratorNode(LifecycleNode):
 
     def _publish_response(
         self,
-        response_id:   str,
+        response_id: str,
         intent_msg,
-        text:          str,
-        status:        str,
-        rag_results:   list,
-        tools_called:  List[str],
-        behavior_class:str,
+        text: str,
+        status: str,
+        rag_results: list,
+        tools_called: list[str],
+        behavior_class: str,
     ) -> None:
         if not self._pub_response:
             return
         try:
             from bonbon_msgs.msg import LLMResponse  # type: ignore
+
             _STATUS_MAP = {
-                "ok": 0, "low_conf": 1, "safety_block": 2,
-                "hallucination": 3, "llm_error": 4, "fallback": 5,
+                "ok": 0,
+                "low_conf": 1,
+                "safety_block": 2,
+                "hallucination": 3,
+                "llm_error": 4,
+                "fallback": 5,
             }
             msg = LLMResponse()
-            msg.response_id         = response_id
-            msg.request_intent_id   = intent_msg.intent_id
-            msg.text                = text
-            msg.status              = _STATUS_MAP.get(status, 0)
-            msg.confidence          = float(intent_msg.confidence)
-            msg.model_name          = self._cfg.ollama.model if self._cfg else ""
-            msg.used_rag            = len(rag_results) > 0
-            msg.rag_docs_retrieved  = len(rag_results)
-            msg.used_tools          = len(tools_called) > 0
-            msg.tools_called        = tools_called
-            msg.behavior_class      = behavior_class
-            msg.tts_dispatched      = True
+            msg.response_id = response_id
+            msg.request_intent_id = intent_msg.intent_id
+            msg.text = text
+            msg.status = _STATUS_MAP.get(status, 0)
+            msg.confidence = float(intent_msg.confidence)
+            msg.model_name = self._cfg.ollama.model if self._cfg else ""
+            msg.used_rag = len(rag_results) > 0
+            msg.rag_docs_retrieved = len(rag_results)
+            msg.used_tools = len(tools_called) > 0
+            msg.tools_called = tools_called
+            msg.behavior_class = behavior_class
+            msg.tts_dispatched = True
             self._pub_response.publish(msg)
         except Exception as exc:
             self.get_logger().debug("Response publish error: %s", exc)
@@ -620,21 +636,23 @@ class LLMOrchestratorNode(LifecycleNode):
             return
         try:
             from bonbon_msgs.msg import ModuleHealth  # type: ignore
+
             uptime = time.monotonic() - self._start_time
             msg = ModuleHealth()
-            msg.module_name      = "bonbon_llm.llm_orchestrator_node"
-            msg.status           = self._HEALTH_OK if self._pipeline_ok else self._HEALTH_ERROR
-            msg.status_text      = self._cfg.summary() if self._pipeline_ok else self._error_msg
-            msg.uptime_sec       = float(uptime)
-            msg.processed_count  = self._request_count
-            msg.error_count      = self._error_count
-            msg.latency_ms       = 0.0
+            msg.module_name = "bonbon_llm.llm_orchestrator_node"
+            msg.status = self._HEALTH_OK if self._pipeline_ok else self._HEALTH_ERROR
+            msg.status_text = self._cfg.summary() if self._pipeline_ok else self._error_msg
+            msg.uptime_sec = float(uptime)
+            msg.processed_count = self._request_count
+            msg.error_count = self._error_count
+            msg.latency_ms = 0.0
             self._pub_health.publish(msg)
         except Exception as exc:
             self.get_logger().debug("Health publish error: %s", exc)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

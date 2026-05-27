@@ -7,7 +7,7 @@ logged, or copied into config files.
 from __future__ import annotations
 
 import time
-from typing import Literal, Optional
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -25,7 +25,7 @@ class LLMTestRequest(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=2000)
     model: str = Field(default="llama3.2:3b", min_length=1, max_length=120)
     base_url: str = Field(default="http://localhost:11434", max_length=300)
-    api_key: Optional[SecretStr] = None
+    api_key: SecretStr | None = None
     timeout_sec: float = Field(default=30.0, ge=1.0, le=120.0)
 
     @field_validator("base_url")
@@ -41,25 +41,27 @@ async def list_llm_providers(
     current_user: TokenPayload = Depends(require_permission("diagnostics:read")),
 ) -> APIResponse:
     """Return dashboard-supported test providers."""
-    return APIResponse.ok({
-        "providers": [
-            {
-                "id": "ollama",
-                "label": "Local Ollama",
-                "default_base_url": "http://localhost:11434",
-                "default_model": "llama3.2:3b",
-                "api_key_required": False,
-            },
-            {
-                "id": "openai_compatible",
-                "label": "OpenAI-compatible HTTP API",
-                "default_base_url": "https://api.openai.com/v1",
-                "default_model": "gpt-4o-mini",
-                "api_key_required": True,
-            },
-        ],
-        "secret_policy": "API keys are used only for one request and are not persisted.",
-    })
+    return APIResponse.ok(
+        {
+            "providers": [
+                {
+                    "id": "ollama",
+                    "label": "Local Ollama",
+                    "default_base_url": "http://localhost:11434",
+                    "default_model": "llama3.2:3b",
+                    "api_key_required": False,
+                },
+                {
+                    "id": "openai_compatible",
+                    "label": "OpenAI-compatible HTTP API",
+                    "default_base_url": "https://api.openai.com/v1",
+                    "default_model": "gpt-4o-mini",
+                    "api_key_required": True,
+                },
+            ],
+            "secret_policy": "API keys are used only for one request and are not persisted.",
+        }
+    )
 
 
 @llm_router.post("/test-query", response_model=APIResponse)
@@ -98,12 +100,14 @@ async def test_llm_query(
                 "latency_ms": latency_ms,
             },
         )
-    return APIResponse.ok({
-        "provider": body.provider,
-        "model": body.model,
-        "response_text": response_text,
-        "latency_ms": latency_ms,
-    })
+    return APIResponse.ok(
+        {
+            "provider": body.provider,
+            "model": body.model,
+            "response_text": response_text,
+            "latency_ms": latency_ms,
+        }
+    )
 
 
 async def _query_ollama(body: LLMTestRequest) -> str:
@@ -156,7 +160,9 @@ async def _query_openai_compatible(body: LLMTestRequest) -> str:
     try:
         text = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise HTTPException(status_code=502, detail="Provider returned an unsupported response shape") from exc
+        raise HTTPException(
+            status_code=502, detail="Provider returned an unsupported response shape"
+        ) from exc
     if not isinstance(text, str) or not text.strip():
         raise HTTPException(status_code=502, detail="Provider returned an empty response")
     return text.strip()

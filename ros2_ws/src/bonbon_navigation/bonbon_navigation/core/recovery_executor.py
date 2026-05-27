@@ -20,13 +20,14 @@ The executor is stateless between goals — call reset() on each new goal.
 Actual motion commands (backup, spin) are delegated to callbacks injected
 at construction, keeping this class free of ROS2 dependencies.
 """
+
 from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Callable, List, Optional
+from enum import StrEnum
 
 from bonbon_navigation.config.nav_config import RecoveryConfig
 
@@ -35,34 +36,36 @@ logger = logging.getLogger(__name__)
 
 # ── Result ────────────────────────────────────────────────────────────────────
 
-class RecoveryOutcome(str, Enum):
+
+class RecoveryOutcome(StrEnum):
     IN_PROGRESS = "IN_PROGRESS"
-    SUCCEEDED   = "SUCCEEDED"   # behavior complete; retry navigation
-    EXHAUSTED   = "EXHAUSTED"   # all behaviors tried; give up
+    SUCCEEDED = "SUCCEEDED"  # behavior complete; retry navigation
+    EXHAUSTED = "EXHAUSTED"  # all behaviors tried; give up
 
 
 @dataclass
 class RecoveryState:
-    behavior:        str   = ""      # current behavior name
-    attempt:         int   = 0       # attempt within current behavior
-    total_attempts:  int   = 0       # across all behaviors
-    behavior_index:  int   = 0       # position in behavior_sequence
-    outcome:         RecoveryOutcome = RecoveryOutcome.IN_PROGRESS
-    trigger_reason:  str  = ""
-    started_at:      float = field(default_factory=time.monotonic)
+    behavior: str = ""  # current behavior name
+    attempt: int = 0  # attempt within current behavior
+    total_attempts: int = 0  # across all behaviors
+    behavior_index: int = 0  # position in behavior_sequence
+    outcome: RecoveryOutcome = RecoveryOutcome.IN_PROGRESS
+    trigger_reason: str = ""
+    started_at: float = field(default_factory=time.monotonic)
     behavior_started_at: float = field(default_factory=time.monotonic)
 
 
 # ── Callbacks type aliases ────────────────────────────────────────────────────
 
 ClearCostmapFn = Callable[[], None]
-BackupFn       = Callable[[float, float], None]   # (distance_m, speed_mps)
-SpinFn         = Callable[[float, int], None]     # (speed_rps, rotations)
-AnnounceFn     = Callable[[str], None]            # (text)
-EscalateFn     = Callable[[str], None]            # (reason)
+BackupFn = Callable[[float, float], None]  # (distance_m, speed_mps)
+SpinFn = Callable[[float, int], None]  # (speed_rps, rotations)
+AnnounceFn = Callable[[str], None]  # (text)
+EscalateFn = Callable[[str], None]  # (reason)
 
 
 # ── Executor ──────────────────────────────────────────────────────────────────
+
 
 class RecoveryExecutor:
     """
@@ -88,14 +91,14 @@ class RecoveryExecutor:
 
     def __init__(self, cfg: RecoveryConfig) -> None:
         self._cfg = cfg
-        self._state: Optional[RecoveryState] = None
+        self._state: RecoveryState | None = None
 
         # Callbacks — default to no-ops
-        self._clear_fn:    ClearCostmapFn = lambda: None
-        self._backup_fn:   BackupFn       = lambda d, s: None
-        self._spin_fn:     SpinFn         = lambda r, n: None
-        self._announce_fn: AnnounceFn     = lambda t: None
-        self._escalate_fn: EscalateFn     = lambda r: None
+        self._clear_fn: ClearCostmapFn = lambda: None
+        self._backup_fn: BackupFn = lambda d, s: None
+        self._spin_fn: SpinFn = lambda r, n: None
+        self._announce_fn: AnnounceFn = lambda t: None
+        self._escalate_fn: EscalateFn = lambda r: None
 
     # ── Callback injection ────────────────────────────────────────────────────
 
@@ -121,20 +124,18 @@ class RecoveryExecutor:
         if not self._cfg.enabled:
             return
         self._state = RecoveryState(
-            behavior       = self._cfg.behavior_sequence[0] if self._cfg.behavior_sequence else "",
-            behavior_index = 0,
-            trigger_reason = trigger_reason,
+            behavior=self._cfg.behavior_sequence[0] if self._cfg.behavior_sequence else "",
+            behavior_index=0,
+            trigger_reason=trigger_reason,
         )
-        logger.info("Recovery started: trigger=%r  sequence=%s",
-                    trigger_reason, self._cfg.behavior_sequence)
+        logger.info(
+            "Recovery started: trigger=%r  sequence=%s", trigger_reason, self._cfg.behavior_sequence
+        )
 
     def is_active(self) -> bool:
-        return (
-            self._state is not None
-            and self._state.outcome == RecoveryOutcome.IN_PROGRESS
-        )
+        return self._state is not None and self._state.outcome == RecoveryOutcome.IN_PROGRESS
 
-    def get_state(self) -> Optional[RecoveryState]:
+    def get_state(self) -> RecoveryState | None:
         return self._state
 
     # ── Step ──────────────────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ class RecoveryExecutor:
                 s.outcome = RecoveryOutcome.SUCCEEDED
                 return s.outcome
             s.behavior = self._cfg.behavior_sequence[s.behavior_index]
-            s.attempt  = 0
+            s.attempt = 0
             s.behavior_started_at = time.monotonic()
             logger.info("Recovery advancing to: %s", s.behavior)
             return RecoveryOutcome.IN_PROGRESS
@@ -191,14 +192,15 @@ class RecoveryExecutor:
         Returns SUCCEEDED when the behavior is done (move to next),
         IN_PROGRESS while still running.
         """
-        b   = s.behavior
+        b = s.behavior
         now = time.monotonic()
         elapsed = now - s.behavior_started_at
 
         if b == "wait":
             if s.attempt == 0:
-                logger.info("Recovery WAIT: pausing %.1fs for obstacle to clear",
-                            self._cfg.wait_sec)
+                logger.info(
+                    "Recovery WAIT: pausing %.1fs for obstacle to clear", self._cfg.wait_sec
+                )
                 s.attempt = 1
                 return RecoveryOutcome.IN_PROGRESS
             if elapsed >= self._cfg.wait_sec:
@@ -219,36 +221,42 @@ class RecoveryExecutor:
 
         elif b == "backup":
             if s.attempt == 0:
-                logger.info("Recovery BACKUP: reversing %.2fm at %.2fm/s",
-                            self._cfg.backup_distance_m, self._cfg.backup_speed_mps)
+                logger.info(
+                    "Recovery BACKUP: reversing %.2fm at %.2fm/s",
+                    self._cfg.backup_distance_m,
+                    self._cfg.backup_speed_mps,
+                )
                 try:
-                    self._backup_fn(self._cfg.backup_distance_m,
-                                    self._cfg.backup_speed_mps)
+                    self._backup_fn(self._cfg.backup_distance_m, self._cfg.backup_speed_mps)
                 except Exception as exc:
                     logger.warning("backup failed: %s", exc)
                 s.attempt = 1
                 return RecoveryOutcome.IN_PROGRESS
             # Allow 10 s for backup to complete
-            if elapsed >= (self._cfg.backup_distance_m / max(self._cfg.backup_speed_mps, 0.01) + 3.0):
+            if elapsed >= (
+                self._cfg.backup_distance_m / max(self._cfg.backup_speed_mps, 0.01) + 3.0
+            ):
                 s.total_attempts += 1
                 return RecoveryOutcome.SUCCEEDED
 
         elif b == "spin":
             if s.attempt == 0:
-                logger.info("Recovery SPIN: rotating %d × 360°",
-                            self._cfg.spin_full_rotations)
+                logger.info("Recovery SPIN: rotating %d × 360°", self._cfg.spin_full_rotations)
                 try:
-                    self._spin_fn(self._cfg.spin_angular_speed_rps,
-                                  self._cfg.spin_full_rotations)
+                    self._spin_fn(self._cfg.spin_angular_speed_rps, self._cfg.spin_full_rotations)
                 except Exception as exc:
                     logger.warning("spin failed: %s", exc)
                 s.attempt = 1
                 return RecoveryOutcome.IN_PROGRESS
             # Time estimate: 2π / speed * rotations + 2 s margin
             import math
+
             spin_time = (
-                2 * math.pi / max(self._cfg.spin_angular_speed_rps, 0.1)
-                * self._cfg.spin_full_rotations + 2.0
+                2
+                * math.pi
+                / max(self._cfg.spin_angular_speed_rps, 0.1)
+                * self._cfg.spin_full_rotations
+                + 2.0
             )
             if elapsed >= spin_time:
                 s.total_attempts += 1
@@ -280,9 +288,7 @@ class RecoveryExecutor:
             if s.attempt == 0:
                 logger.warning("Recovery ESCALATE: requesting human staff assistance")
                 try:
-                    self._escalate_fn(
-                        f"Robot stuck — cannot navigate: {s.trigger_reason}"
-                    )
+                    self._escalate_fn(f"Robot stuck — cannot navigate: {s.trigger_reason}")
                     self._announce_fn(
                         "I'm sorry, I'm unable to proceed. "
                         "I've alerted a staff member to assist."

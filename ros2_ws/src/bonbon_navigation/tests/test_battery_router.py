@@ -1,19 +1,18 @@
 """
 Tests for bonbon_navigation.core.battery_router
 """
-import pytest
 
+import pytest
 from bonbon_navigation.config.nav_config import BatteryRoutingConfig
 from bonbon_navigation.core.battery_router import (
     BatteryLevel,
     BatteryRouter,
     BatteryState,
-    RoutingDecision,
 )
 from bonbon_navigation.core.map_manager import MapManager
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _cfg(**kw) -> BatteryRoutingConfig:
     defaults = dict(
@@ -39,6 +38,7 @@ def _router(cfg=None, mm=None) -> BatteryRouter:
 
 
 # ── BatteryLevel classification ───────────────────────────────────────────────
+
 
 class TestBatteryClassification:
     def test_full_battery_ok(self):
@@ -83,6 +83,7 @@ class TestBatteryClassification:
 
 
 # ── Routing decisions ─────────────────────────────────────────────────────────
+
 
 class TestRoutingDecisions:
     def test_ok_battery_no_dock(self):
@@ -137,6 +138,7 @@ class TestRoutingDecisions:
 
 # ── Disabled router ───────────────────────────────────────────────────────────
 
+
 class TestDisabledRouter:
     def test_disabled_never_docks(self):
         r = _router(cfg=_cfg(enabled=False))
@@ -146,6 +148,7 @@ class TestDisabledRouter:
 
 
 # ── No chargers ───────────────────────────────────────────────────────────────
+
 
 class TestNoChargers:
     def test_no_chargers_registered(self):
@@ -158,6 +161,7 @@ class TestNoChargers:
 
 
 # ── State accessors ───────────────────────────────────────────────────────────
+
 
 class TestStateAccessors:
     def test_percentage_property(self):
@@ -172,8 +176,7 @@ class TestStateAccessors:
 
     def test_get_state_fields(self):
         r = _router()
-        r.update_battery(percentage=67.0, voltage_v=24.5, current_a=-2.0,
-                          is_charging=False)
+        r.update_battery(percentage=67.0, voltage_v=24.5, current_a=-2.0, is_charging=False)
         state = r.get_state()
         assert isinstance(state, BatteryState)
         assert state.percentage == pytest.approx(67.0)
@@ -187,6 +190,7 @@ class TestStateAccessors:
 
 
 # ── RoutingDecision fields ────────────────────────────────────────────────────
+
 
 class TestRoutingDecisionFields:
     def test_decision_has_all_fields(self):

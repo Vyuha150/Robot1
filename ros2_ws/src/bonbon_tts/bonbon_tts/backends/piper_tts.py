@@ -31,9 +31,9 @@ PiperTTS.is_available() returns False if:
 
 On unavailability the SpeechSynthesizer falls back to MockTTS.
 """
+
 from __future__ import annotations
 
-import io
 import logging
 import os
 import shutil
@@ -42,7 +42,6 @@ import tempfile
 import threading
 import time
 import wave
-from typing import Optional
 
 from bonbon_tts.backends.base_tts import BaseTTS, SynthesisOutput, TTSError
 from bonbon_tts.config.tts_config import PiperConfig
@@ -61,8 +60,8 @@ class PiperTTS(BaseTTS):
     """
 
     def __init__(self, cfg: PiperConfig) -> None:
-        self._cfg   = cfg
-        self._lock  = threading.Lock()
+        self._cfg = cfg
+        self._lock = threading.Lock()
         self._ready = False
 
         # Python API handle (set during warmup when use_subprocess=False)
@@ -112,9 +111,7 @@ class PiperTTS(BaseTTS):
     def _warmup_subprocess(self) -> None:
         exe = self._cfg.executable or "piper"
         if not shutil.which(exe):
-            logger.warning(
-                "Piper executable %r not found on PATH. TTS will use fallback.", exe
-            )
+            logger.warning("Piper executable %r not found on PATH. TTS will use fallback.", exe)
             self._ready = False
             return
 
@@ -127,8 +124,11 @@ class PiperTTS(BaseTTS):
             return
 
         self._ready = True
-        logger.info("PiperTTS (subprocess) ready: exe=%r model=%r",
-                    exe, self._cfg.model_path or "default voice")
+        logger.info(
+            "PiperTTS (subprocess) ready: exe=%r model=%r",
+            exe,
+            self._cfg.model_path or "default voice",
+        )
 
     def _synthesize_subprocess(self, text: str) -> SynthesisOutput:
         exe = self._cfg.executable or "piper"
@@ -177,11 +177,11 @@ class PiperTTS(BaseTTS):
 
             return self._read_wav_file(out_path, text)
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
             raise TTSError(
                 f"Piper subprocess timed out ({self._cfg.synthesis_timeout_sec}s)",
                 "PIPER_TIMEOUT",
-            )
+            ) from exc
         finally:
             try:
                 os.unlink(out_path)
@@ -194,9 +194,7 @@ class PiperTTS(BaseTTS):
         try:
             from piper.voice import PiperVoice  # type: ignore[import]
         except ImportError:
-            logger.warning(
-                "piper_tts Python package not installed. TTS will use fallback."
-            )
+            logger.warning("piper_tts Python package not installed. TTS will use fallback.")
             self._ready = False
             return
 
@@ -228,9 +226,8 @@ class PiperTTS(BaseTTS):
             out_path = tf.name
 
         try:
-            with wave.open(out_path, "wb") as wav_file:
-                with self._lock:
-                    self._voice.synthesize(text, wav_file)
+            with wave.open(out_path, "wb") as wav_file, self._lock:
+                self._voice.synthesize(text, wav_file)
 
             return self._read_wav_file(out_path, text)
         finally:
@@ -245,17 +242,17 @@ class PiperTTS(BaseTTS):
     def _read_wav_file(path: str, text: str) -> SynthesisOutput:
         """Read a WAV file and return SynthesisOutput."""
         with wave.open(path, "rb") as wf:
-            sample_rate  = wf.getframerate()
-            n_frames     = wf.getnframes()
+            sample_rate = wf.getframerate()
+            n_frames = wf.getnframes()
             duration_sec = n_frames / sample_rate
 
         with open(path, "rb") as fh:
             wav_bytes = fh.read()
 
         return SynthesisOutput(
-            wav_bytes    = wav_bytes,
-            duration_sec = duration_sec,
-            text         = text,
-            sample_rate  = sample_rate,
-            backend      = "piper",
+            wav_bytes=wav_bytes,
+            duration_sec=duration_sec,
+            text=text,
+            sample_rate=sample_rate,
+            backend="piper",
         )

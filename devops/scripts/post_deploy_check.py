@@ -9,7 +9,6 @@ import sys
 import urllib.error
 import urllib.request
 
-
 REQUIRED_TOPICS = [
     "/scan",
     "/imu/data",
@@ -29,9 +28,14 @@ def main() -> int:
         "ROS2 graph healthy": _ros2_graph_ok(args.dry_run),
         "Safety Supervisor healthy": _truthy("BONBON_SAFETY_SUPERVISOR_RUNNING", args.dry_run),
         "sensor topics publishing": _topics_ok(args.dry_run),
-        "dashboard reachable": _http_ok(f"http://127.0.0.1:{os.getenv('BONBON_DASHBOARD_PORT', '8080')}/health", args.dry_run),
+        "dashboard reachable": _http_ok(
+            f"http://127.0.0.1:{os.getenv('BONBON_DASHBOARD_PORT', '8080')}/health", args.dry_run
+        ),
         "logs active": _path_ok(os.getenv("BONBON_LOG_DIR", "/var/log/bonbon"), args.dry_run),
-        "metrics active": _http_ok(f"http://127.0.0.1:{os.getenv('BONBON_PROMETHEUS_PORT', '9090')}/-/healthy", args.dry_run),
+        "metrics active": _http_ok(
+            f"http://127.0.0.1:{os.getenv('BONBON_PROMETHEUS_PORT', '9090')}/-/healthy",
+            args.dry_run,
+        ),
         "no critical errors": _truthy("BONBON_NO_CRITICAL_ERRORS", args.dry_run),
         "rollback not required": _truthy("BONBON_ROLLBACK_NOT_REQUIRED", args.dry_run),
     }
@@ -65,7 +69,10 @@ def _systemd_ok(dry_run: bool) -> bool:
         "bonbon-dashboard.service",
         "bonbon-monitoring.service",
     ]
-    return all(subprocess.run(["systemctl", "is-active", "--quiet", service]).returncode == 0 for service in services)
+    return all(
+        subprocess.run(["systemctl", "is-active", "--quiet", service]).returncode == 0
+        for service in services
+    )
 
 
 def _ros2_graph_ok(dry_run: bool) -> bool:

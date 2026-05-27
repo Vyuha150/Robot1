@@ -11,7 +11,6 @@ import hashlib
 import logging
 import threading
 from functools import lru_cache
-from typing import List, Optional
 
 import numpy as np
 
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Attempt to import sentence-transformers
 try:
     from sentence_transformers import SentenceTransformer  # type: ignore
+
     _HAS_ST = True
 except ImportError:
     _HAS_ST = False
@@ -30,6 +30,7 @@ except ImportError:
 # Hash-based fallback embedding
 # ---------------------------------------------------------------------------
 
+
 def _hash_embed(text: str, dim: int = 384) -> np.ndarray:
     """Produce a deterministic pseudo-embedding from an MD5 hash.
 
@@ -38,7 +39,7 @@ def _hash_embed(text: str, dim: int = 384) -> np.ndarray:
     The resulting "similarity" scores are meaningless but the API shape is
     identical.
     """
-    seed = int(hashlib.md5(text.encode()).hexdigest(), 16) % (2 ** 32)
+    seed = int(hashlib.md5(text.encode()).hexdigest(), 16) % (2**32)
     rng = np.random.default_rng(seed)
     vec = rng.standard_normal(dim).astype(np.float32)
     norm = np.linalg.norm(vec)
@@ -50,6 +51,7 @@ def _hash_embed(text: str, dim: int = 384) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # EmbeddingManager
 # ---------------------------------------------------------------------------
+
 
 class EmbeddingManager:
     """Produce fixed-dimension embeddings for text strings.
@@ -85,7 +87,7 @@ class EmbeddingManager:
         self._device = device
         self._batch_size = batch_size
         self._use_hash_fallback = use_hash_fallback
-        self._model: Optional[SentenceTransformer] = None
+        self._model: SentenceTransformer | None = None
         self._lock = threading.Lock()
         self._is_fallback = False
 
@@ -122,7 +124,7 @@ class EmbeddingManager:
         """Return a (dim,) float32 L2-normalised embedding for *text*."""
         return np.array(self._cached_embed(text), dtype=np.float32)
 
-    def embed_batch(self, texts: List[str]) -> np.ndarray:
+    def embed_batch(self, texts: list[str]) -> np.ndarray:
         """Return an (N, dim) float32 matrix for a list of strings.
 
         Uses the model's batched encode path when available.
@@ -168,9 +170,10 @@ class EmbeddingManager:
             actual_dim = self._model.get_sentence_embedding_dimension()
             if actual_dim != self._dim:
                 logger.warning(
-                    "Model %r has dim=%d but configured dim=%d; "
-                    "updating dim to match model.",
-                    self._model_name, actual_dim, self._dim,
+                    "Model %r has dim=%d but configured dim=%d; " "updating dim to match model.",
+                    self._model_name,
+                    actual_dim,
+                    self._dim,
                 )
                 self._dim = actual_dim
             self._is_fallback = False
@@ -178,9 +181,9 @@ class EmbeddingManager:
         except Exception as exc:
             if self._use_hash_fallback:
                 logger.error(
-                    "Failed to load embedding model %r: %s. "
-                    "Falling back to hash embeddings.",
-                    self._model_name, exc,
+                    "Failed to load embedding model %r: %s. " "Falling back to hash embeddings.",
+                    self._model_name,
+                    exc,
                 )
                 self._is_fallback = True
             else:

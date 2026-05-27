@@ -15,8 +15,8 @@ Covers
 * Invalid target_hz raises ValueError
 * Burst > 1 allows initial burst of N consecutive accepts
 """
+
 import threading
-import time
 import unittest
 
 from bonbon_vision.preprocessing.frame_throttler import FrameThrottler
@@ -31,7 +31,7 @@ class TestFirstCall(unittest.TestCase):
     def test_second_immediate_call_dropped(self):
         """No time passes → no refill → second call dropped."""
         t = FrameThrottler(target_hz=10.0)
-        t.should_process()   # consume the initial token
+        t.should_process()  # consume the initial token
         result = t.should_process()
         self.assertFalse(result)
 
@@ -44,6 +44,7 @@ class TestThrottling(unittest.TestCase):
         can control elapsed time deterministically.
         """
         import bonbon_vision.preprocessing.frame_throttler as _mod
+
         ticks = [0.0]
 
         def fake_monotonic():
@@ -55,7 +56,7 @@ class TestThrottling(unittest.TestCase):
             t = FrameThrottler(target_hz=10.0)
             processed = 0
             for i in range(100):
-                ticks[0] = i * 0.01     # advance 10 ms per call (= 100 Hz offer rate)
+                ticks[0] = i * 0.01  # advance 10 ms per call (= 100 Hz offer rate)
                 if t.should_process():
                     processed += 1
 
@@ -68,6 +69,7 @@ class TestThrottling(unittest.TestCase):
     def test_drop_rate_close_to_expected(self):
         """Offer at 30 Hz target 10 Hz → ~67% drop rate."""
         import bonbon_vision.preprocessing.frame_throttler as _mod
+
         ticks = [0.0]
 
         def fake_monotonic():
@@ -78,7 +80,7 @@ class TestThrottling(unittest.TestCase):
         try:
             t = FrameThrottler(target_hz=10.0)
             for i in range(300):
-                ticks[0] = i * (1.0 / 30.0)   # 30 Hz offer rate
+                ticks[0] = i * (1.0 / 30.0)  # 30 Hz offer rate
                 t.should_process()
 
             # drop rate should be ~67%
@@ -125,9 +127,9 @@ class TestStats(unittest.TestCase):
 
     def test_drop_rate_after_all_drops(self):
         t = FrameThrottler(target_hz=1.0)
-        t.should_process()   # consume token
+        t.should_process()  # consume token
         for _ in range(9):
-            t.should_process()   # all dropped
+            t.should_process()  # all dropped
         self.assertAlmostEqual(t.drop_rate, 9.0 / 10.0, delta=0.01)
 
     def test_reset_stats(self):
@@ -136,9 +138,9 @@ class TestStats(unittest.TestCase):
             t.should_process()
         t.reset_stats()
         s = t.stats
-        self.assertEqual(s["offered"],   0)
+        self.assertEqual(s["offered"], 0)
         self.assertEqual(s["processed"], 0)
-        self.assertEqual(s["dropped"],   0)
+        self.assertEqual(s["dropped"], 0)
 
 
 class TestBurst(unittest.TestCase):
@@ -154,7 +156,7 @@ class TestBurst(unittest.TestCase):
 
     def test_burst_defaults_to_one(self):
         t = FrameThrottler(target_hz=10.0)
-        t.should_process()        # uses the 1 token
+        t.should_process()  # uses the 1 token
         self.assertFalse(t.should_process())
 
 
@@ -164,7 +166,7 @@ class TestThreadSafety(unittest.TestCase):
         50 threads each call should_process once; processed + dropped must
         equal 50 and the bucket must never have more tokens than the burst.
         """
-        t = FrameThrottler(target_hz=1000.0)   # very high rate to reduce drops
+        t = FrameThrottler(target_hz=1000.0)  # very high rate to reduce drops
         results = []
         lock = threading.Lock()
 
@@ -187,6 +189,7 @@ class TestThreadSafety(unittest.TestCase):
     def test_tokens_never_exceed_burst(self):
         """Internal token count must never exceed burst capacity."""
         import bonbon_vision.preprocessing.frame_throttler as _mod
+
         tick = [0.0]
         original = _mod.time.monotonic
 
@@ -196,8 +199,8 @@ class TestThreadSafety(unittest.TestCase):
         _mod.time.monotonic = fake_mono
         try:
             t = FrameThrottler(target_hz=5.0, burst=2)
-            tick[0] = 100.0      # large time jump
-            t.should_process()   # triggers refill, then consumes 1 token
+            tick[0] = 100.0  # large time jump
+            t.should_process()  # triggers refill, then consumes 1 token
             with t._lock:
                 self.assertLessEqual(t._tokens, float(t._burst))
         finally:

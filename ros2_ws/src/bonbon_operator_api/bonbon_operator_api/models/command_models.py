@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -21,8 +19,8 @@ class NavigateCommand(BaseModel):
     goal_x: float = Field(ge=-1000.0, le=1000.0)
     goal_y: float = Field(ge=-1000.0, le=1000.0)
     goal_yaw: float = Field(default=0.0, ge=-3.15, le=3.15)
-    map_id: Optional[str] = None
-    speed_limit_mps: Optional[float] = Field(default=None, ge=0.05, le=1.5)
+    map_id: str | None = None
+    speed_limit_mps: float | None = Field(default=None, ge=0.05, le=1.5)
     allow_replanning: bool = True
 
 
@@ -35,7 +33,7 @@ class ResumeCommand(BaseModel):
 
 
 class DockCommand(BaseModel):
-    station_id: Optional[str] = None
+    station_id: str | None = None
 
 
 class EmergencyStopCommand(BaseModel):
@@ -43,7 +41,7 @@ class EmergencyStopCommand(BaseModel):
 
 
 class CancelTaskCommand(BaseModel):
-    task_id: Optional[str] = None
+    task_id: str | None = None
     reason: str = Field(default="", max_length=200)
 
 
@@ -60,7 +58,7 @@ class ConfigUpdateRequest(BaseModel):
 
 class RAGQueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=500)
-    collections: Optional[list] = None
+    collections: list | None = None
     n_results: int = Field(default=5, ge=1, le=20)
     min_score: float = Field(default=0.0, ge=0.0, le=1.0)
 

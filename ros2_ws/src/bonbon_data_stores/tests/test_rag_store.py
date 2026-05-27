@@ -7,14 +7,13 @@ Tests requiring the live ChromaDB are marked @pytest.mark.chroma.
 from __future__ import annotations
 
 import pytest
-
-from bonbon_data_stores.rag.chroma_store import ChromaRAGStore, COLLECTION_NAMES
+from bonbon_data_stores.rag.chroma_store import COLLECTION_NAMES, ChromaRAGStore
 from bonbon_data_stores.rag.rag_query_engine import RAGQueryEngine
-
 
 # ---------------------------------------------------------------------------
 # Scenario 15: ChromaRAGStore
 # ---------------------------------------------------------------------------
+
 
 class TestChromaRAGStoreDegraded:
     """Degraded-mode tests (no chromadb required)."""
@@ -50,7 +49,7 @@ class TestChromaRAGStoreLive:
     """Live ChromaDB tests."""
 
     def test_add_and_query(self, tmp_path):
-        chromadb = pytest.importorskip("chromadb")
+        pytest.importorskip("chromadb")
         store = ChromaRAGStore(persist_dir=tmp_path, enabled=True)
         if store.is_degraded:
             pytest.skip("chromadb not available")
@@ -61,7 +60,7 @@ class TestChromaRAGStoreLive:
         assert "BonBon" in results[0].document
 
     def test_count_after_add(self, tmp_path):
-        chromadb = pytest.importorskip("chromadb")
+        pytest.importorskip("chromadb")
         store = ChromaRAGStore(persist_dir=tmp_path, enabled=True)
         if store.is_degraded:
             pytest.skip("chromadb not available")
@@ -70,7 +69,7 @@ class TestChromaRAGStoreLive:
         assert store.count("faqs") >= 1
 
     def test_delete(self, tmp_path):
-        chromadb = pytest.importorskip("chromadb")
+        pytest.importorskip("chromadb")
         store = ChromaRAGStore(persist_dir=tmp_path, enabled=True)
         if store.is_degraded:
             pytest.skip("chromadb not available")
@@ -83,6 +82,7 @@ class TestChromaRAGStoreLive:
 # ---------------------------------------------------------------------------
 # Scenario 16: RAGQueryEngine
 # ---------------------------------------------------------------------------
+
 
 class TestRAGQueryEngine:
     def test_empty_query_returns_empty(self, tmp_path):
@@ -106,7 +106,7 @@ class TestRAGQueryEngine:
 
     @pytest.mark.chroma
     def test_multi_collection_search(self, tmp_path):
-        chromadb = pytest.importorskip("chromadb")
+        pytest.importorskip("chromadb")
         store = ChromaRAGStore(persist_dir=tmp_path, enabled=True)
         if store.is_degraded:
             pytest.skip("chromadb not available")

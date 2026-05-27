@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from math import hypot
-from typing import Iterable, List, Tuple
 
-
-Point = Tuple[float, float]
+Point = tuple[float, float]
 
 
 @dataclass
@@ -27,7 +26,7 @@ class DynamicObstacle:
 
 class DynamicObstacleController:
     def __init__(self, obstacles: Iterable[DynamicObstacle] | None = None) -> None:
-        self.obstacles: List[DynamicObstacle] = list(obstacles or [])
+        self.obstacles: list[DynamicObstacle] = list(obstacles or [])
 
     def add(self, obstacle: DynamicObstacle) -> None:
         self.obstacles.append(obstacle)
@@ -40,7 +39,9 @@ class DynamicObstacleController:
         active = [o for o in self.obstacles if o.active]
         if not active:
             return float("inf")
-        return min(hypot(point[0] - o.position[0], point[1] - o.position[1]) - o.radius_m for o in active)
+        return min(
+            hypot(point[0] - o.position[0], point[1] - o.position[1]) - o.radius_m for o in active
+        )
 
     def blocks_path(self, point: Point, clearance_m: float) -> bool:
         return self.nearest_distance(point) < clearance_m

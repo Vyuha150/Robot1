@@ -16,6 +16,7 @@ called it is consumed and True is returned; otherwise False (drop frame).
 Thread safety: the token is a float timestamp — all access via a
 threading.Lock.
 """
+
 from __future__ import annotations
 
 import logging
@@ -39,15 +40,15 @@ class FrameThrottler:
         if target_hz <= 0:
             raise ValueError(f"target_hz must be > 0, got {target_hz}")
         self._interval = 1.0 / target_hz
-        self._burst    = max(1, burst)
-        self._tokens:  float = float(self._burst)
+        self._burst = max(1, burst)
+        self._tokens: float = float(self._burst)
         self._last_refill: float = time.monotonic()
-        self._lock     = threading.Lock()
+        self._lock = threading.Lock()
 
         # Metrics
-        self._total_offered:  int = 0
+        self._total_offered: int = 0
         self._total_processed: int = 0
-        self._total_dropped:  int = 0
+        self._total_dropped: int = 0
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -74,9 +75,7 @@ class FrameThrottler:
             self._interval = 1.0 / target_hz
             # Reset tokens to avoid burst after rate decrease
             self._tokens = min(self._tokens, 1.0)
-        logger.info(
-            "stage=throttler event=rate_updated target_hz=%.1f", target_hz
-        )
+        logger.info("stage=throttler event=rate_updated target_hz=%.1f", target_hz)
 
     @property
     def drop_rate(self) -> float:
@@ -90,17 +89,17 @@ class FrameThrottler:
     def stats(self) -> dict:
         with self._lock:
             return {
-                "offered":   self._total_offered,
+                "offered": self._total_offered,
                 "processed": self._total_processed,
-                "dropped":   self._total_dropped,
+                "dropped": self._total_dropped,
                 "drop_rate": self.drop_rate,
             }
 
     def reset_stats(self) -> None:
         with self._lock:
-            self._total_offered   = 0
+            self._total_offered = 0
             self._total_processed = 0
-            self._total_dropped   = 0
+            self._total_dropped = 0
 
     # ── Internal ──────────────────────────────────────────────────────────────
 

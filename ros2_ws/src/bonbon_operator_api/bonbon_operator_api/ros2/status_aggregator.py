@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_operator_api.models.robot_models import (
     ActuationData,
@@ -83,8 +83,8 @@ class RobotStatusAggregator:
             angular_velocity_rps=0.0,
             motors_enabled=False,
         )
-        self._modules: Dict[str, ModuleStatus] = {}
-        self._active_task: Optional[str] = None
+        self._modules: dict[str, ModuleStatus] = {}
+        self._active_task: str | None = None
         self._last_updated: float = 0.0  # epoch seconds; 0 = never heard from robot
 
     # ------------------------------------------------------------------
@@ -97,8 +97,7 @@ class RobotStatusAggregator:
             now = time.time()
             uptime = time.monotonic() - self._start_time
             is_online = (
-                self._last_updated > 0
-                and (now - self._last_updated) < self._offline_timeout
+                self._last_updated > 0 and (now - self._last_updated) < self._offline_timeout
             )
             return RobotStatus(
                 is_online=is_online,
@@ -129,7 +128,7 @@ class RobotStatusAggregator:
     # Write API — called from bridge callbacks (background ROS2 thread)
     # ------------------------------------------------------------------
 
-    def update_safety(self, data: Dict[str, Any]) -> None:
+    def update_safety(self, data: dict[str, Any]) -> None:
         with self._lock:
             self._safety = SafetyStateData(
                 state=data.get("state", self._safety.state),
@@ -139,7 +138,7 @@ class RobotStatusAggregator:
             )
             self._touch()
 
-    def update_battery(self, data: Dict[str, Any]) -> None:
+    def update_battery(self, data: dict[str, Any]) -> None:
         with self._lock:
             self._battery = BatteryData(
                 voltage_v=data.get("voltage_v", self._battery.voltage_v),
@@ -151,7 +150,7 @@ class RobotStatusAggregator:
             )
             self._touch()
 
-    def update_navigation(self, data: Dict[str, Any]) -> None:
+    def update_navigation(self, data: dict[str, Any]) -> None:
         with self._lock:
             self._navigation = NavigationData(
                 state=data.get("state", self._navigation.state),
@@ -165,21 +164,19 @@ class RobotStatusAggregator:
             )
             self._touch()
 
-    def update_perception(self, data: Dict[str, Any]) -> None:
+    def update_perception(self, data: dict[str, Any]) -> None:
         with self._lock:
             self._perception = PerceptionData(
                 camera_active=data.get("camera_active", self._perception.camera_active),
                 lidar_active=data.get("lidar_active", self._perception.lidar_active),
-                persons_detected=data.get(
-                    "persons_detected", self._perception.persons_detected
-                ),
+                persons_detected=data.get("persons_detected", self._perception.persons_detected),
                 obstacle_distance_m=data.get(
                     "obstacle_distance_m", self._perception.obstacle_distance_m
                 ),
             )
             self._touch()
 
-    def update_tts(self, data: Dict[str, Any]) -> None:
+    def update_tts(self, data: dict[str, Any]) -> None:
         with self._lock:
             self._tts = TTSData(
                 is_speaking=data.get("is_speaking", self._tts.is_speaking),
@@ -188,7 +185,7 @@ class RobotStatusAggregator:
             )
             self._touch()
 
-    def update_actuation(self, data: Dict[str, Any]) -> None:
+    def update_actuation(self, data: dict[str, Any]) -> None:
         with self._lock:
             self._actuation = ActuationData(
                 linear_velocity_mps=data.get(
@@ -197,13 +194,11 @@ class RobotStatusAggregator:
                 angular_velocity_rps=data.get(
                     "angular_velocity_rps", self._actuation.angular_velocity_rps
                 ),
-                motors_enabled=data.get(
-                    "motors_enabled", self._actuation.motors_enabled
-                ),
+                motors_enabled=data.get("motors_enabled", self._actuation.motors_enabled),
             )
             self._touch()
 
-    def update_module(self, module_name: str, data: Dict[str, Any]) -> None:
+    def update_module(self, module_name: str, data: dict[str, Any]) -> None:
         with self._lock:
             self._modules[module_name] = ModuleStatus(
                 name=module_name,
@@ -213,7 +208,7 @@ class RobotStatusAggregator:
             )
             self._touch()
 
-    def update_active_task(self, task_id: Optional[str]) -> None:
+    def update_active_task(self, task_id: str | None) -> None:
         with self._lock:
             self._active_task = task_id
             self._touch()

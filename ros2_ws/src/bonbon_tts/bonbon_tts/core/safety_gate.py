@@ -25,26 +25,28 @@ Transitions to ``SAFETY_STOP`` or ``EMERGENCY_STOP`` trigger an
 immediate stop of current playback.  Transitioning back to NORMAL
 or DEGRADED lifts the gate.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
-from enum import Enum
+from enum import StrEnum
 
 from bonbon_tts.core.utterance_queue import Priority
 
 logger = logging.getLogger(__name__)
 
 
-class SafetyState(str, Enum):
+class SafetyState(StrEnum):
     """Safety supervisor state values."""
-    NORMAL         = "normal"
-    DEGRADED       = "degraded"
-    SAFETY_STOP    = "safety_stop"
+
+    NORMAL = "normal"
+    DEGRADED = "degraded"
+    SAFETY_STOP = "safety_stop"
     EMERGENCY_STOP = "emergency_stop"
 
     @classmethod
-    def from_string(cls, s: str) -> "SafetyState":
+    def from_string(cls, s: str) -> SafetyState:
         """Parse case-insensitively; falls back to NORMAL."""
         try:
             return cls(s.lower())
@@ -79,7 +81,7 @@ class TTSSafetyGate:
 
     def __init__(self) -> None:
         self._state = SafetyState.NORMAL
-        self._lock  = threading.Lock()
+        self._lock = threading.Lock()
 
     # ── State updates ─────────────────────────────────────────────────────────
 
@@ -94,7 +96,7 @@ class TTSSafetyGate:
             should stop current speech immediately).
         """
         with self._lock:
-            prev   = self._state
+            prev = self._state
             self._state = state
             just_halted = (prev not in _HALT_STATES) and (state in _HALT_STATES)
 

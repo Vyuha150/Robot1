@@ -18,15 +18,16 @@ Blurring strategy
                             then upscale back.  Completely removes all
                             facial features without artefacts.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
 
 import numpy as np
 
 try:
     import cv2
+
     _HAS_CV2 = True
 except ImportError:
     _HAS_CV2 = False
@@ -35,7 +36,7 @@ from ..config.vision_config import PrivacyConfig
 
 logger = logging.getLogger(__name__)
 
-BBox = Tuple[int, int, int, int]   # (x, y, w, h)
+BBox = tuple[int, int, int, int]  # (x, y, w, h)
 
 
 class PrivacyGuard:
@@ -50,8 +51,8 @@ class PrivacyGuard:
 
     def anonymise(
         self,
-        bgr:   np.ndarray,
-        faces: List[BBox],
+        bgr: np.ndarray,
+        faces: list[BBox],
     ) -> np.ndarray:
         """
         Return a copy of `bgr` with all `faces` anonymised.
@@ -78,19 +79,21 @@ class PrivacyGuard:
         ih, iw = bgr.shape[:2]
 
         # Clamp to image bounds
-        x  = max(0, x);  y  = max(0, y)
-        w  = min(iw - x, w);  h = min(ih - y, h)
+        x = max(0, x)
+        y = max(0, y)
+        w = min(iw - x, w)
+        h = min(ih - y, h)
         if w <= 0 or h <= 0:
             return bgr
 
-        roi = bgr[y:y + h, x:x + w]
+        roi = bgr[y : y + h, x : x + w]
 
         if self._cfg.pixelate_faces:
             processed = self._pixelate(roi)
         else:
             processed = self._blur(roi)
 
-        bgr[y:y + h, x:x + w] = processed
+        bgr[y : y + h, x : x + w] = processed
         return bgr
 
     def _blur(self, roi: np.ndarray) -> np.ndarray:
@@ -112,16 +115,14 @@ class PrivacyGuard:
         small_h = max(1, h // b)
         small_w = max(1, w // b)
         if _HAS_CV2:
-            small  = cv2.resize(roi, (small_w, small_h),
-                                interpolation=cv2.INTER_LINEAR)
-            pixelated = cv2.resize(small, (w, h),
-                                   interpolation=cv2.INTER_NEAREST)
+            small = cv2.resize(roi, (small_w, small_h), interpolation=cv2.INTER_LINEAR)
+            pixelated = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
         else:
             row_idx = (np.arange(small_h) * h / small_h).astype(int)
             col_idx = (np.arange(small_w) * w / small_w).astype(int)
-            small   = roi[row_idx[:, None], col_idx[None, :]]
-            row_up  = (np.arange(h) * small_h / h).astype(int)
-            col_up  = (np.arange(w) * small_w / w).astype(int)
+            small = roi[row_idx[:, None], col_idx[None, :]]
+            row_up = (np.arange(h) * small_h / h).astype(int)
+            col_up = (np.arange(w) * small_w / w).astype(int)
             pixelated = small[row_up[:, None], col_up[None, :]]
         return pixelated
 
@@ -134,5 +135,5 @@ class PrivacyGuard:
         out = np.zeros_like(arr)
         for i in range(arr.shape[0]):
             for j in range(arr.shape[1]):
-                out[i, j] = np.sum(padded[i:i + kh, j:j + kw] * kernel)
+                out[i, j] = np.sum(padded[i : i + kh, j : j + kw] * kernel)
         return out

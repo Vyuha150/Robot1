@@ -16,11 +16,8 @@ All injected persons are valid Detection objects with plausible bounding boxes,
 confidence values, depth readings, and bearing angles so downstream code
 (tracker, node) never sees unrealistic data.
 """
-from __future__ import annotations
 
-import math
-import time
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 import numpy as np
 
@@ -55,38 +52,36 @@ class MockPersonDetector(PersonDetector):
         hfov_deg: float = 60.0,
         skip_every_n: int = 0,
         fail_on_call: int = -1,
-        inject_person: Optional[dict] = None,
+        inject_person: dict | None = None,
     ) -> None:
         super().__init__(confidence_threshold=0.5, hfov_deg=hfov_deg)
-        self._num_persons     = num_persons
-        self._base_distance   = base_distance_m
-        self._distance_step   = distance_step_m
-        self._confidence      = confidence
-        self._img_w           = image_width
-        self._img_h           = image_height
-        self._skip_every_n    = skip_every_n
-        self._fail_on_call    = fail_on_call
-        self._inject_person   = inject_person
+        self._num_persons = num_persons
+        self._base_distance = base_distance_m
+        self._distance_step = distance_step_m
+        self._confidence = confidence
+        self._img_w = image_width
+        self._img_h = image_height
+        self._skip_every_n = skip_every_n
+        self._fail_on_call = fail_on_call
+        self._inject_person = inject_person
         self._call_count: int = 0
-        self._injected_once   = False
+        self._injected_once = False
 
     # ── Core implementation ───────────────────────────────────────────────────
 
-    def _detect_impl(self, color_bgr: np.ndarray) -> List[Detection]:
+    def _detect_impl(self, color_bgr: np.ndarray) -> list[Detection]:
         self._call_count += 1
 
         # Fault: raise on specific call
         if self._fail_on_call >= 0 and self._call_count == self._fail_on_call:
-            raise RuntimeError(
-                f"MockPersonDetector: simulated failure on call {self._call_count}"
-            )
+            raise RuntimeError(f"MockPersonDetector: simulated failure on call {self._call_count}")
 
         # Fault: skip (return empty) every N calls
         if self._skip_every_n > 0 and self._call_count % self._skip_every_n == 0:
             return []
 
         h, w = color_bgr.shape[:2]
-        detections: List[Detection] = []
+        detections: list[Detection] = []
 
         # One-shot injected person
         if self._inject_person and not self._injected_once:
@@ -114,49 +109,49 @@ class MockPersonDetector(PersonDetector):
         n = max(1, self._num_persons)
         # Angular position: spread across [-HFOV/2 + margin, +HFOV/2 - margin]
         hfov_half = self.hfov_deg / 2.0
-        margin    = hfov_half * 0.1
+        margin = hfov_half * 0.1
         if n == 1:
             bearing = 0.0
         else:
             bearing = -hfov_half + margin + index * (self.hfov_deg - 2 * margin) / (n - 1)
 
         # Convert bearing to image x-centre
-        norm_x = (bearing / self.hfov_deg) + 0.5    # 0–1
-        cx     = int(norm_x * w)
-        cy     = int(h * 0.5)
+        norm_x = (bearing / self.hfov_deg) + 0.5  # 0–1
+        cx = int(norm_x * w)
+        cy = int(h * 0.5)
 
         # Bounding box size scales with estimated distance
         distance = self._base_distance + index * self._distance_step
         # At 1 m: person occupies ~0.4 × image width; scales as 1/d
-        box_w  = max(30, int(w * 0.4 / max(0.3, distance)))
-        box_h  = max(60, int(box_w * 2.2))   # typical aspect ratio ~2.2
-        x      = max(0, cx - box_w // 2)
-        y      = max(0, cy - box_h // 2)
-        box_w  = min(w - x, box_w)
-        box_h  = min(h - y, box_h)
+        box_w = max(30, int(w * 0.4 / max(0.3, distance)))
+        box_h = max(60, int(box_w * 2.2))  # typical aspect ratio ~2.2
+        x = max(0, cx - box_w // 2)
+        y = max(0, cy - box_h // 2)
+        box_w = min(w - x, box_w)
+        box_h = min(h - y, box_h)
 
-        det             = Detection(bbox=(x, y, box_w, box_h))
-        det.confidence  = max(0.5, self._confidence - index * 0.03)
-        det.depth_m     = distance
+        det = Detection(bbox=(x, y, box_w, box_h))
+        det.confidence = max(0.5, self._confidence - index * 0.03)
+        det.depth_m = distance
         det.bearing_deg = bearing
         return det
 
-    def _make_injected(self, spec: dict, w: int, h: int) -> Optional[Detection]:
+    def _make_injected(self, spec: dict, w: int, h: int) -> Detection | None:
         """Build a Detection from a user-supplied spec dict."""
-        cx      = spec.get("cx_px", w // 2)
-        cy      = spec.get("cy_px", h // 2)
-        box_w   = spec.get("box_w", 80)
-        box_h   = spec.get("box_h", 180)
-        dist    = spec.get("distance_m", 1.5)
-        conf    = spec.get("confidence", 0.95)
+        cx = spec.get("cx_px", w // 2)
+        cy = spec.get("cy_px", h // 2)
+        box_w = spec.get("box_w", 80)
+        box_h = spec.get("box_h", 180)
+        dist = spec.get("distance_m", 1.5)
+        conf = spec.get("confidence", 0.95)
         bearing = spec.get("bearing_deg", 0.0)
 
         x = max(0, cx - box_w // 2)
         y = max(0, cy - box_h // 2)
 
-        det             = Detection(bbox=(x, y, box_w, box_h))
-        det.confidence  = conf
-        det.depth_m     = dist
+        det = Detection(bbox=(x, y, box_w, box_h))
+        det.confidence = conf
+        det.depth_m = dist
         det.bearing_deg = bearing
         return det
 

@@ -1,26 +1,31 @@
 """
 Tests for bonbon_navigation.core.recovery_executor
 """
-import time
 
-import pytest
+import time
 
 from bonbon_navigation.config.nav_config import RecoveryConfig
 from bonbon_navigation.core.recovery_executor import (
     RecoveryExecutor,
     RecoveryOutcome,
-    RecoveryState,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _cfg(**kw) -> RecoveryConfig:
     defaults = dict(
         enabled=True,
         max_retries_per_goal=10,
-        behavior_sequence=["wait", "clear_costmap", "backup", "spin",
-                           "replan", "announce", "escalate"],
+        behavior_sequence=[
+            "wait",
+            "clear_costmap",
+            "backup",
+            "spin",
+            "replan",
+            "announce",
+            "escalate",
+        ],
         wait_sec=0.05,
         backup_distance_m=0.3,
         backup_speed_mps=0.1,
@@ -47,6 +52,7 @@ def _executor(cfg=None, **kw):
 
 # ── Disabled ──────────────────────────────────────────────────────────────────
 
+
 class TestDisabled:
     def test_disabled_returns_succeeded_immediately(self):
         ex, _ = _executor(enabled=False)
@@ -62,6 +68,7 @@ class TestDisabled:
 
 # ── Wait behavior ─────────────────────────────────────────────────────────────
 
+
 class TestWaitBehavior:
     def test_wait_in_progress_then_succeeds(self):
         ex, _ = _executor(behavior_sequence=["wait"], wait_sec=0.05)
@@ -73,8 +80,7 @@ class TestWaitBehavior:
         assert r2 in (RecoveryOutcome.IN_PROGRESS, RecoveryOutcome.SUCCEEDED)
 
     def test_wait_completes_after_timeout(self):
-        ex, _ = _executor(behavior_sequence=["wait"], wait_sec=0.05,
-                          max_retries_per_goal=5)
+        ex, _ = _executor(behavior_sequence=["wait"], wait_sec=0.05, max_retries_per_goal=5)
         ex.reset()
         ex.step()  # starts wait
         time.sleep(0.08)
@@ -88,6 +94,7 @@ class TestWaitBehavior:
 
 # ── Clear costmap behavior ────────────────────────────────────────────────────
 
+
 class TestClearCostmap:
     def test_clear_costmap_instant(self):
         ex, calls = _executor(behavior_sequence=["clear_costmap"])
@@ -99,25 +106,26 @@ class TestClearCostmap:
     def test_clear_costmap_advances_to_next(self):
         ex, calls = _executor(behavior_sequence=["clear_costmap", "replan"])
         ex.reset()
-        ex.step()         # clear_costmap (instant) → advances to replan
+        ex.step()  # clear_costmap (instant) → advances to replan
         outcome = ex.step()  # replan (instant) → SUCCEEDED
         assert outcome == RecoveryOutcome.SUCCEEDED
 
 
 # ── Backup behavior ───────────────────────────────────────────────────────────
 
+
 class TestBackup:
     def test_backup_called_with_config_values(self):
-        cfg = _cfg(behavior_sequence=["backup"], backup_distance_m=0.3,
-                   backup_speed_mps=0.1)
+        cfg = _cfg(behavior_sequence=["backup"], backup_distance_m=0.3, backup_speed_mps=0.1)
         ex, calls = _executor(cfg=cfg)
         ex.reset()
         ex.step()
         assert calls["backup"] == [(0.3, 0.1)]
 
     def test_backup_in_progress_then_succeeds(self):
-        ex, _ = _executor(behavior_sequence=["backup"],
-                          backup_distance_m=0.01, backup_speed_mps=1.0)
+        ex, _ = _executor(
+            behavior_sequence=["backup"], backup_distance_m=0.01, backup_speed_mps=1.0
+        )
         ex.reset()
         ex.step()  # starts backup
         # backup_time = 0.01 / 1.0 + 3.0 = 3.01 s — too long for test
@@ -127,10 +135,10 @@ class TestBackup:
 
 # ── Spin behavior ─────────────────────────────────────────────────────────────
 
+
 class TestSpin:
     def test_spin_called_with_config_values(self):
-        cfg = _cfg(behavior_sequence=["spin"], spin_angular_speed_rps=0.5,
-                   spin_full_rotations=1)
+        cfg = _cfg(behavior_sequence=["spin"], spin_angular_speed_rps=0.5, spin_full_rotations=1)
         ex, calls = _executor(cfg=cfg)
         ex.reset()
         ex.step()
@@ -145,6 +153,7 @@ class TestSpin:
 
 # ── Replan behavior ───────────────────────────────────────────────────────────
 
+
 class TestReplan:
     def test_replan_instant(self):
         ex, _ = _executor(behavior_sequence=["replan"])
@@ -156,19 +165,21 @@ class TestReplan:
 
 # ── Announce behavior ─────────────────────────────────────────────────────────
 
+
 class TestAnnounce:
     def test_announce_text_contains_step_aside(self):
-        ex, calls = _executor(behavior_sequence=["announce"],
-                              announce_repeat_sec=0.05)
+        ex, calls = _executor(behavior_sequence=["announce"], announce_repeat_sec=0.05)
         ex.reset()
         ex.step()
         assert calls["announce"]
-        assert "step aside" in calls["announce"][0].lower() \
-               or "please" in calls["announce"][0].lower()
+        assert (
+            "step aside" in calls["announce"][0].lower() or "please" in calls["announce"][0].lower()
+        )
 
     def test_announce_waits_then_succeeds(self):
-        ex, _ = _executor(behavior_sequence=["announce"],
-                          announce_repeat_sec=0.05, max_retries_per_goal=5)
+        ex, _ = _executor(
+            behavior_sequence=["announce"], announce_repeat_sec=0.05, max_retries_per_goal=5
+        )
         ex.reset()
         ex.step()
         time.sleep(0.08)
@@ -177,6 +188,7 @@ class TestAnnounce:
 
 
 # ── Escalate behavior ─────────────────────────────────────────────────────────
+
 
 class TestEscalate:
     def test_escalate_calls_escalate_fn(self):
@@ -201,6 +213,7 @@ class TestEscalate:
 
 # ── Max retries ───────────────────────────────────────────────────────────────
 
+
 class TestMaxRetries:
     def test_exhausted_when_max_retries_reached(self):
         ex, _ = _executor(
@@ -220,6 +233,7 @@ class TestMaxRetries:
 
 # ── Unknown behavior ──────────────────────────────────────────────────────────
 
+
 class TestUnknownBehavior:
     def test_unknown_behavior_skipped(self):
         ex, _ = _executor(behavior_sequence=["totally_unknown_behavior", "replan"])
@@ -230,6 +244,7 @@ class TestUnknownBehavior:
 
 
 # ── State accessors ───────────────────────────────────────────────────────────
+
 
 class TestStateAccessors:
     def test_get_state_none_before_reset(self):

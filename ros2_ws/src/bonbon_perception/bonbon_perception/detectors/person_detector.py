@@ -23,36 +23,36 @@ depth_m is measured along the optical Z axis.  For a forward-facing camera
 this equals horizontal ground-plane distance to the person's torso centre.
 NaN is used when depth is unavailable (color-only mode).
 """
+
 from __future__ import annotations
 
-import math
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
 
 import numpy as np
 
-
 # ── Detection dataclass ───────────────────────────────────────────────────────
+
 
 @dataclass
 class Detection:
     """Single person detection in image space."""
+
     # Bounding box [x, y, w, h] in pixels (top-left origin)
-    bbox: Tuple[int, int, int, int]
+    bbox: tuple[int, int, int, int]
     confidence: float = 0.0
     label: str = "person"
     depth_m: float = float("nan")
     bearing_deg: float = 0.0
 
     # Camera intrinsics at detection time (optional)
-    fx: float = 0.0   # focal length x (pixels)
-    fy: float = 0.0   # focal length y (pixels)
-    cx: float = 0.0   # principal point x
-    cy: float = 0.0   # principal point y
+    fx: float = 0.0  # focal length x (pixels)
+    fy: float = 0.0  # focal length y (pixels)
+    cx: float = 0.0  # principal point x
+    cy: float = 0.0  # principal point y
 
     @property
-    def centre_px(self) -> Tuple[float, float]:
+    def centre_px(self) -> tuple[float, float]:
         x, y, w, h = self.bbox
         return x + w / 2.0, y + h / 2.0
 
@@ -66,7 +66,7 @@ class Detection:
         return self.bbox[2] * self.bbox[3]
 
     @staticmethod
-    def iou(a: "Detection", b: "Detection") -> float:
+    def iou(a: Detection, b: Detection) -> float:
         """Intersection-over-Union between two bounding boxes."""
         ax, ay, aw, ah = a.bbox
         bx, by, bw, bh = b.bbox
@@ -91,6 +91,7 @@ class Detection:
 
 # ── Abstract detector ─────────────────────────────────────────────────────────
 
+
 class PersonDetector(ABC):
     """
     Abstract person detector.
@@ -106,14 +107,14 @@ class PersonDetector(ABC):
         nms_iou_threshold: float = 0.45,
     ) -> None:
         self.confidence_threshold = confidence_threshold
-        self.hfov_deg             = hfov_deg
-        self.nms_iou_threshold    = nms_iou_threshold
+        self.hfov_deg = hfov_deg
+        self.nms_iou_threshold = nms_iou_threshold
 
     def detect(
         self,
         color_bgr: np.ndarray,
-        depth_m: Optional[np.ndarray] = None,
-    ) -> List[Detection]:
+        depth_m: np.ndarray | None = None,
+    ) -> list[Detection]:
         """
         Run person detection on a BGR image.
 
@@ -136,7 +137,7 @@ class PersonDetector(ABC):
         return sorted(detections, key=lambda d: d.confidence, reverse=True)
 
     @abstractmethod
-    def _detect_impl(self, color_bgr: np.ndarray) -> List[Detection]:
+    def _detect_impl(self, color_bgr: np.ndarray) -> list[Detection]:
         """Override: return raw detections (bearing and depth not yet set)."""
 
     # ── Shared depth sampling ─────────────────────────────────────────────────
@@ -169,16 +170,14 @@ class PersonDetector(ABC):
 
     # ── NMS utility (optional use by subclasses) ──────────────────────────────
 
-    def _nms(self, detections: List[Detection]) -> List[Detection]:
+    def _nms(self, detections: list[Detection]) -> list[Detection]:
         """
         Greedy non-maximum suppression by IoU.
         Assumes detections are sorted by confidence (highest first).
         """
-        kept: List[Detection] = []
+        kept: list[Detection] = []
         for det in detections:
-            suppress = any(
-                Detection.iou(det, k) > self.nms_iou_threshold for k in kept
-            )
+            suppress = any(Detection.iou(det, k) > self.nms_iou_threshold for k in kept)
             if not suppress:
                 kept.append(det)
         return kept

@@ -37,7 +37,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    archive  = Path(args.archive)
+    archive = Path(args.archive)
     data_dir = Path(args.data_dir)
 
     if not archive.exists():
@@ -45,11 +45,15 @@ def main() -> None:
         sys.exit(1)
 
     if not args.yes:
-        answer = input(
-            f"This will OVERWRITE {data_dir}.\n"
-            f"Restoring from: {archive}\n"
-            "Continue? [y/N] "
-        ).strip().lower()
+        answer = (
+            input(
+                f"This will OVERWRITE {data_dir}.\n"
+                f"Restoring from: {archive}\n"
+                "Continue? [y/N] "
+            )
+            .strip()
+            .lower()
+        )
         if answer != "y":
             print("Aborted.")
             sys.exit(0)
@@ -57,10 +61,10 @@ def main() -> None:
     from bonbon_data_stores.backup.backup_manager import BackupRestoreManager
 
     manager = BackupRestoreManager(
-        db_path            = data_dir / "bonbon_memory.db",
-        faiss_index_dir    = data_dir / "faiss_indexes",
-        chroma_persist_dir = data_dir / "chromadb",
-        backup_dir         = data_dir.parent / "backups",
+        db_path=data_dir / "bonbon_memory.db",
+        faiss_index_dir=data_dir / "faiss_indexes",
+        chroma_persist_dir=data_dir / "chromadb",
+        backup_dir=data_dir.parent / "backups",
     )
 
     print(f"Restoring from {archive} …")

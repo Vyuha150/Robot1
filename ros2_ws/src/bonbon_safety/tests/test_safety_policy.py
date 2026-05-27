@@ -13,13 +13,14 @@ Tests
 - Unknown action names raise ValueError
 - Missing required states raise KeyError
 """
+
 from __future__ import annotations
 
 import os
-import textwrap
 import tempfile
-import pytest
+import textwrap
 
+import pytest
 from bonbon_safety.core.safety_policy import PolicyAction, SafetyPolicy
 from bonbon_safety.core.safety_state_machine import SafetyLevel
 
@@ -29,6 +30,7 @@ _POLICY_YAML = os.path.join(_PKG_DIR, "safety_policy.yaml")
 
 
 # ── PolicyAction ──────────────────────────────────────────────────────────────
+
 
 class TestPolicyAction:
     def test_action_enum_has_core_values(self):
@@ -54,6 +56,7 @@ class TestPolicyAction:
 
 # ── SafetyPolicy.default() ────────────────────────────────────────────────────
 
+
 class TestDefaultPolicy:
     def test_default_returns_policy(self):
         policy = SafetyPolicy.default()
@@ -62,9 +65,7 @@ class TestDefaultPolicy:
     def test_default_has_all_states(self):
         policy = SafetyPolicy.default()
         for level in SafetyLevel:
-            assert policy.has_rules_for(level), (
-                f"Default policy missing rules for {level.name}"
-            )
+            assert policy.has_rules_for(level), f"Default policy missing rules for {level.name}"
 
     def test_danger_on_enter_has_zero_velocity(self):
         policy = SafetyPolicy.default()
@@ -131,6 +132,7 @@ class TestDefaultPolicy:
 
 # ── SafetyPolicy.from_yaml() ──────────────────────────────────────────────────
 
+
 class TestFromYaml:
     @pytest.fixture(autouse=True)
     def _require_yaml(self):
@@ -167,6 +169,7 @@ class TestFromYaml:
 
 
 # ── from_yaml() with synthetic YAML ──────────────────────────────────────────
+
 
 class TestFromYamlSynthetic:
     _MINIMAL_YAML = textwrap.dedent("""\

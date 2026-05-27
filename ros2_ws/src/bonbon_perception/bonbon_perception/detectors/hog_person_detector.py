@@ -13,14 +13,14 @@ latency.  If a GPU is available prefer YoloPersonDetector instead.
 
 Requires: opencv-python (cv2) — standard ROS2 Humble dependency.
 """
-from __future__ import annotations
 
-from typing import List, Optional
+from __future__ import annotations
 
 import numpy as np
 
 try:
     import cv2
+
     _HAS_CV2 = True
 except ImportError:
     _HAS_CV2 = False
@@ -43,11 +43,11 @@ class HogPersonDetector(PersonDetector):
     def __init__(
         self,
         confidence_threshold: float = 0.3,
-        hfov_deg:             float = 60.0,
-        win_stride:           tuple = (8, 8),
-        padding:              tuple = (4, 4),
-        scale:                float = 1.05,
-        hit_threshold:        float = 0.0,
+        hfov_deg: float = 60.0,
+        win_stride: tuple = (8, 8),
+        padding: tuple = (4, 4),
+        scale: float = 1.05,
+        hit_threshold: float = 0.0,
     ) -> None:
         if not _HAS_CV2:
             raise ImportError(
@@ -58,9 +58,9 @@ class HogPersonDetector(PersonDetector):
             confidence_threshold=confidence_threshold,
             hfov_deg=hfov_deg,
         )
-        self._win_stride   = win_stride
-        self._padding      = padding
-        self._scale        = scale
+        self._win_stride = win_stride
+        self._padding = padding
+        self._scale = scale
         self._hit_threshold = hit_threshold
 
         self._hog = cv2.HOGDescriptor()
@@ -68,7 +68,7 @@ class HogPersonDetector(PersonDetector):
 
     # ── Core implementation ───────────────────────────────────────────────────
 
-    def _detect_impl(self, color_bgr: np.ndarray) -> List[Detection]:
+    def _detect_impl(self, color_bgr: np.ndarray) -> list[Detection]:
         # HOG runs on grayscale; resize to multiples of 8
         h, w = color_bgr.shape[:2]
         proc_w = (w // 8) * 8
@@ -86,7 +86,7 @@ class HogPersonDetector(PersonDetector):
             hitThreshold=self._hit_threshold,
         )
 
-        detections: List[Detection] = []
+        detections: list[Detection] = []
         scale_x = w / proc_w
         scale_y = h / proc_h
 

@@ -3,9 +3,8 @@ bonbon_speech.wake_word.mock_wake_word
 ========================================
 Controllable mock wake-word detector for unit tests.
 """
-from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 import numpy as np
 
@@ -25,18 +24,18 @@ class MockWakeWordDetector(BaseWakeWordDetector):
 
     def __init__(
         self,
-        cfg: Optional[WakeWordConfig] = None,
-        detect_pattern: Optional[List[bool]] = None,
+        cfg: WakeWordConfig | None = None,
+        detect_pattern: list[bool] | None = None,
         detect_score: float = 0.90,
     ) -> None:
         if cfg is None:
             cfg = WakeWordConfig()
         super().__init__(cfg)
-        self._pattern      = list(detect_pattern) if detect_pattern else [False]
+        self._pattern = list(detect_pattern) if detect_pattern else [False]
         self._detect_score = detect_score
-        self._idx          = 0
-        self._next_detect: Optional[bool] = None  # one-shot override
-        self.loaded     = False
+        self._idx = 0
+        self._next_detect: bool | None = None  # one-shot override
+        self.loaded = False
         self.call_count = 0
         self.detect_count = 0
 
@@ -53,7 +52,7 @@ class MockWakeWordDetector(BaseWakeWordDetector):
 
     # ── Core ─────────────────────────────────────────────────────────────────
 
-    def process_chunk(self, samples: np.ndarray) -> Tuple[bool, float]:
+    def process_chunk(self, samples: np.ndarray) -> tuple[bool, float]:
         self.call_count += 1
 
         if self._next_detect is not None:
@@ -70,7 +69,7 @@ class MockWakeWordDetector(BaseWakeWordDetector):
 
     # ── Test helpers ─────────────────────────────────────────────────────────
 
-    def set_pattern(self, pattern: List[bool]) -> None:
+    def set_pattern(self, pattern: list[bool]) -> None:
         self._pattern = list(pattern)
         self._idx = 0
 

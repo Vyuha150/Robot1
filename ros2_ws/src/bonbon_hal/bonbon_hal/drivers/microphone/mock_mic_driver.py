@@ -8,43 +8,45 @@ Fault injection:
   simulate_latency_sec   : artificial read latency
   corrupt_every_n        : corrupt every N chunks with random bytes
 """
+
 from __future__ import annotations
 
 import math
+import random
 import struct
 import time
-import random
 
 from bonbon_hal.base.driver_base import DriverFault
-from .mic_driver import MicDriver, AudioChunk
+
+from .mic_driver import AudioChunk, MicDriver
 
 
 class MockMicDriver(MicDriver):
 
     def __init__(
         self,
-        sample_rate:          int   = 16000,
-        channels:             int   = 1,
+        sample_rate: int = 16000,
+        channels: int = 1,
         inject_noise_amplitude: float = 0.02,
-        inject_tone_hz:       float = 0.0,
-        doa_angle_deg:        float = 45.0,
-        disconnect_after_n:   int   = 0,
+        inject_tone_hz: float = 0.0,
+        doa_angle_deg: float = 45.0,
+        disconnect_after_n: int = 0,
         simulate_latency_sec: float = 0.0,
-        corrupt_every_n:      int   = 0,
-        start_disconnected:   bool  = False,
+        corrupt_every_n: int = 0,
+        start_disconnected: bool = False,
     ) -> None:
         super().__init__(driver_mode="mock")
-        self._sample_rate  = sample_rate
-        self._channels     = channels
-        self._noise_amp    = inject_noise_amplitude
-        self._tone_hz      = inject_tone_hz
-        self._doa          = doa_angle_deg
-        self._disc_after   = disconnect_after_n
-        self._latency      = simulate_latency_sec
-        self._corrupt_n    = corrupt_every_n
-        self._start_disc   = start_disconnected
-        self._read_count   = 0
-        self._phase        = 0.0
+        self._sample_rate = sample_rate
+        self._channels = channels
+        self._noise_amp = inject_noise_amplitude
+        self._tone_hz = inject_tone_hz
+        self._doa = doa_angle_deg
+        self._disc_after = disconnect_after_n
+        self._latency = simulate_latency_sec
+        self._corrupt_n = corrupt_every_n
+        self._start_disc = start_disconnected
+        self._read_count = 0
+        self._phase = 0.0
 
     def _do_connect(self) -> bool:
         if self._start_disc:
@@ -69,7 +71,7 @@ class MockMicDriver(MicDriver):
             raise DriverFault("USB disconnect", "USB_DISCONNECTED")
 
         samples = []
-        for i in range(num_frames * self._channels):
+        for _i in range(num_frames * self._channels):
             s = random.gauss(0, self._noise_amp) if self._noise_amp > 0 else 0.0
             if self._tone_hz > 0:
                 s += 0.3 * math.sin(2 * math.pi * self._phase)

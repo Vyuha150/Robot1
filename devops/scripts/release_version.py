@@ -5,7 +5,7 @@ import argparse
 import hashlib
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -18,16 +18,22 @@ def main() -> int:
 
     root = Path(__file__).resolve().parents[2]
     git_sha = _git(root, "rev-parse", "--short=12", "HEAD") or "unknown"
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     version = f"{args.channel}-{timestamp}-{git_sha}"
     output = root / args.output
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    lines = [f"BONBON_VERSION={version}", f"BONBON_GIT_SHA={git_sha}", f"BONBON_RELEASE_CHANNEL={args.channel}"]
+    lines = [
+        f"BONBON_VERSION={version}",
+        f"BONBON_GIT_SHA={git_sha}",
+        f"BONBON_RELEASE_CHANNEL={args.channel}",
+    ]
     for artifact in args.artifact:
         artifact_path = root / artifact
         if artifact_path.exists():
-            lines.append(f"SHA256_{artifact_path.name.replace('.', '_').upper()}={_sha256(artifact_path)}")
+            lines.append(
+                f"SHA256_{artifact_path.name.replace('.', '_').upper()}={_sha256(artifact_path)}"
+            )
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(version)
     return 0
@@ -35,7 +41,9 @@ def main() -> int:
 
 def _git(root: Path, *args: str) -> str | None:
     try:
-        return subprocess.check_output(["git", *args], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
+        return subprocess.check_output(
+            ["git", *args], cwd=root, text=True, stderr=subprocess.DEVNULL
+        ).strip()
     except Exception:
         return None
 

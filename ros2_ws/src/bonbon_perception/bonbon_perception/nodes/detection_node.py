@@ -38,28 +38,29 @@ The node uses a threading.Lock to protect the image buffer that is written
 by the ROS2 subscription callback and read by the 10 Hz detect-and-publish
 timer.  Both callbacks run in a MultiThreadedExecutor (2 threads).
 """
+
 from __future__ import annotations
 
 import math
 import threading
 import time
-from typing import List, Optional
 
 import numpy as np
 import rclpy
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
-
-from builtin_interfaces.msg import Time
-from geometry_msgs.msg import Point
-from sensor_msgs.msg import Image
-from std_msgs.msg import Header
-
 from bonbon_msgs.msg import (
     ModuleHealth,
+)
+from bonbon_msgs.msg import (
     PersonState as PersonStateMsg,
+)
+from bonbon_msgs.msg import (
     PersonStateArray as PersonStateArrayMsg,
 )
+from builtin_interfaces.msg import Time
+from geometry_msgs.msg import Point
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Image
 
 from ..detectors import MockPersonDetector
 from ..trackers import SimpleTracker, Track
@@ -83,7 +84,7 @@ BEST_EFFORT_D2 = QoSProfile(
     depth=2,
 )
 
-NODE_NAME    = "detection_node"
+NODE_NAME = "detection_node"
 HEALTH_TOPIC = "/bonbon/vision/detection_node/health"
 
 
@@ -100,25 +101,25 @@ class DetectionNode(LifecycleNode):
         self._lock = threading.Lock()
 
         # Image buffers (latest received, protected by _lock)
-        self._latest_color: Optional[np.ndarray] = None
-        self._latest_depth: Optional[np.ndarray] = None
-        self._color_stamp:  Optional[Time] = None
+        self._latest_color: np.ndarray | None = None
+        self._latest_depth: np.ndarray | None = None
+        self._color_stamp: Time | None = None
         self._color_frame_id: str = "camera_color_optical_frame"
 
         # Core objects (created in on_configure)
         self._detector = None
-        self._tracker:  Optional[SimpleTracker] = None
+        self._tracker: SimpleTracker | None = None
 
         # Publishers / timers (created in on_activate)
         self._pub_persons = None
-        self._pub_health  = None
+        self._pub_health = None
         self._detect_timer = None
         self._health_timer = None
 
         # Runtime counters
-        self._start_time     = time.monotonic()
+        self._start_time = time.monotonic()
         self._processed_count: int = 0
-        self._error_count:     int = 0
+        self._error_count: int = 0
         self._last_latency_ms: float = 0.0
 
         self._declare_parameters()
@@ -127,17 +128,17 @@ class DetectionNode(LifecycleNode):
     # ── Parameter declarations ────────────────────────────────────────────────
 
     def _declare_parameters(self) -> None:
-        self.declare_parameter("detector_mode",        "mock")
-        self.declare_parameter("model_path",           "yolov8n.pt")
+        self.declare_parameter("detector_mode", "mock")
+        self.declare_parameter("model_path", "yolov8n.pt")
         self.declare_parameter("confidence_threshold", 0.50)
-        self.declare_parameter("hfov_deg",             60.0)
-        self.declare_parameter("detection_rate_hz",    10.0)
-        self.declare_parameter("health_rate_hz",       1.0)
-        self.declare_parameter("iou_threshold",        0.30)
-        self.declare_parameter("max_lost_frames",      15)
-        self.declare_parameter("publish_all_states",   False)
+        self.declare_parameter("hfov_deg", 60.0)
+        self.declare_parameter("detection_rate_hz", 10.0)
+        self.declare_parameter("health_rate_hz", 1.0)
+        self.declare_parameter("iou_threshold", 0.30)
+        self.declare_parameter("max_lost_frames", 15)
+        self.declare_parameter("publish_all_states", False)
         # Mock-specific
-        self.declare_parameter("mock_num_persons",     1)
+        self.declare_parameter("mock_num_persons", 1)
         self.declare_parameter("mock_base_distance_m", 2.0)
 
     # ── Lifecycle transitions ─────────────────────────────────────────────────
@@ -145,14 +146,14 @@ class DetectionNode(LifecycleNode):
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info(f"[{NODE_NAME}] Configuring…")
         try:
-            mode        = self.get_parameter("detector_mode").value
+            mode = self.get_parameter("detector_mode").value
             conf_thresh = self.get_parameter("confidence_threshold").value
-            hfov        = self.get_parameter("hfov_deg").value
-            iou_thresh  = self.get_parameter("iou_threshold").value
-            max_lost    = int(self.get_parameter("max_lost_frames").value)
+            hfov = self.get_parameter("hfov_deg").value
+            iou_thresh = self.get_parameter("iou_threshold").value
+            max_lost = int(self.get_parameter("max_lost_frames").value)
 
             self._detector = self._make_detector(mode, conf_thresh, hfov)
-            self._tracker  = SimpleTracker(
+            self._tracker = SimpleTracker(
                 iou_threshold=iou_thresh,
                 max_lost_frames=max_lost,
             )
@@ -172,9 +173,7 @@ class DetectionNode(LifecycleNode):
         self._pub_persons = self.create_lifecycle_publisher(
             PersonStateArrayMsg, "/bonbon/vision/persons", RELIABLE_D5
         )
-        self._pub_health = self.create_lifecycle_publisher(
-            ModuleHealth, HEALTH_TOPIC, RELIABLE_TL
-        )
+        self._pub_health = self.create_lifecycle_publisher(ModuleHealth, HEALTH_TOPIC, RELIABLE_TL)
 
         # Subscriptions
         self._sub_color = self.create_subscription(
@@ -222,7 +221,7 @@ class DetectionNode(LifecycleNode):
             self._latest_color = None
             self._latest_depth = None
         self._pub_persons = None
-        self._pub_health  = None
+        self._pub_health = None
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
@@ -235,9 +234,9 @@ class DetectionNode(LifecycleNode):
         try:
             arr = self._image_msg_to_bgr(msg)
             with self._lock:
-                self._latest_color    = arr
-                self._color_stamp     = msg.header.stamp
-                self._color_frame_id  = msg.header.frame_id
+                self._latest_color = arr
+                self._color_stamp = msg.header.stamp
+                self._color_frame_id = msg.header.frame_id
         except Exception as exc:
             self._error_count += 1
             self.get_logger().warn(f"[{NODE_NAME}] Color image decode error: {exc}")
@@ -285,32 +284,32 @@ class DetectionNode(LifecycleNode):
 
     def _publish_persons(
         self,
-        tracks: List[Track],
-        stamp: Optional[Time],
+        tracks: list[Track],
+        stamp: Time | None,
         frame_id: str,
     ) -> None:
         if self._pub_persons is None:
             return
 
         msg = PersonStateArrayMsg()
-        msg.header.stamp    = stamp or self.get_clock().now().to_msg()
+        msg.header.stamp = stamp or self.get_clock().now().to_msg()
         msg.header.frame_id = frame_id
-        msg.total_count     = len(tracks)
+        msg.total_count = len(tracks)
 
         for track in tracks:
             ps = PersonStateMsg()
-            ps.track_id      = track.track_id
-            ps.face_id       = track.face_id
-            ps.distance_m    = float(track.distance_m) if math.isfinite(track.distance_m) else 0.0
-            ps.bearing_deg   = float(track.bearing_deg)
-            ps.velocity_mps  = float(track.velocity_mps)
-            ps.facing_robot  = track.facing_robot
-            ps.age_group     = track.age_group
+            ps.track_id = track.track_id
+            ps.face_id = track.face_id
+            ps.distance_m = float(track.distance_m) if math.isfinite(track.distance_m) else 0.0
+            ps.bearing_deg = float(track.bearing_deg)
+            ps.velocity_mps = float(track.velocity_mps)
+            ps.facing_robot = track.facing_robot
+            ps.age_group = track.age_group
 
             # 3D position (x = lateral from bearing + distance, y = depth)
-            bearing_rad    = math.radians(track.bearing_deg)
-            d              = ps.distance_m
-            ps.position    = Point(
+            bearing_rad = math.radians(track.bearing_deg)
+            d = ps.distance_m
+            ps.position = Point(
                 x=d * math.sin(bearing_rad),
                 y=d * math.cos(bearing_rad),
                 z=0.0,
@@ -329,33 +328,30 @@ class DetectionNode(LifecycleNode):
         n_tracked = len(self._tracker.confirmed_tracks) if self._tracker else 0
 
         if self._error_count > 10:
-            status     = ModuleHealth.ERROR
+            status = ModuleHealth.ERROR
             status_txt = f"High error count: {self._error_count}"
         else:
-            status     = ModuleHealth.OK
-            status_txt = (
-                f"Tracking {n_tracked} persons. "
-                f"Latency {self._last_latency_ms:.1f} ms"
-            )
+            status = ModuleHealth.OK
+            status_txt = f"Tracking {n_tracked} persons. " f"Latency {self._last_latency_ms:.1f} ms"
 
         msg = ModuleHealth()
-        msg.header.stamp             = self.get_clock().now().to_msg()
-        msg.module_name              = NODE_NAME
-        msg.status                   = status
-        msg.status_text              = status_txt
-        msg.uptime_sec               = uptime
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.module_name = NODE_NAME
+        msg.status = status
+        msg.status_text = status_txt
+        msg.uptime_sec = uptime
         msg.last_successful_cycle_sec = 0.0
-        msg.latency_ms               = self._last_latency_ms
-        msg.error_count              = self._error_count
-        msg.warning_count            = 0
-        msg.processed_count          = self._processed_count
+        msg.latency_ms = self._last_latency_ms
+        msg.error_count = self._error_count
+        msg.warning_count = 0
+        msg.processed_count = self._processed_count
         self._pub_health.publish(msg)
 
     # ── Detector factory ──────────────────────────────────────────────────────
 
     def _make_detector(self, mode: str, conf: float, hfov: float):
         if mode == "mock":
-            n    = int(self.get_parameter("mock_num_persons").value)
+            n = int(self.get_parameter("mock_num_persons").value)
             dist = float(self.get_parameter("mock_base_distance_m").value)
             return MockPersonDetector(
                 num_persons=n,
@@ -366,6 +362,7 @@ class DetectionNode(LifecycleNode):
         elif mode == "hog":
             try:
                 from ..detectors.hog_person_detector import HogPersonDetector
+
                 return HogPersonDetector(
                     confidence_threshold=conf,
                     hfov_deg=hfov,
@@ -378,6 +375,7 @@ class DetectionNode(LifecycleNode):
         elif mode == "yolo":
             try:
                 from ..detectors.yolo_person_detector import YoloPersonDetector
+
                 model = self.get_parameter("model_path").value
                 return YoloPersonDetector(
                     model_path=model,
@@ -390,9 +388,7 @@ class DetectionNode(LifecycleNode):
                 )
                 return MockPersonDetector(confidence=conf, hfov_deg=hfov)
         else:
-            self.get_logger().warn(
-                f"[{NODE_NAME}] Unknown detector_mode '{mode}' — using mock"
-            )
+            self.get_logger().warn(f"[{NODE_NAME}] Unknown detector_mode '{mode}' — using mock")
             return MockPersonDetector(confidence=conf, hfov_deg=hfov)
 
     # ── Image conversion utilities ────────────────────────────────────────────
@@ -403,13 +399,14 @@ class DetectionNode(LifecycleNode):
         h, w = msg.height, msg.width
         data = np.frombuffer(msg.data, dtype=np.uint8).reshape((h, w, -1))
         if msg.encoding == "rgb8":
-            return data[:, :, ::-1].copy()   # RGB → BGR
+            return data[:, :, ::-1].copy()  # RGB → BGR
         elif msg.encoding in ("bgr8", "8UC3"):
             return data.copy()
         else:
             # Try to use cv2 bridge; fall back to raw copy
             try:
                 import cv2
+
                 arr = np.frombuffer(msg.data, dtype=np.uint8).reshape((h, w, -1))
                 if msg.encoding == "mono8":
                     return cv2.cvtColor(arr, cv2.COLOR_GRAY2BGR)
@@ -429,12 +426,13 @@ class DetectionNode(LifecycleNode):
             return arr.copy()
         elif msg.encoding in ("16UC1", "mono16"):
             arr = np.frombuffer(msg.data, dtype=np.uint16).reshape((h, w))
-            return (arr.astype(np.float32) / 1000.0)  # mm → m
+            return arr.astype(np.float32) / 1000.0  # mm → m
         else:
             raise ValueError(f"Unsupported depth encoding: {msg.encoding!r}")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

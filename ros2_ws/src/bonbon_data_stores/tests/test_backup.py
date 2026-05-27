@@ -9,16 +9,14 @@ import time
 from pathlib import Path
 
 import pytest
-
 from bonbon_data_stores.backup.backup_manager import BackupRestoreManager
-from bonbon_data_stores.config.store_config import DataStoreConfig
 from bonbon_data_stores.schema.models import InteractionEvent
 from bonbon_data_stores.store import SQLiteMemoryStore
-
 
 # ---------------------------------------------------------------------------
 # Scenario 20: BackupRestoreManager
 # ---------------------------------------------------------------------------
+
 
 class TestBackupRestoreManager:
     def _make_manager(self, tmp_path: Path) -> BackupRestoreManager:
@@ -28,6 +26,7 @@ class TestBackupRestoreManager:
         (data_dir / "chromadb").mkdir()
         # Create an empty SQLite file so backup() has something to copy
         import sqlite3
+
         db_path = data_dir / "bonbon_memory.db"
         conn = sqlite3.connect(str(db_path))
         conn.execute("CREATE TABLE IF NOT EXISTS _test (id INTEGER PRIMARY KEY);")
@@ -35,12 +34,12 @@ class TestBackupRestoreManager:
         conn.close()
 
         return BackupRestoreManager(
-            db_path            = db_path,
-            faiss_index_dir    = data_dir / "faiss_indexes",
-            chroma_persist_dir = data_dir / "chromadb",
-            backup_dir         = tmp_path / "backups",
-            max_backups        = 3,
-            compress           = True,
+            db_path=db_path,
+            faiss_index_dir=data_dir / "faiss_indexes",
+            chroma_persist_dir=data_dir / "chromadb",
+            backup_dir=tmp_path / "backups",
+            max_backups=3,
+            compress=True,
         )
 
     def test_create_backup_produces_archive(self, tmp_path):
@@ -73,7 +72,7 @@ class TestBackupRestoreManager:
             mgr.create_backup(label=f"backup_{i}")
             time.sleep(0.01)
         entries = mgr.list_backups()
-        assert len(entries) <= 3   # max_backups=3
+        assert len(entries) <= 3  # max_backups=3
 
     def test_restore_sqlite(self, tmp_path):
         mgr = self._make_manager(tmp_path)
@@ -91,6 +90,7 @@ class TestBackupRestoreManager:
 # SQLiteMemoryStore facade
 # ---------------------------------------------------------------------------
 
+
 class TestSQLiteMemoryStoreFacade:
     def test_open_close(self, db_config):
         store = SQLiteMemoryStore(db_config)
@@ -107,7 +107,7 @@ class TestSQLiteMemoryStoreFacade:
     def test_double_open_safe(self, db_config):
         store = SQLiteMemoryStore(db_config)
         store.open()
-        store.open()   # should not raise
+        store.open()  # should not raise
         assert store.is_open is True
         store.close()
 
@@ -121,6 +121,7 @@ class TestSQLiteMemoryStoreFacade:
 
     def test_health_check_via_store(self, store):
         from bonbon_data_stores.health.health_monitor import HealthLevel
+
         health = store.check_health()
         assert health.level in list(HealthLevel)
 

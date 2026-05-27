@@ -29,14 +29,12 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Dict, Optional
 
 import rclpy
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
-from std_msgs.msg import Bool
-
 from bonbon_msgs.msg import ModuleHealth
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from std_msgs.msg import Bool
 
 logger = logging.getLogger(__name__)
 
@@ -54,20 +52,21 @@ RELIABLE_TL = QoSProfile(
 
 
 class NodeClass(IntEnum):
-    CRITICAL  = 1   # loss triggers FAULT immediately
-    ESSENTIAL = 2   # loss triggers DEGRADED_NAVIGATION
-    IMPORTANT = 3   # loss triggers REDUCED_CAPABILITY
-    AUXILIARY = 4   # loss noted but operation continues normally
+    CRITICAL = 1  # loss triggers FAULT immediately
+    ESSENTIAL = 2  # loss triggers DEGRADED_NAVIGATION
+    IMPORTANT = 3  # loss triggers REDUCED_CAPABILITY
+    AUXILIARY = 4  # loss noted but operation continues normally
 
 
 @dataclass
 class ManagedNode:
     """Registry entry for a node the watchdog monitors."""
-    name: str                           # e.g. "detection_node"
-    health_topic: str                   # /bonbon/vision/detection_node/health
+
+    name: str  # e.g. "detection_node"
+    health_topic: str  # /bonbon/vision/detection_node/health
     node_class: NodeClass
-    expected_period_sec: float          # declared publish rate
-    stale_multiplier: float = 3.0       # stale after N × expected_period
+    expected_period_sec: float  # declared publish rate
+    stale_multiplier: float = 3.0  # stale after N × expected_period
     max_restart_attempts: int = 3
     # Runtime state (updated by watchdog)
     last_seen: float = field(default_factory=lambda: 0.0)
@@ -79,24 +78,30 @@ class ManagedNode:
 # Default node registry matching BonBon hardware layout
 DEFAULT_MANAGED_NODES: list[ManagedNode] = [
     # CLASS A — CRITICAL
-    ManagedNode("safety_gate_node",      "/bonbon/actuation/safety_gate_node/health",   NodeClass.CRITICAL,  1.0),
-    ManagedNode("estop_node",            "/bonbon/safety/estop_node/health",             NodeClass.CRITICAL,  1.0),
+    ManagedNode(
+        "safety_gate_node", "/bonbon/actuation/safety_gate_node/health", NodeClass.CRITICAL, 1.0
+    ),
+    ManagedNode("estop_node", "/bonbon/safety/estop_node/health", NodeClass.CRITICAL, 1.0),
     # CLASS B — ESSENTIAL
-    ManagedNode("lidar_node",            "/bonbon/spatial/lidar_node/health",            NodeClass.ESSENTIAL, 1.0),
-    ManagedNode("ekf_node",              "/bonbon/spatial/ekf_node/health",              NodeClass.ESSENTIAL, 1.0),
-    ManagedNode("nav2_planner",          "/bonbon/navigation/planner_node/health",       NodeClass.ESSENTIAL, 2.0),
-    ManagedNode("nav2_controller",       "/bonbon/navigation/controller_node/health",    NodeClass.ESSENTIAL, 2.0),
+    ManagedNode("lidar_node", "/bonbon/spatial/lidar_node/health", NodeClass.ESSENTIAL, 1.0),
+    ManagedNode("ekf_node", "/bonbon/spatial/ekf_node/health", NodeClass.ESSENTIAL, 1.0),
+    ManagedNode("nav2_planner", "/bonbon/navigation/planner_node/health", NodeClass.ESSENTIAL, 2.0),
+    ManagedNode(
+        "nav2_controller", "/bonbon/navigation/controller_node/health", NodeClass.ESSENTIAL, 2.0
+    ),
     # CLASS C — IMPORTANT
-    ManagedNode("camera_node",           "/bonbon/vision/camera_node/health",            NodeClass.IMPORTANT, 1.0),
-    ManagedNode("vision_node",           "/bonbon/vision/vision_node/health",            NodeClass.IMPORTANT, 1.0),
-    ManagedNode("detection_node",        "/bonbon/vision/detection_node/health",         NodeClass.IMPORTANT, 1.0),
-    ManagedNode("asr_node",              "/bonbon/speech/asr_node/health",               NodeClass.IMPORTANT, 2.0),
-    ManagedNode("llm_orchestrator_node", "/bonbon/llm/orchestrator_node/health",         NodeClass.IMPORTANT, 2.0),
-    ManagedNode("tts_node",              "/bonbon/tts/tts_node/health",                  NodeClass.IMPORTANT, 2.0),
+    ManagedNode("camera_node", "/bonbon/vision/camera_node/health", NodeClass.IMPORTANT, 1.0),
+    ManagedNode("vision_node", "/bonbon/vision/vision_node/health", NodeClass.IMPORTANT, 1.0),
+    ManagedNode("detection_node", "/bonbon/vision/detection_node/health", NodeClass.IMPORTANT, 1.0),
+    ManagedNode("asr_node", "/bonbon/speech/asr_node/health", NodeClass.IMPORTANT, 2.0),
+    ManagedNode(
+        "llm_orchestrator_node", "/bonbon/llm/orchestrator_node/health", NodeClass.IMPORTANT, 2.0
+    ),
+    ManagedNode("tts_node", "/bonbon/tts/tts_node/health", NodeClass.IMPORTANT, 2.0),
     # CLASS D — AUXILIARY
-    ManagedNode("face_node",             "/bonbon/vision/face_node/health",              NodeClass.AUXILIARY, 2.0),
-    ManagedNode("display_node",          "/bonbon/actuation/display_node/health",        NodeClass.AUXILIARY, 2.0),
-    ManagedNode("led_node",              "/bonbon/actuation/led_node/health",            NodeClass.AUXILIARY, 2.0),
+    ManagedNode("face_node", "/bonbon/vision/face_node/health", NodeClass.AUXILIARY, 2.0),
+    ManagedNode("display_node", "/bonbon/actuation/display_node/health", NodeClass.AUXILIARY, 2.0),
+    ManagedNode("led_node", "/bonbon/actuation/led_node/health", NodeClass.AUXILIARY, 2.0),
 ]
 
 
@@ -111,7 +116,7 @@ class WatchdogNode(LifecycleNode):
     def __init__(self) -> None:
         super().__init__(self.NODE_NAME)
         self._lock = threading.Lock()
-        self._registry: Dict[str, ManagedNode] = {}
+        self._registry: dict[str, ManagedNode] = {}
         self._subs: list = []
         self._check_timer = None
 
@@ -126,9 +131,7 @@ class WatchdogNode(LifecycleNode):
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         for node_def in DEFAULT_MANAGED_NODES:
             self._registry[node_def.name] = node_def
-        self.get_logger().info(
-            "Watchdog configured — monitoring %d nodes", len(self._registry)
-        )
+        self.get_logger().info("Watchdog configured — monitoring %d nodes", len(self._registry))
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -187,7 +190,8 @@ class WatchdogNode(LifecycleNode):
                 node_def.restart_count = 0
                 self.get_logger().info(
                     "Node RECOVERED: %s (class %s)",
-                    node_def.name, node_def.node_class.name,
+                    node_def.name,
+                    node_def.node_class.name,
                 )
                 self._publish_crash_flags()
 
@@ -212,7 +216,9 @@ class WatchdogNode(LifecycleNode):
                         node_def.is_stale = True
                         self.get_logger().error(
                             "Node STALE: %s (class %s) — last seen %.1f s ago",
-                            node_def.name, node_def.node_class.name, age,
+                            node_def.name,
+                            node_def.node_class.name,
+                            age,
                         )
                         self._attempt_restart(node_def)
 
@@ -230,13 +236,16 @@ class WatchdogNode(LifecycleNode):
         if node_def.restart_count >= node_def.max_restart_attempts:
             self.get_logger().error(
                 "Node %s exhausted %d restart attempts — giving up",
-                node_def.name, node_def.max_restart_attempts,
+                node_def.name,
+                node_def.max_restart_attempts,
             )
             return
         node_def.restart_count += 1
         self.get_logger().warn(
             "Requesting restart of node %s (attempt %d/%d)",
-            node_def.name, node_def.restart_count, node_def.max_restart_attempts,
+            node_def.name,
+            node_def.restart_count,
+            node_def.max_restart_attempts,
         )
         # In production this calls the /bonbon/node/restart service
         # or signals the systemd unit manager.  Placeholder for now.

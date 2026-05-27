@@ -14,12 +14,12 @@ Design
   completed speech segment.
 * Thread-safe: a single ``threading.Lock`` guards all mutations.
 """
+
 from __future__ import annotations
 
-import threading
 import logging
+import threading
 from collections import deque
-from typing import List, Optional
 
 import numpy as np
 
@@ -54,8 +54,11 @@ class AudioBuffer:
         logger.debug(
             "AudioBuffer init sample_rate=%d max_sec=%.1f prebuf_sec=%.3f "
             "max_samples=%d prebuf_samples=%d",
-            sample_rate, max_buffer_sec, prebuffer_sec,
-            self._max_samples, self._prebuffer_samples,
+            sample_rate,
+            max_buffer_sec,
+            prebuffer_sec,
+            self._max_samples,
+            self._prebuffer_samples,
         )
 
     # ── Write ────────────────────────────────────────────────────────────────
@@ -69,7 +72,7 @@ class AudioBuffer:
 
     # ── Read ─────────────────────────────────────────────────────────────────
 
-    def peek(self, n_samples: Optional[int] = None) -> np.ndarray:
+    def peek(self, n_samples: int | None = None) -> np.ndarray:
         """
         Return (a copy of) the last ``n_samples`` without consuming them.
         If ``n_samples`` is None, return the entire buffer.
@@ -108,7 +111,7 @@ class AudioBuffer:
         with self._lock:
             available = len(self._buf)
             take = min(n_samples, available)
-            segment: List[float] = []
+            segment: list[float] = []
             for _ in range(take):
                 segment.append(self._buf.popleft())
         return np.array(segment, dtype=np.float32)
@@ -127,7 +130,7 @@ class AudioBuffer:
         segment so the onset is captured.
         """
         with self._lock:
-            data = list(self._buf)[-self._prebuffer_samples:]
+            data = list(self._buf)[-self._prebuffer_samples :]
         return np.array(data, dtype=np.float32)
 
     # ── Housekeeping ─────────────────────────────────────────────────────────

@@ -8,61 +8,62 @@ Address:   0x40 default (A0=GND, A1=GND)
 
 SDK dependency: smbus2  (pip install smbus2)
 """
+
 from __future__ import annotations
 
 import logging
-import struct
-import time
 
 from bonbon_hal.base.driver_base import DriverFault
+
 from .battery_driver import BatteryDriver, BatteryReading, voltage_to_percent
 
 logger = logging.getLogger(__name__)
 
 try:
-    import smbus2                        # type: ignore[import]
+    import smbus2  # type: ignore[import]
+
     _HAS_SMBUS = True
 except ImportError:
     _HAS_SMBUS = False
 
 # INA226 registers
-_REG_CONFIG    = 0x00
-_REG_SHUNT     = 0x01   # shunt voltage (2.5 µV/LSB, signed)
-_REG_BUS       = 0x02   # bus voltage   (1.25 mV/LSB)
-_REG_POWER     = 0x03   # power         (25 mW/LSB × calibration)
-_REG_CURRENT   = 0x04   # current       (calibration dependent)
-_REG_CALIB     = 0x05
-_REG_MASK_EN   = 0x06
-_REG_ALERT     = 0x07
-_REG_MFRID     = 0xFE   # 0x5449
-_REG_DIEID     = 0xFF   # 0x2260
+_REG_CONFIG = 0x00
+_REG_SHUNT = 0x01  # shunt voltage (2.5 µV/LSB, signed)
+_REG_BUS = 0x02  # bus voltage   (1.25 mV/LSB)
+_REG_POWER = 0x03  # power         (25 mW/LSB × calibration)
+_REG_CURRENT = 0x04  # current       (calibration dependent)
+_REG_CALIB = 0x05
+_REG_MASK_EN = 0x06
+_REG_ALERT = 0x07
+_REG_MFRID = 0xFE  # 0x5449
+_REG_DIEID = 0xFF  # 0x2260
 
 # Default config: avg=16, vbus_ct=1.1ms, vsh_ct=1.1ms, continuous
 _DEFAULT_CONFIG = 0x4527
-_SHUNT_LSB_UV   = 2.5e-6   # 2.5 µV per LSB
-_BUS_LSB_V      = 1.25e-3  # 1.25 mV per LSB
-_CURRENT_LSB_A  = 0.001    # 1 mA per LSB (for 10 mΩ shunt, Rshunt=0.01)
+_SHUNT_LSB_UV = 2.5e-6  # 2.5 µV per LSB
+_BUS_LSB_V = 1.25e-3  # 1.25 mV per LSB
+_CURRENT_LSB_A = 0.001  # 1 mA per LSB (for 10 mΩ shunt, Rshunt=0.01)
 
 
 class Ina226Driver(BatteryDriver):
 
     def __init__(
         self,
-        bus:       int   = 1,
-        address:   int   = 0x40,
-        shunt_ohm: float = 0.01,    # 10 mΩ shunt resistor
-        max_a:     float = 20.0,    # max expected current
+        bus: int = 1,
+        address: int = 0x40,
+        shunt_ohm: float = 0.01,  # 10 mΩ shunt resistor
+        max_a: float = 20.0,  # max expected current
         capacity_ah: float = 40.0,  # battery capacity
     ) -> None:
         super().__init__(driver_mode="real")
-        self._bus_num     = bus
-        self._addr        = address
-        self._shunt       = shunt_ohm
-        self._max_a       = max_a
+        self._bus_num = bus
+        self._addr = address
+        self._shunt = shunt_ohm
+        self._max_a = max_a
         self._capacity_ah = capacity_ah
-        self._bus_obj     = None
+        self._bus_obj = None
         self._current_lsb = 0.0
-        self._power_lsb   = 0.0
+        self._power_lsb = 0.0
 
     def _do_connect(self) -> bool:
         if not _HAS_SMBUS:
@@ -75,12 +76,16 @@ class Ina226Driver(BatteryDriver):
                 raise DriverFault(f"INA226 not found (MFR=0x{mfr:04x})", "WRONG_DEVICE")
             # Calibrate
             self._current_lsb = self._max_a / 32768.0
-            self._power_lsb   = self._current_lsb * 25.0
+            self._power_lsb = self._current_lsb * 25.0
             cal = int(0.00512 / (self._current_lsb * self._shunt))
             self._write_reg(_REG_CALIB, cal)
             self._write_reg(_REG_CONFIG, _DEFAULT_CONFIG)
-            logger.info("INA226 connected on bus %d addr 0x%02x, current_lsb=%.6f A",
-                        self._bus_num, self._addr, self._current_lsb)
+            logger.info(
+                "INA226 connected on bus %d addr 0x%02x, current_lsb=%.6f A",
+                self._bus_num,
+                self._addr,
+                self._current_lsb,
+            )
             return True
         except DriverFault:
             raise
@@ -99,15 +104,15 @@ class Ina226Driver(BatteryDriver):
         if not self.is_connected:
             raise DriverFault("Not connected", "NOT_CONNECTED")
         try:
-            raw_bus   = self._read_reg(_REG_BUS)
-            raw_shunt = self._read_signed(_REG_SHUNT)
-            raw_curr  = self._read_signed(_REG_CURRENT)
-            raw_pwr   = self._read_reg(_REG_POWER)
+            raw_bus = self._read_reg(_REG_BUS)
+            self._read_signed(_REG_SHUNT)
+            raw_curr = self._read_signed(_REG_CURRENT)
+            raw_pwr = self._read_reg(_REG_POWER)
 
-            voltage_v = raw_bus   * _BUS_LSB_V
-            current_a = raw_curr  * self._current_lsb
-            power_w   = raw_pwr   * self._power_lsb
-            percent   = voltage_to_percent(voltage_v)
+            voltage_v = raw_bus * _BUS_LSB_V
+            current_a = raw_curr * self._current_lsb
+            power_w = raw_pwr * self._power_lsb
+            percent = voltage_to_percent(voltage_v)
             is_charging = current_a > 0.1
 
             self._record_success()
@@ -131,5 +136,4 @@ class Ina226Driver(BatteryDriver):
         return val - 65536 if val > 32767 else val
 
     def _write_reg(self, reg: int, value: int) -> None:
-        self._bus_obj.write_i2c_block_data(self._addr, reg,
-                                            [(value >> 8) & 0xFF, value & 0xFF])
+        self._bus_obj.write_i2c_block_data(self._addr, reg, [(value >> 8) & 0xFF, value & 0xFF])

@@ -1,17 +1,14 @@
 """
 Tests for bonbon_navigation.core.map_manager
 """
+
 import math
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
-
-from bonbon_navigation.core.map_manager import MapInfo, MapManager, NamedPose
-
+from bonbon_navigation.core.map_manager import MapManager
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _write_pgm_p5(path: str, width: int, height: int, maxval: int = 255) -> None:
     """Write a minimal P5 (binary) PGM file — all free space (255)."""
@@ -21,8 +18,9 @@ def _write_pgm_p5(path: str, width: int, height: int, maxval: int = 255) -> None
         f.write(bytes([255] * (width * height)))
 
 
-def _write_pgm_with_obstacle(path: str, width: int = 20, height: int = 20,
-                              obstacle_col: int = 10, obstacle_row: int = 10) -> None:
+def _write_pgm_with_obstacle(
+    path: str, width: int = 20, height: int = 20, obstacle_col: int = 10, obstacle_row: int = 10
+) -> None:
     """P5 PGM with one occupied pixel (value=0 → occupied after negate)."""
     data = [255] * (width * height)
     data[obstacle_row * width + obstacle_col] = 0
@@ -31,9 +29,9 @@ def _write_pgm_with_obstacle(path: str, width: int = 20, height: int = 20,
         f.write(bytes(data))
 
 
-def _write_yaml(yaml_path: str, pgm_path: str,
-                resolution: float = 0.05,
-                origin: tuple = (0.0, 0.0, 0.0)) -> None:
+def _write_yaml(
+    yaml_path: str, pgm_path: str, resolution: float = 0.05, origin: tuple = (0.0, 0.0, 0.0)
+) -> None:
     ox, oy, oyaw = origin
     content = (
         f"image: {pgm_path}\n"
@@ -48,6 +46,7 @@ def _write_yaml(yaml_path: str, pgm_path: str,
 
 
 # ── MapManager constructor ────────────────────────────────────────────────────
+
 
 class TestMapManagerConstruct:
     def test_empty_locations(self):
@@ -66,6 +65,7 @@ class TestMapManagerConstruct:
 
 
 # ── MapManager load ───────────────────────────────────────────────────────────
+
 
 class TestMapLoad:
     def test_load_valid_map(self, tmp_path):
@@ -103,6 +103,7 @@ class TestMapLoad:
 
 # ── Coordinate transforms ─────────────────────────────────────────────────────
 
+
 class TestCoordinateTransforms:
     def _load_map(self, tmp_path, origin=(0.0, 0.0)):
         pgm = str(tmp_path / "t.pgm")
@@ -136,6 +137,7 @@ class TestCoordinateTransforms:
 
 # ── Occupancy ─────────────────────────────────────────────────────────────────
 
+
 class TestOccupancy:
     def test_free_cell_not_occupied(self, tmp_path):
         pgm = str(tmp_path / "t.pgm")
@@ -162,10 +164,11 @@ class TestOccupancy:
 
 # ── Named locations ───────────────────────────────────────────────────────────
 
+
 class TestNamedLocations:
     def test_add_and_resolve_location(self):
         mm = MapManager({})
-        mm.add_location("counter", 3.5, 1.0, 0.0)   # yaw_deg=0
+        mm.add_location("counter", 3.5, 1.0, 0.0)  # yaw_deg=0
         pose = mm.resolve_location("counter")
         assert pose is not None
         assert pose.x == pytest.approx(3.5)
@@ -173,7 +176,7 @@ class TestNamedLocations:
 
     def test_yaw_stored_in_radians(self):
         mm = MapManager({})
-        mm.add_location("table_1", 5.0, 2.0, 180.0)   # yaw_deg=180 → π rad
+        mm.add_location("table_1", 5.0, 2.0, 180.0)  # yaw_deg=180 → π rad
         pose = mm.resolve_location("table_1")
         assert pose.yaw == pytest.approx(math.pi, abs=1e-6)
 
@@ -197,13 +200,14 @@ class TestNamedLocations:
 
 # ── Charger registry ──────────────────────────────────────────────────────────
 
+
 class TestChargerRegistry:
     def test_list_chargers_by_prefix(self):
         """list_chargers() returns all locations whose name starts with 'charger'."""
         mm = MapManager({})
         mm.add_location("charger_a", 1.0, 1.0, 0.0)
         mm.add_location("charger_b", 1.0, 8.0, 0.0)
-        mm.add_location("table_1",   5.0, 2.0, 0.0)
+        mm.add_location("table_1", 5.0, 2.0, 0.0)
         chargers = mm.list_chargers()
         assert "charger_a" in chargers
         assert "charger_b" in chargers

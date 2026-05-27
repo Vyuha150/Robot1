@@ -17,6 +17,7 @@ failed windows to suppress false positives from temporary slowing.
 Thread safety: `update()` and `is_stuck()` may be called from different
 threads; the internal state is protected by value-copy semantics.
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,7 +25,6 @@ import math
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Optional, Tuple
 
 from bonbon_navigation.config.nav_config import StuckDetectorConfig
 
@@ -33,26 +33,29 @@ logger = logging.getLogger(__name__)
 
 # ── Position sample ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class PositionSample:
-    x:   float
-    y:   float
-    t:   float    # time.monotonic()
+    x: float
+    y: float
+    t: float  # time.monotonic()
 
 
 # ── Result ────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class StuckResult:
-    is_stuck:        bool
-    reason:          str       # "" if not stuck
-    progress_m:      float     # displacement over last window
-    window_sec:      float     # actual window evaluated
+    is_stuck: bool
+    reason: str  # "" if not stuck
+    progress_m: float  # displacement over last window
+    window_sec: float  # actual window evaluated
     consecutive_fails: int
-    velocity_mps:    float     # last measured velocity
+    velocity_mps: float  # last measured velocity
 
 
 # ── Detector ─────────────────────────────────────────────────────────────────
+
 
 class StuckDetector:
     """
@@ -71,19 +74,19 @@ class StuckDetector:
 
     def __init__(self, cfg: StuckDetectorConfig) -> None:
         self._cfg = cfg
-        self._history: Deque[PositionSample] = deque()
+        self._history: deque[PositionSample] = deque()
         self._consecutive_fails = 0
-        self._last_velocity     = 0.0
-        self._active            = False
-        self._zero_vel_start:   Optional[float] = None
+        self._last_velocity = 0.0
+        self._active = False
+        self._zero_vel_start: float | None = None
 
     def reset(self) -> None:
         """Reset all state — call at start of each new goal."""
         self._history.clear()
         self._consecutive_fails = 0
-        self._last_velocity     = 0.0
-        self._active            = True
-        self._zero_vel_start    = None
+        self._last_velocity = 0.0
+        self._active = True
+        self._zero_vel_start = None
         logger.debug("StuckDetector reset")
 
     def deactivate(self) -> None:
@@ -126,16 +129,22 @@ class StuckDetector:
         """
         if not self._active or not self._cfg.enabled:
             return StuckResult(
-                is_stuck=False, reason="", progress_m=0.0,
-                window_sec=0.0, consecutive_fails=0,
+                is_stuck=False,
+                reason="",
+                progress_m=0.0,
+                window_sec=0.0,
+                consecutive_fails=0,
                 velocity_mps=self._last_velocity,
             )
 
         # Need at least 2 samples and a full window
         if len(self._history) < 2:
             return StuckResult(
-                is_stuck=False, reason="insufficient samples", progress_m=0.0,
-                window_sec=0.0, consecutive_fails=self._consecutive_fails,
+                is_stuck=False,
+                reason="insufficient samples",
+                progress_m=0.0,
+                window_sec=0.0,
+                consecutive_fails=self._consecutive_fails,
                 velocity_mps=self._last_velocity,
             )
 
@@ -146,8 +155,11 @@ class StuckDetector:
         if actual_window < self._cfg.window_sec * 0.5:
             # Window not yet full
             return StuckResult(
-                is_stuck=False, reason="window not full", progress_m=0.0,
-                window_sec=actual_window, consecutive_fails=self._consecutive_fails,
+                is_stuck=False,
+                reason="window not full",
+                progress_m=0.0,
+                window_sec=actual_window,
+                consecutive_fails=self._consecutive_fails,
                 velocity_mps=self._last_velocity,
             )
 
@@ -160,19 +172,20 @@ class StuckDetector:
         if self._zero_vel_start is not None:
             zero_dur = time.monotonic() - self._zero_vel_start
             if zero_dur >= self._cfg.zero_velocity_window_sec:
-                zero_vel_stuck  = True
+                zero_vel_stuck = True
                 zero_vel_reason = (
                     f"zero velocity for {zero_dur:.1f}s "
                     f"(threshold {self._cfg.zero_velocity_window_sec}s)"
                 )
 
-        progress_stuck  = progress < self._cfg.min_progress_m
-        is_fail         = progress_stuck or zero_vel_stuck
+        progress_stuck = progress < self._cfg.min_progress_m
+        is_fail = progress_stuck or zero_vel_stuck
 
         if is_fail:
             self._consecutive_fails += 1
             reason = (
-                zero_vel_reason if zero_vel_stuck
+                zero_vel_reason
+                if zero_vel_stuck
                 else f"progress {progress:.3f}m < {self._cfg.min_progress_m}m over {actual_window:.1f}s"
             )
         else:
@@ -184,16 +197,17 @@ class StuckDetector:
         if is_stuck:
             logger.warning(
                 "Robot STUCK: %s  (consecutive_fails=%d)",
-                reason, self._consecutive_fails,
+                reason,
+                self._consecutive_fails,
             )
 
         return StuckResult(
-            is_stuck          = is_stuck,
-            reason            = reason if is_stuck else "",
-            progress_m        = progress,
-            window_sec        = actual_window,
-            consecutive_fails = self._consecutive_fails,
-            velocity_mps      = self._last_velocity,
+            is_stuck=is_stuck,
+            reason=reason if is_stuck else "",
+            progress_m=progress,
+            window_sec=actual_window,
+            consecutive_fails=self._consecutive_fails,
+            velocity_mps=self._last_velocity,
         )
 
     @property

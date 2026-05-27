@@ -32,24 +32,24 @@ Shutdown
 ``stop()`` sets ``_running=False`` and signals the worker event, then
 joins the thread with a 5-second timeout.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
-from typing import Optional
 
 from bonbon_tts.backends.base_tts import BaseTTS, SynthesisOutput, TTSError
 from bonbon_tts.backends.mock_tts import MockTTS
-from bonbon_tts.core.tts_health import TTSHealthTracker, TTSHealthReport
 from bonbon_tts.core.filler_player import FillerPlayer
-from bonbon_tts.core.utterance_queue import UtteranceQueue, Utterance, Priority
+from bonbon_tts.core.tts_health import TTSHealthReport, TTSHealthTracker
+from bonbon_tts.core.utterance_queue import Utterance, UtteranceQueue
 from bonbon_tts.speaker.speaker_bridge import AbstractSpeakerBridge
 
 logger = logging.getLogger(__name__)
 
-_POLL_INTERVAL_SEC = 0.05   # 50 ms idle poll
-_WORKER_JOIN_SEC   = 5.0
+_POLL_INTERVAL_SEC = 0.05  # 50 ms idle poll
+_WORKER_JOIN_SEC = 5.0
 
 
 class SpeechSynthesizer:
@@ -77,24 +77,24 @@ class SpeechSynthesizer:
 
     def __init__(
         self,
-        primary_tts:    BaseTTS,
-        speaker:        AbstractSpeakerBridge,
-        queue:          Optional[UtteranceQueue]   = None,
-        fallback_tts:   Optional[BaseTTS]          = None,
-        filler:         Optional[FillerPlayer]     = None,
-        health_tracker: Optional[TTSHealthTracker] = None,
+        primary_tts: BaseTTS,
+        speaker: AbstractSpeakerBridge,
+        queue: UtteranceQueue | None = None,
+        fallback_tts: BaseTTS | None = None,
+        filler: FillerPlayer | None = None,
+        health_tracker: TTSHealthTracker | None = None,
     ) -> None:
-        self._primary    = primary_tts
-        self._fallback   = fallback_tts or MockTTS()
-        self._speaker    = speaker
-        self._queue      = queue or UtteranceQueue()
-        self._filler     = filler
-        self._health     = health_tracker or TTSHealthTracker()
+        self._primary = primary_tts
+        self._fallback = fallback_tts or MockTTS()
+        self._speaker = speaker
+        self._queue = queue or UtteranceQueue()
+        self._filler = filler
+        self._health = health_tracker or TTSHealthTracker()
 
-        self._running    = False
-        self._worker:    Optional[threading.Thread] = None
+        self._running = False
+        self._worker: threading.Thread | None = None
         self._idle_event = threading.Event()  # set when worker completes an utterance
-        self._lock       = threading.Lock()
+        self._lock = threading.Lock()
 
         # Filler timing
         self._last_play_end_ts: float = 0.0
@@ -106,15 +106,14 @@ class SpeechSynthesizer:
         self._primary.warmup()
         if not self._primary.is_available():
             logger.warning(
-                "SpeechSynthesizer: primary backend %r unavailable; "
-                "using fallback %r",
+                "SpeechSynthesizer: primary backend %r unavailable; " "using fallback %r",
                 self._primary.backend_name(),
                 self._fallback.backend_name(),
             )
 
         self._fallback.warmup()
 
-        self._running    = True
+        self._running = True
         self._idle_event.set()  # starts as idle
         self._worker = threading.Thread(
             target=self._worker_loop,
@@ -122,8 +121,11 @@ class SpeechSynthesizer:
             daemon=True,
         )
         self._worker.start()
-        logger.info("SpeechSynthesizer started (primary=%r fallback=%r)",
-                    self._primary.backend_name(), self._fallback.backend_name())
+        logger.info(
+            "SpeechSynthesizer started (primary=%r fallback=%r)",
+            self._primary.backend_name(),
+            self._fallback.backend_name(),
+        )
 
     def stop(self) -> None:
         """Stop the worker thread and release resources."""
@@ -154,8 +156,7 @@ class SpeechSynthesizer:
         """
         interrupt = self._queue.enqueue(utt)
         if interrupt:
-            logger.debug("SpeechSynthesizer: interrupt requested for id=%s",
-                         utt.utterance_id)
+            logger.debug("SpeechSynthesizer: interrupt requested for id=%s", utt.utterance_id)
             self._speaker.stop()
         self._idle_event.clear()  # worker has pending work
         return interrupt
@@ -187,16 +188,18 @@ class SpeechSynthesizer:
 
     def get_health_report(self) -> TTSHealthReport:
         """Return a health snapshot."""
-        backend  = (self._primary.backend_name()
-                    if self._primary.is_available()
-                    else self._fallback.backend_name())
+        backend = (
+            self._primary.backend_name()
+            if self._primary.is_available()
+            else self._fallback.backend_name()
+        )
         synth_ok = self._running
-        spkr_ok  = self._speaker.is_available()
+        spkr_ok = self._speaker.is_available()
         return self._health.get_report(
-            queue_depth = self._queue.depth(),
-            backend     = backend,
-            synth_ok    = synth_ok,
-            speaker_ok  = spkr_ok,
+            queue_depth=self._queue.depth(),
+            backend=backend,
+            synth_ok=synth_ok,
+            speaker_ok=spkr_ok,
         )
 
     @property
@@ -238,7 +241,7 @@ class SpeechSynthesizer:
             self._speaker.stop()
 
         t0 = time.monotonic()
-        output: Optional[SynthesisOutput] = None
+        output: SynthesisOutput | None = None
         is_fallback = False
 
         try:
@@ -248,12 +251,12 @@ class SpeechSynthesizer:
                 raise TTSError("Primary TTS unavailable", "PRIMARY_UNAVAILABLE")
         except TTSError as exc:
             logger.warning(
-                "SpeechSynthesizer: primary TTS failed (id=%s error=%s), "
-                "trying fallback",
-                utt.utterance_id, exc,
+                "SpeechSynthesizer: primary TTS failed (id=%s error=%s), " "trying fallback",
+                utt.utterance_id,
+                exc,
             )
             try:
-                output      = self._fallback.synthesize(utt.text)
+                output = self._fallback.synthesize(utt.text)
                 is_fallback = True
                 output.is_fallback = True
             except TTSError as exc2:
@@ -261,7 +264,8 @@ class SpeechSynthesizer:
                 self._health.record_synthesis(elapsed_ms, success=False)
                 logger.error(
                     "SpeechSynthesizer: fallback TTS also failed (id=%s): %s",
-                    utt.utterance_id, exc2,
+                    utt.utterance_id,
+                    exc2,
                 )
                 return
 
@@ -284,8 +288,9 @@ class SpeechSynthesizer:
             self._health.record_play(output.duration_sec)
             self._last_play_end_ts = time.monotonic()
         except Exception as exc:
-            logger.error("SpeechSynthesizer: speaker play failed (id=%s): %s",
-                         utt.utterance_id, exc)
+            logger.error(
+                "SpeechSynthesizer: speaker play failed (id=%s): %s", utt.utterance_id, exc
+            )
 
     def _maybe_play_filler(self) -> None:
         """Trigger filler audio if conditions are met."""
@@ -296,7 +301,7 @@ class SpeechSynthesizer:
 
         elapsed_ms = (time.monotonic() - self._last_play_end_ts) * 1000
         self._filler.maybe_play(
-            speaker_play_fn = self._speaker.play,
-            queue_depth     = self._queue.depth(),
-            elapsed_ms      = elapsed_ms,
+            speaker_play_fn=self._speaker.play,
+            queue_depth=self._queue.depth(),
+            elapsed_ms=elapsed_ms,
         )

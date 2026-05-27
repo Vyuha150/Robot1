@@ -1,11 +1,8 @@
 """
 Tests for bonbon_navigation.core.localization_monitor
 """
-import math
-import time
 
 import pytest
-
 from bonbon_navigation.core.localization_monitor import (
     LocalizationMonitor,
     LocalizationQuality,
@@ -13,25 +10,27 @@ from bonbon_navigation.core.localization_monitor import (
     PoseEstimate,
 )
 
-
 # ── PoseEstimate ──────────────────────────────────────────────────────────────
+
 
 class TestPoseEstimate:
     def test_covariance_trace_computation(self):
         pe = PoseEstimate(
-            x=1.0, y=2.0, yaw=0.5,
-            cov_xx=0.01, cov_yy=0.02, cov_yawyaw=0.04,
+            x=1.0,
+            y=2.0,
+            yaw=0.5,
+            cov_xx=0.01,
+            cov_yy=0.02,
+            cov_yawyaw=0.04,
         )
         assert pe.covariance_trace == pytest.approx(0.01 + 0.02 + 0.04)
 
     def test_default_covariance_zero(self):
-        pe = PoseEstimate(x=0.0, y=0.0, yaw=0.0,
-                          cov_xx=0.0, cov_yy=0.0, cov_yawyaw=0.0)
+        pe = PoseEstimate(x=0.0, y=0.0, yaw=0.0, cov_xx=0.0, cov_yy=0.0, cov_yawyaw=0.0)
         assert pe.covariance_trace == 0.0
 
     def test_fields_stored_correctly(self):
-        pe = PoseEstimate(x=3.14, y=-2.71, yaw=1.57,
-                          cov_xx=0.005, cov_yy=0.005, cov_yawyaw=0.01)
+        pe = PoseEstimate(x=3.14, y=-2.71, yaw=1.57, cov_xx=0.005, cov_yy=0.005, cov_yawyaw=0.01)
         assert pe.x == pytest.approx(3.14)
         assert pe.y == pytest.approx(-2.71)
         assert pe.yaw == pytest.approx(1.57)
@@ -39,24 +38,22 @@ class TestPoseEstimate:
 
 # ── Quality classification ────────────────────────────────────────────────────
 
+
 class TestQualityClassification:
     def test_good_quality_low_covariance(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
-        mon.update_pose(x=1.0, y=2.0, yaw=0.0,
-                        cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.02)
+        mon.update_pose(x=1.0, y=2.0, yaw=0.0, cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.02)
         assert mon.get_quality() == LocalizationQuality.GOOD
 
     def test_degraded_quality_medium_covariance(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
-        mon.update_pose(x=1.0, y=2.0, yaw=0.0,
-                        cov_xx=0.05, cov_yy=0.05, cov_yawyaw=0.05)
+        mon.update_pose(x=1.0, y=2.0, yaw=0.0, cov_xx=0.05, cov_yy=0.05, cov_yawyaw=0.05)
         # trace = 0.15 → between 0.05 and 0.20 → DEGRADED
         assert mon.get_quality() == LocalizationQuality.DEGRADED
 
     def test_lost_quality_high_covariance(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
-        mon.update_pose(x=1.0, y=2.0, yaw=0.0,
-                        cov_xx=0.10, cov_yy=0.10, cov_yawyaw=0.10)
+        mon.update_pose(x=1.0, y=2.0, yaw=0.0, cov_xx=0.10, cov_yy=0.10, cov_yawyaw=0.10)
         # trace = 0.30 > 0.20 → LOST
         assert mon.get_quality() == LocalizationQuality.LOST
 
@@ -67,24 +64,22 @@ class TestQualityClassification:
 
 # ── is_localized ─────────────────────────────────────────────────────────────
 
+
 class TestIsLocalized:
     def test_localized_when_good(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
-        mon.update_pose(x=0.0, y=0.0, yaw=0.0,
-                        cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.01)
+        mon.update_pose(x=0.0, y=0.0, yaw=0.0, cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.01)
         assert mon.is_localized() is True
 
     def test_localized_when_degraded(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
-        mon.update_pose(x=0.0, y=0.0, yaw=0.0,
-                        cov_xx=0.05, cov_yy=0.05, cov_yawyaw=0.05)
+        mon.update_pose(x=0.0, y=0.0, yaw=0.0, cov_xx=0.05, cov_yy=0.05, cov_yawyaw=0.05)
         # DEGRADED counts as localized (can still navigate)
         assert mon.is_localized() is True
 
     def test_not_localized_when_lost(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
-        mon.update_pose(x=0.0, y=0.0, yaw=0.0,
-                        cov_xx=0.15, cov_yy=0.15, cov_yawyaw=0.15)
+        mon.update_pose(x=0.0, y=0.0, yaw=0.0, cov_xx=0.15, cov_yy=0.15, cov_yawyaw=0.15)
         assert mon.is_localized() is False
 
     def test_not_localized_when_unknown(self):
@@ -93,6 +88,7 @@ class TestIsLocalized:
 
 
 # ── update_pose_simple ────────────────────────────────────────────────────────
+
 
 class TestUpdatePoseSimple:
     def test_update_simple_no_covariance(self):
@@ -114,11 +110,11 @@ class TestUpdatePoseSimple:
 
 # ── Localization report ───────────────────────────────────────────────────────
 
+
 class TestLocalizationReport:
     def test_report_fields(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
-        mon.update_pose(x=1.0, y=2.0, yaw=0.5,
-                        cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.01)
+        mon.update_pose(x=1.0, y=2.0, yaw=0.5, cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.01)
         report = mon.get_report()
         assert isinstance(report, LocalizationReport)
         assert report.quality == LocalizationQuality.GOOD
@@ -134,26 +130,25 @@ class TestLocalizationReport:
 
 # ── Consecutive lost count ────────────────────────────────────────────────────
 
+
 class TestConsecutiveLostCount:
     def test_consecutive_lost_increments(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
         for _ in range(3):
-            mon.update_pose(x=0.0, y=0.0, yaw=0.0,
-                            cov_xx=0.20, cov_yy=0.20, cov_yawyaw=0.20)
+            mon.update_pose(x=0.0, y=0.0, yaw=0.0, cov_xx=0.20, cov_yy=0.20, cov_yawyaw=0.20)
         assert mon.consecutive_lost_count() >= 3
 
     def test_consecutive_lost_resets_on_good_pose(self):
         mon = LocalizationMonitor(good_cov_threshold=0.05, lost_cov_threshold=0.20)
         for _ in range(3):
-            mon.update_pose(x=0.0, y=0.0, yaw=0.0,
-                            cov_xx=0.20, cov_yy=0.20, cov_yawyaw=0.20)
+            mon.update_pose(x=0.0, y=0.0, yaw=0.0, cov_xx=0.20, cov_yy=0.20, cov_yawyaw=0.20)
         # Good pose resets count
-        mon.update_pose(x=1.0, y=1.0, yaw=0.0,
-                        cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.01)
+        mon.update_pose(x=1.0, y=1.0, yaw=0.0, cov_xx=0.01, cov_yy=0.01, cov_yawyaw=0.01)
         assert mon.consecutive_lost_count() == 0
 
 
 # ── Relocalization recording ──────────────────────────────────────────────────
+
 
 class TestRelocalization:
     def test_relocalization_count_increments(self):

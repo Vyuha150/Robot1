@@ -7,7 +7,7 @@ retention sweep) and must never be called for regular business logic.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import AuditLogEntry, PrivacyLevel
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
@@ -28,32 +28,35 @@ class AuditLogRepository(BaseRepository):
             privacy_level, retention_policy
         ) VALUES (?,?,?,?,?,?,?,?,?,?);
         """
-        self._execute(sql, (
-            entry.log_id,
-            entry.timestamp,
-            entry.actor,
-            entry.action,
-            entry.target_type,
-            entry.target_id,
-            entry.outcome,
-            entry.detail,
-            entry.privacy_level.value,
-            entry.retention_policy.value,
-        ))
+        self._execute(
+            sql,
+            (
+                entry.log_id,
+                entry.timestamp,
+                entry.actor,
+                entry.action,
+                entry.target_type,
+                entry.target_id,
+                entry.outcome,
+                entry.detail,
+                entry.privacy_level.value,
+                entry.retention_policy.value,
+            ),
+        )
         return entry.log_id
 
-    def get_by_id(self, log_id: str) -> Optional[AuditLogEntry]:
+    def get_by_id(self, log_id: str) -> AuditLogEntry | None:
         row = self._fetchone("SELECT * FROM audit_log WHERE log_id = ?;", (log_id,))
         return self._row_to_model(row) if row else None
 
-    def get_by_actor(self, actor: str, limit: int = 100) -> List[AuditLogEntry]:
+    def get_by_actor(self, actor: str, limit: int = 100) -> list[AuditLogEntry]:
         rows = self._fetchall(
             "SELECT * FROM audit_log WHERE actor = ? ORDER BY timestamp DESC LIMIT ?;",
             (actor, limit),
         )
         return [self._row_to_model(r) for r in rows]
 
-    def get_recent(self, limit: int = 50) -> List[AuditLogEntry]:
+    def get_recent(self, limit: int = 50) -> list[AuditLogEntry]:
         rows = self._fetchall(
             "SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ?;",
             (limit,),
@@ -68,7 +71,7 @@ class AuditLogRepository(BaseRepository):
         return self._count("audit_log")
 
     @staticmethod
-    def _row_to_model(row: Dict[str, Any]) -> AuditLogEntry:
+    def _row_to_model(row: dict[str, Any]) -> AuditLogEntry:
         return AuditLogEntry(
             log_id=row["log_id"],
             timestamp=row["timestamp"],

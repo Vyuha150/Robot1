@@ -1,21 +1,22 @@
 """Abstract emergency-stop hardware driver."""
+
 from __future__ import annotations
 
 import time
 from abc import abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 from bonbon_hal.base.driver_base import DriverBase
 
 
 @dataclass
 class EstopState:
-    pressed:         bool  = False
-    relay_asserted:  bool  = False   # True = motor power CUT
-    input_pin:       int   = 17      # BCM GPIO pin
-    relay_pin:       int   = 18
-    timestamp:       float = field(default_factory=time.monotonic)
+    pressed: bool = False
+    relay_asserted: bool = False  # True = motor power CUT
+    input_pin: int = 17  # BCM GPIO pin
+    relay_pin: int = 18
+    timestamp: float = field(default_factory=time.monotonic)
 
 
 class EstopDriver(DriverBase):
@@ -32,7 +33,7 @@ class EstopDriver(DriverBase):
 
     def __init__(self, **kwargs) -> None:
         super().__init__("estop", **kwargs)
-        self._press_callback: Optional[Callable[[bool], None]] = None
+        self._press_callback: Callable[[bool], None] | None = None
 
     @abstractmethod
     def read_state(self) -> EstopState:

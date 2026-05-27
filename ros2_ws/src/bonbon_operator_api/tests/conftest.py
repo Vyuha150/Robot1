@@ -6,10 +6,8 @@ All fixtures stub out ROS2 entirely — tests run without a live ROS2 installati
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
-from typing import Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,6 +21,7 @@ os.environ.setdefault("BONBON_ADMIN_PASSWORD", "BonBon@dmin2025!")
 # Paths
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def tmp_data_dir(tmp_path) -> Path:
     """Per-test temporary directory (uses pytest's built-in tmp_path)."""
@@ -33,15 +32,18 @@ def tmp_data_dir(tmp_path) -> Path:
 # Core service fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def audit_logger(tmp_data_dir):
     from bonbon_operator_api.audit.audit_logger import AuditLogger
+
     return AuditLogger(db_path=tmp_data_dir / "audit_test.db", max_events=1000)
 
 
 @pytest.fixture
 def auth_manager(tmp_data_dir):
     from bonbon_operator_api.auth.auth_manager import AuthManager
+
     return AuthManager(
         db_path=tmp_data_dir / "users_test.db",
         jwt_secret="test-secret-key-32-chars-minimum!!",
@@ -53,18 +55,21 @@ def auth_manager(tmp_data_dir):
 @pytest.fixture
 def role_manager():
     from bonbon_operator_api.auth.role_permissions import RolePermissionManager
+
     return RolePermissionManager()
 
 
 @pytest.fixture
 def validator():
     from bonbon_operator_api.safety.command_validator import CommandValidator
+
     return CommandValidator(dedup_window_sec=5.0, dedup_capacity=64)
 
 
 @pytest.fixture
 def aggregator():
     from bonbon_operator_api.ros2.status_aggregator import RobotStatusAggregator
+
     return RobotStatusAggregator(offline_timeout_sec=15.0)
 
 
@@ -90,6 +95,7 @@ def mock_bridge():
 @pytest.fixture
 def safety_gate(validator, aggregator, audit_logger):
     from bonbon_operator_api.safety.safety_gate import SafetyCommandGate
+
     return SafetyCommandGate(
         validator=validator,
         status_aggregator=aggregator,
@@ -101,12 +107,15 @@ def safety_gate(validator, aggregator, audit_logger):
 # Test app + client
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
-def app(tmp_data_dir, auth_manager, role_manager, audit_logger,
-        aggregator, mock_bridge, safety_gate):
+def app(
+    tmp_data_dir, auth_manager, role_manager, audit_logger, aggregator, mock_bridge, safety_gate
+):
+    from bonbon_operator_api.api.config_api import _ConfigStore
+    from bonbon_operator_api.api.testbench_api import _TestbenchStore
     from bonbon_operator_api.config.api_config import OperatorAPIConfig
     from bonbon_operator_api.main import _build_app
-    from bonbon_operator_api.api.config_api import _ConfigStore
     from bonbon_operator_api.metrics.metrics_collector import DashboardMetricsCollector
     from bonbon_operator_api.websocket.ws_manager import WebSocketConnectionManager
 
@@ -125,6 +134,7 @@ def app(tmp_data_dir, auth_manager, role_manager, audit_logger,
     application.state.metrics = DashboardMetricsCollector(enabled=False)
     application.state.ws_manager = WebSocketConnectionManager()
     application.state.config_store = _ConfigStore(tmp_data_dir / "config_test.json")
+    application.state.testbench_store = _TestbenchStore(tmp_data_dir / "testbench_test.json")
 
     return application
 
@@ -139,13 +149,15 @@ def client(app) -> TestClient:
 # Helper: get auth tokens for each role
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def admin_token(auth_manager):
     from bonbon_operator_api.models.auth_models import UserCreate
+
     try:
-        auth_manager.create_user(UserCreate(
-            username="test_admin", password="Admin1234!", role="admin"
-        ))
+        auth_manager.create_user(
+            UserCreate(username="test_admin", password="Admin1234!", role="admin")
+        )
     except ValueError:
         pass
     user = auth_manager.authenticate("test_admin", "Admin1234!")
@@ -156,10 +168,11 @@ def admin_token(auth_manager):
 @pytest.fixture
 def operator_token(auth_manager):
     from bonbon_operator_api.models.auth_models import UserCreate
+
     try:
-        auth_manager.create_user(UserCreate(
-            username="test_operator", password="Operator1234!", role="operator"
-        ))
+        auth_manager.create_user(
+            UserCreate(username="test_operator", password="Operator1234!", role="operator")
+        )
     except ValueError:
         pass
     user = auth_manager.authenticate("test_operator", "Operator1234!")
@@ -170,10 +183,11 @@ def operator_token(auth_manager):
 @pytest.fixture
 def engineer_token(auth_manager):
     from bonbon_operator_api.models.auth_models import UserCreate
+
     try:
-        auth_manager.create_user(UserCreate(
-            username="test_engineer", password="Engineer1234!", role="engineer"
-        ))
+        auth_manager.create_user(
+            UserCreate(username="test_engineer", password="Engineer1234!", role="engineer")
+        )
     except ValueError:
         pass
     user = auth_manager.authenticate("test_engineer", "Engineer1234!")
@@ -184,10 +198,11 @@ def engineer_token(auth_manager):
 @pytest.fixture
 def viewer_token(auth_manager):
     from bonbon_operator_api.models.auth_models import UserCreate
+
     try:
-        auth_manager.create_user(UserCreate(
-            username="test_viewer", password="Viewer1234!", role="viewer"
-        ))
+        auth_manager.create_user(
+            UserCreate(username="test_viewer", password="Viewer1234!", role="viewer")
+        )
     except ValueError:
         pass
     user = auth_manager.authenticate("test_viewer", "Viewer1234!")

@@ -3,17 +3,22 @@ test_reconnect_policy.py
 ========================
 Tests for ReconnectPolicy exponential backoff.
 """
+
 from __future__ import annotations
+
 import time
-import pytest
-from bonbon_hal.base.reconnect_policy import ReconnectPolicy, ReconnectConfig
+
+from bonbon_hal.base.reconnect_policy import ReconnectConfig, ReconnectPolicy
 
 
-def _policy(max_attempts=3, base=1.0, max_d=10.0, factor=2.0,
-            cooldown=0.1) -> ReconnectPolicy:
-    cfg = ReconnectConfig(max_attempts=max_attempts, base_delay_sec=base,
-                          max_delay_sec=max_d, backoff_factor=factor,
-                          cooldown_sec=cooldown)
+def _policy(max_attempts=3, base=1.0, max_d=10.0, factor=2.0, cooldown=0.1) -> ReconnectPolicy:
+    cfg = ReconnectConfig(
+        max_attempts=max_attempts,
+        base_delay_sec=base,
+        max_delay_sec=max_d,
+        backoff_factor=factor,
+        cooldown_sec=cooldown,
+    )
     return ReconnectPolicy("test_device", cfg)
 
 
@@ -58,9 +63,10 @@ class TestReconnectPolicy:
 
     def test_cooldown_allows_retry_after_expiry(self):
         p = _policy(max_attempts=2, cooldown=0.05)
-        p.record_failure(); p.record_failure()
+        p.record_failure()
+        p.record_failure()
         assert p.should_attempt() is False
-        time.sleep(0.1)   # wait for cooldown
+        time.sleep(0.1)  # wait for cooldown
         assert p.should_attempt() is True
 
     def test_unlimited_attempts(self):

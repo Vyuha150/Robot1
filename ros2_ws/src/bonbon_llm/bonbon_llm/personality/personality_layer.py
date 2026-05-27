@@ -15,14 +15,13 @@ Responsibilities
 * Ensure the robot always introduces itself by its configured name
 * Format currency, numbers and units for spoken output
 """
+
 from __future__ import annotations
 
 import random
 import re
-from typing import Optional
 
 from bonbon_llm.config.llm_config import PersonalityConfig
-
 
 # ── Markdown cleanup ──────────────────────────────────────────────────────────
 
@@ -49,6 +48,7 @@ def _detect_language(text: str) -> str:
 
 # ── Personality layer ─────────────────────────────────────────────────────────
 
+
 class PersonalityLayer:
     """
     Applies the BonBon personality style to a raw LLM response.
@@ -56,13 +56,13 @@ class PersonalityLayer:
     """
 
     def __init__(self, cfg: PersonalityConfig) -> None:
-        self._cfg  = cfg
-        self._rng  = random.Random()   # not seeded — non-deterministic affirmations
+        self._cfg = cfg
+        self._rng = random.Random()  # not seeded — non-deterministic affirmations
 
     def apply(
         self,
         raw_response: str,
-        user_text:    Optional[str] = None,
+        user_text: str | None = None,
         use_affirmation: bool = False,
     ) -> str:
         """
@@ -126,10 +126,10 @@ class PersonalityLayer:
 
     def _tts_format(self, text: str) -> str:
         # Expand S$ to Singapore dollars
-        text = re.sub(r"S\$\s*(\d)", r"S$\1", text)       # normalise spacing
+        text = re.sub(r"S\$\s*(\d)", r"S$\1", text)  # normalise spacing
         text = re.sub(r"S\$(\d+\.?\d*)", r"\1 Singapore dollars", text)
         # Expand common abbreviations
         text = re.sub(r"\bm/s\b", "metres per second", text, flags=re.I)
-        text = re.sub(r"\bkg\b",  "kilograms",         text, flags=re.I)
-        text = re.sub(r"\bcm\b",  "centimetres",       text, flags=re.I)
+        text = re.sub(r"\bkg\b", "kilograms", text, flags=re.I)
+        text = re.sub(r"\bcm\b", "centimetres", text, flags=re.I)
         return text

@@ -14,6 +14,7 @@ Responsibilities
 The map_manager is consumed by the NavigationNode; it does NOT spin its own
 thread — it is driven by the node's lifecycle transitions.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,7 +22,6 @@ import math
 import os
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import yaml
@@ -31,32 +31,36 @@ logger = logging.getLogger(__name__)
 
 # ── Data types ────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class MapInfo:
     """Metadata from a .yaml map descriptor."""
-    image_path:  str
-    resolution:  float          # metres per pixel
-    origin_x:    float          # map origin in world frame (m)
-    origin_y:    float
-    origin_yaw:  float          # yaw of map origin (rad)
-    negate:      int            # 0=white is free, 1=black is free
-    occupied_thresh: float      # 0.65
-    free_thresh:     float      # 0.196
-    width:  int = 0
+
+    image_path: str
+    resolution: float  # metres per pixel
+    origin_x: float  # map origin in world frame (m)
+    origin_y: float
+    origin_yaw: float  # yaw of map origin (rad)
+    negate: int  # 0=white is free, 1=black is free
+    occupied_thresh: float  # 0.65
+    free_thresh: float  # 0.196
+    width: int = 0
     height: int = 0
 
 
 @dataclass
 class NamedPose:
     """A named location in the map frame."""
-    name:  str
-    x:     float
-    y:     float
-    yaw:   float       # radians
+
+    name: str
+    x: float
+    y: float
+    yaw: float  # radians
     frame: str = "map"
 
 
 # ── Map manager ───────────────────────────────────────────────────────────────
+
 
 class MapManager:
     """
@@ -70,22 +74,20 @@ class MapManager:
         pose = mgr.resolve_location("table_3")
     """
 
-    def __init__(self, named_locations: Dict[str, Tuple[float, float, float]]) -> None:
+    def __init__(self, named_locations: dict[str, tuple[float, float, float]]) -> None:
         """
         Parameters
         ----------
         named_locations:
             Dict mapping name → (x, y, yaw_deg) in map frame.
         """
-        self._named: Dict[str, NamedPose] = {}
+        self._named: dict[str, NamedPose] = {}
         for name, (x, y, yaw_deg) in named_locations.items():
-            self._named[name] = NamedPose(
-                name=name, x=x, y=y, yaw=math.radians(yaw_deg)
-            )
+            self._named[name] = NamedPose(name=name, x=x, y=y, yaw=math.radians(yaw_deg))
 
-        self._info:    Optional[MapInfo]    = None
-        self._data:    Optional[np.ndarray] = None   # row-major, 0=free, 100=occ, -1=unk
-        self._loaded:  bool = False
+        self._info: MapInfo | None = None
+        self._data: np.ndarray | None = None  # row-major, 0=free, 100=occ, -1=unk
+        self._loaded: bool = False
         self._load_time: float = 0.0
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -100,7 +102,7 @@ class MapManager:
             logger.warning("Map file not found: %r — operating without static map", yaml_path)
             return False
         try:
-            with open(yaml_path, "r") as f:
+            with open(yaml_path) as f:
                 meta = yaml.safe_load(f)
 
             image_file = meta.get("image", "")
@@ -110,32 +112,37 @@ class MapManager:
             origin = meta.get("origin", [0.0, 0.0, 0.0])
 
             self._info = MapInfo(
-                image_path       = image_file,
-                resolution       = float(meta.get("resolution", 0.05)),
-                origin_x         = float(origin[0]),
-                origin_y         = float(origin[1]),
-                origin_yaw       = float(origin[2]) if len(origin) > 2 else 0.0,
-                negate           = int(meta.get("negate", 0)),
-                occupied_thresh  = float(meta.get("occupied_thresh", 0.65)),
-                free_thresh      = float(meta.get("free_thresh", 0.196)),
+                image_path=image_file,
+                resolution=float(meta.get("resolution", 0.05)),
+                origin_x=float(origin[0]),
+                origin_y=float(origin[1]),
+                origin_yaw=float(origin[2]) if len(origin) > 2 else 0.0,
+                negate=int(meta.get("negate", 0)),
+                occupied_thresh=float(meta.get("occupied_thresh", 0.65)),
+                free_thresh=float(meta.get("free_thresh", 0.196)),
             )
 
             # Load PGM image
             if os.path.isfile(image_file):
-                self._data, self._info.width, self._info.height = \
-                    self._load_pgm(image_file, self._info)
+                self._data, self._info.width, self._info.height = self._load_pgm(
+                    image_file, self._info
+                )
             else:
                 logger.warning("Map image not found: %r", image_file)
                 # Create empty map
                 self._data = np.full((100, 100), -1, dtype=np.int8)
-                self._info.width  = 100
+                self._info.width = 100
                 self._info.height = 100
 
-            self._loaded   = True
+            self._loaded = True
             self._load_time = time.monotonic()
-            logger.info("Map loaded: %s  resolution=%.3f m/px  size=%dx%d",
-                        yaml_path, self._info.resolution,
-                        self._info.width, self._info.height)
+            logger.info(
+                "Map loaded: %s  resolution=%.3f m/px  size=%dx%d",
+                yaml_path,
+                self._info.resolution,
+                self._info.width,
+                self._info.height,
+            )
             return True
 
         except Exception as exc:
@@ -147,16 +154,16 @@ class MapManager:
 
     # ── Grid access ───────────────────────────────────────────────────────────
 
-    def get_map_info(self) -> Optional[MapInfo]:
+    def get_map_info(self) -> MapInfo | None:
         return self._info
 
-    def get_grid_data(self) -> Optional[np.ndarray]:
+    def get_grid_data(self) -> np.ndarray | None:
         """Return occupancy grid as flat int8 array (row-major, Nav2 convention)."""
         if self._data is None:
             return None
         return self._data.flatten().astype(np.int8)
 
-    def world_to_cell(self, x: float, y: float) -> Tuple[int, int]:
+    def world_to_cell(self, x: float, y: float) -> tuple[int, int]:
         """Convert world (map frame) coordinates to grid cell (col, row)."""
         if self._info is None:
             return (0, 0)
@@ -164,7 +171,7 @@ class MapManager:
         row = int((y - self._info.origin_y) / self._info.resolution)
         return (col, row)
 
-    def cell_to_world(self, col: int, row: int) -> Tuple[float, float]:
+    def cell_to_world(self, col: int, row: int) -> tuple[float, float]:
         """Convert grid cell to world coordinates (centre of cell)."""
         if self._info is None:
             return (0.0, 0.0)
@@ -186,26 +193,24 @@ class MapManager:
 
     def add_location(self, name: str, x: float, y: float, yaw_deg: float) -> None:
         """Register or update a named location."""
-        self._named[name] = NamedPose(
-            name=name, x=x, y=y, yaw=math.radians(yaw_deg)
-        )
+        self._named[name] = NamedPose(name=name, x=x, y=y, yaw=math.radians(yaw_deg))
         logger.debug("Named location added: %s → (%.2f, %.2f, %.1f°)", name, x, y, yaw_deg)
 
-    def resolve_location(self, name: str) -> Optional[NamedPose]:
+    def resolve_location(self, name: str) -> NamedPose | None:
         """Return the NamedPose for a named location, or None if unknown."""
         return self._named.get(name)
 
-    def list_locations(self) -> List[str]:
+    def list_locations(self) -> list[str]:
         return list(self._named.keys())
 
-    def list_chargers(self) -> List[str]:
+    def list_chargers(self) -> list[str]:
         return [n for n in self._named if n.startswith("charger")]
 
     def nearest_charger(
         self,
         current_x: float,
         current_y: float,
-    ) -> Optional[NamedPose]:
+    ) -> NamedPose | None:
         """Return the nearest charger by Euclidean distance."""
         chargers = [self._named[n] for n in self.list_chargers()]
         if not chargers:
@@ -221,7 +226,7 @@ class MapManager:
     def _load_pgm(
         path: str,
         info: MapInfo,
-    ) -> Tuple[np.ndarray, int, int]:
+    ) -> tuple[np.ndarray, int, int]:
         """
         Load a PGM file and convert to Nav2 occupancy values.
 
@@ -260,12 +265,12 @@ class MapManager:
             raw = maxval - raw
 
         # Free
-        free_thresh_val  = int(info.free_thresh * maxval)
-        occ_thresh_val   = int(info.occupied_thresh * maxval)
+        free_thresh_val = int(info.free_thresh * maxval)
+        occ_thresh_val = int(info.occupied_thresh * maxval)
 
         grid = np.full((height, width), -1, dtype=np.int8)  # unknown
-        grid[raw > occ_thresh_val]  = 0                      # free
-        grid[raw < free_thresh_val] = 100                    # occupied
+        grid[raw > occ_thresh_val] = 0  # free
+        grid[raw < free_thresh_val] = 100  # occupied
 
         # Flip vertically: PGM row 0 is top; Nav2 row 0 is bottom
         grid = np.flipud(grid)

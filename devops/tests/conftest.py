@@ -9,12 +9,13 @@ from types import ModuleType
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 
 
-def run_py(*args: str, env: dict[str, str] | None = None, timeout: int = 30) -> subprocess.CompletedProcess[str]:
+def run_py(
+    *args: str, env: dict[str, str] | None = None, timeout: int = 30
+) -> subprocess.CompletedProcess[str]:
     merged = os.environ.copy()
     if env:
         merged.update(env)

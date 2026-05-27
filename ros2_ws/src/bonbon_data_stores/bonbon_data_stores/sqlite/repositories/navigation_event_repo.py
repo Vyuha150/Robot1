@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import NavigationEvent, NavigationOutcome, PrivacyLevel
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
@@ -26,39 +26,42 @@ class NavigationEventRepository(BaseRepository):
             privacy_level, retention_policy, metadata
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
         """
-        self._execute(sql, (
-            event.event_id,
-            event.timestamp,
-            event.session_id,
-            event.goal_id,
-            event.map_id,
-            event.start_x,
-            event.start_y,
-            event.goal_x,
-            event.goal_y,
-            event.outcome.value,
-            event.distance_m,
-            event.duration_sec,
-            event.replanning_count,
-            event.planner_used,
-            event.privacy_level.value,
-            event.retention_policy.value,
-            json.dumps(event.metadata),
-        ))
+        self._execute(
+            sql,
+            (
+                event.event_id,
+                event.timestamp,
+                event.session_id,
+                event.goal_id,
+                event.map_id,
+                event.start_x,
+                event.start_y,
+                event.goal_x,
+                event.goal_y,
+                event.outcome.value,
+                event.distance_m,
+                event.duration_sec,
+                event.replanning_count,
+                event.planner_used,
+                event.privacy_level.value,
+                event.retention_policy.value,
+                json.dumps(event.metadata),
+            ),
+        )
         return event.event_id
 
-    def get_by_id(self, event_id: str) -> Optional[NavigationEvent]:
+    def get_by_id(self, event_id: str) -> NavigationEvent | None:
         row = self._fetchone("SELECT * FROM navigation_events WHERE event_id = ?;", (event_id,))
         return self._row_to_model(row) if row else None
 
-    def get_by_outcome(self, outcome: NavigationOutcome) -> List[NavigationEvent]:
+    def get_by_outcome(self, outcome: NavigationOutcome) -> list[NavigationEvent]:
         rows = self._fetchall(
             "SELECT * FROM navigation_events WHERE outcome = ? ORDER BY timestamp DESC;",
             (outcome.value,),
         )
         return [self._row_to_model(r) for r in rows]
 
-    def get_recent(self, limit: int = 20) -> List[NavigationEvent]:
+    def get_recent(self, limit: int = 20) -> list[NavigationEvent]:
         rows = self._fetchall(
             "SELECT * FROM navigation_events ORDER BY timestamp DESC LIMIT ?;",
             (limit,),
@@ -66,15 +69,13 @@ class NavigationEventRepository(BaseRepository):
         return [self._row_to_model(r) for r in rows]
 
     def delete(self, event_id: str) -> bool:
-        return (
-            self._execute("DELETE FROM navigation_events WHERE event_id = ?;", (event_id,)) > 0
-        )
+        return self._execute("DELETE FROM navigation_events WHERE event_id = ?;", (event_id,)) > 0
 
     def count(self) -> int:
         return self._count("navigation_events")
 
     @staticmethod
-    def _row_to_model(row: Dict[str, Any]) -> NavigationEvent:
+    def _row_to_model(row: dict[str, Any]) -> NavigationEvent:
         return NavigationEvent(
             event_id=row["event_id"],
             timestamp=row["timestamp"],

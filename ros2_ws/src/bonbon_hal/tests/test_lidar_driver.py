@@ -3,11 +3,14 @@ test_lidar_driver.py
 ====================
 Tests for MockLidarDriver: normal operation, disconnection, timeout, recovery, corrupted data.
 """
+
 from __future__ import annotations
+
 import math
+
 import pytest
 from bonbon_hal.base.driver_base import DriverFault, DriverStatus
-from bonbon_hal.drivers.lidar import MockLidarDriver, LidarScan
+from bonbon_hal.drivers.lidar import LidarScan, MockLidarDriver
 
 
 @pytest.fixture
@@ -38,7 +41,7 @@ class TestMockLidarNormal:
     def test_angle_min_max(self, drv):
         scan = drv.read_scan()
         assert scan.angle_min_rad == pytest.approx(-math.pi)
-        assert scan.angle_max_rad == pytest.approx( math.pi)
+        assert scan.angle_max_rad == pytest.approx(math.pi)
 
     def test_angle_increment_computed(self, drv):
         scan = drv.read_scan()
@@ -57,8 +60,9 @@ class TestMockLidarNormal:
 
 class TestMockLidarObstacle:
     def test_obstacle_inserted_at_angle(self):
-        drv = MockLidarDriver(obstacle_at_angle_deg=0.0, obstacle_distance_m=1.0,
-                              obstacle_width_deg=20.0)
+        drv = MockLidarDriver(
+            obstacle_at_angle_deg=0.0, obstacle_distance_m=1.0, obstacle_width_deg=20.0
+        )
         drv.connect()
         scan = drv.read_scan()
         # Ray at index 180 corresponds to 0° in -180 to +179 mapping
@@ -120,7 +124,7 @@ class TestMockLidarRecovery:
             drv.read_scan()
         except DriverFault:
             pass
-        drv.inject_fault(disc_after=0)   # clear fault injection
+        drv.inject_fault(disc_after=0)  # clear fault injection
         ok = drv.reconnect()
         assert ok is True
         assert drv.is_connected

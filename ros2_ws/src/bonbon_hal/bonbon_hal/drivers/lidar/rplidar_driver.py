@@ -4,20 +4,21 @@ RPLIDAR S2 driver.
 SDK dependency: rplidar-robotics  (pip install rplidar-robotics)
 Hardware:       USB-to-serial at /dev/ttyUSB0 (typical), 115200 baud
 """
+
 from __future__ import annotations
 
 import logging
 import math
-import time
-from typing import List
 
 from bonbon_hal.base.driver_base import DriverFault
+
 from .lidar_driver import LidarDriver, LidarScan
 
 logger = logging.getLogger(__name__)
 
 try:
     from rplidar import RPLidar, RPLidarException  # type: ignore[import]
+
     _HAS_SDK = True
 except ImportError:
     _HAS_SDK = False
@@ -44,17 +45,17 @@ class RplidarDriver(LidarDriver):
 
     def __init__(
         self,
-        port:      str = "/dev/ttyUSB0",
-        baudrate:  int = 115200,
+        port: str = "/dev/ttyUSB0",
+        baudrate: int = 115200,
         scan_mode: str = None,
-        timeout:   float = 3.0,
+        timeout: float = 3.0,
     ) -> None:
         super().__init__(driver_mode="real", connect_timeout_sec=timeout)
-        self._port      = port
-        self._baudrate  = baudrate
+        self._port = port
+        self._baudrate = baudrate
         self._scan_mode = scan_mode
-        self._lidar     = None
-        self._iterator  = None
+        self._lidar = None
+        self._iterator = None
 
     def _do_connect(self) -> bool:
         if not _HAS_SDK:
@@ -88,7 +89,7 @@ class RplidarDriver(LidarDriver):
         except Exception as exc:
             logger.warning("RPLIDAR disconnect error: %s", exc)
         finally:
-            self._lidar    = None
+            self._lidar = None
             self._iterator = None
 
     def read_scan(self) -> LidarScan:
@@ -102,8 +103,8 @@ class RplidarDriver(LidarDriver):
             measurements.sort(key=lambda m: m[1])
 
             # Build uniform 360-ray representation
-            ranges:      List[float] = [math.inf] * 360
-            intensities: List[float] = [0.0] * 360
+            ranges: list[float] = [math.inf] * 360
+            intensities: list[float] = [0.0] * 360
 
             for quality, angle_deg, dist_mm in measurements:
                 idx = int(angle_deg) % 360
@@ -119,14 +120,14 @@ class RplidarDriver(LidarDriver):
                 ranges=ranges,
                 intensities=intensities,
                 angle_min_rad=-math.pi,
-                angle_max_rad= math.pi,
+                angle_max_rad=math.pi,
                 range_min_m=self.RANGE_MIN_M,
                 range_max_m=self.RANGE_MAX_M,
             )
 
         except StopIteration:
             self._record_fault("SCAN_ENDED", "Scan iterator exhausted")
-            raise DriverFault("Scan iterator ended", "SCAN_ENDED")
+            raise DriverFault("Scan iterator ended", "SCAN_ENDED") from None
         except Exception as exc:
             self._record_fault("READ_ERROR", str(exc))
             raise DriverFault(str(exc), "READ_ERROR") from exc

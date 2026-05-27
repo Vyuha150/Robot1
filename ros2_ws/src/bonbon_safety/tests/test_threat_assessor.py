@@ -12,15 +12,16 @@ Tests
 - reset_transient_flags() clears one-shot fields
 - Multiple sensor streams are independent
 """
+
 from __future__ import annotations
 
 import time
-import pytest
 
+import pytest
 from bonbon_safety.core.threat_assessor import ThreatAssessor, ThreatAssessorConfig
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _default_config() -> ThreatAssessorConfig:
     return ThreatAssessorConfig(
@@ -36,6 +37,7 @@ def _assessor() -> ThreatAssessor:
 
 
 # ── Initial snapshot ──────────────────────────────────────────────────────────
+
 
 class TestInitialSnapshot:
     def test_fresh_assessor_builds_snapshot(self):
@@ -66,6 +68,7 @@ class TestInitialSnapshot:
 
 # ── LIDAR updates ─────────────────────────────────────────────────────────────
 
+
 class TestLidarUpdates:
     def test_nearest_obstacle_updated(self):
         ta = _assessor()
@@ -89,6 +92,7 @@ class TestLidarUpdates:
 
 # ── IMU updates ───────────────────────────────────────────────────────────────
 
+
 class TestImuUpdates:
     def test_imu_not_stale_after_update(self):
         ta = _assessor()
@@ -111,14 +115,18 @@ class TestImuUpdates:
 
 # ── Person tracking updates ───────────────────────────────────────────────────
 
+
 class TestPersonUpdates:
     def test_nearest_human_updated(self):
         ta = _assessor()
         # Simulate two person detections at different distances
-        ta.update_persons([
-            {"track_id": 1, "distance_m": 3.0},
-            {"track_id": 2, "distance_m": 1.5},
-        ], timestamp=time.monotonic())
+        ta.update_persons(
+            [
+                {"track_id": 1, "distance_m": 3.0},
+                {"track_id": 2, "distance_m": 1.5},
+            ],
+            timestamp=time.monotonic(),
+        )
         snap = ta.build_snapshot()
         assert snap.nearest_human_m == pytest.approx(1.5)
 
@@ -145,6 +153,7 @@ class TestPersonUpdates:
 
 # ── Bumper updates ────────────────────────────────────────────────────────────
 
+
 class TestBumperUpdates:
     def test_front_bumper_sets_flag(self):
         ta = _assessor()
@@ -169,6 +178,7 @@ class TestBumperUpdates:
 
 # ── Battery updates ───────────────────────────────────────────────────────────
 
+
 class TestBatteryUpdates:
     def test_battery_percent_updated(self):
         ta = _assessor()
@@ -182,6 +192,7 @@ class TestBatteryUpdates:
 
 
 # ── Temperature updates ───────────────────────────────────────────────────────
+
 
 class TestTemperatureUpdates:
     def test_cpu_temp_updated(self):
@@ -199,6 +210,7 @@ class TestTemperatureUpdates:
 
 # ── E-stop updates ────────────────────────────────────────────────────────────
 
+
 class TestEstopUpdates:
     def test_estop_set(self):
         ta = _assessor()
@@ -215,6 +227,7 @@ class TestEstopUpdates:
 
 
 # ── Transient flags ───────────────────────────────────────────────────────────
+
 
 class TestTransientFlags:
     def test_unsafe_command_is_transient(self):
@@ -237,6 +250,7 @@ class TestTransientFlags:
 
 
 # ── Node health ───────────────────────────────────────────────────────────────
+
 
 class TestNodeHealth:
     def test_critical_crash_sets_flag(self):
@@ -261,6 +275,7 @@ class TestNodeHealth:
 
 
 # ── Config validation ─────────────────────────────────────────────────────────
+
 
 class TestConfig:
     def test_negative_age_raises(self):

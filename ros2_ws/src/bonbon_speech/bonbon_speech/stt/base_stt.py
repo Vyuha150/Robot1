@@ -8,14 +8,15 @@ Timeout / degraded-mode pattern (same as bonbon_vision BaseDetector):
   exceeds inference_timeout_sec the future times out, ``consecutive_timeouts``
   increments, and the node may degrade to mock mode once the cap is reached.
 """
+
 from __future__ import annotations
 
 import logging
 import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 import numpy as np
 
@@ -42,17 +43,18 @@ class TranscriptionResult:
     word_confidences:     per-word confidence [0, 1] aligned with ``words``.
     inference_ms:    Wall-clock inference time in milliseconds.
     """
-    text:               str        = ""
-    language:           str        = ""
-    confidence:         float      = 0.0
-    is_low_confidence:  bool       = False
-    is_timeout:         bool       = False
-    is_silence:         bool       = False
-    words:              List[str]  = field(default_factory=list)
-    word_start_times_sec: List[float] = field(default_factory=list)
-    word_end_times_sec:   List[float] = field(default_factory=list)
-    word_confidences:   List[float] = field(default_factory=list)
-    inference_ms:       float      = 0.0
+
+    text: str = ""
+    language: str = ""
+    confidence: float = 0.0
+    is_low_confidence: bool = False
+    is_timeout: bool = False
+    is_silence: bool = False
+    words: list[str] = field(default_factory=list)
+    word_start_times_sec: list[float] = field(default_factory=list)
+    word_end_times_sec: list[float] = field(default_factory=list)
+    word_confidences: list[float] = field(default_factory=list)
+    inference_ms: float = 0.0
 
 
 class BaseSTT(ABC):
@@ -127,8 +129,10 @@ class BaseSTT(ABC):
                 result.is_low_confidence = True
             logger.debug(
                 "STT ok text=%r lang=%r conf=%.3f ms=%.1f",
-                result.text[:60], result.language,
-                result.confidence, result.inference_ms,
+                result.text[:60],
+                result.language,
+                result.confidence,
+                result.inference_ms,
             )
             return result
         except FutureTimeout:
@@ -137,7 +141,8 @@ class BaseSTT(ABC):
             logger.warning(
                 "STT timeout #%d (limit=%ds elapsed=%.0fms)",
                 self._consecutive_timeouts,
-                self._cfg.inference_timeout_sec, elapsed_ms,
+                self._cfg.inference_timeout_sec,
+                elapsed_ms,
             )
             if self._consecutive_timeouts >= self._cfg.max_consecutive_timeouts:
                 self._degraded = True

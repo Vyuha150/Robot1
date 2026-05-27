@@ -16,23 +16,23 @@ Silero constraints (enforced upstream by AudioConfig.validate):
   * sample_rate in {8000, 16000}
   * chunk_size in {256, 512, 768, 1024, 1536}
 """
+
 from __future__ import annotations
 
 import logging
 import time
-from typing import List, Optional
 
 import numpy as np
 
-from bonbon_speech.vad.base_vad import AudioSegment, BaseVAD
 from bonbon_speech.config.speech_config import VADConfig
+from bonbon_speech.vad.base_vad import AudioSegment, BaseVAD
 
 logger = logging.getLogger(__name__)
 
 _STATE_SILENCE = "SILENCE"
-_STATE_MAYBE   = "MAYBE_SPEECH"   # accumulating speech_start frames
-_STATE_SPEECH  = "SPEECH"
-_STATE_MAYBE_END = "MAYBE_END"    # accumulating silence_end frames
+_STATE_MAYBE = "MAYBE_SPEECH"  # accumulating speech_start frames
+_STATE_SPEECH = "SPEECH"
+_STATE_MAYBE_END = "MAYBE_END"  # accumulating silence_end frames
 
 
 class SileroVAD(BaseVAD):
@@ -42,19 +42,17 @@ class SileroVAD(BaseVAD):
         super().__init__(sample_rate)
         self._cfg = cfg
         self._model = None
-        self._state  = _STATE_SILENCE
+        self._state = _STATE_SILENCE
 
         # Accumulators
-        self._speech_samples: List[float] = []
+        self._speech_samples: list[float] = []
         self._maybe_speech_frames: int = 0
-        self._silence_end_frames:  int = 0
+        self._silence_end_frames: int = 0
         self._onset_time: float = 0.0
 
         # silence pad buffer (samples captured after speech end for trailing phoneme)
-        self._pad_samples_needed = int(
-            cfg.speech_pad_ms / 1000.0 * sample_rate
-        )
-        self._pad_buf: List[float] = []
+        self._pad_samples_needed = int(cfg.speech_pad_ms / 1000.0 * sample_rate)
+        self._pad_buf: list[float] = []
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -64,6 +62,7 @@ class SileroVAD(BaseVAD):
 
         try:
             import torch
+
             if self._cfg.model_path:
                 logger.info("SileroVAD loading from path=%s", self._cfg.model_path)
                 self._model, _ = torch.hub.load(
@@ -96,7 +95,7 @@ class SileroVAD(BaseVAD):
         self._state = _STATE_SILENCE
         self._speech_samples.clear()
         self._maybe_speech_frames = 0
-        self._silence_end_frames  = 0
+        self._silence_end_frames = 0
         self._pad_buf.clear()
         self._onset_time = 0.0
         if self._model is not None:
@@ -111,7 +110,7 @@ class SileroVAD(BaseVAD):
         self,
         samples: np.ndarray,
         doa_angle_deg: float = 0.0,
-    ) -> Optional[AudioSegment]:
+    ) -> AudioSegment | None:
         """
         Feed one chunk; returns an AudioSegment when speech completes, else None.
         """
@@ -120,6 +119,7 @@ class SileroVAD(BaseVAD):
 
         try:
             import torch
+
             tensor = torch.from_numpy(samples.astype(np.float32))
             with torch.no_grad():
                 prob = float(self._model(tensor, self._sample_rate).item())
@@ -136,7 +136,7 @@ class SileroVAD(BaseVAD):
         prob: float,
         samples: np.ndarray,
         doa_angle_deg: float,
-    ) -> Optional[AudioSegment]:
+    ) -> AudioSegment | None:
         cfg = self._cfg
         chunk = samples.tolist()
 
@@ -150,7 +150,8 @@ class SileroVAD(BaseVAD):
                     self._silence_end_frames = 0
                     logger.debug(
                         "VAD SILENCE->SPEECH prob=%.3f frames=%d",
-                        prob, self._maybe_speech_frames,
+                        prob,
+                        self._maybe_speech_frames,
                     )
             else:
                 # Keep a rolling prebuffer of silence (last chunk only)
@@ -165,9 +166,7 @@ class SileroVAD(BaseVAD):
 
             # Force cut: segment too long
             if total_samples >= max_samples:
-                logger.info(
-                    "VAD force-cut after %.1f sec", cfg.max_speech_sec
-                )
+                logger.info("VAD force-cut after %.1f sec", cfg.max_speech_sec)
                 return self._emit(doa_angle_deg, force_cut=True)
 
             if prob < cfg.speech_end_threshold:
@@ -178,7 +177,8 @@ class SileroVAD(BaseVAD):
                     self._pad_buf.clear()
                     logger.debug(
                         "VAD SPEECH->MAYBE_END prob=%.3f sil_frames=%d",
-                        prob, self._silence_end_frames,
+                        prob,
+                        self._silence_end_frames,
                     )
             else:
                 self._silence_end_frames = 0
@@ -219,7 +219,7 @@ class SileroVAD(BaseVAD):
         self._state = _STATE_SILENCE
         self._speech_samples.clear()
         self._maybe_speech_frames = 0
-        self._silence_end_frames  = 0
+        self._silence_end_frames = 0
         self._pad_buf.clear()
         if self._model is not None:
             try:
@@ -228,6 +228,7 @@ class SileroVAD(BaseVAD):
                 pass
         logger.info(
             "VAD segment emitted dur=%.2f force_cut=%s",
-            seg.duration_sec, force_cut,
+            seg.duration_sec,
+            force_cut,
         )
         return seg

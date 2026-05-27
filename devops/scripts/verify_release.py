@@ -25,7 +25,10 @@ def main() -> int:
     expected = checksum_file.read_text(encoding="utf-8").split()[0].strip()
     actual = _sha256(artifact)
     if actual != expected:
-        print(f"ERROR: checksum mismatch for {artifact}: expected {expected}, got {actual}", file=sys.stderr)
+        print(
+            f"ERROR: checksum mismatch for {artifact}: expected {expected}, got {actual}",
+            file=sys.stderr,
+        )
         return 1
     print(f"Checksum verified: {artifact}")
     return 0

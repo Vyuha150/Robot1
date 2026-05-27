@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import pytest
-
 from bonbon_data_stores.config.store_config import (
-    BackupConfig,
-    ChromaConfig,
     DataStoreConfig,
-    EmbeddingConfig,
     FAISSConfig,
     PrivacyConfig,
     SQLiteConfig,
@@ -27,7 +20,7 @@ class TestSQLiteConfig:
 
     def test_parent_dir_created(self, tmp_path):
         deep = tmp_path / "a" / "b" / "c" / "test.db"
-        cfg = SQLiteConfig(db_path=deep)
+        SQLiteConfig(db_path=deep)
         assert deep.parent.exists()
 
     def test_cache_size_minimum_enforced(self):

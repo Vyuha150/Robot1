@@ -18,72 +18,78 @@ ADDR_PRESENT_TEMP      = 146
 ADDR_PRESENT_VOLTAGE   = 144
 ADDR_HARDWARE_ERROR    = 70
 """
+
 from __future__ import annotations
 
 import logging
 import math
-import time
-from typing import List
 
 from bonbon_hal.base.driver_base import DriverFault
-from .servo_driver import ServoDriver, ServoReading, ServoCommand
+
+from .servo_driver import ServoCommand, ServoDriver, ServoReading
 
 logger = logging.getLogger(__name__)
 
 try:
-    from dynamixel_sdk import (        # type: ignore[import]
-        PortHandler, PacketHandler,
-        GroupSyncWrite, GroupSyncRead,
+    from dynamixel_sdk import (  # type: ignore[import]
         COMM_SUCCESS,
-        DXL_LOBYTE, DXL_LOWORD, DXL_HIBYTE, DXL_HIWORD,
+        DXL_HIBYTE,
+        DXL_HIWORD,
+        DXL_LOBYTE,
+        DXL_LOWORD,
+        GroupSyncRead,
+        GroupSyncWrite,
+        PacketHandler,
+        PortHandler,
     )
+
     _HAS_SDK = True
 except ImportError:
     _HAS_SDK = False
     logger.warning("dynamixel_sdk not installed. pip install dynamixel-sdk")
 
 # XL430-W250 control table
-_TORQUE_ENABLE   = 64
-_GOAL_VELOCITY   = 104
-_PROFILE_ACCEL   = 108
-_GOAL_POSITION   = 116
-_PRESENT_LOAD    = 126
+_TORQUE_ENABLE = 64
+_GOAL_VELOCITY = 104
+_PROFILE_ACCEL = 108
+_GOAL_POSITION = 116
+_PRESENT_LOAD = 126
 _PRESENT_VELOCITY = 128
 _PRESENT_POSITION = 132
 _PRESENT_VOLTAGE = 144
-_PRESENT_TEMP    = 146
-_HARDWARE_ERROR  = 70
+_PRESENT_TEMP = 146
+_HARDWARE_ERROR = 70
 
-_PROTOCOL        = 2.0
-_DXL_MAX_POS     = 4095
-_DEG_TO_RAD      = math.pi / 180.0
-_TICK_TO_RAD     = 2.0 * math.pi / 4096.0
-_VEL_UNIT        = 0.229         # rpm per unit
-_RPM_TO_RADS     = 2.0 * math.pi / 60.0
-_LOAD_UNIT       = 0.1           # % per unit
+_PROTOCOL = 2.0
+_DXL_MAX_POS = 4095
+_DEG_TO_RAD = math.pi / 180.0
+_TICK_TO_RAD = 2.0 * math.pi / 4096.0
+_VEL_UNIT = 0.229  # rpm per unit
+_RPM_TO_RADS = 2.0 * math.pi / 60.0
+_LOAD_UNIT = 0.1  # % per unit
 
 
 class DynamixelDriver(ServoDriver):
 
     def __init__(
         self,
-        servo_ids:   List[int],
-        port:        str   = "/dev/ttyUSB0",
-        baudrate:    int   = 57600,
-        protocol:    float = 2.0,
+        servo_ids: list[int],
+        port: str = "/dev/ttyUSB0",
+        baudrate: int = 57600,
+        protocol: float = 2.0,
     ) -> None:
         super().__init__(servo_ids=servo_ids, driver_mode="real")
-        self._port     = port
+        self._port = port
         self._baudrate = baudrate
         self._protocol = protocol
-        self._port_handler   = None
+        self._port_handler = None
         self._packet_handler = None
 
     def _do_connect(self) -> bool:
         if not _HAS_SDK:
             raise DriverFault("dynamixel_sdk not installed", "SDK_MISSING", recoverable=False)
         try:
-            self._port_handler   = PortHandler(self._port)
+            self._port_handler = PortHandler(self._port)
             self._packet_handler = PacketHandler(self._protocol)
 
             if not self._port_handler.openPort():
@@ -95,10 +101,15 @@ class DynamixelDriver(ServoDriver):
             for sid in self.servo_ids:
                 model, result, error = self._packet_handler.ping(self._port_handler, sid)
                 if result != COMM_SUCCESS:
-                    logger.warning("Servo %d ping failed: %s", sid,
-                                   self._packet_handler.getTxRxResult(result))
-            logger.info("DynamixelDriver: connected on %s @ %d baud, servos=%s",
-                        self._port, self._baudrate, self.servo_ids)
+                    logger.warning(
+                        "Servo %d ping failed: %s", sid, self._packet_handler.getTxRxResult(result)
+                    )
+            logger.info(
+                "DynamixelDriver: connected on %s @ %d baud, servos=%s",
+                self._port,
+                self._baudrate,
+                self.servo_ids,
+            )
             return True
         except DriverFault:
             raise
@@ -111,7 +122,7 @@ class DynamixelDriver(ServoDriver):
                 self._port_handler.closePort()
         except Exception:
             pass
-        self._port_handler   = None
+        self._port_handler = None
         self._packet_handler = None
 
     def read_servo(self, servo_id: int) -> ServoReading:
@@ -135,17 +146,21 @@ class DynamixelDriver(ServoDriver):
 
             pos_ticks = _read4(_PRESENT_POSITION)
             vel_ticks = _read4(_PRESENT_VELOCITY)
-            load_raw  = _read2(_PRESENT_LOAD)
-            temp      = _read1(_PRESENT_TEMP)
-            volt      = _read2(_PRESENT_VOLTAGE)
-            hw_error  = _read1(_HARDWARE_ERROR)
+            load_raw = _read2(_PRESENT_LOAD)
+            temp = _read1(_PRESENT_TEMP)
+            volt = _read2(_PRESENT_VOLTAGE)
+            hw_error = _read1(_HARDWARE_ERROR)
 
             self._record_success()
             return ServoReading(
                 servo_id=servo_id,
                 position_rad=pos_ticks * _TICK_TO_RAD - math.pi,
-                velocity_rads=((vel_ticks & 0x3FF) * _VEL_UNIT * _RPM_TO_RADS
-                               * (-1 if vel_ticks & 0x400 else 1)),
+                velocity_rads=(
+                    (vel_ticks & 0x3FF)
+                    * _VEL_UNIT
+                    * _RPM_TO_RADS
+                    * (-1 if vel_ticks & 0x400 else 1)
+                ),
                 load_percent=load_raw * _LOAD_UNIT,
                 temperature_c=float(temp),
                 voltage_v=volt * 0.1,
@@ -155,7 +170,7 @@ class DynamixelDriver(ServoDriver):
             self._record_fault("READ_ERROR", str(exc))
             raise DriverFault(str(exc), "READ_ERROR") from exc
 
-    def read_all(self) -> List[ServoReading]:
+    def read_all(self) -> list[ServoReading]:
         return [self.read_servo(sid) for sid in self.servo_ids]
 
     def write_command(self, cmd: ServoCommand) -> None:
@@ -174,7 +189,7 @@ class DynamixelDriver(ServoDriver):
             self._record_fault("WRITE_ERROR", str(exc))
             raise DriverFault(str(exc), "WRITE_ERROR") from exc
 
-    def write_commands(self, cmds: List[ServoCommand]) -> None:
+    def write_commands(self, cmds: list[ServoCommand]) -> None:
         for cmd in cmds:
             self.write_command(cmd)
 

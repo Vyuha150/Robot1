@@ -12,19 +12,19 @@ spinning up a ROS2 node. The key behaviours are:
 - Node class assignment matches the DEFAULT_MANAGED_NODES registry
 - Critical vs important stale flags are computed correctly
 """
+
 from __future__ import annotations
 
 import time
-import pytest
 
 from bonbon_safety.nodes.watchdog_node import (
+    DEFAULT_MANAGED_NODES,
     ManagedNode,
     NodeClass,
-    DEFAULT_MANAGED_NODES,
 )
 
-
 # ── ManagedNode dataclass ─────────────────────────────────────────────────────
+
 
 class TestManagedNodeDefaults:
     def test_default_stale_false(self):
@@ -58,6 +58,7 @@ class TestManagedNodeDefaults:
 
 # ── NodeClass enum ────────────────────────────────────────────────────────────
 
+
 class TestNodeClass:
     def test_critical_lowest_int(self):
         assert NodeClass.CRITICAL < NodeClass.ESSENTIAL
@@ -65,13 +66,14 @@ class TestNodeClass:
         assert NodeClass.IMPORTANT < NodeClass.AUXILIARY
 
     def test_values_are_1_to_4(self):
-        assert NodeClass.CRITICAL  == 1
+        assert NodeClass.CRITICAL == 1
         assert NodeClass.ESSENTIAL == 2
         assert NodeClass.IMPORTANT == 3
         assert NodeClass.AUXILIARY == 4
 
 
 # ── Stale detection logic ─────────────────────────────────────────────────────
+
 
 class TestStaleDetection:
     """Simulate the watchdog's check_cycle logic without ROS2."""
@@ -111,6 +113,7 @@ class TestStaleDetection:
 
 # ── Restart logic ─────────────────────────────────────────────────────────────
 
+
 class TestRestartLogic:
     def test_restart_increments_count(self):
         node = ManagedNode("n", "/h", NodeClass.ESSENTIAL, 1.0, max_restart_attempts=3)
@@ -143,6 +146,7 @@ class TestRestartLogic:
 
 # ── DEFAULT_MANAGED_NODES registry ───────────────────────────────────────────
 
+
 class TestDefaultRegistry:
     def test_registry_not_empty(self):
         assert len(DEFAULT_MANAGED_NODES) > 0
@@ -173,26 +177,26 @@ class TestDefaultRegistry:
 
     def test_all_have_valid_health_topics(self):
         for node in DEFAULT_MANAGED_NODES:
-            assert node.health_topic.startswith("/bonbon/"), (
-                f"{node.name}: health_topic should start with /bonbon/"
-            )
-            assert node.health_topic.endswith("/health"), (
-                f"{node.name}: health_topic should end with /health"
-            )
+            assert node.health_topic.startswith(
+                "/bonbon/"
+            ), f"{node.name}: health_topic should start with /bonbon/"
+            assert node.health_topic.endswith(
+                "/health"
+            ), f"{node.name}: health_topic should end with /health"
 
     def test_all_have_positive_period(self):
         for node in DEFAULT_MANAGED_NODES:
-            assert node.expected_period_sec > 0, (
-                f"{node.name}: expected_period_sec must be positive"
-            )
+            assert (
+                node.expected_period_sec > 0
+            ), f"{node.name}: expected_period_sec must be positive"
 
     def test_all_critical_nodes_have_1hz_period(self):
         """Critical nodes should have tight heartbeat periods."""
         for node in DEFAULT_MANAGED_NODES:
             if node.node_class == NodeClass.CRITICAL:
-                assert node.expected_period_sec <= 1.0, (
-                    f"{node.name}: CRITICAL node period should be ≤ 1.0s"
-                )
+                assert (
+                    node.expected_period_sec <= 1.0
+                ), f"{node.name}: CRITICAL node period should be ≤ 1.0s"
 
     def test_critical_and_essential_node_counts(self):
         critical = [n for n in DEFAULT_MANAGED_NODES if n.node_class == NodeClass.CRITICAL]
@@ -203,15 +207,13 @@ class TestDefaultRegistry:
 
 # ── Crash flag computation ────────────────────────────────────────────────────
 
+
 class TestCrashFlags:
     """Simulate how watchdog computes critical/important stale flags."""
 
     @staticmethod
     def _compute_flags(registry: list[ManagedNode]) -> tuple[bool, bool]:
-        critical = any(
-            n.is_stale and n.node_class == NodeClass.CRITICAL
-            for n in registry
-        )
+        critical = any(n.is_stale and n.node_class == NodeClass.CRITICAL for n in registry)
         important = any(
             n.is_stale and n.node_class in (NodeClass.ESSENTIAL, NodeClass.IMPORTANT)
             for n in registry
@@ -220,7 +222,7 @@ class TestCrashFlags:
 
     def test_no_stale_no_flags(self):
         registry = [
-            ManagedNode("a", "/a/h", NodeClass.CRITICAL,  1.0),
+            ManagedNode("a", "/a/h", NodeClass.CRITICAL, 1.0),
             ManagedNode("b", "/b/h", NodeClass.ESSENTIAL, 1.0),
         ]
         c, i = self._compute_flags(registry)

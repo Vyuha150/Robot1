@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from statistics import mean
-from typing import Dict, List
 
 
 @dataclass
@@ -11,24 +10,26 @@ class SimulationMetricsCollector:
     navigation_successes: int = 0
     collisions: int = 0
     near_misses: int = 0
-    path_deviation_samples_m: List[float] = field(default_factory=list)
-    estop_reaction_ms: List[float] = field(default_factory=list)
-    obstacle_detection_latency_ms: List[float] = field(default_factory=list)
-    replanning_latency_ms: List[float] = field(default_factory=list)
+    path_deviation_samples_m: list[float] = field(default_factory=list)
+    estop_reaction_ms: list[float] = field(default_factory=list)
+    obstacle_detection_latency_ms: list[float] = field(default_factory=list)
+    replanning_latency_ms: list[float] = field(default_factory=list)
     recovery_attempts: int = 0
     recovery_successes: int = 0
-    cpu_usage_pct: List[float] = field(default_factory=list)
-    memory_usage_mb: List[float] = field(default_factory=list)
-    task_completion_times_sec: List[float] = field(default_factory=list)
+    cpu_usage_pct: list[float] = field(default_factory=list)
+    memory_usage_mb: list[float] = field(default_factory=list)
+    task_completion_times_sec: list[float] = field(default_factory=list)
     battery_usage_pct: float = 0.0
     false_positive_safety_stops: int = 0
     false_negative_safety_events: int = 0
     docking_attempts: int = 0
     docking_successes: int = 0
 
-    def as_dict(self) -> Dict[str, float | int]:
+    def as_dict(self) -> dict[str, float | int]:
         return {
-            "navigation_success_rate": self._rate(self.navigation_successes, self.navigation_attempts),
+            "navigation_success_rate": self._rate(
+                self.navigation_successes, self.navigation_attempts
+            ),
             "collision_count": self.collisions,
             "near_miss_count": self.near_misses,
             "average_path_deviation_m": self._avg(self.path_deviation_samples_m),
@@ -46,7 +47,7 @@ class SimulationMetricsCollector:
         }
 
     @staticmethod
-    def _avg(values: List[float]) -> float:
+    def _avg(values: list[float]) -> float:
         return float(mean(values)) if values else 0.0
 
     @staticmethod

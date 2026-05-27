@@ -12,14 +12,11 @@ Environment variables
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Create a backup of all BonBon data stores."
-    )
+    parser = argparse.ArgumentParser(description="Create a backup of all BonBon data stores.")
     parser.add_argument(
         "--data-dir",
         default=os.environ.get("BONBON_DATA_DIR", "/tmp/bonbon/data"),
@@ -42,18 +39,18 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    data_dir   = Path(args.data_dir)
+    data_dir = Path(args.data_dir)
     backup_dir = Path(args.backup_dir) if args.backup_dir else data_dir.parent / "backups"
 
     # Import here so the script can be used stand-alone
     from bonbon_data_stores.backup.backup_manager import BackupRestoreManager
 
     manager = BackupRestoreManager(
-        db_path          = data_dir / "bonbon_memory.db",
-        faiss_index_dir  = data_dir / "faiss_indexes",
-        chroma_persist_dir = data_dir / "chromadb",
-        backup_dir       = backup_dir,
-        compress         = not args.no_compress,
+        db_path=data_dir / "bonbon_memory.db",
+        faiss_index_dir=data_dir / "faiss_indexes",
+        chroma_persist_dir=data_dir / "chromadb",
+        backup_dir=backup_dir,
+        compress=not args.no_compress,
     )
 
     print(f"Creating backup from {data_dir} → {backup_dir} …")

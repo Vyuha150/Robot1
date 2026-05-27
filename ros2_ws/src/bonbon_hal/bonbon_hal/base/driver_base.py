@@ -16,27 +16,28 @@ Design principles
 - Subclasses only implement `_do_connect`, `_do_disconnect`, `_do_read*`.
   Reconnection, health tracking, and fault counting are handled here.
 """
+
 from __future__ import annotations
 
 import logging
-import time
 import threading
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class DriverStatus(IntEnum):
     """Lifecycle status of a hardware driver."""
-    DISCONNECTED = 0   # not yet connected or explicitly disconnected
-    CONNECTING   = 1   # connect() in progress
-    CONNECTED    = 2   # healthy, data flowing
-    DEGRADED     = 3   # connected but some reads failing (partial data)
-    FAULTED      = 4   # hardware error, automatic reconnect in progress
-    SHUTDOWN     = 5   # permanently closed, do not reconnect
+
+    DISCONNECTED = 0  # not yet connected or explicitly disconnected
+    CONNECTING = 1  # connect() in progress
+    CONNECTED = 2  # healthy, data flowing
+    DEGRADED = 3  # connected but some reads failing (partial data)
+    FAULTED = 4  # hardware error, automatic reconnect in progress
+    SHUTDOWN = 5  # permanently closed, do not reconnect
 
 
 @dataclass
@@ -45,17 +46,18 @@ class DriverHealth:
     Snapshot of a driver's runtime health.  Published at 1 Hz to the
     watchdog via the ROS2 node wrapper.
     """
-    device:           str
-    driver_mode:      str               # "real" | "mock"
-    status:           DriverStatus
-    is_connected:     bool
-    last_read_age_sec: float            # seconds since last successful read
+
+    device: str
+    driver_mode: str  # "real" | "mock"
+    status: DriverStatus
+    is_connected: bool
+    last_read_age_sec: float  # seconds since last successful read
     consecutive_errors: int
-    total_faults:     int
-    reconnect_count:  int
-    last_error:       Optional[str]     # last error message
-    uptime_sec:       float
-    timestamp:        float = field(default_factory=time.monotonic)
+    total_faults: int
+    reconnect_count: int
+    last_error: str | None  # last error message
+    uptime_sec: float
+    timestamp: float = field(default_factory=time.monotonic)
 
     @property
     def is_healthy(self) -> bool:
@@ -64,10 +66,11 @@ class DriverHealth:
 
 class DriverFault(Exception):
     """Raised by drivers on unrecoverable or unexpected hardware errors."""
+
     def __init__(self, message: str, error_code: str = "UNKNOWN", recoverable: bool = True):
         super().__init__(message)
-        self.error_code   = error_code
-        self.recoverable  = recoverable
+        self.error_code = error_code
+        self.recoverable = recoverable
 
 
 class DriverBase(ABC):
@@ -88,25 +91,25 @@ class DriverBase(ABC):
 
     def __init__(
         self,
-        device_name:        str,
-        driver_mode:        str   = "real",
+        device_name: str,
+        driver_mode: str = "real",
         connect_timeout_sec: float = 5.0,
-        read_timeout_sec:    float = 1.0,
+        read_timeout_sec: float = 1.0,
     ) -> None:
-        self._device          = device_name
-        self._mode            = driver_mode
+        self._device = device_name
+        self._mode = driver_mode
         self._connect_timeout = connect_timeout_sec
-        self._read_timeout    = read_timeout_sec
+        self._read_timeout = read_timeout_sec
 
-        self._status: DriverStatus    = DriverStatus.DISCONNECTED
-        self._lock                    = threading.Lock()
+        self._status: DriverStatus = DriverStatus.DISCONNECTED
+        self._lock = threading.Lock()
         self._consecutive_errors: int = 0
-        self._total_faults:       int = 0
-        self._reconnect_count:    int = 0
-        self._last_error: Optional[str] = None
-        self._last_read_ts: float     = 0.0
-        self._connect_ts:   float     = 0.0
-        self._start_ts:     float     = time.monotonic()
+        self._total_faults: int = 0
+        self._reconnect_count: int = 0
+        self._last_error: str | None = None
+        self._last_read_ts: float = 0.0
+        self._connect_ts: float = 0.0
+        self._start_ts: float = time.monotonic()
 
         # Optional fault callback: called with (device_name, error_code, message)
         self._fault_cb = None
@@ -159,8 +162,12 @@ class DriverBase(ABC):
 
     def reconnect(self) -> bool:
         """Disconnect then connect.  Increments reconnect_count on success."""
-        logger.warning("[%s/%s] Reconnecting (attempt %d)…",
-                       self._device, self._mode, self._reconnect_count + 1)
+        logger.warning(
+            "[%s/%s] Reconnecting (attempt %d)…",
+            self._device,
+            self._mode,
+            self._reconnect_count + 1,
+        )
         self.disconnect()
         ok = self.connect()
         if ok:
@@ -198,7 +205,7 @@ class DriverBase(ABC):
 
     # ── Context manager ────────────────────────────────────────────────────────
 
-    def __enter__(self) -> "DriverBase":
+    def __enter__(self) -> DriverBase:
         self.connect()
         return self
 

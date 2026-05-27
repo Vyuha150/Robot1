@@ -16,13 +16,12 @@ ros2 launch bonbon_llm llm.launch.py ollama_model:=mistral:7b rag_backend:=faiss
 # Simulation mode with verbose logging
 ros2 launch bonbon_llm llm.launch.py simulation:=true log_level:=debug
 """
+
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     LogInfo,
-    OpaqueFunction,
 )
-from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LifecycleNode
 
@@ -58,7 +57,6 @@ def generate_launch_description() -> LaunchDescription:
             default_value="256",
             description="Maximum tokens in LLM response",
         ),
-
         # --- RAG ---
         DeclareLaunchArgument(
             "rag_backend",
@@ -85,7 +83,6 @@ def generate_launch_description() -> LaunchDescription:
             default_value="bonbon_kb",
             description="ChromaDB collection name",
         ),
-
         # --- Hallucination guard ---
         DeclareLaunchArgument(
             "hallucination_guard_enabled",
@@ -97,14 +94,12 @@ def generate_launch_description() -> LaunchDescription:
             default_value="0.30",
             description="Minimum keyword-overlap grounding score (0–1)",
         ),
-
         # --- Safety filter ---
         DeclareLaunchArgument(
             "min_risky_confidence",
             default_value="0.80",
             description="Min LLM confidence to allow a RISKY command through",
         ),
-
         # --- Personality ---
         DeclareLaunchArgument(
             "robot_name",
@@ -116,7 +111,6 @@ def generate_launch_description() -> LaunchDescription:
             default_value="40",
             description="Maximum words per TTS response",
         ),
-
         # --- Pipeline ---
         DeclareLaunchArgument(
             "min_confidence_threshold",
@@ -138,7 +132,6 @@ def generate_launch_description() -> LaunchDescription:
             default_value="true",
             description="Enable RAG retrieval for knowledge grounding",
         ),
-
         # --- Node ---
         DeclareLaunchArgument(
             "namespace",
@@ -161,33 +154,33 @@ def generate_launch_description() -> LaunchDescription:
 
     node_params = [
         # Ollama
-        {"ollama.base_url":          LaunchConfiguration("ollama_base_url")},
-        {"ollama.model":             LaunchConfiguration("ollama_model")},
-        {"ollama.timeout_sec":       LaunchConfiguration("ollama_timeout")},
-        {"ollama.temperature":       LaunchConfiguration("ollama_temperature")},
-        {"ollama.max_tokens":        LaunchConfiguration("ollama_max_tokens")},
+        {"ollama.base_url": LaunchConfiguration("ollama_base_url")},
+        {"ollama.model": LaunchConfiguration("ollama_model")},
+        {"ollama.timeout_sec": LaunchConfiguration("ollama_timeout")},
+        {"ollama.temperature": LaunchConfiguration("ollama_temperature")},
+        {"ollama.max_tokens": LaunchConfiguration("ollama_max_tokens")},
         # RAG
-        {"rag.backend":              LaunchConfiguration("rag_backend")},
-        {"rag.top_k":                LaunchConfiguration("rag_top_k")},
+        {"rag.backend": LaunchConfiguration("rag_backend")},
+        {"rag.top_k": LaunchConfiguration("rag_top_k")},
         {"rag.similarity_threshold": LaunchConfiguration("rag_similarity_threshold")},
-        {"rag.persist_dir":          LaunchConfiguration("rag_persist_dir")},
-        {"rag.collection_name":      LaunchConfiguration("rag_collection_name")},
+        {"rag.persist_dir": LaunchConfiguration("rag_persist_dir")},
+        {"rag.collection_name": LaunchConfiguration("rag_collection_name")},
         # Hallucination guard
-        {"hallucination.enabled":        LaunchConfiguration("hallucination_guard_enabled")},
+        {"hallucination.enabled": LaunchConfiguration("hallucination_guard_enabled")},
         {"hallucination.min_grounding_score": LaunchConfiguration("min_grounding_score")},
         # Safety filter
         {"safety_filter.min_risky_confidence": LaunchConfiguration("min_risky_confidence")},
         # Personality
-        {"personality.name":             LaunchConfiguration("robot_name")},
+        {"personality.name": LaunchConfiguration("robot_name")},
         {"personality.max_response_words": LaunchConfiguration("max_response_words")},
         # Pipeline
         {"min_confidence_threshold": LaunchConfiguration("min_confidence_threshold")},
-        {"use_langchain":            LaunchConfiguration("use_langchain")},
-        {"use_tools":                LaunchConfiguration("use_tools")},
-        {"use_rag":                  LaunchConfiguration("use_rag")},
+        {"use_langchain": LaunchConfiguration("use_langchain")},
+        {"use_tools": LaunchConfiguration("use_tools")},
+        {"use_rag": LaunchConfiguration("use_rag")},
         # Node
-        {"simulation":               LaunchConfiguration("simulation")},
-        {"use_sim_time":             LaunchConfiguration("simulation")},
+        {"simulation": LaunchConfiguration("simulation")},
+        {"use_sim_time": LaunchConfiguration("simulation")},
     ]
 
     # ── Lifecycle node ────────────────────────────────────────────────────────
@@ -204,12 +197,18 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     startup_log = LogInfo(
-        msg=PythonExpression([
-            "'[bonbon_llm] Starting LLMOrchestratorNode — model: '",
-            " + '", LaunchConfiguration("ollama_model"), "'",
-            " + ', rag: '",
-            " + '", LaunchConfiguration("rag_backend"), "'",
-        ])
+        msg=PythonExpression(
+            [
+                "'[bonbon_llm] Starting LLMOrchestratorNode — model: '",
+                " + '",
+                LaunchConfiguration("ollama_model"),
+                "'",
+                " + ', rag: '",
+                " + '",
+                LaunchConfiguration("rag_backend"),
+                "'",
+            ]
+        )
     )
 
     return LaunchDescription(args + [startup_log, llm_node])

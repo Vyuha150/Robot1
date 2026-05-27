@@ -17,18 +17,19 @@ All methods are pure Python + NumPy/OpenCV — no ROS2 dependency.
 Structured log format used throughout:
     logger.debug("stage=%s latency_ms=%.1f key=value …", …)
 """
+
 from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import Optional, Tuple
 
 import numpy as np
 
 try:
     import cv2
+
     _HAS_CV2 = True
 except ImportError:
     _HAS_CV2 = False
@@ -40,27 +41,29 @@ logger = logging.getLogger(__name__)
 
 # ── Frame quality classification ──────────────────────────────────────────────
 
+
 class FrameQuality(IntEnum):
-    OK          = 0   # suitable for inference
-    LOW_LIGHT   = 1   # dark, CLAHE applied
-    EMPTY       = 2   # all-black / no data
-    CORRUPTED   = 3   # NaN / inf pixels detected
-    WRONG_SHAPE = 4   # unexpected H×W×C
+    OK = 0  # suitable for inference
+    LOW_LIGHT = 1  # dark, CLAHE applied
+    EMPTY = 2  # all-black / no data
+    CORRUPTED = 3  # NaN / inf pixels detected
+    WRONG_SHAPE = 4  # unexpected H×W×C
 
 
 @dataclass
 class ProcessedFrame:
     """Output of FrameProcessor.process()."""
-    bgr:              np.ndarray           # H×W×3 uint8, ready for detector
-    depth_m:          Optional[np.ndarray] # H×W float32 metres, or None
-    quality:          FrameQuality
-    original_shape:   Tuple[int, int]      # (H, W) before resize
-    mean_brightness:  float                # 0–255
-    is_low_light:     bool
-    clahe_applied:    bool
-    denoise_applied:  bool
-    preprocess_ms:    float                # wall-clock time for this frame
-    depth_valid_frac: float                # fraction of depth pixels that are finite >0
+
+    bgr: np.ndarray  # H×W×3 uint8, ready for detector
+    depth_m: np.ndarray | None  # H×W float32 metres, or None
+    quality: FrameQuality
+    original_shape: tuple[int, int]  # (H, W) before resize
+    mean_brightness: float  # 0–255
+    is_low_light: bool
+    clahe_applied: bool
+    denoise_applied: bool
+    preprocess_ms: float  # wall-clock time for this frame
+    depth_valid_frac: float  # fraction of depth pixels that are finite >0
 
     @property
     def is_usable(self) -> bool:
@@ -68,6 +71,7 @@ class ProcessedFrame:
 
 
 # ── Processor ─────────────────────────────────────────────────────────────────
+
 
 class FrameProcessor:
     """
@@ -86,16 +90,14 @@ class FrameProcessor:
                 tileGridSize=(cfg.clahe_tile_grid_size, cfg.clahe_tile_grid_size),
             )
         elif cfg.enable_clahe and not _HAS_CV2:
-            logger.warning(
-                "stage=init msg='CLAHE requested but opencv-python not installed'"
-            )
+            logger.warning("stage=init msg='CLAHE requested but opencv-python not installed'")
 
     # ── Public API ────────────────────────────────────────────────────────────
 
     def process(
         self,
-        bgr:     np.ndarray,
-        depth_m: Optional[np.ndarray] = None,
+        bgr: np.ndarray,
+        depth_m: np.ndarray | None = None,
     ) -> ProcessedFrame:
         """
         Run the full preprocessing pipeline on a raw camera frame.
@@ -112,9 +114,7 @@ class FrameProcessor:
         # Stage 0: shape / dtype sanity
         quality, err = self._check_shape(bgr)
         if quality != FrameQuality.OK:
-            logger.debug(
-                "stage=quality_gate quality=%s reason=%s", quality.name, err
-            )
+            logger.debug("stage=quality_gate quality=%s reason=%s", quality.name, err)
             return self._bad_frame(bgr, depth_m, quality, t0)
 
         original_h, original_w = bgr.shape[:2]
@@ -132,7 +132,8 @@ class FrameProcessor:
         if mean_brightness < self._cfg.min_mean_brightness:
             logger.debug(
                 "stage=quality_gate quality=EMPTY brightness=%.1f threshold=%.1f",
-                mean_brightness, self._cfg.min_mean_brightness,
+                mean_brightness,
+                self._cfg.min_mean_brightness,
             )
             return self._bad_frame(bgr, depth_m, FrameQuality.EMPTY, t0)
 
@@ -146,8 +147,8 @@ class FrameProcessor:
                 bgr = self._numpy_resize(bgr, target_h, target_w)
 
         # Stage 4: low-light detection + CLAHE
-        is_low_light   = mean_brightness < self._cfg.brightness_threshold
-        clahe_applied  = False
+        is_low_light = mean_brightness < self._cfg.brightness_threshold
+        clahe_applied = False
         if self._cfg.enable_clahe and is_low_light and _HAS_CV2:
             bgr, clahe_applied = self._apply_clahe(bgr)
 
@@ -165,7 +166,7 @@ class FrameProcessor:
                 "stage=depth_check valid_frac=%.2f depth_set_to_none=True",
                 depth_valid_frac,
             )
-            depth_m = None   # too many invalid pixels — discard depth
+            depth_m = None  # too many invalid pixels — discard depth
 
         quality = FrameQuality.LOW_LIGHT if is_low_light else FrameQuality.OK
         elapsed_ms = (time.monotonic() - t0) * 1000.0
@@ -173,8 +174,13 @@ class FrameProcessor:
         logger.debug(
             "stage=preprocess quality=%s brightness=%.1f low_light=%s "
             "clahe=%s denoise=%s depth_valid=%.2f latency_ms=%.1f",
-            quality.name, mean_brightness, is_low_light,
-            clahe_applied, denoise_applied, depth_valid_frac, elapsed_ms,
+            quality.name,
+            mean_brightness,
+            is_low_light,
+            clahe_applied,
+            denoise_applied,
+            depth_valid_frac,
+            elapsed_ms,
         )
 
         return ProcessedFrame(
@@ -192,15 +198,15 @@ class FrameProcessor:
 
     # ── CLAHE ─────────────────────────────────────────────────────────────────
 
-    def _apply_clahe(self, bgr: np.ndarray) -> Tuple[np.ndarray, bool]:
+    def _apply_clahe(self, bgr: np.ndarray) -> tuple[np.ndarray, bool]:
         """
         Apply CLAHE to the luminance (Y) channel of YCrCb.
         Returns (enhanced_bgr, was_applied).
         """
         try:
-            ycrcb  = cv2.cvtColor(bgr, cv2.COLOR_BGR2YCrCb)
+            ycrcb = cv2.cvtColor(bgr, cv2.COLOR_BGR2YCrCb)
             y, cr, cb = cv2.split(ycrcb)
-            y_eq   = self._clahe.apply(y)
+            y_eq = self._clahe.apply(y)
             ycrcb_eq = cv2.merge([y_eq, cr, cb])
             enhanced = cv2.cvtColor(ycrcb_eq, cv2.COLOR_YCrCb2BGR)
             return enhanced, True
@@ -211,7 +217,7 @@ class FrameProcessor:
     # ── Quality gate helpers ──────────────────────────────────────────────────
 
     @staticmethod
-    def _check_shape(bgr: np.ndarray) -> Tuple[FrameQuality, str]:
+    def _check_shape(bgr: np.ndarray) -> tuple[FrameQuality, str]:
         if bgr is None or bgr.size == 0:
             return FrameQuality.EMPTY, "empty_array"
         if bgr.ndim not in (2, 3):
@@ -221,7 +227,7 @@ class FrameProcessor:
         return FrameQuality.OK, ""
 
     @staticmethod
-    def _depth_valid_fraction(depth_m: Optional[np.ndarray]) -> float:
+    def _depth_valid_fraction(depth_m: np.ndarray | None) -> float:
         if depth_m is None:
             return 0.0
         total = depth_m.size
@@ -241,13 +247,11 @@ class FrameProcessor:
     def _bad_frame(
         self,
         bgr: np.ndarray,
-        depth_m: Optional[np.ndarray],
+        depth_m: np.ndarray | None,
         quality: FrameQuality,
         t0: float,
     ) -> ProcessedFrame:
-        blank = np.zeros((
-            self._cfg.resize_height, self._cfg.resize_width, 3
-        ), dtype=np.uint8)
+        blank = np.zeros((self._cfg.resize_height, self._cfg.resize_width, 3), dtype=np.uint8)
         return ProcessedFrame(
             bgr=blank,
             depth_m=None,
@@ -275,5 +279,7 @@ class FrameProcessor:
             self._clahe = None
         logger.info(
             "stage=config_reload clahe=%s denoise=%s brightness_threshold=%.1f",
-            cfg.enable_clahe, cfg.enable_denoise, cfg.brightness_threshold,
+            cfg.enable_clahe,
+            cfg.enable_denoise,
+            cfg.brightness_threshold,
         )

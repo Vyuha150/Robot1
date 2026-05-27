@@ -1,21 +1,20 @@
 """
 Tests for bonbon_navigation.safety.safety_stop_bridge
 """
+
 import time
 
 import pytest
-
 from bonbon_navigation.safety.safety_stop_bridge import (
-    GatedVelocity,
-    SafetyStopBridge,
-    SAFETY_INITIALIZING,
-    SAFETY_NORMAL,
     SAFETY_CAUTION,
     SAFETY_DANGER,
-    SAFETY_DOCKING,
     SAFETY_DEGRADED,
+    SAFETY_DOCKING,
     SAFETY_FAULT,
+    SAFETY_NORMAL,
     SAFETY_SAFE_STOP,
+    GatedVelocity,
+    SafetyStopBridge,
 )
 
 
@@ -31,6 +30,7 @@ def _bridge(**kw) -> SafetyStopBridge:
 
 
 # ── Blocked states ────────────────────────────────────────────────────────────
+
 
 class TestBlockedStates:
     @pytest.mark.parametrize("state", [SAFETY_DANGER, SAFETY_FAULT, SAFETY_SAFE_STOP])
@@ -67,6 +67,7 @@ class TestBlockedStates:
 
 # ── Normal state ──────────────────────────────────────────────────────────────
 
+
 class TestNormalState:
     def test_normal_passes_within_max_speed(self):
         b = _bridge()
@@ -101,6 +102,7 @@ class TestNormalState:
 
 # ── Caution state ─────────────────────────────────────────────────────────────
 
+
 class TestCautionState:
     def test_caution_caps_at_caution_speed(self):
         b = _bridge()
@@ -122,11 +124,12 @@ class TestCautionState:
         # Request 0.6 m/s with 0.4 rad/s angular
         gv = b.gate(0.6, 0.4)
         assert gv.was_capped is True
-        expected_scale = 0.30 / 0.6   # 0.5
+        expected_scale = 0.30 / 0.6  # 0.5
         assert gv.angular_rps == pytest.approx(0.4 * expected_scale, abs=1e-4)
 
 
 # ── Degraded state ────────────────────────────────────────────────────────────
+
 
 class TestDegradedState:
     def test_degraded_same_cap_as_caution(self):
@@ -138,6 +141,7 @@ class TestDegradedState:
 
 
 # ── Docking state ─────────────────────────────────────────────────────────────
+
 
 class TestDockingState:
     def test_docking_caps_at_dock_speed(self):
@@ -162,6 +166,7 @@ class TestDockingState:
 
 
 # ── Watchdog ──────────────────────────────────────────────────────────────────
+
 
 class TestWatchdog:
     def test_watchdog_blocks_after_timeout(self):
@@ -196,6 +201,7 @@ class TestWatchdog:
 
 # ── Accessors ─────────────────────────────────────────────────────────────────
 
+
 class TestAccessors:
     def test_safety_state_name(self):
         b = _bridge()
@@ -222,6 +228,7 @@ class TestAccessors:
 
 # ── Initializing state ────────────────────────────────────────────────────────
 
+
 class TestInitializingState:
     def test_initializing_no_update_blocks(self):
         """Before first update, last_update=0; watchdog check should pass
@@ -241,6 +248,7 @@ class TestInitializingState:
 
 
 # ── GatedVelocity dataclass ───────────────────────────────────────────────────
+
 
 class TestGatedVelocity:
     def test_gated_velocity_fields(self):

@@ -17,10 +17,12 @@ volume_pct       Playback volume 0–100 (default: 80.0).
 filler_enabled   Enable filler clips (default: "true").
 health_rate_hz   Health publish rate (default: 1.0).
 """
+
 from __future__ import annotations
 
 import os
 
+import lifecycle_msgs.msg
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -30,57 +32,59 @@ from launch.actions import (
 )
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
-from launch_ros.events.lifecycle import ChangeState
 from launch_ros.event_handlers import OnStateTransition
-import lifecycle_msgs.msg
+from launch_ros.events.lifecycle import ChangeState
 
 
 def generate_launch_description() -> LaunchDescription:
     # ── Parameter file ─────────────────────────────────────────────────────
-    pkg_share = os.path.join(
-        os.path.dirname(__file__), "..", "config", "tts_params.yaml"
-    )
+    pkg_share = os.path.join(os.path.dirname(__file__), "..", "config", "tts_params.yaml")
     params_file = os.path.realpath(pkg_share)
 
     # ── Launch arguments ───────────────────────────────────────────────────
     model_path_arg = DeclareLaunchArgument(
-        "model_path", default_value="",
+        "model_path",
+        default_value="",
         description="Absolute path to Piper .onnx model file",
     )
     speaker_driver_arg = DeclareLaunchArgument(
-        "speaker_driver", default_value="mock",
+        "speaker_driver",
+        default_value="mock",
         description="Speaker driver: 'mock' or 'hal'",
     )
     volume_arg = DeclareLaunchArgument(
-        "volume_pct", default_value="80.0",
+        "volume_pct",
+        default_value="80.0",
         description="Playback volume 0–100",
     )
     filler_arg = DeclareLaunchArgument(
-        "filler_enabled", default_value="true",
+        "filler_enabled",
+        default_value="true",
         description="Enable filler audio clips",
     )
     health_rate_arg = DeclareLaunchArgument(
-        "health_rate_hz", default_value="1.0",
+        "health_rate_hz",
+        default_value="1.0",
         description="Health topic publish rate (Hz)",
     )
 
     # ── TTS lifecycle node ─────────────────────────────────────────────────
     tts_node = LifecycleNode(
-        package    = "bonbon_tts",
-        executable = "tts_node",
-        name       = "tts_node",
-        namespace  = "",
-        parameters = [
+        package="bonbon_tts",
+        executable="tts_node",
+        name="tts_node",
+        namespace="",
+        parameters=[
             params_file,
             {
-                "piper.model_path":   LaunchConfiguration("model_path"),
-                "speaker.driver":     LaunchConfiguration("speaker_driver"),
+                "piper.model_path": LaunchConfiguration("model_path"),
+                "speaker.driver": LaunchConfiguration("speaker_driver"),
                 "speaker.volume_pct": LaunchConfiguration("volume_pct"),
-                "filler.enabled":     LaunchConfiguration("filler_enabled"),
-                "health_rate_hz":     LaunchConfiguration("health_rate_hz"),
+                "filler.enabled": LaunchConfiguration("filler_enabled"),
+                "health_rate_hz": LaunchConfiguration("health_rate_hz"),
             },
         ],
-        output = "screen",
+        output="screen",
     )
 
     # ── Auto-configure transition ──────────────────────────────────────────
@@ -94,9 +98,9 @@ def generate_launch_description() -> LaunchDescription:
     # ── Auto-activate after configure ─────────────────────────────────────
     activate_after_configure = RegisterEventHandler(
         OnStateTransition(
-            target_lifecycle_node = tts_node,
-            goal_state            = "inactive",
-            entities              = [
+            target_lifecycle_node=tts_node,
+            goal_state="inactive",
+            entities=[
                 LogInfo(msg="TTS node configured → activating"),
                 EmitEvent(
                     event=ChangeState(
@@ -108,13 +112,15 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
-    return LaunchDescription([
-        model_path_arg,
-        speaker_driver_arg,
-        volume_arg,
-        filler_arg,
-        health_rate_arg,
-        tts_node,
-        configure_event,
-        activate_after_configure,
-    ])
+    return LaunchDescription(
+        [
+            model_path_arg,
+            speaker_driver_arg,
+            volume_arg,
+            filler_arg,
+            health_rate_arg,
+            tts_node,
+            configure_event,
+            activate_after_configure,
+        ]
+    )

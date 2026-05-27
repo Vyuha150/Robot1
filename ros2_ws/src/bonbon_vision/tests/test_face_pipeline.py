@@ -16,24 +16,22 @@ Covered
 * run() on tiny / odd-shaped images
 * Zero-size crop is handled gracefully (no crash)
 """
-import time
+
 import unittest
-from unittest.mock import patch, MagicMock
 from concurrent.futures import TimeoutError as FuturesTimeout
+from unittest.mock import MagicMock
 
 import numpy as np
-
 from bonbon_vision.config.vision_config import FaceConfig
 from bonbon_vision.face.face_pipeline import (
     FaceDetection,
-    FaceResult,
     FacePipeline,
+    FaceResult,
     _MockFaceDetector,
-    _MockFaceRecognizer,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _cfg(**overrides) -> FaceConfig:
     defaults = dict(
@@ -56,6 +54,7 @@ def _frame(h=480, w=640, brightness=120):
 
 # ── FaceDetection dataclass ───────────────────────────────────────────────────
 
+
 class TestFaceDetection(unittest.TestCase):
     def test_defaults(self):
         fd = FaceDetection(bbox=(10, 20, 80, 100), confidence=0.95)
@@ -65,8 +64,11 @@ class TestFaceDetection(unittest.TestCase):
 
     def test_custom_fields(self):
         fd = FaceDetection(
-            bbox=(5, 5, 60, 80), confidence=0.80,
-            face_id="alice", age_group="adult", facing_robot=True,
+            bbox=(5, 5, 60, 80),
+            confidence=0.80,
+            face_id="alice",
+            age_group="adult",
+            facing_robot=True,
         )
         self.assertEqual(fd.face_id, "alice")
         self.assertTrue(fd.facing_robot)
@@ -83,6 +85,7 @@ class TestFaceResult(unittest.TestCase):
 
 
 # ── Mock detector unit ────────────────────────────────────────────────────────
+
 
 class TestMockFaceDetector(unittest.TestCase):
     def test_returns_one_face(self):
@@ -105,6 +108,7 @@ class TestMockFaceDetector(unittest.TestCase):
 
 
 # ── FacePipeline with mock backend ───────────────────────────────────────────
+
 
 class TestFacePipelineMock(unittest.TestCase):
     def setUp(self):
@@ -151,13 +155,12 @@ class TestFacePipelineMock(unittest.TestCase):
 
 # ── Privacy mode ──────────────────────────────────────────────────────────────
 
+
 class TestPrivacyMode(unittest.TestCase):
     def test_privacy_suppresses_face_id(self):
         pipe = FacePipeline(_cfg(), privacy_mode=True)
         # Monkey-patch recognizer to return a non-empty id
-        pipe._recognizer = type("R", (), {
-            "identify": lambda self, crop, db, thresh: "alice"
-        })()
+        pipe._recognizer = type("R", (), {"identify": lambda self, crop, db, thresh: "alice"})()
         r = pipe.run(_frame())
         for face in r.faces:
             self.assertEqual(face.face_id, "")
@@ -166,9 +169,7 @@ class TestPrivacyMode(unittest.TestCase):
     def test_privacy_false_allows_face_id(self):
         pipe = FacePipeline(_cfg(), privacy_mode=False)
         # Monkey-patch recognizer
-        pipe._recognizer = type("R", (), {
-            "identify": lambda self, crop, db, thresh: "bob"
-        })()
+        pipe._recognizer = type("R", (), {"identify": lambda self, crop, db, thresh: "bob"})()
         r = pipe.run(_frame())
         # face_id should be set by recognizer
         # (MockFaceDetector returns at least 1 face)
@@ -180,6 +181,7 @@ class TestPrivacyMode(unittest.TestCase):
 
 
 # ── Timeout handling ──────────────────────────────────────────────────────────
+
 
 class TestFacePipelineTimeout(unittest.TestCase):
     def test_detect_timeout_sets_flag(self):
@@ -232,16 +234,16 @@ class TestFacePipelineTimeout(unittest.TestCase):
 
 # ── Error handling ────────────────────────────────────────────────────────────
 
+
 class TestFacePipelineErrors(unittest.TestCase):
     def test_detector_exception_sets_error_field(self):
         pipe = FacePipeline(_cfg())
         # Replace detector with one that always raises
-        pipe._detector = type("D", (), {
-            "detect": lambda self, bgr: (_ for _ in ()).throw(RuntimeError("test error"))
-        })()
+        pipe._detector = type(
+            "D", (), {"detect": lambda self, bgr: (_ for _ in ()).throw(RuntimeError("test error"))}
+        )()
 
         # Simpler approach: patch the future
-        original_submit = pipe._executor.submit
 
         def patched_submit(fn, *args, **kwargs):
             mock_f = MagicMock()
@@ -259,9 +261,9 @@ class TestFacePipelineErrors(unittest.TestCase):
         The pipeline must not crash.
         """
         pipe = FacePipeline(_cfg())
-        pipe._detector = type("D", (), {
-            "detect": lambda self, bgr: [(100, 100, 0, 0)]  # zero-size box
-        })()
+        pipe._detector = type(
+            "D", (), {"detect": lambda self, bgr: [(100, 100, 0, 0)]}  # zero-size box
+        )()
         r = pipe.run(_frame())
         # No exception, at least one face (with empty face_id)
         self.assertIsNone(r.error)
@@ -269,6 +271,7 @@ class TestFacePipelineErrors(unittest.TestCase):
 
 
 # ── Edge cases ────────────────────────────────────────────────────────────────
+
 
 class TestFacePipelineEdgeCases(unittest.TestCase):
     def test_tiny_image(self):
@@ -280,9 +283,7 @@ class TestFacePipelineEdgeCases(unittest.TestCase):
     def test_no_faces_in_image(self):
         """Patch detector to return no faces."""
         pipe = FacePipeline(_cfg())
-        pipe._detector = type("D", (), {
-            "detect": lambda self, bgr: []
-        })()
+        pipe._detector = type("D", (), {"detect": lambda self, bgr: []})()
         r = pipe.run(_frame())
         self.assertEqual(len(r.faces), 0)
         self.assertIsNone(r.error)
@@ -292,9 +293,7 @@ class TestFacePipelineEdgeCases(unittest.TestCase):
         """Detector returns 20 faces — pipeline processes all."""
         pipe = FacePipeline(_cfg())
         bboxes = [(i * 20, 10, 15, 20) for i in range(20)]
-        pipe._detector = type("D", (), {
-            "detect": lambda self, bgr, _b=bboxes: _b
-        })()
+        pipe._detector = type("D", (), {"detect": lambda self, bgr, _b=bboxes: _b})()
         r = pipe.run(_frame())
         self.assertEqual(len(r.faces), 20)
         pipe.shutdown()
@@ -302,7 +301,7 @@ class TestFacePipelineEdgeCases(unittest.TestCase):
     def test_shutdown_idempotent(self):
         pipe = FacePipeline(_cfg())
         pipe.shutdown()
-        pipe.shutdown()   # second call must not crash
+        pipe.shutdown()  # second call must not crash
 
 
 if __name__ == "__main__":

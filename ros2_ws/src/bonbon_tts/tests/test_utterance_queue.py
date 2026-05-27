@@ -3,14 +3,14 @@ tests/test_utterance_queue.py
 ==============================
 Unit tests for UtteranceQueue, Utterance, and Priority.
 """
+
 import time
 
 import pytest
-
 from bonbon_tts.core.utterance_queue import Priority, Utterance, UtteranceQueue
 
-
 # ── Priority ──────────────────────────────────────────────────────────────────
+
 
 class TestPriority:
     def test_ordering(self):
@@ -20,18 +20,19 @@ class TestPriority:
 
     def test_values(self):
         assert Priority.EMERGENCY == 0
-        assert Priority.HIGH      == 1
-        assert Priority.NORMAL    == 2
-        assert Priority.LOW       == 3
+        assert Priority.HIGH == 1
+        assert Priority.NORMAL == 2
+        assert Priority.LOW == 3
 
 
 # ── Utterance ─────────────────────────────────────────────────────────────────
 
+
 class TestUtterance:
     def test_defaults(self):
         u = Utterance(text="Hello")
-        assert u.priority  == Priority.NORMAL
-        assert u.source    == ""
+        assert u.priority == Priority.NORMAL
+        assert u.source == ""
         assert u.dedup_key == ""
         assert u.interrupt is False
         assert u.max_age_sec == pytest.approx(30.0)
@@ -55,7 +56,7 @@ class TestUtterance:
         assert not u.is_stale()
 
     def test_lt_by_priority(self):
-        high   = Utterance(text="h", priority=Priority.HIGH)
+        high = Utterance(text="h", priority=Priority.HIGH)
         normal = Utterance(text="n", priority=Priority.NORMAL)
         assert high < normal
 
@@ -63,12 +64,12 @@ class TestUtterance:
         u1 = Utterance(text="first")
         time.sleep(0.001)
         u2 = Utterance(text="second")
-        assert u1 < u2   # older = higher priority (FIFO)
+        assert u1 < u2  # older = higher priority (FIFO)
 
     def test_eq_by_id(self):
         u = Utterance(text="x")
         assert u == u
-        assert u != Utterance(text="x")   # different id
+        assert u != Utterance(text="x")  # different id
 
     def test_eq_not_implemented_for_non_utterance(self):
         u = Utterance(text="x")
@@ -80,6 +81,7 @@ class TestUtterance:
 
 
 # ── UtteranceQueue ────────────────────────────────────────────────────────────
+
 
 class TestUtteranceQueueBasic:
     def test_empty_on_creation(self):
@@ -103,10 +105,10 @@ class TestUtteranceQueueBasic:
 
     def test_priority_ordering(self):
         q = UtteranceQueue()
-        q.enqueue(Utterance(text="low",      priority=Priority.LOW))
-        q.enqueue(Utterance(text="high",     priority=Priority.HIGH))
-        q.enqueue(Utterance(text="normal",   priority=Priority.NORMAL))
-        q.enqueue(Utterance(text="emergency",priority=Priority.EMERGENCY))
+        q.enqueue(Utterance(text="low", priority=Priority.LOW))
+        q.enqueue(Utterance(text="high", priority=Priority.HIGH))
+        q.enqueue(Utterance(text="normal", priority=Priority.NORMAL))
+        q.enqueue(Utterance(text="emergency", priority=Priority.EMERGENCY))
 
         texts = [q.dequeue().text for _ in range(4)]
         assert texts == ["emergency", "high", "normal", "low"]
@@ -121,15 +123,15 @@ class TestUtteranceQueueBasic:
         assert texts == ["0", "1", "2", "3", "4"]
 
     def test_emergency_sets_interrupt(self):
-        q    = UtteranceQueue()
-        utt  = Utterance(text="alert", priority=Priority.EMERGENCY, interrupt=False)
+        q = UtteranceQueue()
+        utt = Utterance(text="alert", priority=Priority.EMERGENCY, interrupt=False)
         flag = q.enqueue(utt)
-        assert flag is True    # enqueue returns True for interrupt
+        assert flag is True  # enqueue returns True for interrupt
         assert utt.interrupt is True
 
     def test_non_interrupt_returns_false(self):
-        q    = UtteranceQueue()
-        utt  = Utterance(text="normal", priority=Priority.NORMAL)
+        q = UtteranceQueue()
+        utt = Utterance(text="normal", priority=Priority.NORMAL)
         flag = q.enqueue(utt)
         assert flag is False
 
@@ -137,12 +139,11 @@ class TestUtteranceQueueBasic:
 class TestUtteranceQueueStaleness:
     def test_stale_item_skipped(self):
         q = UtteranceQueue()
-        stale  = Utterance(text="stale",   max_age_sec=0.01)
-        fresh  = Utterance(text="fresh",   max_age_sec=30.0,
-                           priority=Priority.LOW)
+        stale = Utterance(text="stale", max_age_sec=0.01)
+        fresh = Utterance(text="fresh", max_age_sec=30.0, priority=Priority.LOW)
 
         q.enqueue(stale)
-        time.sleep(0.05)           # let stale expire
+        time.sleep(0.05)  # let stale expire
         q.enqueue(fresh)
 
         out = q.dequeue()
@@ -188,17 +189,17 @@ class TestUtteranceQueueDedup:
 class TestUtteranceQueueOverflow:
     def test_overflow_drops_lowest(self):
         q = UtteranceQueue(max_depth=3)
-        q.enqueue(Utterance(text="low",    priority=Priority.LOW))
+        q.enqueue(Utterance(text="low", priority=Priority.LOW))
         q.enqueue(Utterance(text="normal", priority=Priority.NORMAL))
-        q.enqueue(Utterance(text="high",   priority=Priority.HIGH))
+        q.enqueue(Utterance(text="high", priority=Priority.HIGH))
         # Queue now full; adding another LOW drops the existing LOW
-        q.enqueue(Utterance(text="low2",   priority=Priority.LOW))
+        q.enqueue(Utterance(text="low2", priority=Priority.LOW))
 
         assert q.depth() == 3
         assert q.overflow_count >= 1
 
         texts = [q.dequeue().text for _ in range(3)]
-        assert "high"   in texts
+        assert "high" in texts
         assert "normal" in texts
         # The newest LOW (low2) should survive, original LOW dropped
         assert "low" not in texts or "low2" in texts
@@ -221,12 +222,12 @@ class TestUtteranceQueueBulk:
 
     def test_clear_below_priority_drops_low(self):
         q = UtteranceQueue()
-        q.enqueue(Utterance(text="high",   priority=Priority.HIGH))
+        q.enqueue(Utterance(text="high", priority=Priority.HIGH))
         q.enqueue(Utterance(text="normal", priority=Priority.NORMAL))
-        q.enqueue(Utterance(text="low",    priority=Priority.LOW))
+        q.enqueue(Utterance(text="low", priority=Priority.LOW))
 
         dropped = q.clear_below_priority(Priority.NORMAL)
-        assert dropped == 1   # only LOW dropped
+        assert dropped == 1  # only LOW dropped
         assert q.depth() == 2
 
     def test_peek_priority_highest(self):
@@ -245,10 +246,10 @@ class TestUtteranceQueueThreadSafety:
         """Smoke-test: concurrent producers and a consumer should not crash."""
         import threading
 
-        q       = UtteranceQueue(max_depth=50)
-        errors  = []
+        q = UtteranceQueue(max_depth=50)
+        errors = []
         results = []
-        stop    = threading.Event()
+        stop = threading.Event()
 
         def producer(n: int):
             for i in range(n):

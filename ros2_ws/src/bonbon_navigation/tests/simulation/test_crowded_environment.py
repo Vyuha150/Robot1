@@ -13,20 +13,19 @@ Also validates:
 
 No ROS2 or Gazebo runtime required.
 """
+
 import math
 import threading
 import time
 
 import pytest
-import numpy as np
-
-from bonbon_navigation.config.nav_config import HumanAwareConfig, BatteryRoutingConfig
-from bonbon_navigation.planners.human_aware_costmap import HumanAwareCostmapLayer
+from bonbon_navigation.config.nav_config import BatteryRoutingConfig, HumanAwareConfig
 from bonbon_navigation.core.battery_router import BatteryRouter
 from bonbon_navigation.core.map_manager import MapManager
-
+from bonbon_navigation.planners.human_aware_costmap import HumanAwareCostmapLayer
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 def _cfg() -> HumanAwareConfig:
     return HumanAwareConfig(
@@ -37,7 +36,7 @@ def _cfg() -> HumanAwareConfig:
         person_cost_scaling=2.0,
         announce_passing_intent=True,
         announce_distance_m=2.0,
-        person_decay_sec=0.1,   # short for expiry tests
+        person_decay_sec=0.1,  # short for expiry tests
     )
 
 
@@ -46,7 +45,7 @@ def _layer(cfg=None) -> HumanAwareCostmapLayer:
     return HumanAwareCostmapLayer(
         cfg,
         resolution=0.05,
-        width=400,      # 20 m × 20 m at 5 cm/cell
+        width=400,  # 20 m × 20 m at 5 cm/cell
         height=400,
         origin_x=-2.0,
         origin_y=-2.0,
@@ -55,17 +54,23 @@ def _layer(cfg=None) -> HumanAwareCostmapLayer:
 
 # ── Multiple simultaneous persons ─────────────────────────────────────────────
 
+
 class TestMultiplePersons:
     def test_six_persons_all_inflated(self):
         """6 persons at distinct positions all generate cost."""
         layer = _layer()
         positions = [
-            ("p1", 5.0, 2.0), ("p2", 5.0, 4.0), ("p3", 5.0, 6.0),
-            ("p4", 7.0, 2.0), ("p5", 7.0, 4.0), ("p6", 7.0, 6.0),
+            ("p1", 5.0, 2.0),
+            ("p2", 5.0, 4.0),
+            ("p3", 5.0, 6.0),
+            ("p4", 7.0, 2.0),
+            ("p5", 7.0, 4.0),
+            ("p6", 7.0, 6.0),
         ]
         for pid, x, y in positions:
-            layer.update_person(pid, x=x, y=y, velocity_mps=0.0,
-                                facing_robot=False, age_group="adult")
+            layer.update_person(
+                pid, x=x, y=y, velocity_mps=0.0, facing_robot=False, age_group="adult"
+            )
         grid = layer.get_cost_grid()
         total_cost = int(grid.sum())
         assert total_cost > 0
@@ -75,12 +80,15 @@ class TestMultiplePersons:
         layer_1 = _layer()
         layer_2 = _layer()
 
-        layer_1.update_person("p1", x=6.0, y=4.0, velocity_mps=0.0,
-                               facing_robot=False, age_group="adult")
-        layer_2.update_person("p1", x=6.0, y=4.0, velocity_mps=0.0,
-                               facing_robot=False, age_group="adult")
-        layer_2.update_person("p2", x=6.5, y=4.0, velocity_mps=0.0,
-                               facing_robot=False, age_group="adult")
+        layer_1.update_person(
+            "p1", x=6.0, y=4.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
+        layer_2.update_person(
+            "p1", x=6.0, y=4.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
+        layer_2.update_person(
+            "p2", x=6.5, y=4.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
 
         grid_1 = layer_1.get_cost_grid()
         grid_2 = layer_2.get_cost_grid()
@@ -92,8 +100,9 @@ class TestMultiplePersons:
         layer = _layer()
         # Aisle at x=6 between tables (y=2 to y=8)
         for i, y in enumerate([2.0, 4.0, 6.0]):
-            layer.update_person(f"aisle_{i}", x=6.0, y=y, velocity_mps=0.0,
-                                 facing_robot=False, age_group="adult")
+            layer.update_person(
+                f"aisle_{i}", x=6.0, y=y, velocity_mps=0.0, facing_robot=False, age_group="adult"
+            )
         # Check cost along aisle
         path_costs = [layer.cost_at(6.0, y) for y in [2.0, 4.0, 6.0]]
         assert all(c > 0 for c in path_costs)
@@ -101,24 +110,25 @@ class TestMultiplePersons:
 
 # ── Passing alerts ────────────────────────────────────────────────────────────
 
+
 class TestPassingAlerts:
     def test_multiple_alerts_for_crowded_path(self):
         """Robot approaching table_7 passes 3 persons within 2.0 m."""
         layer = _layer()
         # Place 3 persons near the robot's path (robot at 4.0, 2.0 heading to 9.0, 2.0)
-        layer.update_person("c1", x=5.0, y=2.0, velocity_mps=0.0,
-                             facing_robot=True, age_group="adult")
-        layer.update_person("c2", x=6.0, y=2.5, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
-        layer.update_person("c3", x=5.5, y=1.5, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "c1", x=5.0, y=2.0, velocity_mps=0.0, facing_robot=True, age_group="adult"
+        )
+        layer.update_person(
+            "c2", x=6.0, y=2.5, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
+        layer.update_person(
+            "c3", x=5.5, y=1.5, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
 
         alerts = layer.get_passing_alerts(robot_x=4.5, robot_y=2.0)
         # All 3 are within 2.0 m of (4.5, 2.0)
-        close_ids = {
-            a.person_id for a in alerts
-            if math.hypot(a.distance_m, 0) <= 2.0
-        }
+        {a.person_id for a in alerts if math.hypot(a.distance_m, 0) <= 2.0}
         # At least some alerts generated
         assert len(alerts) >= 1
 
@@ -129,21 +139,24 @@ class TestPassingAlerts:
             vulnerable_inflation_radius_m=1.20,
             facing_multiplier=1.30,
             person_cost_scaling=2.0,
-            announce_passing_intent=False,   # disabled
+            announce_passing_intent=False,  # disabled
             announce_distance_m=2.0,
             person_decay_sec=3.0,
         )
-        layer = HumanAwareCostmapLayer(cfg, resolution=0.05, width=400, height=400,
-                                        origin_x=-2.0, origin_y=-2.0)
-        layer.update_person("p1", x=5.0, y=2.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer = HumanAwareCostmapLayer(
+            cfg, resolution=0.05, width=400, height=400, origin_x=-2.0, origin_y=-2.0
+        )
+        layer.update_person(
+            "p1", x=5.0, y=2.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         alerts = layer.get_passing_alerts(robot_x=4.0, robot_y=2.0)
         assert len(alerts) == 0
 
     def test_alert_distance_accurate(self):
         layer = _layer()
-        layer.update_person("p1", x=3.0, y=4.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "p1", x=3.0, y=4.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         alerts = layer.get_passing_alerts(robot_x=2.0, robot_y=4.0)
         assert len(alerts) == 1
         assert alerts[0].distance_m == pytest.approx(1.0, abs=0.01)
@@ -151,11 +164,13 @@ class TestPassingAlerts:
 
 # ── Person expiry ─────────────────────────────────────────────────────────────
 
+
 class TestPersonExpiry:
     def test_stale_persons_expired(self):
         layer = _layer()  # person_decay_sec=0.1
-        layer.update_person("p1", x=5.0, y=5.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "p1", x=5.0, y=5.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         time.sleep(0.15)
         removed = layer.expire_stale_persons()
         assert removed >= 1
@@ -163,8 +178,9 @@ class TestPersonExpiry:
 
     def test_fresh_persons_not_expired(self):
         layer = _layer()
-        layer.update_person("p1", x=5.0, y=5.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "p1", x=5.0, y=5.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         removed = layer.expire_stale_persons()
         assert removed == 0
         assert layer.cost_at(5.0, 5.0) > 0
@@ -172,12 +188,14 @@ class TestPersonExpiry:
     def test_mixed_expiry(self):
         layer = _layer()
         # Add old person
-        layer.update_person("old", x=5.0, y=5.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "old", x=5.0, y=5.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         time.sleep(0.15)
         # Add fresh person
-        layer.update_person("fresh", x=7.0, y=7.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "fresh", x=7.0, y=7.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         removed = layer.expire_stale_persons()
         assert removed >= 1
         persons = layer.get_persons()
@@ -188,6 +206,7 @@ class TestPersonExpiry:
 
 # ── Grid correctness ──────────────────────────────────────────────────────────
 
+
 class TestGridCorrectness:
     def test_grid_zero_with_no_persons(self):
         layer = _layer()
@@ -196,39 +215,44 @@ class TestGridCorrectness:
 
     def test_grid_cleared_after_remove(self):
         layer = _layer()
-        layer.update_person("p1", x=5.0, y=5.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "p1", x=5.0, y=5.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         layer.remove_person("p1")
         grid = layer.get_cost_grid()
         assert int(grid.sum()) == 0
 
     def test_cost_at_centre_maximum(self):
         layer = _layer()
-        layer.update_person("p1", x=0.0, y=0.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "p1", x=0.0, y=0.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         centre_cost = layer.cost_at(0.0, 0.0)
-        edge_cost   = layer.cost_at(0.70, 0.0)
+        edge_cost = layer.cost_at(0.70, 0.0)
         assert centre_cost > edge_cost
 
     def test_facing_robot_multiplier_increases_radius(self):
         """Cost at 0.90 m should be higher when person faces robot (1.30× = 1.04 m radius)."""
         cfg = _cfg()
-        layer_facing    = HumanAwareCostmapLayer(cfg, 0.05, 400, 400, -2.0, -2.0)
-        cfg_no_face     = _cfg()
+        layer_facing = HumanAwareCostmapLayer(cfg, 0.05, 400, 400, -2.0, -2.0)
+        cfg_no_face = _cfg()
         cfg_no_face.facing_multiplier = 1.0
         layer_not_facing = HumanAwareCostmapLayer(cfg_no_face, 0.05, 400, 400, -2.0, -2.0)
 
-        layer_facing.update_person("p", x=0.0, y=0.0, velocity_mps=0.0,
-                                    facing_robot=True, age_group="adult")
-        layer_not_facing.update_person("p", x=0.0, y=0.0, velocity_mps=0.0,
-                                        facing_robot=False, age_group="adult")
+        layer_facing.update_person(
+            "p", x=0.0, y=0.0, velocity_mps=0.0, facing_robot=True, age_group="adult"
+        )
+        layer_not_facing.update_person(
+            "p", x=0.0, y=0.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         # At 0.85 m (beyond 0.80 m base radius, within 1.04 m facing radius)
-        cost_facing     = layer_facing.cost_at(0.85, 0.0)
+        cost_facing = layer_facing.cost_at(0.85, 0.0)
         cost_not_facing = layer_not_facing.cost_at(0.85, 0.0)
         assert cost_facing >= cost_not_facing
 
 
 # ── Thread safety ─────────────────────────────────────────────────────────────
+
 
 class TestThreadSafety:
     def test_concurrent_updates_no_crash(self):
@@ -239,10 +263,14 @@ class TestThreadSafety:
         def writer(tid: int):
             try:
                 for i in range(50):
-                    layer.update_person(f"p_{tid}_{i % 5}",
-                                        x=float(tid), y=float(i % 10),
-                                        velocity_mps=0.1,
-                                        facing_robot=False, age_group="adult")
+                    layer.update_person(
+                        f"p_{tid}_{i % 5}",
+                        x=float(tid),
+                        y=float(i % 10),
+                        velocity_mps=0.1,
+                        facing_robot=False,
+                        age_group="adult",
+                    )
                     layer.get_cost_grid()
             except Exception as e:
                 errors.append(e)
@@ -260,8 +288,9 @@ class TestThreadSafety:
         layer = _layer()
         # Seed initial persons
         for i in range(5):
-            layer.update_person(f"p{i}", x=float(i), y=0.0,
-                                 velocity_mps=0.0, facing_robot=False, age_group="adult")
+            layer.update_person(
+                f"p{i}", x=float(i), y=0.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+            )
 
         errors = []
 
@@ -276,14 +305,21 @@ class TestThreadSafety:
         def writer():
             for i in range(50):
                 try:
-                    layer.update_person(f"w{i % 3}", x=float(i % 10), y=1.0,
-                                        velocity_mps=0.2, facing_robot=True, age_group="adult")
+                    layer.update_person(
+                        f"w{i % 3}",
+                        x=float(i % 10),
+                        y=1.0,
+                        velocity_mps=0.2,
+                        facing_robot=True,
+                        age_group="adult",
+                    )
                     layer.expire_stale_persons()
                 except Exception as e:
                     errors.append(e)
 
-        ts = ([threading.Thread(target=reader) for _ in range(5)]
-              + [threading.Thread(target=writer) for _ in range(3)])
+        ts = [threading.Thread(target=reader) for _ in range(5)] + [
+            threading.Thread(target=writer) for _ in range(3)
+        ]
         for t in ts:
             t.start()
         for t in ts:
@@ -294,18 +330,21 @@ class TestThreadSafety:
 
 # ── Battery routing with crowded path ─────────────────────────────────────────
 
+
 class TestBatteryRoutingCrowded:
     def _make_router(self, chargers: dict) -> BatteryRouter:
-        from bonbon_navigation.core.map_manager import MapManager
         mm = MapManager({})
         for name, (x, y) in chargers.items():
             mm.add_location(name, x, y, 0.0)
-        return BatteryRouter(BatteryRoutingConfig(
-            enabled=True,
-            low_battery_pct=20.0,
-            critical_battery_pct=10.0,
-            resume_threshold_pct=80.0,
-        ), mm)
+        return BatteryRouter(
+            BatteryRoutingConfig(
+                enabled=True,
+                low_battery_pct=20.0,
+                critical_battery_pct=10.0,
+                resume_threshold_pct=80.0,
+            ),
+            mm,
+        )
 
     def test_low_battery_routes_to_nearest_charger(self):
         router = self._make_router({"charger_a": (1.0, 1.0), "charger_b": (1.0, 8.0)})

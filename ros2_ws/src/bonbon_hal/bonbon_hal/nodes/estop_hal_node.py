@@ -14,35 +14,38 @@ Subscribes:
   /bonbon/safety/state               (bonbon_msgs/SafetyState)
   — asserts relay when SAFE_STOP received
 """
+
 from __future__ import annotations
 
 import rclpy
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
+from bonbon_msgs.msg import SafetyState
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Bool
 
-from bonbon_msgs.msg import SafetyState
 from bonbon_hal.base.driver_base import DriverBase
-from bonbon_hal.drivers.estop import MockEstopDriver, GpioEstopDriver
-from .hal_node_base import HalNodeBase, RELIABLE_D10
+from bonbon_hal.drivers.estop import GpioEstopDriver, MockEstopDriver
+
+from .hal_node_base import HalNodeBase
 
 RELIABLE_TL = QoSProfile(
     reliability=ReliabilityPolicy.RELIABLE,
     durability=DurabilityPolicy.TRANSIENT_LOCAL,
-    history=HistoryPolicy.KEEP_LAST, depth=1,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=1,
 )
 
 
 class EstopHalNode(HalNodeBase):
-    NODE_NAME       = "estop_hal_node"
-    DEVICE_NAME     = "estop"
-    HEALTH_TOPIC    = "/bonbon/safety/estop_node/health"
+    NODE_NAME = "estop_hal_node"
+    DEVICE_NAME = "estop"
+    HEALTH_TOPIC = "/bonbon/safety/estop_node/health"
     DEFAULT_RATE_HZ = 50.0
 
     def __init__(self) -> None:
         super().__init__()
-        self.declare_parameter("input_pin",  17)
-        self.declare_parameter("relay_pin",  18)
-        self.declare_parameter("poll_hz",    50.0)
+        self.declare_parameter("input_pin", 17)
+        self.declare_parameter("relay_pin", 18)
+        self.declare_parameter("poll_hz", 50.0)
         self._pub_estop = None
         self._relay_asserted = False
 
@@ -56,14 +59,11 @@ class EstopHalNode(HalNodeBase):
         return MockEstopDriver()
 
     def _create_publishers(self) -> None:
-        self._pub_estop = self.create_lifecycle_publisher(
-            Bool, "/bonbon/estop/state", RELIABLE_TL
-        )
+        self._pub_estop = self.create_lifecycle_publisher(Bool, "/bonbon/estop/state", RELIABLE_TL)
 
     def _create_subscribers(self) -> None:
         self.create_subscription(
-            SafetyState, "/bonbon/safety/state",
-            self._cb_safety_state, RELIABLE_TL
+            SafetyState, "/bonbon/safety/state", self._cb_safety_state, RELIABLE_TL
         )
         # Register press callback for instant relay assertion
         if self._driver:

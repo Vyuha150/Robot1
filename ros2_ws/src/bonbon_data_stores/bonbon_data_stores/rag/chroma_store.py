@@ -15,9 +15,8 @@ When ``chromadb`` is not installed the store operates in degraded mode:
 from __future__ import annotations
 
 import logging
-import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import RAGSearchResult
 
@@ -27,6 +26,7 @@ logger = logging.getLogger(__name__)
 try:
     import chromadb  # type: ignore
     from chromadb.config import Settings  # type: ignore
+
     _HAS_CHROMA = True
 except ImportError:
     chromadb = None  # type: ignore
@@ -72,7 +72,7 @@ class ChromaRAGStore:
         self._threshold = distance_threshold
         self._enabled = enabled and _HAS_CHROMA
         self._client = None
-        self._collections: Dict[str, Any] = {}
+        self._collections: dict[str, Any] = {}
 
         if not _HAS_CHROMA:
             logger.warning(
@@ -100,8 +100,8 @@ class ChromaRAGStore:
         self,
         collection: str,
         document: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        doc_id: Optional[str] = None,
+        metadata: dict[str, Any] | None = None,
+        doc_id: str | None = None,
     ) -> str:
         """Add a document to *collection*.  Returns the doc_id."""
         self._validate_collection(collection)
@@ -119,10 +119,10 @@ class ChromaRAGStore:
     def add_batch(
         self,
         collection: str,
-        documents: List[str],
-        metadatas: Optional[List[Dict[str, Any]]] = None,
-        ids: Optional[List[str]] = None,
-    ) -> List[str]:
+        documents: list[str],
+        metadatas: list[dict[str, Any]] | None = None,
+        ids: list[str] | None = None,
+    ) -> list[str]:
         """Add a batch of documents to *collection*."""
         self._validate_collection(collection)
         if not self._enabled:
@@ -137,8 +137,8 @@ class ChromaRAGStore:
         self,
         collection: str,
         query_text: str,
-        n_results: Optional[int] = None,
-    ) -> List[RAGSearchResult]:
+        n_results: int | None = None,
+    ) -> list[RAGSearchResult]:
         """Semantic search in *collection*."""
         self._validate_collection(collection)
         if not self._enabled:
@@ -156,7 +156,7 @@ class ChromaRAGStore:
             logger.error("ChromaDB query failed for collection %r: %s", collection, exc)
             return []
 
-        out: List[RAGSearchResult] = []
+        out: list[RAGSearchResult] = []
         for doc_id, doc, meta, dist in zip(
             results["ids"][0],
             results["documents"][0],
@@ -164,13 +164,15 @@ class ChromaRAGStore:
             results["distances"][0],
         ):
             if dist <= self._threshold:
-                out.append(RAGSearchResult(
-                    doc_id=doc_id,
-                    collection=collection,
-                    score=float(1.0 - dist),   # convert distance to similarity
-                    document=doc,
-                    metadata=meta or {},
-                ))
+                out.append(
+                    RAGSearchResult(
+                        doc_id=doc_id,
+                        collection=collection,
+                        score=float(1.0 - dist),  # convert distance to similarity
+                        document=doc,
+                        metadata=meta or {},
+                    )
+                )
         return out
 
     def delete(self, collection: str, doc_id: str) -> bool:
@@ -192,7 +194,7 @@ class ChromaRAGStore:
             return 0
         return self._get_collection(collection).count()
 
-    def collection_names(self) -> List[str]:
+    def collection_names(self) -> list[str]:
         return list(COLLECTION_NAMES)
 
     # ------------------------------------------------------------------
@@ -221,6 +223,4 @@ class ChromaRAGStore:
     @staticmethod
     def _validate_collection(name: str) -> None:
         if name not in COLLECTION_NAMES:
-            raise ValueError(
-                f"Unknown ChromaDB collection {name!r}. Valid: {COLLECTION_NAMES}"
-            )
+            raise ValueError(f"Unknown ChromaDB collection {name!r}. Valid: {COLLECTION_NAMES}")

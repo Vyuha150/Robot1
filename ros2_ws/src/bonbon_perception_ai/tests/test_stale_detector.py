@@ -1,9 +1,13 @@
 """Tests for StaleDetector."""
+
 import time
-import pytest
+
 from bonbon_perception_ai.fusion.modality_buffer import ModalityBuffer
 from bonbon_perception_ai.fusion.stale_detector import (
-    StaleDetector, UNCERTAINTY_LOW, UNCERTAINTY_MEDIUM, UNCERTAINTY_HIGH,
+    UNCERTAINTY_HIGH,
+    UNCERTAINTY_LOW,
+    UNCERTAINTY_MEDIUM,
+    StaleDetector,
 )
 
 
@@ -35,7 +39,7 @@ class TestUncertaintyLevels:
         assert unc == UNCERTAINTY_MEDIUM
 
     def test_two_stale_medium(self):
-        bufs  = {f"fresh{i}": _fresh_buf(f"fresh{i}") for i in range(3)}
+        bufs = {f"fresh{i}": _fresh_buf(f"fresh{i}") for i in range(3)}
         bufs["s1"] = _stale_buf("s1")
         bufs["s2"] = _stale_buf("s2")
         stale, unc = StaleDetector().assess(bufs)

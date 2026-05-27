@@ -3,30 +3,30 @@ tests/test_tts_health.py
 =========================
 Unit tests for TTSHealthTracker and TTSHealthReport.
 """
+
 import time
 
 import pytest
-
 from bonbon_tts.core.tts_health import TTSHealthReport, TTSHealthTracker
 
 
 class TestTTSHealthReport:
     def _report(self, **kwargs) -> TTSHealthReport:
         defaults = dict(
-            synthesizer_ok    = True,
-            speaker_ok        = True,
-            backend           = "piper",
-            queue_depth       = 0,
-            queue_overflows   = 0,
-            last_synthesis_ms = 100.0,
-            mean_synthesis_ms = 110.0,
-            p95_synthesis_ms  = 180.0,
-            synthesis_errors  = 0,
-            fallback_count    = 0,
-            utterances_played = 5,
-            total_audio_sec   = 12.0,
-            uptime_sec        = 60.0,
-            timestamp         = time.monotonic(),
+            synthesizer_ok=True,
+            speaker_ok=True,
+            backend="piper",
+            queue_depth=0,
+            queue_overflows=0,
+            last_synthesis_ms=100.0,
+            mean_synthesis_ms=110.0,
+            p95_synthesis_ms=180.0,
+            synthesis_errors=0,
+            fallback_count=0,
+            utterances_played=5,
+            total_audio_sec=12.0,
+            uptime_sec=60.0,
+            timestamp=time.monotonic(),
         )
         defaults.update(kwargs)
         return TTSHealthReport(**defaults)
@@ -60,9 +60,8 @@ class TestTTSHealthReport:
 class TestTTSHealthTracker:
     def test_initial_state(self):
         t = TTSHealthTracker()
-        r = t.get_report(queue_depth=0, backend="mock",
-                         synth_ok=True, speaker_ok=True)
-        assert r.synthesis_errors  == 0
+        r = t.get_report(queue_depth=0, backend="mock", synth_ok=True, speaker_ok=True)
+        assert r.synthesis_errors == 0
         assert r.utterances_played == 0
         assert r.mean_synthesis_ms == pytest.approx(0.0)
         assert r.uptime_sec >= 0.0
@@ -73,7 +72,7 @@ class TestTTSHealthTracker:
         r = t.get_report(0, "piper", True, True)
         assert r.last_synthesis_ms == pytest.approx(120.0)
         assert r.mean_synthesis_ms == pytest.approx(120.0)
-        assert r.synthesis_errors  == 0
+        assert r.synthesis_errors == 0
 
     def test_record_synthesis_failure(self):
         t = TTSHealthTracker()
@@ -124,14 +123,12 @@ class TestTTSHealthTracker:
         t = TTSHealthTracker()
         t.record_queue_overflow()
         t.record_queue_overflow()
-        r = t.get_report(queue_depth=0, backend="mock",
-                         synth_ok=True, speaker_ok=True)
+        r = t.get_report(queue_depth=0, backend="mock", synth_ok=True, speaker_ok=True)
         assert r.queue_overflows == 2
 
     def test_queue_depth_in_report(self):
         t = TTSHealthTracker()
-        r = t.get_report(queue_depth=7, backend="piper",
-                         synth_ok=True, speaker_ok=True)
+        r = t.get_report(queue_depth=7, backend="piper", synth_ok=True, speaker_ok=True)
         assert r.queue_depth == 7
 
     def test_reset_clears_state(self):
@@ -142,7 +139,7 @@ class TestTTSHealthTracker:
         r = t.get_report(0, "mock", True, True)
         assert r.utterances_played == 0
         assert r.mean_synthesis_ms == pytest.approx(0.0)
-        assert r.synthesis_errors  == 0
+        assert r.synthesis_errors == 0
 
     def test_uptime_increases(self):
         t = TTSHealthTracker()
@@ -153,9 +150,8 @@ class TestTTSHealthTracker:
 
     def test_backend_and_flags_pass_through(self):
         t = TTSHealthTracker()
-        r = t.get_report(queue_depth=3, backend="piper",
-                         synth_ok=False, speaker_ok=True)
-        assert r.backend        == "piper"
+        r = t.get_report(queue_depth=3, backend="piper", synth_ok=False, speaker_ok=True)
+        assert r.backend == "piper"
         assert r.synthesizer_ok is False
-        assert r.speaker_ok     is True
-        assert r.queue_depth    == 3
+        assert r.speaker_ok is True
+        assert r.queue_depth == 3

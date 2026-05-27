@@ -3,11 +3,14 @@ test_battery_driver.py
 ======================
 Tests for MockBatteryDriver: drain, charge, faults, voltage spike, sudden drop.
 """
+
 from __future__ import annotations
+
 import time
+
 import pytest
 from bonbon_hal.base.driver_base import DriverFault
-from bonbon_hal.drivers.battery import MockBatteryDriver, BatteryReading
+from bonbon_hal.drivers.battery import BatteryReading, MockBatteryDriver
 from bonbon_hal.drivers.battery.battery_driver import voltage_to_percent
 
 
@@ -46,12 +49,12 @@ class TestMockBatteryNormal:
 
     def test_initial_percent_respected(self, drv):
         r = drv.read()
-        assert 75.0 < r.percent < 85.0   # tolerance for drain + noise
+        assert 75.0 < r.percent < 85.0  # tolerance for drain + noise
 
     def test_voltage_consistent_with_percent(self, drv):
         r = drv.read()
         v_expected = 9.9 + r.percent / 100.0 * (12.6 - 9.9)
-        assert abs(r.voltage_v - v_expected) < 0.5   # noise tolerance
+        assert abs(r.voltage_v - v_expected) < 0.5  # noise tolerance
 
     def test_current_negative_when_discharging(self, drv):
         r = drv.read()
@@ -66,8 +69,7 @@ class TestMockBatteryNormal:
         assert r2.percent < r1.percent
 
     def test_charging_increases_percent(self):
-        drv = MockBatteryDriver(initial_percent=50.0, is_charging=True,
-                                charge_rate_pct_s=1.0)
+        drv = MockBatteryDriver(initial_percent=50.0, is_charging=True, charge_rate_pct_s=1.0)
         drv.connect()
         r1 = drv.read()
         time.sleep(0.1)
@@ -125,7 +127,8 @@ class TestMockBatteryRecovery:
     def test_reconnect_after_i2c_disconnect(self):
         drv = MockBatteryDriver(disconnect_after_n=2)
         drv.connect()
-        drv.read(); drv.read()
+        drv.read()
+        drv.read()
         try:
             drv.read()
         except DriverFault:

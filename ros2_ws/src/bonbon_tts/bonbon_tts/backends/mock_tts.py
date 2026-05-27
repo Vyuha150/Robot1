@@ -9,6 +9,7 @@ No network access, no model files, no external dependencies.
 Also exposes `generate_beep_wav()` as a standalone utility function used
 by FillerPlayer.generate_builtin() to create minimal filler WAV files.
 """
+
 from __future__ import annotations
 
 import io
@@ -18,7 +19,6 @@ import struct
 import threading
 import time
 import wave
-from typing import List, Optional
 
 from bonbon_tts.backends.base_tts import BaseTTS, SynthesisOutput, TTSError
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 # ── WAV generation utility ────────────────────────────────────────────────────
+
 
 def generate_beep_wav(
     duration_sec: float = 0.15,
@@ -58,7 +59,7 @@ def generate_beep_wav(
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
         wf.setnchannels(1)
-        wf.setsampwidth(2)     # 16-bit
+        wf.setsampwidth(2)  # 16-bit
         wf.setframerate(sample_rate)
         for i in range(num_samples):
             val = int(32767 * amplitude * math.sin(2 * math.pi * freq_hz * i / sample_rate))
@@ -83,6 +84,7 @@ def generate_silence_wav(
 
 # ── Mock backend ──────────────────────────────────────────────────────────────
 
+
 class MockTTS(BaseTTS):
     """
     Test-double TTS backend.
@@ -101,7 +103,7 @@ class MockTTS(BaseTTS):
     """
 
     SAMPLE_RATE = 22050
-    MS_PER_CHAR = 10      # simulated speaking rate for test timing
+    MS_PER_CHAR = 10  # simulated speaking rate for test timing
     MAX_DURATION_SEC = 2.0
 
     def __init__(
@@ -110,12 +112,12 @@ class MockTTS(BaseTTS):
         fail_next: bool = False,
     ) -> None:
         self._sim_latency_ms = simulate_latency_ms
-        self._fail_next      = fail_next
-        self._lock           = threading.Lock()
+        self._fail_next = fail_next
+        self._lock = threading.Lock()
 
         # Inspection state
-        self.synthesized_texts: List[str] = []
-        self.call_count:        int       = 0
+        self.synthesized_texts: list[str] = []
+        self.call_count: int = 0
 
     # ── BaseTTS interface ──────────────────────────────────────────────────────
 
@@ -147,11 +149,11 @@ class MockTTS(BaseTTS):
             sample_rate=self.SAMPLE_RATE,
         )
         return SynthesisOutput(
-            wav_bytes    = wav_bytes,
-            duration_sec = duration_sec,
-            text         = text,
-            sample_rate  = self.SAMPLE_RATE,
-            backend      = "mock",
+            wav_bytes=wav_bytes,
+            duration_sec=duration_sec,
+            text=text,
+            sample_rate=self.SAMPLE_RATE,
+            backend="mock",
         )
 
     def backend_name(self) -> str:

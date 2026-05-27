@@ -15,14 +15,15 @@ Tests cover
 * Thread-safety: concurrent retrieval does not raise
 * Empty query returns results without error
 """
+
 import threading
+
 import pytest
-
-from bonbon_llm.core.rag_retriever import RAGRetriever, RAGDocument, RetrievalResult
 from bonbon_llm.config.llm_config import RAGConfig
-
+from bonbon_llm.core.rag_retriever import RAGDocument, RAGRetriever, RetrievalResult
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def rag() -> RAGRetriever:
@@ -44,6 +45,7 @@ def rag_strict() -> RAGRetriever:
 
 # ── Default knowledge seeding ──────────────────────────────────────────────────
 
+
 class TestDefaultKnowledge:
 
     def test_docs_seeded_after_load(self, rag):
@@ -53,8 +55,9 @@ class TestDefaultKnowledge:
     def test_menu_retrievable(self, rag):
         results = rag.retrieve("latte price espresso menu")
         texts = [r.document.text for r in results]
-        assert any("menu" in t.lower() or "latte" in t.lower() or "espresso" in t.lower()
-                   for t in texts)
+        assert any(
+            "menu" in t.lower() or "latte" in t.lower() or "espresso" in t.lower() for t in texts
+        )
 
     def test_safety_retrievable(self, rag):
         results = rag.retrieve("safety rules stop navigation danger")
@@ -68,6 +71,7 @@ class TestDefaultKnowledge:
 
 
 # ── add_document / retrieve round-trip ───────────────────────────────────────
+
 
 class TestAddAndRetrieve:
 
@@ -103,14 +107,13 @@ class TestAddAndRetrieve:
 
 # ── retrieve_with_scores ──────────────────────────────────────────────────────
 
+
 class TestRetrieveWithScores:
 
     def test_scores_in_range(self, rag):
         results = rag.retrieve_with_scores("latte menu price")
         for r in results:
-            assert 0.0 <= r.score <= 1.0, (
-                f"Score {r.score} out of [0,1] range"
-            )
+            assert 0.0 <= r.score <= 1.0, f"Score {r.score} out of [0,1] range"
 
     def test_returns_retrieval_result_objects(self, rag):
         results = rag.retrieve_with_scores("robot navigation")
@@ -123,6 +126,7 @@ class TestRetrieveWithScores:
 
 
 # ── top_k enforcement ─────────────────────────────────────────────────────────
+
 
 class TestTopK:
 
@@ -143,6 +147,7 @@ class TestTopK:
 
 # ── Similarity threshold ──────────────────────────────────────────────────────
 
+
 class TestSimilarityThreshold:
 
     def test_threshold_filters_low_scores(self, rag_strict):
@@ -150,9 +155,7 @@ class TestSimilarityThreshold:
         results = rag_strict.retrieve("xkzqw nonsense gibberish")
         # All returned results must meet the threshold
         for r in results:
-            assert r.score >= 0.50, (
-                f"Result with score {r.score:.3f} below threshold 0.50"
-            )
+            assert r.score >= 0.50, f"Result with score {r.score:.3f} below threshold 0.50"
 
     def test_zero_threshold_allows_all(self, rag):
         # With threshold=0.0, even an empty/nonsense query returns results
@@ -161,6 +164,7 @@ class TestSimilarityThreshold:
 
 
 # ── build_context_string ──────────────────────────────────────────────────────
+
 
 class TestBuildContextString:
 
@@ -176,6 +180,7 @@ class TestBuildContextString:
 
 
 # ── Thread safety ─────────────────────────────────────────────────────────────
+
 
 class TestThreadSafety:
 
@@ -222,6 +227,7 @@ class TestThreadSafety:
 
 
 # ── Edge cases ────────────────────────────────────────────────────────────────
+
 
 class TestEdgeCases:
 

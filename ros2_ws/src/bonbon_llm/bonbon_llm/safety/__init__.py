@@ -9,25 +9,26 @@ Three-layer safety stack:
 
 No LLM-generated text ever reaches actuators or the nav stack directly.
 """
-from bonbon_llm.safety.command_filter import (
-    FilterStatus,
-    FilterResult,
-    SafetyCommandFilter,
-)
+
 from bonbon_llm.safety.authorization import (
-    AuthStatus,
-    AuthorizationResult,
-    SafetySnapshot,
-    CommandAuthorizer,
+    SAFETY_CAUTION,
+    SAFETY_DANGER,
+    SAFETY_DEGRADED,
+    SAFETY_DOCKING,
+    SAFETY_FAULT,
     # Safety state constants
     SAFETY_INITIALIZING,
     SAFETY_NORMAL,
-    SAFETY_CAUTION,
-    SAFETY_DANGER,
-    SAFETY_DOCKING,
-    SAFETY_DEGRADED,
-    SAFETY_FAULT,
     SAFETY_SAFE_STOP,
+    AuthorizationResult,
+    AuthStatus,
+    CommandAuthorizer,
+    SafetySnapshot,
+)
+from bonbon_llm.safety.command_filter import (
+    FilterResult,
+    FilterStatus,
+    SafetyCommandFilter,
 )
 from bonbon_llm.safety.hallucination_guard import GuardResult, HallucinationGuard
 

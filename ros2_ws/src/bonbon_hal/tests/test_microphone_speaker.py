@@ -4,17 +4,20 @@ test_microphone_speaker.py
 Tests for MockMicDriver and MockSpeakerDriver:
 normal reads, USB disconnect, corruption, play recording, volume.
 """
+
 from __future__ import annotations
+
 import struct
 import time
+
 import pytest
 from bonbon_hal.base.driver_base import DriverFault
-from bonbon_hal.drivers.microphone import MockMicDriver, AudioChunk
-from bonbon_hal.drivers.speaker import MockSpeakerDriver
+from bonbon_hal.drivers.microphone import AudioChunk, MockMicDriver
 from bonbon_hal.drivers.microphone.mic_driver import AudioChunk as AC
-
+from bonbon_hal.drivers.speaker import MockSpeakerDriver
 
 # ── Microphone ────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mic() -> MockMicDriver:
@@ -63,7 +66,7 @@ class TestMockMicNormal:
         assert chunk.doa_angle_deg == pytest.approx(45.0)
 
     def test_set_led_angle_no_error(self, mic):
-        mic.set_led_angle(90.0)   # should not raise
+        mic.set_led_angle(90.0)  # should not raise
 
 
 class TestMockMicFaults:
@@ -102,7 +105,8 @@ class TestMockMicRecovery:
     def test_reconnect_after_disconnect(self):
         mic = MockMicDriver(disconnect_after_n=2)
         mic.connect()
-        mic.read_chunk(); mic.read_chunk()
+        mic.read_chunk()
+        mic.read_chunk()
         try:
             mic.read_chunk()
         except DriverFault:
@@ -115,6 +119,7 @@ class TestMockMicRecovery:
 
 
 # ── Speaker ───────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def speaker() -> MockSpeakerDriver:

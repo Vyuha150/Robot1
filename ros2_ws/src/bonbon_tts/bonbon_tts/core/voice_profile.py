@@ -20,34 +20,35 @@ neutral   1.00   calm      1.10   friendly  1.00
 happy     0.93   sad       1.20   urgent    0.80
 excited   0.85   angry     0.88   whisper   1.15
 """
+
 from __future__ import annotations
 
 import copy
 import logging
-from dataclasses import dataclass, field, replace
-from typing import Dict, List, Optional
+from dataclasses import dataclass, replace
 
 logger = logging.getLogger(__name__)
 
 
 # ── Emotion table ──────────────────────────────────────────────────────────────
 
-_EMOTION_LENGTH_SCALE: Dict[str, float] = {
-    "neutral":  1.00,
-    "happy":    0.93,
-    "excited":  0.85,
-    "calm":     1.10,
-    "sad":      1.20,
-    "urgent":   0.80,
+_EMOTION_LENGTH_SCALE: dict[str, float] = {
+    "neutral": 1.00,
+    "happy": 0.93,
+    "excited": 0.85,
+    "calm": 1.10,
+    "sad": 1.20,
+    "urgent": 0.80,
     "friendly": 1.00,
-    "angry":    0.88,
-    "whisper":  1.15,
+    "angry": 0.88,
+    "whisper": 1.15,
 }
 
 DEFAULT_EMOTION = "neutral"
 
 
 # ── Voice profile ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class VoiceProfile:
@@ -71,15 +72,17 @@ class VoiceProfile:
     description:
         Optional human-readable note.
     """
-    language:    str   = "en"
-    voice_id:    str   = "en_US-lessac-medium"
-    model_path:  str   = ""
+
+    language: str = "en"
+    voice_id: str = "en_US-lessac-medium"
+    model_path: str = ""
     length_scale: float = 1.0
-    noise_scale:  float = 0.667
-    description: str   = ""
+    noise_scale: float = 0.667
+    description: str = ""
 
 
 # ── Manager ────────────────────────────────────────────────────────────────────
+
 
 class VoiceProfileManager:
     """
@@ -104,17 +107,17 @@ class VoiceProfileManager:
 
     def __init__(
         self,
-        profiles: Optional[Dict[str, VoiceProfile]] = None,
+        profiles: dict[str, VoiceProfile] | None = None,
     ) -> None:
-        self._profiles: Dict[str, VoiceProfile] = {}
+        self._profiles: dict[str, VoiceProfile] = {}
         self._language = "en"
 
         # Always register the English default
         self._profiles["en"] = VoiceProfile(
-            language    = "en",
-            voice_id    = "en_US-lessac-medium",
-            length_scale = 1.0,
-            description = "Default English (US) voice",
+            language="en",
+            voice_id="en_US-lessac-medium",
+            length_scale=1.0,
+            description="Default English (US) voice",
         )
         if profiles:
             for lang, profile in profiles.items():
@@ -125,12 +128,15 @@ class VoiceProfileManager:
     def add_profile(self, profile: VoiceProfile) -> None:
         """Register or replace a voice profile."""
         self._profiles[profile.language] = profile
-        logger.info("VoiceProfileManager: registered profile lang=%r voice=%r",
-                    profile.language, profile.voice_id)
+        logger.info(
+            "VoiceProfileManager: registered profile lang=%r voice=%r",
+            profile.language,
+            profile.voice_id,
+        )
 
     # ── Lookup ────────────────────────────────────────────────────────────────
 
-    def get_profile(self, language: Optional[str] = None) -> VoiceProfile:
+    def get_profile(self, language: str | None = None) -> VoiceProfile:
         """
         Return the profile for *language*, falling back to English.
 
@@ -197,20 +203,23 @@ class VoiceProfileManager:
             A new ``VoiceProfile`` instance; the original is not mutated.
         """
         emotion_lc = emotion.lower().strip()
-        modifier   = _EMOTION_LENGTH_SCALE.get(emotion_lc)
+        modifier = _EMOTION_LENGTH_SCALE.get(emotion_lc)
         if modifier is None:
             logger.warning(
-                "VoiceProfileManager: unknown emotion %r — ignoring", emotion,
+                "VoiceProfileManager: unknown emotion %r — ignoring",
+                emotion,
             )
             return copy.copy(profile)
 
         adjusted = replace(
             profile,
-            length_scale = round(profile.length_scale * modifier, 4),
+            length_scale=round(profile.length_scale * modifier, 4),
         )
         logger.debug(
             "VoiceProfileManager: emotion=%r length_scale %.3f → %.3f",
-            emotion, profile.length_scale, adjusted.length_scale,
+            emotion,
+            profile.length_scale,
+            adjusted.length_scale,
         )
         return adjusted
 
@@ -221,7 +230,7 @@ class VoiceProfileManager:
         return self._language
 
     @property
-    def supported_languages(self) -> List[str]:
+    def supported_languages(self) -> list[str]:
         """List of registered language codes."""
         return list(self._profiles.keys())
 

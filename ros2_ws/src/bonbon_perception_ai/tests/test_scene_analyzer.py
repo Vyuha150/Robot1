@@ -6,18 +6,25 @@ event detection (person arrived/left, activity changed, crowd formed),
 missing sensor data (all stale), wrong person recognition (spurious IDs),
 debounce.
 """
+
 import math
 import time
-import pytest
+
 from bonbon_perception_ai.config.perception_config import SceneConfig
 from bonbon_perception_ai.fusion.types import (
-    FusionContext, NavStatus, ObjectObservation,
-    PersonObservation, SpeechInput,
+    FusionContext,
+    NavStatus,
+    ObjectObservation,
+    PersonObservation,
+    SpeechInput,
 )
 from bonbon_perception_ai.understanding.scene_analyzer import (
-    SceneAnalyzer, SceneSnapshot,
-    ACTIVITY_IDLE, ACTIVITY_INTERACTING, ACTIVITY_NAVIGATING,
-    ACTIVITY_SERVING, ACTIVITY_CROWDED,
+    ACTIVITY_CROWDED,
+    ACTIVITY_IDLE,
+    ACTIVITY_INTERACTING,
+    ACTIVITY_NAVIGATING,
+    ACTIVITY_SERVING,
+    SceneAnalyzer,
 )
 
 
@@ -26,25 +33,29 @@ def _cfg(**kw) -> SceneConfig:
         near_person_threshold_m=2.0,
         interaction_proximity_m=1.5,
         crowded_threshold=3,
-        event_debounce_sec=0.0,   # disable debounce for tests
+        event_debounce_sec=0.0,  # disable debounce for tests
     )
     defaults.update(kw)
     return SceneConfig(**defaults)
 
 
 def _ctx(
-    persons=None, objects=None, speech=None,
-    nav_status=None, stale=None, uncertainty="LOW",
+    persons=None,
+    objects=None,
+    speech=None,
+    nav_status=None,
+    stale=None,
+    uncertainty="LOW",
 ) -> FusionContext:
     return FusionContext(
-        timestamp         = time.monotonic(),
-        objects           = objects or [],
-        persons           = persons or [],
-        speech            = speech,
-        robot_pose        = None,
-        nav_status        = nav_status,
-        stale_modalities  = stale or [],
-        uncertainty_level = uncertainty,
+        timestamp=time.monotonic(),
+        objects=objects or [],
+        persons=persons or [],
+        speech=speech,
+        robot_pose=None,
+        nav_status=nav_status,
+        stale_modalities=stale or [],
+        uncertainty_level=uncertainty,
     )
 
 
@@ -57,6 +68,7 @@ def _speech(text="hello", silence=False) -> SpeechInput:
 
 
 # ── Activity inference ────────────────────────────────────────────────────────
+
 
 class TestActivityInference:
     def test_no_persons_no_speech_idle(self):
@@ -96,12 +108,13 @@ class TestActivityInference:
 
     def test_exactly_threshold_not_crowded(self):
         an = SceneAnalyzer(_cfg(crowded_threshold=3))
-        persons = [_person(f"p{i}") for i in range(2)]   # 2 < 3
+        persons = [_person(f"p{i}") for i in range(2)]  # 2 < 3
         snap, _ = an.analyze(_ctx(persons=persons))
         assert not snap.is_crowded
 
 
 # ── Spatial context ───────────────────────────────────────────────────────────
+
 
 class TestSpatialContext:
     def test_open_space_no_persons(self):
@@ -122,14 +135,16 @@ class TestSpatialContext:
 
 # ── Missing sensor data ───────────────────────────────────────────────────────
 
+
 class TestMissingSensorData:
     def test_all_stale_high_uncertainty(self):
         an = SceneAnalyzer(_cfg())
-        ctx = _ctx(stale=["objects", "persons", "speech", "nav_status", "robot_pose"],
-                   uncertainty="HIGH")
+        ctx = _ctx(
+            stale=["objects", "persons", "speech", "nav_status", "robot_pose"], uncertainty="HIGH"
+        )
         snap, _ = an.analyze(ctx)
         assert snap.uncertainty_level == "HIGH"
-        assert snap.confidence < 0.5   # penalised heavily
+        assert snap.confidence < 0.5  # penalised heavily
 
     def test_stale_modalities_in_snapshot(self):
         an = SceneAnalyzer(_cfg())
@@ -145,6 +160,7 @@ class TestMissingSensorData:
 
 # ── Wrong person recognition (spurious / flip IDs) ───────────────────────────
 
+
 class TestWrongPersonRecognition:
     def test_spurious_id_creates_arrived_event(self):
         an = SceneAnalyzer(_cfg())
@@ -152,8 +168,8 @@ class TestWrongPersonRecognition:
         # next frame: different ID (recognition error)
         _, events = an.analyze(_ctx(persons=[_person("ghost_id")]))
         types = {e.event_type for e in events}
-        assert "person_arrived" in types    # ghost_id "arrived"
-        assert "person_left" in types       # real_person "left"
+        assert "person_arrived" in types  # ghost_id "arrived"
+        assert "person_left" in types  # real_person "left"
 
     def test_consistent_id_no_events(self):
         an = SceneAnalyzer(_cfg())
@@ -172,6 +188,7 @@ class TestWrongPersonRecognition:
 
 # ── Event detection ───────────────────────────────────────────────────────────
 
+
 class TestEventDetection:
     def test_no_events_first_call(self):
         an = SceneAnalyzer(_cfg())
@@ -182,19 +199,17 @@ class TestEventDetection:
         an = SceneAnalyzer(_cfg())
         an.analyze(_ctx())
         _, events = an.analyze(_ctx(persons=[_person("p1")]))
-        assert any(e.event_type == "person_arrived" and e.subject_id == "p1"
-                   for e in events)
+        assert any(e.event_type == "person_arrived" and e.subject_id == "p1" for e in events)
 
     def test_person_left_event(self):
         an = SceneAnalyzer(_cfg())
         an.analyze(_ctx(persons=[_person("p1")]))
         _, events = an.analyze(_ctx())
-        assert any(e.event_type == "person_left" and e.subject_id == "p1"
-                   for e in events)
+        assert any(e.event_type == "person_left" and e.subject_id == "p1" for e in events)
 
     def test_activity_changed_event(self):
         an = SceneAnalyzer(_cfg())
-        an.analyze(_ctx())   # idle
+        an.analyze(_ctx())  # idle
         nav = NavStatus(status="navigating", is_moving=True)
         _, events = an.analyze(_ctx(nav_status=nav))
         assert any(e.event_type == "activity_changed" for e in events)
@@ -211,8 +226,7 @@ class TestEventDetection:
         an.analyze(_ctx())
         obj = ObjectObservation(class_name="cup", confidence=0.9)
         _, events = an.analyze(_ctx(objects=[obj]))
-        assert any(e.event_type == "object_appeared" and e.subject_id == "cup"
-                   for e in events)
+        assert any(e.event_type == "object_appeared" and e.subject_id == "cup" for e in events)
 
     def test_object_disappeared_event(self):
         an = SceneAnalyzer(_cfg())

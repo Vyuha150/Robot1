@@ -24,17 +24,19 @@ Covered here
 * VisionNode._decode_color / _decode_depth: static helpers for Image message decoding
 * VisionNode._fuse_face_ids: nearest-face proximity assignment
 """
+
 import math
 import sys
 import types
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 
 # ---------------------------------------------------------------------------
 # Minimal stubs so we can import vision_node without a ROS2 install.
 # ---------------------------------------------------------------------------
+
 
 def _stub_module(name: str, **attrs) -> types.ModuleType:
     m = types.ModuleType(name)
@@ -47,62 +49,81 @@ def _ensure_ros_stubs():
     """Inject minimal ROS2 stubs if the real packages are absent."""
     try:
         import rclpy  # noqa
-        return   # real rclpy available
+
+        return  # real rclpy available
     except ImportError:
         pass
 
     # rclpy
     rclpy_stub = _stub_module("rclpy")
-    rclpy_stub.init   = lambda args=None: None
-    rclpy_stub.spin   = lambda n: None
+    rclpy_stub.init = lambda args=None: None
+    rclpy_stub.spin = lambda n: None
     rclpy_stub.shutdown = lambda: None
     sys.modules["rclpy"] = rclpy_stub
 
     # rclpy.lifecycle
     class _LCNode:
-        def __init__(self, name, **kw): self.name = name
+        def __init__(self, name, **kw):
+            self.name = name
+
         def get_logger(self):
             class L:
-                def info(s, *a): pass
-                def warn(s, *a): pass
-                def warning(s, *a): pass
-                def error(s, *a): pass
-                def debug(s, *a): pass
+                def info(s, *a):
+                    pass
+
+                def warn(s, *a):
+                    pass
+
+                def warning(s, *a):
+                    pass
+
+                def error(s, *a):
+                    pass
+
+                def debug(s, *a):
+                    pass
+
             return L()
-        def create_timer(self, *a, **kw): return MagicMock()
-        def create_publisher(self, *a, **kw): return MagicMock()
-        def create_subscription(self, *a, **kw): return MagicMock()
-        def declare_parameter(self, *a, **kw): return MagicMock()
+
+        def create_timer(self, *a, **kw):
+            return MagicMock()
+
+        def create_publisher(self, *a, **kw):
+            return MagicMock()
+
+        def create_subscription(self, *a, **kw):
+            return MagicMock()
+
+        def declare_parameter(self, *a, **kw):
+            return MagicMock()
+
         def get_parameter(self, name):
             pm = MagicMock()
             pm.value = None
             return pm
+
         def get_clock(self):
             c = MagicMock()
             c.now.return_value = MagicMock(to_msg=lambda: None)
             return c
 
-    lifecycle = _stub_module("rclpy.lifecycle",
-                             LifecycleNode=_LCNode,
-                             TransitionCallbackReturn=type("T", (), {
-                                 "SUCCESS": 0, "ERROR": 1, "FAILURE": 2
-                             }),
-                             State=object)
+    lifecycle = _stub_module(
+        "rclpy.lifecycle",
+        LifecycleNode=_LCNode,
+        TransitionCallbackReturn=type("T", (), {"SUCCESS": 0, "ERROR": 1, "FAILURE": 2}),
+        State=object,
+    )
     sys.modules["rclpy.lifecycle"] = lifecycle
 
     # rclpy.qos
     for sub in ["rclpy.qos"]:
-        qos = _stub_module(sub,
-                           QoSProfile=lambda **kw: None,
-                           ReliabilityPolicy=type("R", (), {
-                               "RELIABLE": 1, "BEST_EFFORT": 0
-                           }),
-                           DurabilityPolicy=type("D", (), {
-                               "TRANSIENT_LOCAL": 1, "VOLATILE": 0
-                           }),
-                           HistoryPolicy=type("H", (), {
-                               "KEEP_LAST": 0, "KEEP_ALL": 1
-                           }))
+        qos = _stub_module(
+            sub,
+            QoSProfile=lambda **kw: None,
+            ReliabilityPolicy=type("R", (), {"RELIABLE": 1, "BEST_EFFORT": 0}),
+            DurabilityPolicy=type("D", (), {"TRANSIENT_LOCAL": 1, "VOLATILE": 0}),
+            HistoryPolicy=type("H", (), {"KEEP_LAST": 0, "KEEP_ALL": 1}),
+        )
         sys.modules[sub] = qos
 
     # geometry_msgs
@@ -116,19 +137,19 @@ def _ensure_ros_stubs():
 
     class _Image:
         def __init__(self):
-            self.header  = MagicMock()
-            self.height  = 0
-            self.width   = 0
+            self.header = MagicMock()
+            self.height = 0
+            self.width = 0
             self.encoding = "bgr8"
-            self.data    = b""
-            self.step    = 0
+            self.data = b""
+            self.step = 0
+
     sys.modules["sensor_msgs.msg"] = _stub_module("sensor_msgs.msg", Image=_Image)
 
     # std_msgs
     sys.modules["std_msgs"] = _stub_module("std_msgs")
     sys.modules["std_msgs.msg"] = _stub_module(
-        "std_msgs.msg",
-        Header=type("Header", (), {"frame_id": "", "stamp": None})
+        "std_msgs.msg", Header=type("Header", (), {"frame_id": "", "stamp": None})
     )
 
     # bonbon_msgs
@@ -149,38 +170,42 @@ def _ensure_ros_stubs():
 _ensure_ros_stubs()
 
 # Now we can import pipeline helpers without crashing
-from bonbon_vision.preprocessing.frame_processor import (
-    FrameProcessor, FrameQuality,
-)
-from bonbon_vision.preprocessing.frame_throttler import FrameThrottler
-from bonbon_vision.detectors.base_detector import ObjectDetection, DetectionResult
-from bonbon_vision.detectors.mock_detector import MockDetector
-from bonbon_vision.face.face_pipeline import FacePipeline, FaceDetection, FaceResult
-from bonbon_vision.face.privacy_guard import PrivacyGuard
 from bonbon_vision.config.vision_config import (
-    VisionConfig, DetectorConfig, PreprocessConfig, PrivacyConfig,
-    FaceConfig, TrackingConfig,
+    PreprocessConfig,
+    PrivacyConfig,
 )
+from bonbon_vision.detectors.base_detector import ObjectDetection
+from bonbon_vision.detectors.mock_detector import MockDetector
+from bonbon_vision.face.face_pipeline import FaceDetection, FaceResult
+from bonbon_vision.face.privacy_guard import PrivacyGuard
 
 # Import the tracker helpers embedded in vision_node
-from bonbon_vision.nodes.vision_node import _iou, _SimpleTracker, _Track
-
+from bonbon_vision.nodes.vision_node import _iou, _SimpleTracker
+from bonbon_vision.preprocessing.frame_processor import (
+    FrameProcessor,
+    FrameQuality,
+)
 
 # ── Frame factories ────────────────────────────────────────────────────────────
+
 
 def _bright(h=480, w=640, b=120):
     return np.full((h, w, 3), b, dtype=np.uint8)
 
+
 def _black(h=480, w=640):
     return np.zeros((h, w, 3), dtype=np.uint8)
 
+
 def _dark(h=480, w=640, b=20):
     return np.full((h, w, 3), b, dtype=np.uint8)
+
 
 def _nan_float(h=480, w=640):
     arr = np.ones((h, w, 3), dtype=np.float32)
     arr[0, 0, 0] = math.nan
     return arr
+
 
 def _det(bbox=(100, 100, 80, 200), class_id=0, depth=2.0):
     return ObjectDetection(
@@ -195,6 +220,7 @@ def _det(bbox=(100, 100, 80, 200), class_id=0, depth=2.0):
 
 # ── _iou helper ───────────────────────────────────────────────────────────────
 
+
 class TestIoU(unittest.TestCase):
     def test_zero_overlap(self):
         a = (0, 0, 10, 10)
@@ -208,7 +234,7 @@ class TestIoU(unittest.TestCase):
     def test_partial_overlap(self):
         a = (0, 0, 10, 10)  # area=100
         b = (5, 0, 10, 10)  # area=100, overlap=50
-        iou = _iou(a, b)    # 50 / 150
+        iou = _iou(a, b)  # 50 / 150
         self.assertAlmostEqual(iou, 50.0 / 150.0, places=4)
 
     def test_symmetric(self):
@@ -224,10 +250,10 @@ class TestIoU(unittest.TestCase):
 
 # ── _SimpleTracker ────────────────────────────────────────────────────────────
 
+
 class TestSimpleTracker(unittest.TestCase):
     def _tracker(self, iou=0.3, max_lost=3, max_tracks=20):
-        return _SimpleTracker(iou_thresh=iou, max_lost=max_lost,
-                              max_tracks=max_tracks)
+        return _SimpleTracker(iou_thresh=iou, max_lost=max_lost, max_tracks=max_tracks)
 
     def test_new_detection_creates_track(self):
         tracker = self._tracker()
@@ -254,7 +280,7 @@ class TestSimpleTracker(unittest.TestCase):
         tracker = self._tracker(max_lost=2)
         det = _det(bbox=(50, 100, 60, 150))
         for _ in range(3):
-            tracker.update([det])   # confirm track
+            tracker.update([det])  # confirm track
         # Stop providing detections
         tracker.update([])
         tracker.update([])
@@ -283,7 +309,7 @@ class TestSimpleTracker(unittest.TestCase):
 
     def test_multiple_objects_tracked_independently(self):
         tracker = self._tracker()
-        det_a = _det(bbox=(0,   0, 50, 100))
+        det_a = _det(bbox=(0, 0, 50, 100))
         det_b = _det(bbox=(400, 0, 50, 100))
         for _ in range(4):
             tracker.update([det_a, det_b])
@@ -294,6 +320,7 @@ class TestSimpleTracker(unittest.TestCase):
 
 # ── Fake camera pipeline test ─────────────────────────────────────────────────
 
+
 class TestFakeCameraPipeline(unittest.TestCase):
     """
     Pumps synthetic frames through FrameProcessor → MockDetector → _SimpleTracker.
@@ -302,13 +329,15 @@ class TestFakeCameraPipeline(unittest.TestCase):
 
     def _make_pipeline(self, brightness_threshold=50.0):
         cfg_pre = PreprocessConfig(
-            resize_width=64, resize_height=48,
-            enable_clahe=True, brightness_threshold=brightness_threshold,
+            resize_width=64,
+            resize_height=48,
+            enable_clahe=True,
+            brightness_threshold=brightness_threshold,
             min_mean_brightness=2.0,
         )
         processor = FrameProcessor(cfg_pre)
-        detector  = MockDetector(num_detections=2)
-        tracker   = _SimpleTracker()
+        detector = MockDetector(num_detections=2)
+        tracker = _SimpleTracker()
         return processor, detector, tracker
 
     def _run(self, frame, processor, detector, tracker, depth=None):
@@ -324,7 +353,9 @@ class TestFakeCameraPipeline(unittest.TestCase):
         for _ in range(3):
             tracks, quality = self._run(_bright(), processor, detector, tracker)
         self.assertIn(quality, (FrameQuality.OK, FrameQuality.LOW_LIGHT))
-        self.assertGreater(len(detector.call_count) if hasattr(detector, '__iter__') else detector.call_count, 0)
+        self.assertGreater(
+            len(detector.call_count) if hasattr(detector, "__iter__") else detector.call_count, 0
+        )
 
     def test_empty_frame_no_detections(self):
         processor, detector, tracker = self._make_pipeline()
@@ -372,21 +403,22 @@ class TestFakeCameraPipeline(unittest.TestCase):
 
 # ── Privacy mode integration ──────────────────────────────────────────────────
 
+
 class TestPrivacyIntegration(unittest.TestCase):
     def test_privacy_anonymises_copy(self):
-        cfg     = PrivacyConfig(enabled=True, blur_kernel_size=7)
-        guard   = PrivacyGuard(cfg)
-        frame   = _bright()
-        faces   = [(100, 50, 80, 100)]
-        before  = frame.copy()
-        result  = guard.anonymise(frame, faces)
+        cfg = PrivacyConfig(enabled=True, blur_kernel_size=7)
+        guard = PrivacyGuard(cfg)
+        frame = _bright()
+        faces = [(100, 50, 80, 100)]
+        before = frame.copy()
+        result = guard.anonymise(frame, faces)
         # Original must not be modified
         np.testing.assert_array_equal(frame, before)
         # Result is a different object
         self.assertIsNot(result, frame)
 
     def test_privacy_disabled_no_change(self):
-        cfg   = PrivacyConfig(enabled=False)
+        cfg = PrivacyConfig(enabled=False)
         guard = PrivacyGuard(cfg)
         frame = _bright()
         result = guard.anonymise(frame, [(50, 50, 80, 80)])
@@ -394,6 +426,7 @@ class TestPrivacyIntegration(unittest.TestCase):
 
 
 # ── _decode_color / _decode_depth static helpers ─────────────────────────────
+
 
 class TestDecodeHelpers(unittest.TestCase):
     """
@@ -403,8 +436,8 @@ class TestDecodeHelpers(unittest.TestCase):
 
     def _fake_bgr8_msg(self, h=8, w=8):
         msg = MagicMock()
-        msg.height   = h
-        msg.width    = w
+        msg.height = h
+        msg.width = w
         msg.encoding = "bgr8"
         arr = np.full((h, w, 3), 128, dtype=np.uint8)
         msg.data = arr.tobytes()
@@ -413,8 +446,8 @@ class TestDecodeHelpers(unittest.TestCase):
 
     def _fake_32fc1_msg(self, h=8, w=8, val=2.0):
         msg = MagicMock()
-        msg.height   = h
-        msg.width    = w
+        msg.height = h
+        msg.width = w
         msg.encoding = "32FC1"
         arr = np.full((h, w), val, dtype=np.float32)
         msg.data = arr.tobytes()
@@ -440,14 +473,15 @@ class TestDecodeHelpers(unittest.TestCase):
     def test_decode_16uc1_roundtrip(self):
         """Simulate 16UC1 depth (millimetres → metres)."""
         h, w = 8, 8
-        mm  = np.full((h, w), 1500, dtype=np.uint16)  # 1500 mm = 1.5 m
+        mm = np.full((h, w), 1500, dtype=np.uint16)  # 1500 mm = 1.5 m
         data = mm.tobytes()
         decoded_mm = np.frombuffer(data, dtype=np.uint16).reshape(h, w)
-        decoded_m  = decoded_mm.astype(np.float32) / 1000.0
+        decoded_m = decoded_mm.astype(np.float32) / 1000.0
         self.assertAlmostEqual(float(decoded_m[0, 0]), 1.5, places=4)
 
 
 # ── _fuse_face_ids logic ──────────────────────────────────────────────────────
+
 
 class TestFuseFaceIds(unittest.TestCase):
     """
@@ -475,7 +509,9 @@ class TestFuseFaceIds(unittest.TestCase):
 
     def _make_track(self, cx, cy, face_id=""):
         t = MagicMock()
-        t.cx = cx; t.cy = cy; t.face_id = face_id
+        t.cx = cx
+        t.cy = cy
+        t.face_id = face_id
         return t
 
     def _make_face(self, cx, cy, face_id, size=60):
@@ -493,7 +529,7 @@ class TestFuseFaceIds(unittest.TestCase):
 
     def test_distant_face_not_assigned(self):
         t = self._make_track(320, 150)
-        face = self._make_face(20, 20, "bob")    # far away
+        face = self._make_face(20, 20, "bob")  # far away
         fr = FaceResult(faces=[face])
         self._fuse([t], fr)
         self.assertEqual(t.face_id, "")
@@ -501,7 +537,7 @@ class TestFuseFaceIds(unittest.TestCase):
     def test_multiple_faces_nearest_wins(self):
         t = self._make_track(200, 200)
         face_near = self._make_face(210, 190, "near_person")
-        face_far  = self._make_face(500, 400, "far_person")
+        face_far = self._make_face(500, 400, "far_person")
         fr = FaceResult(faces=[face_near, face_far])
         self._fuse([t], fr)
         self.assertEqual(t.face_id, "near_person")

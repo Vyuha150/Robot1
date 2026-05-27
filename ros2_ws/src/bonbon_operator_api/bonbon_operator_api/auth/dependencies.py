@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -33,7 +32,7 @@ def _get_audit_logger(request: Request):
 
 async def get_current_user(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> TokenPayload:
     """Dependency: validate Bearer token and return decoded payload.
 
@@ -42,7 +41,7 @@ async def get_current_user(
     auth_manager = _get_auth_manager(request)
 
     # Try header first, then query param (for WebSocket compatibility)
-    token: Optional[str] = None
+    token: str | None = None
     if credentials:
         token = credentials.credentials
     else:
@@ -57,19 +56,19 @@ async def get_current_user(
 
     try:
         payload = auth_manager.decode_token(token)
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
     except jwt.InvalidTokenError as exc:
         logger.debug("Invalid token: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
 
     # Verify user still active in DB
     user = auth_manager.get_user_by_id(payload.sub)
@@ -92,7 +91,10 @@ def require_permission(permission: str):
         if not role_mgr.has_permission(current_user.role, permission):
             logger.warning(
                 "Permission denied: user=%s role=%s required=%s path=%s",
-                current_user.username, current_user.role, permission, request.url.path,
+                current_user.username,
+                current_user.role,
+                permission,
+                request.url.path,
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -19,7 +19,7 @@ import json
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import PrivacyLevel
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
@@ -42,7 +42,7 @@ class BaseRepository(ABC):
         """Persist *record* and return its primary-key string."""
 
     @abstractmethod
-    def get_by_id(self, record_id: str) -> Optional[Any]:
+    def get_by_id(self, record_id: str) -> Any | None:
         """Return the record with *record_id*, or ``None`` if not found."""
 
     @abstractmethod
@@ -74,7 +74,7 @@ class BaseRepository(ABC):
         return json.dumps(obj, ensure_ascii=False)
 
     @staticmethod
-    def _from_json(text: Optional[str]) -> Any:
+    def _from_json(text: str | None) -> Any:
         if not text:
             return None
         try:
@@ -82,14 +82,14 @@ class BaseRepository(ABC):
         except (json.JSONDecodeError, TypeError):
             return text
 
-    def _fetchone(self, sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
+    def _fetchone(self, sql: str, params: tuple = ()) -> dict[str, Any] | None:
         """Execute *sql* and return the first row as a plain dict, or None."""
         row = self._conn.get().execute(sql, params).fetchone()
         if row is None:
             return None
         return dict(row)
 
-    def _fetchall(self, sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    def _fetchall(self, sql: str, params: tuple = ()) -> list[dict[str, Any]]:
         """Execute *sql* and return all rows as plain dicts."""
         rows = self._conn.get().execute(sql, params).fetchall()
         return [dict(r) for r in rows]
@@ -101,9 +101,11 @@ class BaseRepository(ABC):
         return cur.rowcount
 
     def _count(self, table: str, where: str = "1=1", params: tuple = ()) -> int:
-        row = self._conn.get().execute(
-            f"SELECT COUNT(*) FROM {table} WHERE {where};", params
-        ).fetchone()
+        row = (
+            self._conn.get()
+            .execute(f"SELECT COUNT(*) FROM {table} WHERE {where};", params)
+            .fetchone()
+        )
         return int(row[0]) if row else 0
 
     def purge_expired(self, table: str, ts_column: str, cutoff_ts: float) -> int:

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import ast
 from dataclasses import dataclass, field
 from pathlib import Path
-import ast
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 try:
     import yaml  # type: ignore
@@ -11,7 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised when PyYAML is absen
     yaml = None
 
 
-Point = Tuple[float, float]
+Point = tuple[float, float]
 
 
 @dataclass(frozen=True)
@@ -54,7 +54,7 @@ class ScenarioEvent:
     time_sec: float
     type: str
     target: str = "robot"
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -67,9 +67,9 @@ class ScenarioConfig:
     environment: str
     duration_sec: float = 120.0
     headless: bool = True
-    entities: List[Dict[str, Any]] = field(default_factory=list)
-    events: List[ScenarioEvent] = field(default_factory=list)
-    criteria: Dict[str, Any] = field(default_factory=dict)
+    entities: list[dict[str, Any]] = field(default_factory=list)
+    events: list[ScenarioEvent] = field(default_factory=list)
+    criteria: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -84,7 +84,7 @@ class SimulationConfig:
     accelerated_endurance: bool = True
 
     @classmethod
-    def from_file(cls, path: str | Path) -> "SimulationConfig":
+    def from_file(cls, path: str | Path) -> SimulationConfig:
         data = _load_yaml(path)
         robot = RobotDimensions(**data.get("robot", {}))
         sensors = SensorConfig(**data.get("sensors", {}))
@@ -128,7 +128,7 @@ def load_scenario(path: str | Path) -> ScenarioConfig:
     )
 
 
-def _load_yaml(path: str | Path) -> Dict[str, Any]:
+def _load_yaml(path: str | Path) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as handle:
         text = handle.read()
     if yaml is not None:
@@ -142,7 +142,7 @@ def _point(value: Any) -> Point:
     return (float(value[0]), float(value[1]))
 
 
-def _parse_minimal_yaml(text: str) -> Dict[str, Any]:
+def _parse_minimal_yaml(text: str) -> dict[str, Any]:
     """Parse the small YAML subset used by simulation configs.
 
     This fallback keeps the headless test suite dependency-light. It supports
@@ -159,7 +159,7 @@ def _parse_minimal_yaml(text: str) -> Dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _parse_yaml_block(lines: List[Tuple[int, str]], index: int, indent: int) -> Tuple[Any, int]:
+def _parse_yaml_block(lines: list[tuple[int, str]], index: int, indent: int) -> tuple[Any, int]:
     if index >= len(lines):
         return {}, index
     if lines[index][1].startswith("- "):
@@ -188,7 +188,7 @@ def _parse_yaml_block(lines: List[Tuple[int, str]], index: int, indent: int) -> 
             result.append(item)
         return result, index
 
-    result: Dict[str, Any] = {}
+    result: dict[str, Any] = {}
     while index < len(lines) and lines[index][0] == indent:
         text = lines[index][1]
         key, value = text.split(":", 1)
@@ -229,8 +229,8 @@ def _parse_scalar(value: str) -> Any:
         return value
 
 
-def _parse_inline_map(value: str) -> Dict[str, Any]:
-    result: Dict[str, Any] = {}
+def _parse_inline_map(value: str) -> dict[str, Any]:
+    result: dict[str, Any] = {}
     for part in _split_top_level(value):
         if not part.strip():
             continue
@@ -239,8 +239,8 @@ def _parse_inline_map(value: str) -> Dict[str, Any]:
     return result
 
 
-def _split_top_level(value: str) -> List[str]:
-    parts: List[str] = []
+def _split_top_level(value: str) -> list[str]:
+    parts: list[str] = []
     depth = 0
     start = 0
     for idx, char in enumerate(value):

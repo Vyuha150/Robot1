@@ -8,47 +8,46 @@ These tests exercise the complete path:
 
 No real audio device, Piper model, or ROS2 installation is required.
 """
+
 import time
 
-import pytest
-
 from bonbon_tts.backends.mock_tts import MockTTS
-from bonbon_tts.core.speech_synthesizer import SpeechSynthesizer
-from bonbon_tts.core.utterance_queue import UtteranceQueue, Utterance, Priority
 from bonbon_tts.core.filler_player import FillerPlayer
-from bonbon_tts.core.tts_health import TTSHealthTracker
+from bonbon_tts.core.speech_synthesizer import SpeechSynthesizer
+from bonbon_tts.core.utterance_queue import Priority, Utterance, UtteranceQueue
 from bonbon_tts.speaker.speaker_bridge import MockSpeakerBridge
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _pipeline(
     *,
-    queue_max:      int   = 32,
-    cooldown_sec:   float = 0.0,
-    filler_enabled: bool  = False,
+    queue_max: int = 32,
+    cooldown_sec: float = 0.0,
+    filler_enabled: bool = False,
 ) -> tuple[SpeechSynthesizer, MockTTS, MockSpeakerBridge]:
-    tts     = MockTTS()
+    tts = MockTTS()
     speaker = MockSpeakerBridge()
-    queue   = UtteranceQueue(max_depth=queue_max)
-    filler  = FillerPlayer(
-        cooldown_sec        = cooldown_sec,
-        trigger_queue_depth = 2,
-        trigger_latency_ms  = 0.0,
-        enabled             = filler_enabled,
+    queue = UtteranceQueue(max_depth=queue_max)
+    filler = FillerPlayer(
+        cooldown_sec=cooldown_sec,
+        trigger_queue_depth=2,
+        trigger_latency_ms=0.0,
+        enabled=filler_enabled,
     )
     filler.load()
     synth = SpeechSynthesizer(
-        primary_tts  = tts,
-        speaker      = speaker,
-        queue        = queue,
-        fallback_tts = MockTTS(),
-        filler       = filler,
+        primary_tts=tts,
+        speaker=speaker,
+        queue=queue,
+        fallback_tts=MockTTS(),
+        filler=filler,
     )
     return synth, tts, speaker
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
+
 
 class TestPipelineSmokeTest:
     def test_single_utterance_end_to_end(self):
@@ -74,7 +73,7 @@ class TestPipelineSmokeTest:
         assert synth.wait_until_idle(timeout=10.0)
         synth.stop()
 
-        assert tts.call_count  == 5
+        assert tts.call_count == 5
         assert speaker.play_count == 5
 
 
@@ -88,12 +87,12 @@ class TestPipelinePriority:
         by the time we enqueue EMERGENCY.  We verify that EMERGENCY is
         synthesised at some point.
         """
-        tts     = MockTTS(simulate_latency_ms=30.0)
+        tts = MockTTS(simulate_latency_ms=30.0)
         speaker = MockSpeakerBridge()
-        synth   = SpeechSynthesizer(
-            primary_tts  = tts,
-            speaker      = speaker,
-            fallback_tts = MockTTS(),
+        synth = SpeechSynthesizer(
+            primary_tts=tts,
+            speaker=speaker,
+            fallback_tts=MockTTS(),
         )
         synth.start()
 
@@ -109,16 +108,16 @@ class TestPipelinePriority:
         assert tts.call_count == 4
 
     def test_low_after_high(self):
-        tts     = MockTTS()
+        tts = MockTTS()
         speaker = MockSpeakerBridge()
-        synth   = SpeechSynthesizer(
-            primary_tts  = tts,
-            speaker      = speaker,
-            fallback_tts = MockTTS(),
+        synth = SpeechSynthesizer(
+            primary_tts=tts,
+            speaker=speaker,
+            fallback_tts=MockTTS(),
         )
         synth.start()
 
-        synth.say(Utterance(text="low",  priority=Priority.LOW))
+        synth.say(Utterance(text="low", priority=Priority.LOW))
         synth.say(Utterance(text="high", priority=Priority.HIGH))
 
         assert synth.wait_until_idle(timeout=5.0)
@@ -134,11 +133,13 @@ class TestPipelineDeduplication:
         synth.start()
 
         for pct in [50, 49, 48]:
-            synth.say(Utterance(
-                text      = f"Battery {pct}%",
-                dedup_key = "battery_status",
-                priority  = Priority.LOW,
-            ))
+            synth.say(
+                Utterance(
+                    text=f"Battery {pct}%",
+                    dedup_key="battery_status",
+                    priority=Priority.LOW,
+                )
+            )
             time.sleep(0.001)
 
         assert synth.wait_until_idle(timeout=5.0)
@@ -156,12 +157,12 @@ class TestPipelineStaleEviction:
 
         # Enqueue a stale item directly into the queue (bypassing say())
         stale_utt = Utterance(
-            text        = "should not play",
-            max_age_sec = 0.01,
-            priority    = Priority.NORMAL,
+            text="should not play",
+            max_age_sec=0.01,
+            priority=Priority.NORMAL,
         )
         synth.queue.enqueue(stale_utt)
-        time.sleep(0.05)   # let it expire
+        time.sleep(0.05)  # let it expire
 
         synth.say(Utterance(text="fresh", priority=Priority.LOW))
 
@@ -186,22 +187,22 @@ class TestPipelineHealthReporting:
         synth.stop()
 
         report = synth.get_health_report()
-        assert report.utterances_played  == 3
-        assert report.synthesis_errors   == 0
-        assert report.last_synthesis_ms  >= 0.0
-        assert report.mean_synthesis_ms  >= 0.0
+        assert report.utterances_played == 3
+        assert report.synthesis_errors == 0
+        assert report.last_synthesis_ms >= 0.0
+        assert report.mean_synthesis_ms >= 0.0
 
     def test_health_shows_fallback(self):
-        primary  = MockTTS()
+        primary = MockTTS()
         fallback = MockTTS()
-        speaker  = MockSpeakerBridge()
+        speaker = MockSpeakerBridge()
 
-        primary.fail_next = True   # force one fallback
+        primary.fail_next = True  # force one fallback
 
         synth = SpeechSynthesizer(
-            primary_tts  = primary,
-            speaker      = speaker,
-            fallback_tts = fallback,
+            primary_tts=primary,
+            speaker=speaker,
+            fallback_tts=fallback,
         )
         synth.start()
         synth.say(Utterance(text="test fallback"))
@@ -220,7 +221,7 @@ class TestPipelineQueueOverflow:
         synth.queue.enqueue(Utterance(text="low-a", priority=Priority.LOW))
         synth.queue.enqueue(Utterance(text="low-b", priority=Priority.LOW))
         synth.queue.enqueue(Utterance(text="low-c", priority=Priority.LOW))
-        synth.queue.enqueue(Utterance(text="high",  priority=Priority.HIGH))
+        synth.queue.enqueue(Utterance(text="high", priority=Priority.HIGH))
 
         # Queue at max=3: adding HIGH caused one LOW to be dropped
         assert synth.queue.overflow_count == 1

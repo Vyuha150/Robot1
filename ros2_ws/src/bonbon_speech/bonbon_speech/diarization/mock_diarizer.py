@@ -3,16 +3,18 @@ bonbon_speech.diarization.mock_diarizer
 ========================================
 Controllable mock diarizer for unit tests.
 """
+
 from __future__ import annotations
 
 import time
-from typing import List, Optional
 
 import numpy as np
 
 from bonbon_speech.config.speech_config import DiarizationConfig
 from bonbon_speech.diarization.base_diarizer import (
-    BaseDiarizer, DiarizationResult, SpeakerSegment,
+    BaseDiarizer,
+    DiarizationResult,
+    SpeakerSegment,
 )
 
 
@@ -28,8 +30,8 @@ class MockDiarizer(BaseDiarizer):
 
     def __init__(
         self,
-        cfg: Optional[DiarizationConfig] = None,
-        responses: Optional[List[DiarizationResult]] = None,
+        cfg: DiarizationConfig | None = None,
+        responses: list[DiarizationResult] | None = None,
         block_sec: float = 0.0,
     ) -> None:
         if cfg is None:
@@ -43,9 +45,9 @@ class MockDiarizer(BaseDiarizer):
             )
         ]
         self._block_sec = block_sec
-        self._call_idx  = 0
-        self.loaded      = False
-        self.call_count  = 0
+        self._call_idx = 0
+        self.loaded = False
+        self.call_count = 0
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -73,9 +75,9 @@ class MockDiarizer(BaseDiarizer):
 
     # ── Test helpers ─────────────────────────────────────────────────────────
 
-    def set_responses(self, responses: List[DiarizationResult]) -> None:
+    def set_responses(self, responses: list[DiarizationResult]) -> None:
         self._responses = responses
-        self._call_idx  = 0
+        self._call_idx = 0
 
     def set_block(self, block_sec: float) -> None:
         self._block_sec = block_sec

@@ -30,24 +30,40 @@ Scenario F — Blocked navigation in FAULT safety state
     request_behavior(navigate_to_goal) with FAULT state →
     Authorization denied, behavior dispatcher never called.
 """
+
 import sys
 import types
 from unittest.mock import MagicMock
 
-import pytest
-
 # ── Stub ROS2 ─────────────────────────────────────────────────────────────────
+
 
 def _ensure_ros_stub():
     for name in (
-        "rclpy", "rclpy.node", "rclpy.lifecycle", "rclpy.lifecycle.node",
-        "bonbon_msgs", "bonbon_msgs.msg", "bonbon_srvs", "bonbon_srvs.srv",
-        "std_msgs", "std_msgs.msg", "lifecycle_msgs", "lifecycle_msgs.msg",
+        "rclpy",
+        "rclpy.node",
+        "rclpy.lifecycle",
+        "rclpy.lifecycle.node",
+        "bonbon_msgs",
+        "bonbon_msgs.msg",
+        "bonbon_srvs",
+        "bonbon_srvs.srv",
+        "std_msgs",
+        "std_msgs.msg",
+        "lifecycle_msgs",
+        "lifecycle_msgs.msg",
     ):
         if name not in sys.modules:
             sys.modules[name] = types.ModuleType(name)
-    for attr in ("LLMResponse", "LLMLog", "BehaviorRecommendation",
-                 "TTSRequest", "IntentResult", "RiskAssessment", "SceneSummary"):
+    for attr in (
+        "LLMResponse",
+        "LLMLog",
+        "BehaviorRecommendation",
+        "TTSRequest",
+        "IntentResult",
+        "RiskAssessment",
+        "SceneSummary",
+    ):
         setattr(sys.modules["bonbon_msgs.msg"], attr, MagicMock)
     for attr in ("LLMQuery",):
         setattr(sys.modules["bonbon_srvs.srv"], attr, MagicMock)
@@ -62,22 +78,26 @@ _ensure_ros_stub()
 # ── Imports ───────────────────────────────────────────────────────────────────
 
 from bonbon_llm.config.llm_config import (
-    LLMConfig, RAGConfig, SafetyFilterConfig, HallucinationConfig, PersonalityConfig,
+    HallucinationConfig,
+    PersonalityConfig,
+    RAGConfig,
+    SafetyFilterConfig,
 )
-from bonbon_llm.core.rag_retriever import RAGRetriever, RAGDocument, RetrievalResult
+from bonbon_llm.core.rag_retriever import RAGRetriever
 from bonbon_llm.core.response_logger import ResponseLogger
-from bonbon_llm.safety.command_filter import SafetyCommandFilter, FilterStatus
-from bonbon_llm.safety.authorization import (
-    CommandAuthorizer, SafetySnapshot,
-    SAFETY_NORMAL, SAFETY_FAULT,
-)
-from bonbon_llm.safety.hallucination_guard import HallucinationGuard
 from bonbon_llm.personality.personality_layer import PersonalityLayer
 from bonbon_llm.prompts.response_templates import get_fallback
+from bonbon_llm.safety.authorization import (
+    SAFETY_FAULT,
+    SAFETY_NORMAL,
+    SafetySnapshot,
+)
+from bonbon_llm.safety.command_filter import FilterStatus, SafetyCommandFilter
+from bonbon_llm.safety.hallucination_guard import HallucinationGuard
 from bonbon_llm.tools.tool_registry import ToolRegistry
 
-
 # ── Pipeline harness ──────────────────────────────────────────────────────────
+
 
 class _Pipeline:
     """
@@ -93,9 +113,9 @@ class _Pipeline:
         guard_enabled: bool = True,
         raise_llm_error: bool = False,
     ):
-        self.tts_calls:      list = []
+        self.tts_calls: list = []
         self.behavior_calls: list = []
-        self.log_entries:    list = []
+        self.log_entries: list = []
 
         # RAG
         rag_cfg = RAGConfig(backend="numpy", top_k=3, similarity_threshold=0.0)
@@ -105,10 +125,10 @@ class _Pipeline:
         # Safety
         self.cmd_filter = SafetyCommandFilter(SafetyFilterConfig())
         snap = SafetySnapshot.safe_default()
-        snap.state_id   = safety_state
+        snap.state_id = safety_state
         snap.state_name = "NORMAL" if safety_state == SAFETY_NORMAL else "FAULT"
-        snap.navigation_permitted = (safety_state == SAFETY_NORMAL)
-        snap.actuation_permitted  = (safety_state == SAFETY_NORMAL)
+        snap.navigation_permitted = safety_state == SAFETY_NORMAL
+        snap.actuation_permitted = safety_state == SAFETY_NORMAL
         self.safety_snap = snap
 
         # Hallucination guard
@@ -116,7 +136,8 @@ class _Pipeline:
 
         # Personality
         per_cfg = PersonalityConfig(
-            name="BonBon", max_response_words=40,
+            name="BonBon",
+            max_response_words=40,
             affirmations=["Sure!"],
         )
         self.personality = PersonalityLayer(per_cfg)
@@ -126,19 +147,19 @@ class _Pipeline:
 
         # Tool registry
         self.registry = ToolRegistry(
-            safety_filter       = self.cmd_filter,
-            rag_retriever       = self.rag,
-            scene_provider      = lambda: "2 persons near counter.",
-            safety_provider     = lambda: self.safety_snap,
-            memory_provider     = lambda q, k: [],
-            tts_dispatcher      = lambda t, p: self.tts_calls.append((t, p)),
-            behavior_dispatcher = lambda bc, ps, c: self.behavior_calls.append((bc, ps, c)),
+            safety_filter=self.cmd_filter,
+            rag_retriever=self.rag,
+            scene_provider=lambda: "2 persons near counter.",
+            safety_provider=lambda: self.safety_snap,
+            memory_provider=lambda q, k: [],
+            tts_dispatcher=lambda t, p: self.tts_calls.append((t, p)),
+            behavior_dispatcher=lambda bc, ps, c: self.behavior_calls.append((bc, ps, c)),
         )
 
         # Mock LLM
-        self._llm_response   = llm_response
+        self._llm_response = llm_response
         self._llm_confidence = llm_confidence
-        self._raise_error    = raise_llm_error
+        self._raise_error = raise_llm_error
 
     def run(self, user_text: str, intent_class: str = "menu_query") -> dict:
         """Run the full pipeline and return a result summary dict."""
@@ -180,23 +201,24 @@ class _Pipeline:
 
         # 7. Log
         rid = self.logger.record(
-            intent_id            = "integ_test_01",
-            speaker_id           = "spk_test",
-            raw_prompt           = user_text,
-            raw_llm_output       = llm_text or "",
-            final_response       = final_text,
-            status               = status,
-            confidence           = self._llm_confidence,
-            llm_latency_ms       = 100.0,
-            rag_latency_ms       = 3.0,
-            tools_called         = [],
-            hallucination_flagged= (status == "hallucination"),
+            intent_id="integ_test_01",
+            speaker_id="spk_test",
+            raw_prompt=user_text,
+            raw_llm_output=llm_text or "",
+            final_response=final_text,
+            status=status,
+            confidence=self._llm_confidence,
+            llm_latency_ms=100.0,
+            rag_latency_ms=3.0,
+            tools_called=[],
+            hallucination_flagged=(status == "hallucination"),
         )
 
         return {"status": status, "text": final_text, "response_id": rid}
 
 
 # ── Scenario A: Happy path ────────────────────────────────────────────────────
+
 
 class TestHappyPath:
 
@@ -234,6 +256,7 @@ class TestHappyPath:
 
 
 # ── Scenario B: Unsafe command ────────────────────────────────────────────────
+
 
 class TestUnsafeCommand:
 
@@ -284,6 +307,7 @@ class TestUnsafeCommand:
 
 # ── Scenario C: Hallucination ─────────────────────────────────────────────────
 
+
 class TestHallucinationScenario:
 
     def test_fly_claim_triggers_hallucination(self):
@@ -327,6 +351,7 @@ class TestHallucinationScenario:
 
 # ── Scenario D: Low confidence ────────────────────────────────────────────────
 
+
 class TestLowConfidence:
 
     def test_low_confidence_triggers_fallback(self):
@@ -358,6 +383,7 @@ class TestLowConfidence:
 
 # ── Scenario E: LLM error ─────────────────────────────────────────────────────
 
+
 class TestLLMError:
 
     def test_llm_error_uses_fallback(self):
@@ -377,6 +403,7 @@ class TestLLMError:
 
 
 # ── Scenario F: Navigation blocked in FAULT state ────────────────────────────
+
 
 class TestNavigationBlockedInFault:
 

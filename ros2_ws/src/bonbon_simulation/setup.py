@@ -1,4 +1,5 @@
 from glob import glob
+
 from setuptools import find_packages, setup
 
 package_name = "bonbon_simulation"
@@ -14,8 +15,14 @@ setup(
         (f"share/{package_name}/config", glob("config/*.yaml")),
         (f"share/{package_name}/scenarios", glob("scenarios/*.yaml")),
         (f"share/{package_name}/worlds", glob("worlds/*.world")),
-        (f"share/{package_name}/models/bonbon_robot/urdf", glob("models/bonbon_robot/urdf/*.xacro")),
-        (f"share/{package_name}/models/bonbon_robot/config", glob("models/bonbon_robot/config/*.yaml")),
+        (
+            f"share/{package_name}/models/bonbon_robot/urdf",
+            glob("models/bonbon_robot/urdf/*.xacro"),
+        ),
+        (
+            f"share/{package_name}/models/bonbon_robot/config",
+            glob("models/bonbon_robot/config/*.yaml"),
+        ),
         (f"share/{package_name}/models/entities", glob("models/entities/*.sdf")),
         (f"share/{package_name}/docs", glob("docs/*.md")),
     ],

@@ -15,8 +15,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 try:
-    from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
     from rcl_interfaces.msg import ParameterDescriptor
+    from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
+
     _ROS2_AVAILABLE = True
 except ImportError:
     _ROS2_AVAILABLE = False
@@ -24,7 +25,6 @@ except ImportError:
 
 from bonbon_operator_api.config.api_config import OperatorAPIConfig
 from bonbon_operator_api.main import OperatorAPIServer
-
 
 if _ROS2_AVAILABLE:
 
@@ -38,24 +38,19 @@ if _ROS2_AVAILABLE:
 
         def _declare_params(self) -> None:
             self.declare_parameter(
-                "host", "0.0.0.0",
-                ParameterDescriptor(description="API server bind host")
+                "host", "0.0.0.0", ParameterDescriptor(description="API server bind host")
+            )
+            self.declare_parameter("port", 8080, ParameterDescriptor(description="API server port"))
+            self.declare_parameter(
+                "log_level", "INFO", ParameterDescriptor(description="Log level")
             )
             self.declare_parameter(
-                "port", 8080,
-                ParameterDescriptor(description="API server port")
+                "ros2_enabled", True, ParameterDescriptor(description="Enable ROS2 bridge")
             )
             self.declare_parameter(
-                "log_level", "INFO",
-                ParameterDescriptor(description="Log level")
-            )
-            self.declare_parameter(
-                "ros2_enabled", True,
-                ParameterDescriptor(description="Enable ROS2 bridge")
-            )
-            self.declare_parameter(
-                "offline_timeout_sec", 15.0,
-                ParameterDescriptor(description="Seconds before robot marked offline")
+                "offline_timeout_sec",
+                15.0,
+                ParameterDescriptor(description="Seconds before robot marked offline"),
             )
 
         # ------------------------------------------------------------------
@@ -70,9 +65,7 @@ if _ROS2_AVAILABLE:
                 cfg.server.port = self.get_parameter("port").value
                 cfg.server.log_level = self.get_parameter("log_level").value
                 cfg.ros2.enabled = self.get_parameter("ros2_enabled").value
-                cfg.ros2.offline_timeout_sec = self.get_parameter(
-                    "offline_timeout_sec"
-                ).value
+                cfg.ros2.offline_timeout_sec = self.get_parameter("offline_timeout_sec").value
                 self._server = OperatorAPIServer(cfg)
                 self.get_logger().info("OperatorAPINode configured")
                 return TransitionCallbackReturn.SUCCESS
@@ -116,6 +109,7 @@ def main(args=None):
         logger.error("Cannot start OperatorAPINode: rclpy not available")
         return
     import rclpy
+
     rclpy.init(args=args)
     node = OperatorAPINode()
     executor = rclpy.executors.SingleThreadedExecutor()

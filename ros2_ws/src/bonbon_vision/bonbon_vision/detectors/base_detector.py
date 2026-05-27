@@ -19,15 +19,15 @@ Key responsibilities handled at this layer
 
 All implementations inherit BaseDetector and only override _detect_impl().
 """
+
 from __future__ import annotations
 
 import logging
-import math
 import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -36,44 +36,108 @@ from ..config.vision_config import DetectorConfig
 logger = logging.getLogger(__name__)
 
 # COCO class names (80-class YOLO default)
-COCO_NAMES: Dict[int, str] = {
-    0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 4: "airplane",
-    5: "bus", 6: "train", 7: "truck", 8: "boat", 9: "traffic light",
-    10: "fire hydrant", 11: "stop sign", 12: "parking meter", 13: "bench",
-    14: "bird", 15: "cat", 16: "dog", 17: "horse", 18: "sheep", 19: "cow",
-    20: "elephant", 21: "bear", 22: "zebra", 23: "giraffe", 24: "backpack",
-    25: "umbrella", 26: "handbag", 27: "tie", 28: "suitcase", 29: "frisbee",
-    30: "skis", 31: "snowboard", 32: "sports ball", 33: "kite",
-    34: "baseball bat", 35: "baseball glove", 36: "skateboard",
-    37: "surfboard", 38: "tennis racket", 39: "bottle", 40: "wine glass",
-    41: "cup", 42: "fork", 43: "knife", 44: "spoon", 45: "bowl",
-    46: "banana", 47: "apple", 48: "sandwich", 49: "orange", 50: "broccoli",
-    51: "carrot", 52: "hot dog", 53: "pizza", 54: "donut", 55: "cake",
-    56: "chair", 57: "couch", 58: "potted plant", 59: "bed",
-    60: "dining table", 61: "toilet", 62: "tv", 63: "laptop", 64: "mouse",
-    65: "remote", 66: "keyboard", 67: "cell phone", 68: "microwave",
-    69: "oven", 70: "toaster", 71: "sink", 72: "refrigerator", 73: "book",
-    74: "clock", 75: "vase", 76: "scissors", 77: "teddy bear",
-    78: "hair drier", 79: "toothbrush",
+COCO_NAMES: dict[int, str] = {
+    0: "person",
+    1: "bicycle",
+    2: "car",
+    3: "motorcycle",
+    4: "airplane",
+    5: "bus",
+    6: "train",
+    7: "truck",
+    8: "boat",
+    9: "traffic light",
+    10: "fire hydrant",
+    11: "stop sign",
+    12: "parking meter",
+    13: "bench",
+    14: "bird",
+    15: "cat",
+    16: "dog",
+    17: "horse",
+    18: "sheep",
+    19: "cow",
+    20: "elephant",
+    21: "bear",
+    22: "zebra",
+    23: "giraffe",
+    24: "backpack",
+    25: "umbrella",
+    26: "handbag",
+    27: "tie",
+    28: "suitcase",
+    29: "frisbee",
+    30: "skis",
+    31: "snowboard",
+    32: "sports ball",
+    33: "kite",
+    34: "baseball bat",
+    35: "baseball glove",
+    36: "skateboard",
+    37: "surfboard",
+    38: "tennis racket",
+    39: "bottle",
+    40: "wine glass",
+    41: "cup",
+    42: "fork",
+    43: "knife",
+    44: "spoon",
+    45: "bowl",
+    46: "banana",
+    47: "apple",
+    48: "sandwich",
+    49: "orange",
+    50: "broccoli",
+    51: "carrot",
+    52: "hot dog",
+    53: "pizza",
+    54: "donut",
+    55: "cake",
+    56: "chair",
+    57: "couch",
+    58: "potted plant",
+    59: "bed",
+    60: "dining table",
+    61: "toilet",
+    62: "tv",
+    63: "laptop",
+    64: "mouse",
+    65: "remote",
+    66: "keyboard",
+    67: "cell phone",
+    68: "microwave",
+    69: "oven",
+    70: "toaster",
+    71: "sink",
+    72: "refrigerator",
+    73: "book",
+    74: "clock",
+    75: "vase",
+    76: "scissors",
+    77: "teddy bear",
+    78: "hair drier",
+    79: "toothbrush",
 }
 
 
 # ── Detection data classes ────────────────────────────────────────────────────
 
+
 @dataclass
 class ObjectDetection:
     """Single detected object."""
-    class_id:    int
-    class_name:  str
-    confidence:  float
-    bbox:        Tuple[int, int, int, int]   # (x, y, w, h) pixels, top-left
-    depth_m:     float   = float("nan")
-    bearing_deg: float   = 0.0
-    track_id:    str     = ""
-    is_anonymized: bool  = False
+
+    class_id: int
+    class_name: str
+    confidence: float
+    bbox: tuple[int, int, int, int]  # (x, y, w, h) pixels, top-left
+    depth_m: float = float("nan")
+    bearing_deg: float = 0.0
+    track_id: str = ""
+    is_anonymized: bool = False
 
     @property
-    def centre_px(self) -> Tuple[float, float]:
+    def centre_px(self) -> tuple[float, float]:
         x, y, w, h = self.bbox
         return x + w / 2.0, y + h / 2.0
 
@@ -85,16 +149,18 @@ class ObjectDetection:
 @dataclass
 class DetectionResult:
     """Result of one detector run."""
-    detections:    List[ObjectDetection] = field(default_factory=list)
-    is_degraded:   bool  = False
-    timed_out:     bool  = False
-    inference_ms:  float = 0.0
-    error:         Optional[str] = None
-    backend:       str   = "unknown"
-    frame_quality: str   = "ok"
+
+    detections: list[ObjectDetection] = field(default_factory=list)
+    is_degraded: bool = False
+    timed_out: bool = False
+    inference_ms: float = 0.0
+    error: str | None = None
+    backend: str = "unknown"
+    frame_quality: str = "ok"
 
 
 # ── Abstract base detector ────────────────────────────────────────────────────
+
 
 class BaseDetector(ABC):
     """
@@ -104,13 +170,13 @@ class BaseDetector(ABC):
     """
 
     def __init__(self, cfg: DetectorConfig, hfov_deg: float = 60.0) -> None:
-        self._cfg             = cfg
-        self._hfov_deg        = hfov_deg
-        self._consecutive_timeouts: int  = 0
-        self._is_degraded:    bool  = False
+        self._cfg = cfg
+        self._hfov_deg = hfov_deg
+        self._consecutive_timeouts: int = 0
+        self._is_degraded: bool = False
         self._total_inferences: int = 0
-        self._total_timeouts:   int = 0
-        self._total_errors:     int = 0
+        self._total_timeouts: int = 0
+        self._total_errors: int = 0
         # Single-worker pool for timeout isolation
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="detector")
 
@@ -126,8 +192,8 @@ class BaseDetector(ABC):
 
     def detect(
         self,
-        bgr:     np.ndarray,
-        depth_m: Optional[np.ndarray] = None,
+        bgr: np.ndarray,
+        depth_m: np.ndarray | None = None,
     ) -> DetectionResult:
         """
         Run detection with timeout.  Returns DetectionResult.
@@ -135,8 +201,7 @@ class BaseDetector(ABC):
         """
         if self._is_degraded:
             logger.debug(
-                "detector=degraded inference_skipped=True "
-                "consecutive_timeouts=%d",
+                "detector=degraded inference_skipped=True " "consecutive_timeouts=%d",
                 self._consecutive_timeouts,
             )
             return DetectionResult(is_degraded=True, backend=self.backend_name)
@@ -169,7 +234,9 @@ class BaseDetector(ABC):
             )
             logger.debug(
                 "detector=%s n_detections=%d inference_ms=%.1f",
-                self.backend_name, len(detections), elapsed_ms,
+                self.backend_name,
+                len(detections),
+                elapsed_ms,
             )
 
         except FuturesTimeout:
@@ -177,8 +244,7 @@ class BaseDetector(ABC):
             self._consecutive_timeouts += 1
             self._total_timeouts += 1
             logger.warning(
-                "detector=%s event=inference_timeout "
-                "consecutive=%d max=%d elapsed_ms=%.1f",
+                "detector=%s event=inference_timeout " "consecutive=%d max=%d elapsed_ms=%.1f",
                 self.backend_name,
                 self._consecutive_timeouts,
                 self._cfg.max_consecutive_timeouts,
@@ -195,7 +261,9 @@ class BaseDetector(ABC):
             self._total_errors += 1
             logger.error(
                 "detector=%s event=inference_error error=%r elapsed_ms=%.1f",
-                self.backend_name, str(exc), elapsed_ms,
+                self.backend_name,
+                str(exc),
+                elapsed_ms,
             )
             result = DetectionResult(
                 error=str(exc), inference_ms=elapsed_ms, backend=self.backend_name
@@ -207,7 +275,7 @@ class BaseDetector(ABC):
         """Exit degraded mode (called by VisionNode on external instruction)."""
         if self._is_degraded:
             logger.info("detector=%s event=recover", self.backend_name)
-        self._is_degraded         = False
+        self._is_degraded = False
         self._consecutive_timeouts = 0
 
     def shutdown(self) -> None:
@@ -216,7 +284,7 @@ class BaseDetector(ABC):
     # ── Subclass interface ────────────────────────────────────────────────────
 
     @abstractmethod
-    def _detect_impl(self, bgr: np.ndarray) -> List[ObjectDetection]:
+    def _detect_impl(self, bgr: np.ndarray) -> list[ObjectDetection]:
         """
         Run inference and return raw ObjectDetections.
         depth_m and bearing_deg are filled by the base class after this returns.
@@ -234,14 +302,15 @@ class BaseDetector(ABC):
     def _enter_degraded(self, reason: str) -> None:
         self._is_degraded = True
         logger.error(
-            "detector=%s event=degraded reason=%r "
-            "total_timeouts=%d total_errors=%d",
-            self.backend_name, reason,
-            self._total_timeouts, self._total_errors,
+            "detector=%s event=degraded reason=%r " "total_timeouts=%d total_errors=%d",
+            self.backend_name,
+            reason,
+            self._total_timeouts,
+            self._total_errors,
         )
 
     @staticmethod
-    def _fill_depth(det: ObjectDetection, depth_m: Optional[np.ndarray]) -> None:
+    def _fill_depth(det: ObjectDetection, depth_m: np.ndarray | None) -> None:
         """Sample the median depth inside the inner 50% of the bounding box."""
         if depth_m is None:
             return
@@ -249,11 +318,13 @@ class BaseDetector(ABC):
         ih, iw = depth_m.shape[:2]
         mx = max(1, w // 4)
         my = max(1, h // 4)
-        x0 = max(0, x + mx); x1 = min(iw, x + w - mx)
-        y0 = max(0, y + my); y1 = min(ih, y + h - my)
+        x0 = max(0, x + mx)
+        x1 = min(iw, x + w - mx)
+        y0 = max(0, y + my)
+        y1 = min(ih, y + h - my)
         if x0 >= x1 or y0 >= y1:
             return
-        roi   = depth_m[y0:y1, x0:x1]
+        roi = depth_m[y0:y1, x0:x1]
         valid = roi[np.isfinite(roi) & (roi > 0.05) & (roi < 15.0)]
         if valid.size > 0:
             det.depth_m = float(np.median(valid))
@@ -261,15 +332,15 @@ class BaseDetector(ABC):
     def _fill_bearing(self, det: ObjectDetection, image_width: int) -> None:
         """Compute horizontal bearing from bbox centre and HFOV."""
         cx, _ = det.centre_px
-        norm  = (cx / max(1, image_width)) - 0.5   # -0.5 … +0.5
+        norm = (cx / max(1, image_width)) - 0.5  # -0.5 … +0.5
         det.bearing_deg = norm * self._hfov_deg
 
     def stats(self) -> dict:
         return {
-            "backend":              self.backend_name,
-            "is_degraded":          self._is_degraded,
-            "total_inferences":     self._total_inferences,
-            "total_timeouts":       self._total_timeouts,
-            "total_errors":         self._total_errors,
+            "backend": self.backend_name,
+            "is_degraded": self._is_degraded,
+            "total_inferences": self._total_inferences,
+            "total_timeouts": self._total_timeouts,
+            "total_errors": self._total_errors,
             "consecutive_timeouts": self._consecutive_timeouts,
         }

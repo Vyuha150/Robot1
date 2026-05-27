@@ -91,9 +91,7 @@ class SchemaMigrator:
     @staticmethod
     def _get_version(db) -> int:
         try:
-            row = db.execute(
-                "SELECT COALESCE(MAX(version), 0) FROM schema_migrations;"
-            ).fetchone()
+            row = db.execute("SELECT COALESCE(MAX(version), 0) FROM schema_migrations;").fetchone()
             return int(row[0]) if row else 0
         except Exception:
             return 0

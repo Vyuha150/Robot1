@@ -19,12 +19,11 @@ Fallback contract
 If the LLM call fails (network, timeout, invalid response), the caller in
 IntentEngine catches the exception and falls back to the rule-based result.
 """
+
 from __future__ import annotations
 
 import os
 import re
-from typing import Optional, Tuple
-
 
 # ── Prompt template ───────────────────────────────────────────────────────────
 
@@ -46,15 +45,13 @@ _HUMAN_TEMPLATE = (
 
 # ── Response parser ───────────────────────────────────────────────────────────
 
-_RESPONSE_RE = re.compile(
-    r"^\s*([a-z_]+)\s*\|\s*([01](?:\.\d+)?)\s*$", re.IGNORECASE
-)
+_RESPONSE_RE = re.compile(r"^\s*([a-z_]+)\s*\|\s*([01](?:\.\d+)?)\s*$", re.IGNORECASE)
 
 
-def _parse_response(raw: str, valid_classes: set) -> Tuple[str, float]:
+def _parse_response(raw: str, valid_classes: set) -> tuple[str, float]:
     m = _RESPONSE_RE.match(raw.strip())
     if m:
-        cls  = m.group(1).lower()
+        cls = m.group(1).lower()
         conf = float(m.group(2))
         if cls in valid_classes:
             return cls, min(1.0, max(0.0, conf))
@@ -62,6 +59,7 @@ def _parse_response(raw: str, valid_classes: set) -> Tuple[str, float]:
 
 
 # ── Chain builder ─────────────────────────────────────────────────────────────
+
 
 def build_intent_chain(
     model_name: str,
@@ -103,17 +101,19 @@ def build_intent_chain(
     from langchain.schema.output_parser import StrOutputParser  # type: ignore
 
     llm = ChatOpenAI(
-        model            = model_name,
-        openai_api_key   = key,
-        temperature      = 0,
-        request_timeout  = timeout_sec,
-        max_tokens       = 32,
+        model=model_name,
+        openai_api_key=key,
+        temperature=0,
+        request_timeout=timeout_sec,
+        max_tokens=32,
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", _SYSTEM_PROMPT),
-        ("human",  _HUMAN_TEMPLATE),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", _SYSTEM_PROMPT),
+            ("human", _HUMAN_TEMPLATE),
+        ]
+    )
 
     return prompt | llm | StrOutputParser()
 
@@ -123,15 +123,17 @@ def classify_with_chain(
     text: str,
     context: str,
     valid_classes: set,
-) -> Tuple[str, float]:
+) -> tuple[str, float]:
     """
     Invoke chain and parse the structured response.
 
     Raises ValueError on unparseable output; raises on LLM errors.
     """
-    raw = chain.invoke({
-        "text":          text,
-        "context":       context,
-        "valid_classes": ", ".join(sorted(valid_classes)),
-    })
+    raw = chain.invoke(
+        {
+            "text": text,
+            "context": context,
+            "valid_classes": ", ".join(sorted(valid_classes)),
+        }
+    )
     return _parse_response(str(raw), valid_classes)

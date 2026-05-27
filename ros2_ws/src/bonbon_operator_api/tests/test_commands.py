@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -195,6 +194,7 @@ def test_cancel_task_accepted(client: TestClient, operator_token: str):
 # ---------------------------------------------------------------------------
 def test_duplicate_command_rejected(client: TestClient, operator_token: str, safety_gate):
     import uuid
+
     cmd_id = str(uuid.uuid4())
     # Manually register the command_id in the validator's dedup buffer
     safety_gate._validator.check_duplicate(cmd_id)
@@ -207,9 +207,7 @@ def test_duplicate_command_rejected(client: TestClient, operator_token: str, saf
 # ---------------------------------------------------------------------------
 # Scenario 16: Resume blocked during safety_stop
 # ---------------------------------------------------------------------------
-def test_resume_blocked_during_safety_stop(
-    client: TestClient, operator_token: str, aggregator
-):
+def test_resume_blocked_during_safety_stop(client: TestClient, operator_token: str, aggregator):
     aggregator.update_safety({"state": "safety_stop"})
     resp = client.post(
         "/api/v1/robot/commands/resume",
@@ -234,9 +232,7 @@ def test_command_no_auth(client: TestClient):
 # ---------------------------------------------------------------------------
 # Scenario 18: ROS2 bridge is called on accepted command
 # ---------------------------------------------------------------------------
-def test_bridge_called_on_navigate(
-    client: TestClient, operator_token: str, mock_bridge
-):
+def test_bridge_called_on_navigate(client: TestClient, operator_token: str, mock_bridge):
     mock_bridge.call_navigate.reset_mock()
     client.post(
         "/api/v1/robot/commands/navigate",
@@ -264,9 +260,7 @@ def test_command_response_has_command_id(client: TestClient, operator_token: str
 # ---------------------------------------------------------------------------
 # Scenario 20: Speak blocked when robot in unknown safety state passes
 # ---------------------------------------------------------------------------
-def test_speak_passes_in_unknown_safety_state(
-    client: TestClient, operator_token: str, aggregator
-):
+def test_speak_passes_in_unknown_safety_state(client: TestClient, operator_token: str, aggregator):
     """Speak should not be blocked in 'unknown' state (only navigate/dock/resume are)."""
     aggregator.update_safety({"state": "unknown"})
     resp = client.post(

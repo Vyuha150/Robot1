@@ -6,13 +6,15 @@ Tests for the diarization layer:
   - Timeout simulation
   - Dominant speaker calculation
 """
-import time
-import pytest
-import numpy as np
 
+import time
+
+import numpy as np
+import pytest
 from bonbon_speech.config.speech_config import DiarizationConfig
 from bonbon_speech.diarization.base_diarizer import (
-    SpeakerSegment, DiarizationResult, BaseDiarizer,
+    DiarizationResult,
+    SpeakerSegment,
 )
 from bonbon_speech.diarization.mock_diarizer import MockDiarizer
 
@@ -35,6 +37,7 @@ def samples(n: int = 16000) -> np.ndarray:
 
 # ── SpeakerSegment ────────────────────────────────────────────────────────────
 
+
 class TestSpeakerSegment:
     def test_duration_property(self):
         seg = SpeakerSegment("SPEAKER_00", 1.0, 3.5)
@@ -50,6 +53,7 @@ class TestSpeakerSegment:
 
 
 # ── DiarizationResult ─────────────────────────────────────────────────────────
+
 
 class TestDiarizationResult:
     def test_empty_result_defaults(self):
@@ -70,17 +74,17 @@ class TestDiarizationResult:
 
     def test_dominant_speaker_longest_time(self):
         segs = [
-            SpeakerSegment("SPEAKER_00", 0.0, 1.0),   # 1.0 sec
-            SpeakerSegment("SPEAKER_01", 1.0, 4.0),   # 3.0 sec  ← dominant
+            SpeakerSegment("SPEAKER_00", 0.0, 1.0),  # 1.0 sec
+            SpeakerSegment("SPEAKER_01", 1.0, 4.0),  # 3.0 sec  ← dominant
         ]
         r = DiarizationResult(segments=segs)
         assert r.dominant_speaker == "SPEAKER_01"
 
     def test_dominant_speaker_cumulative(self):
         segs = [
-            SpeakerSegment("SPEAKER_00", 0.0, 1.0),   # 1.0
-            SpeakerSegment("SPEAKER_01", 1.0, 2.5),   # 1.5
-            SpeakerSegment("SPEAKER_00", 2.5, 5.0),   # 2.5 → total 3.5
+            SpeakerSegment("SPEAKER_00", 0.0, 1.0),  # 1.0
+            SpeakerSegment("SPEAKER_01", 1.0, 2.5),  # 1.5
+            SpeakerSegment("SPEAKER_00", 2.5, 5.0),  # 2.5 → total 3.5
         ]
         r = DiarizationResult(segments=segs)
         assert r.dominant_speaker == "SPEAKER_00"
@@ -91,6 +95,7 @@ class TestDiarizationResult:
 
 
 # ── MockDiarizer ──────────────────────────────────────────────────────────────
+
 
 class TestMockDiarizerBasics:
     def test_load_unload(self):
@@ -114,12 +119,16 @@ class TestMockDiarizerBasics:
 
     def test_response_cycles(self):
         responses = [
-            DiarizationResult(segments=[SpeakerSegment("SPK_A", 0, 1)],
-                              dominant_speaker="SPK_A",
-                              all_speaker_ids=["SPK_A"]),
-            DiarizationResult(segments=[SpeakerSegment("SPK_B", 0, 2)],
-                              dominant_speaker="SPK_B",
-                              all_speaker_ids=["SPK_B"]),
+            DiarizationResult(
+                segments=[SpeakerSegment("SPK_A", 0, 1)],
+                dominant_speaker="SPK_A",
+                all_speaker_ids=["SPK_A"],
+            ),
+            DiarizationResult(
+                segments=[SpeakerSegment("SPK_B", 0, 2)],
+                dominant_speaker="SPK_B",
+                all_speaker_ids=["SPK_B"],
+            ),
         ]
         d = MockDiarizer(cfg=make_cfg(), responses=responses)
         d.load()
@@ -133,17 +142,20 @@ class TestMockDiarizerBasics:
 
 # ── Multi-speaker ─────────────────────────────────────────────────────────────
 
+
 class TestMultiSpeaker:
     def test_two_speaker_result(self):
         segs = [
             SpeakerSegment("SPEAKER_00", 0.0, 2.0),
             SpeakerSegment("SPEAKER_01", 2.0, 5.0),
         ]
-        responses = [DiarizationResult(
-            segments=segs,
-            dominant_speaker="SPEAKER_01",
-            all_speaker_ids=["SPEAKER_00", "SPEAKER_01"],
-        )]
+        responses = [
+            DiarizationResult(
+                segments=segs,
+                dominant_speaker="SPEAKER_01",
+                all_speaker_ids=["SPEAKER_00", "SPEAKER_01"],
+            )
+        ]
         d = MockDiarizer(cfg=make_cfg(), responses=responses)
         d.load()
         result = d.diarize(samples())
@@ -157,11 +169,13 @@ class TestMultiSpeaker:
             SpeakerSegment("S1", 1.0, 2.0),
             SpeakerSegment("S2", 2.0, 3.0),
         ]
-        responses = [DiarizationResult(
-            segments=segs,
-            dominant_speaker="S0",
-            all_speaker_ids=["S0", "S1", "S2"],
-        )]
+        responses = [
+            DiarizationResult(
+                segments=segs,
+                dominant_speaker="S0",
+                all_speaker_ids=["S0", "S1", "S2"],
+            )
+        ]
         d = MockDiarizer(cfg=make_cfg(), responses=responses)
         d.load()
         result = d.diarize(samples())
@@ -169,11 +183,13 @@ class TestMultiSpeaker:
 
     def test_single_speaker_result(self):
         segs = [SpeakerSegment("SPEAKER_00", 0.0, 3.0)]
-        responses = [DiarizationResult(
-            segments=segs,
-            dominant_speaker="SPEAKER_00",
-            all_speaker_ids=["SPEAKER_00"],
-        )]
+        responses = [
+            DiarizationResult(
+                segments=segs,
+                dominant_speaker="SPEAKER_00",
+                all_speaker_ids=["SPEAKER_00"],
+            )
+        ]
         d = MockDiarizer(cfg=make_cfg(), responses=responses)
         d.load()
         result = d.diarize(samples())
@@ -182,6 +198,7 @@ class TestMultiSpeaker:
 
 
 # ── Timeout simulation ────────────────────────────────────────────────────────
+
 
 class TestDiarizationTimeout:
     def test_timeout_response(self):
@@ -197,7 +214,7 @@ class TestDiarizationTimeout:
         t0 = time.monotonic()
         d.diarize(samples())
         elapsed = time.monotonic() - t0
-        assert elapsed >= 0.08   # at least 80 ms
+        assert elapsed >= 0.08  # at least 80 ms
 
     def test_set_responses_reset(self):
         d = make_diarizer()

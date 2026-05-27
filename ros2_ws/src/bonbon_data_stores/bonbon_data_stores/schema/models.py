@@ -8,73 +8,74 @@ from __future__ import annotations
 
 import time
 import uuid
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------
 
-class PrivacyLevel(str, Enum):
+
+class PrivacyLevel(StrEnum):
     """Privacy classification for stored events and records.
 
     ``do_not_store`` is special: any event carrying this level MUST be
     discarded immediately and never written to any storage backend.
     """
 
-    PUBLIC             = "public"
-    INTERNAL           = "internal"
-    SENSITIVE          = "sensitive"
-    RESTRICTED         = "restricted"
-    DO_NOT_STORE       = "do_not_store"
+    PUBLIC = "public"
+    INTERNAL = "internal"
+    SENSITIVE = "sensitive"
+    RESTRICTED = "restricted"
+    DO_NOT_STORE = "do_not_store"
 
 
-class RetentionPolicy(str, Enum):
+class RetentionPolicy(StrEnum):
     """How long a record is kept before automatic deletion."""
 
-    EPHEMERAL               = "ephemeral"            # purge when session ends
-    SESSION_ONLY            = "session_only"         # purge at session close
-    SEVEN_DAYS              = "7_days"
-    THIRTY_DAYS             = "30_days"
-    ONE_YEAR                = "1_year"
+    EPHEMERAL = "ephemeral"  # purge when session ends
+    SESSION_ONLY = "session_only"  # purge at session close
+    SEVEN_DAYS = "7_days"
+    THIRTY_DAYS = "30_days"
+    ONE_YEAR = "1_year"
     PERMANENT_UNTIL_DELETED = "permanent_until_deleted"
 
 
-class RobotMode(str, Enum):
-    IDLE        = "idle"
-    ACTIVE      = "active"
-    NAVIGATING  = "navigating"
-    SERVING     = "serving"
-    CHARGING    = "charging"
+class RobotMode(StrEnum):
+    IDLE = "idle"
+    ACTIVE = "active"
+    NAVIGATING = "navigating"
+    SERVING = "serving"
+    CHARGING = "charging"
     MAINTENANCE = "maintenance"
-    EMERGENCY   = "emergency"
-    SHUTDOWN    = "shutdown"
+    EMERGENCY = "emergency"
+    SHUTDOWN = "shutdown"
 
 
-class SafetyEventType(str, Enum):
-    COLLISION_RISK   = "collision_risk"
-    EMERGENCY_STOP   = "emergency_stop"
-    SAFETY_STOP      = "safety_stop"
-    HARDWARE_FAULT   = "hardware_fault"
+class SafetyEventType(StrEnum):
+    COLLISION_RISK = "collision_risk"
+    EMERGENCY_STOP = "emergency_stop"
+    SAFETY_STOP = "safety_stop"
+    HARDWARE_FAULT = "hardware_fault"
     WATCHDOG_TIMEOUT = "watchdog_timeout"
-    MANUAL_OVERRIDE  = "manual_override"
-    RECOVERY         = "recovery"
+    MANUAL_OVERRIDE = "manual_override"
+    RECOVERY = "recovery"
 
 
-class NavigationOutcome(str, Enum):
-    SUCCESS    = "success"
-    ABORTED    = "aborted"
-    FAILED     = "failed"
-    PREEMPTED  = "preempted"
-    REPLANNED  = "replanned"
+class NavigationOutcome(StrEnum):
+    SUCCESS = "success"
+    ABORTED = "aborted"
+    FAILED = "failed"
+    PREEMPTED = "preempted"
+    REPLANNED = "replanned"
 
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
 
 def _new_id() -> str:
     return str(uuid.uuid4())
@@ -88,15 +89,16 @@ def _now() -> float:
 # Base event
 # ---------------------------------------------------------------------------
 
+
 class BaseEvent(BaseModel):
     """Common fields shared by every storable event."""
 
     event_id: str = Field(default_factory=_new_id)
     timestamp: float = Field(default_factory=_now)
-    session_id: Optional[str] = None
+    session_id: str | None = None
     privacy_level: PrivacyLevel = PrivacyLevel.INTERNAL
     retention_policy: RetentionPolicy = RetentionPolicy.THIRTY_DAYS
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("privacy_level", mode="before")
     @classmethod
@@ -121,6 +123,7 @@ class BaseEvent(BaseModel):
 # User / profile models
 # ---------------------------------------------------------------------------
 
+
 class UserPreference(BaseModel):
     key: str
     value: str
@@ -134,17 +137,17 @@ class UserRecord(BaseModel):
     display_name: str
     language: str = "en"
     preferred_interaction_style: str = "friendly"
-    accessibility_needs: List[str] = Field(default_factory=list)
-    preferences: List[UserPreference] = Field(default_factory=list)
+    accessibility_needs: list[str] = Field(default_factory=list)
+    preferences: list[UserPreference] = Field(default_factory=list)
     # Biometric references — stored only with explicit consent
-    face_encoding_ref: Optional[str] = Field(
+    face_encoding_ref: str | None = Field(
         default=None,
         description=(
             "Reference token to the face encoding; actual biometric data is "
             "stored separately and only when store_face_data=True."
         ),
     )
-    voice_profile_ref: Optional[str] = None
+    voice_profile_ref: str | None = None
     # Provenance
     created_at: float = Field(default_factory=_now)
     last_seen_at: float = Field(default_factory=_now)
@@ -158,21 +161,22 @@ class UserRecord(BaseModel):
 # Interaction history
 # ---------------------------------------------------------------------------
 
+
 class InteractionEvent(BaseEvent):
     """One turn in a conversation between user and robot."""
 
-    user_id: Optional[str] = None
-    input_modality: str = "speech"          # speech | touch | gesture | text
-    input_text: Optional[str] = None
-    intent: Optional[str] = None
+    user_id: str | None = None
+    input_modality: str = "speech"  # speech | touch | gesture | text
+    input_text: str | None = None
+    intent: str | None = None
     intent_confidence: float = 0.0
-    response_text: Optional[str] = None
+    response_text: str | None = None
     response_modality: str = "speech"
     tts_latency_ms: float = 0.0
-    satisfaction_score: Optional[float] = None
+    satisfaction_score: float | None = None
     language: str = "en"
     # raw audio NEVER stored unless privacy.store_audio=True
-    audio_ref: Optional[str] = Field(
+    audio_ref: str | None = Field(
         default=None,
         description="Reference token; raw audio only stored when privacy.store_audio=True.",
     )
@@ -181,6 +185,7 @@ class InteractionEvent(BaseEvent):
 # ---------------------------------------------------------------------------
 # Robot state
 # ---------------------------------------------------------------------------
+
 
 class RobotState(BaseEvent):
     """Periodic snapshot of the robot's operational state."""
@@ -191,18 +196,19 @@ class RobotState(BaseEvent):
     position_y: float = 0.0
     position_z: float = 0.0
     orientation_yaw: float = 0.0
-    map_id: Optional[str] = None
-    active_task: Optional[str] = None
+    map_id: str | None = None
+    active_task: str | None = None
     cpu_load: float = Field(default=0.0, ge=0.0)
     memory_used_mb: float = Field(default=0.0, ge=0.0)
-    active_nodes: List[str] = Field(default_factory=list)
-    error_flags: List[str] = Field(default_factory=list)
+    active_nodes: list[str] = Field(default_factory=list)
+    error_flags: list[str] = Field(default_factory=list)
     retention_policy: RetentionPolicy = RetentionPolicy.SEVEN_DAYS
 
 
 # ---------------------------------------------------------------------------
 # Safety events
 # ---------------------------------------------------------------------------
+
 
 class SafetyEvent(BaseEvent):
     """Record of a safety-critical occurrence."""
@@ -213,9 +219,9 @@ class SafetyEvent(BaseEvent):
     description: str = ""
     position_x: float = 0.0
     position_y: float = 0.0
-    obstacle_distance_m: Optional[float] = None
+    obstacle_distance_m: float | None = None
     resolved: bool = False
-    resolved_at: Optional[float] = None
+    resolved_at: float | None = None
     privacy_level: PrivacyLevel = PrivacyLevel.INTERNAL
     retention_policy: RetentionPolicy = RetentionPolicy.ONE_YEAR
 
@@ -224,11 +230,12 @@ class SafetyEvent(BaseEvent):
 # Navigation events
 # ---------------------------------------------------------------------------
 
+
 class NavigationEvent(BaseEvent):
     """Record of a navigation goal and its outcome."""
 
     goal_id: str = Field(default_factory=_new_id)
-    map_id: Optional[str] = None
+    map_id: str | None = None
     start_x: float = 0.0
     start_y: float = 0.0
     goal_x: float = 0.0
@@ -245,16 +252,17 @@ class NavigationEvent(BaseEvent):
 # Audit log
 # ---------------------------------------------------------------------------
 
+
 class AuditLogEntry(BaseModel):
     """Immutable append-only audit trail record."""
 
     log_id: str = Field(default_factory=_new_id)
     timestamp: float = Field(default_factory=_now)
-    actor: str                        # node or user that performed the action
-    action: str                       # e.g. "delete_user", "export_data"
-    target_type: str = ""             # e.g. "user", "interaction"
+    actor: str  # node or user that performed the action
+    action: str  # e.g. "delete_user", "export_data"
+    target_type: str = ""  # e.g. "user", "interaction"
     target_id: str = ""
-    outcome: str = "success"          # success | failure
+    outcome: str = "success"  # success | failure
     detail: str = ""
     privacy_level: PrivacyLevel = PrivacyLevel.INTERNAL
     retention_policy: RetentionPolicy = RetentionPolicy.ONE_YEAR
@@ -264,14 +272,15 @@ class AuditLogEntry(BaseModel):
 # Map metadata
 # ---------------------------------------------------------------------------
 
+
 class EnvironmentZone(BaseModel):
     """A named zone within a map."""
 
     zone_id: str = Field(default_factory=_new_id)
     map_id: str
     zone_name: str
-    zone_type: str = "room"          # room | corridor | charging_station | service_point
-    polygon_json: str = "[]"         # JSON array of [x, y] vertices
+    zone_type: str = "room"  # room | corridor | charging_station | service_point
+    polygon_json: str = "[]"  # JSON array of [x, y] vertices
     description: str = ""
 
 
@@ -291,22 +300,23 @@ class MapMetadata(BaseModel):
     created_at: float = Field(default_factory=_now)
     last_updated_at: float = Field(default_factory=_now)
     is_active: bool = False
-    zones: List[EnvironmentZone] = Field(default_factory=list)
+    zones: list[EnvironmentZone] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # AI / LLM context
 # ---------------------------------------------------------------------------
 
+
 class AIContextRecord(BaseEvent):
     """Stored AI context window fragment for session continuity."""
 
-    context_type: str = "conversation"   # conversation | task | knowledge
-    content_hash: str = ""               # SHA-256 of content for deduplication
+    context_type: str = "conversation"  # conversation | task | knowledge
+    content_hash: str = ""  # SHA-256 of content for deduplication
     content_text: str = ""
     token_count: int = 0
     model_name: str = ""
-    embedding_ref: Optional[str] = None  # FAISS / ChromaDB vector id
+    embedding_ref: str | None = None  # FAISS / ChromaDB vector id
     retention_policy: RetentionPolicy = RetentionPolicy.SEVEN_DAYS
 
 
@@ -314,18 +324,20 @@ class AIContextRecord(BaseEvent):
 # Vector search result
 # ---------------------------------------------------------------------------
 
+
 class VectorSearchResult(BaseModel):
     """Returned by FAISSVectorStore.search()."""
 
     vector_id: str
-    score: float                         # cosine similarity or L2 distance
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    score: float  # cosine similarity or L2 distance
+    payload: dict[str, Any] = Field(default_factory=dict)
     source_index: str = ""
 
 
 # ---------------------------------------------------------------------------
 # RAG search result
 # ---------------------------------------------------------------------------
+
 
 class RAGSearchResult(BaseModel):
     """Returned by RAGQueryEngine.query()."""
@@ -334,4 +346,4 @@ class RAGSearchResult(BaseModel):
     collection: str
     score: float
     document: str
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)

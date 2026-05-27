@@ -12,12 +12,12 @@ Confidence: Whisper exposes ``avg_logprob`` per segment — we convert it to
 avg_logprob ranges from roughly -3.0 (confident) to very negative (noise).
 Mapping:  conf = exp(avg_logprob) but clamped to [0, 1].
 """
+
 from __future__ import annotations
 
 import logging
 import math
 import os
-from typing import Optional
 
 import numpy as np
 
@@ -50,12 +50,15 @@ class WhisperSTT(BaseSTT):
         cfg = self._cfg
         logger.info(
             "WhisperSTT loading backend=%s model=%s device=%s",
-            cfg.backend, cfg.model_size, cfg.device or "auto",
+            cfg.backend,
+            cfg.model_size,
+            cfg.device or "auto",
         )
 
         if cfg.backend == "faster_whisper":
             from faster_whisper import WhisperModel  # type: ignore
-            device  = cfg.device or "auto"
+
+            device = cfg.device or "auto"
             compute = "float32" if device == "cpu" else "float16"
             model_path = cfg.model_dir if cfg.model_dir else cfg.model_size
             self._model = WhisperModel(
@@ -66,9 +69,9 @@ class WhisperSTT(BaseSTT):
             )
         else:  # "whisper"
             import whisper  # type: ignore
+
             model_path = (
-                os.path.join(cfg.model_dir, cfg.model_size)
-                if cfg.model_dir else cfg.model_size
+                os.path.join(cfg.model_dir, cfg.model_size) if cfg.model_dir else cfg.model_size
             )
             device = cfg.device or None
             self._model = whisper.load_model(model_path, device=device)
@@ -101,17 +104,16 @@ class WhisperSTT(BaseSTT):
             return self._run_whisper(samples_f32, cfg)
 
     def _run_whisper(self, samples: np.ndarray, cfg: STTConfig) -> TranscriptionResult:
-        import whisper  # type: ignore
 
         opts: dict = {
-            "language":        cfg.language or None,
-            "task":            cfg.task,
-            "beam_size":       cfg.beam_size,
-            "best_of":         cfg.best_of,
-            "temperature":     cfg.temperature,
+            "language": cfg.language or None,
+            "task": cfg.task,
+            "beam_size": cfg.beam_size,
+            "best_of": cfg.best_of,
+            "temperature": cfg.temperature,
             "word_timestamps": cfg.word_timestamps,
             "suppress_tokens": cfg.suppress_tokens,
-            "verbose":         False,
+            "verbose": False,
         }
         raw = self._model.transcribe(samples, **opts)
 
@@ -135,9 +137,7 @@ class WhisperSTT(BaseSTT):
                     result.words.append(w.get("word", "").strip())
                     result.word_start_times_sec.append(float(w.get("start", 0.0)))
                     result.word_end_times_sec.append(float(w.get("end", 0.0)))
-                    result.word_confidences.append(
-                        _logprob_to_conf(w.get("probability", 0.5))
-                    )
+                    result.word_confidences.append(_logprob_to_conf(w.get("probability", 0.5)))
 
         return result
 
@@ -185,6 +185,7 @@ class WhisperSTT(BaseSTT):
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
+
 
 def _resample(samples: np.ndarray, from_hz: int, to_hz: int) -> np.ndarray:
     """Naive linear-interpolation resample (fallback, no scipy dependency)."""

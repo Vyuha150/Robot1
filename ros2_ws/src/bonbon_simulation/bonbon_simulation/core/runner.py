@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 import math
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List
 
 from bonbon_simulation.core.config import ScenarioConfig, SimulationConfig, load_scenario
 from bonbon_simulation.reporting.metrics import SimulationMetricsCollector
@@ -23,7 +23,7 @@ from bonbon_simulation.validation.safety_validator import SafetyScenarioValidato
 class ScenarioRunResult:
     scenario: str
     passed: bool
-    reasons: List[str]
+    reasons: list[str]
     metrics: dict
     report_path: Path | None = None
 
@@ -42,10 +42,14 @@ class SimulationScenarioRunner:
         self.safety_validator = SafetyScenarioValidator(self.config.targets)
         self.reporter = ScenarioReportGenerator(self.config.report_dir, self.config.artifact_dir)
 
-    def run_file(self, scenario_path: str | Path, *, write_report: bool = True) -> ScenarioRunResult:
+    def run_file(
+        self, scenario_path: str | Path, *, write_report: bool = True
+    ) -> ScenarioRunResult:
         return self.run(load_scenario(scenario_path), write_report=write_report)
 
-    def run_many(self, scenario_paths: Iterable[str | Path], *, write_report: bool = True) -> List[ScenarioRunResult]:
+    def run_many(
+        self, scenario_paths: Iterable[str | Path], *, write_report: bool = True
+    ) -> list[ScenarioRunResult]:
         return [self.run_file(path, write_report=write_report) for path in scenario_paths]
 
     def run(self, scenario: ScenarioConfig, *, write_report: bool = True) -> ScenarioRunResult:
@@ -53,8 +57,12 @@ class SimulationScenarioRunner:
         metrics = SimulationMetricsCollector(navigation_attempts=1)
         faults = SensorFaultInjector(self.config.sensors.publish_timeout_sec)
         obstacles = DynamicObstacleController(_make_obstacles(scenario.entities))
-        battery = BatterySimulator(initial_pct=float(scenario.criteria.get("initial_battery_pct", 100.0)))
-        emergency = EmergencyEventInjector(reaction_ms=float(scenario.criteria.get("estop_reaction_ms", 120.0)))
+        battery = BatterySimulator(
+            initial_pct=float(scenario.criteria.get("initial_battery_pct", 100.0))
+        )
+        emergency = EmergencyEventInjector(
+            reaction_ms=float(scenario.criteria.get("estop_reaction_ms", 120.0))
+        )
 
         pos = scenario.start
         goal = scenario.goal
@@ -71,7 +79,17 @@ class SimulationScenarioRunner:
         while t <= scenario.duration_sec:
             while event_index < len(pending_events) and pending_events[event_index].time_sec <= t:
                 event = pending_events[event_index]
-                self._apply_event(event.type, event.target, event.params, t, faults, obstacles, battery, emergency, metrics)
+                self._apply_event(
+                    event.type,
+                    event.target,
+                    event.params,
+                    t,
+                    faults,
+                    obstacles,
+                    battery,
+                    emergency,
+                    metrics,
+                )
                 event_index += 1
 
             if emergency.active:
@@ -112,7 +130,9 @@ class SimulationScenarioRunner:
                 if t - blocked_since >= min(2.0, self.config.targets.max_blocked_path_recovery_sec):
                     metrics.recovery_attempts += 1
                     metrics.recovery_successes += 1
-                    metrics.replanning_latency_ms.append(float(scenario.criteria.get("replanning_latency_ms", 650.0)))
+                    metrics.replanning_latency_ms.append(
+                        float(scenario.criteria.get("replanning_latency_ms", 650.0))
+                    )
                     replanned = True
                     recovered_from_block = True
                     pos = (pos[0], pos[1] + 0.45)
@@ -126,7 +146,10 @@ class SimulationScenarioRunner:
                 metrics.near_misses += 1
 
             step = min(speed_mps * self.config.time_step_sec, dist)
-            pos = (pos[0] + (goal[0] - pos[0]) / dist * step, pos[1] + (goal[1] - pos[1]) / dist * step)
+            pos = (
+                pos[0] + (goal[0] - pos[0]) / dist * step,
+                pos[1] + (goal[1] - pos[1]) / dist * step,
+            )
             metrics.path_deviation_samples_m.append(abs(pos[1] - scenario.start[1]))
             t += self.config.time_step_sec
 
@@ -167,7 +190,9 @@ class SimulationScenarioRunner:
 
         return ScenarioRunResult(scenario.name, passed, reasons, metric_values, report_path)
 
-    def _apply_event(self, event_type, target, params, now, faults, obstacles, battery, emergency, metrics) -> None:
+    def _apply_event(
+        self, event_type, target, params, now, faults, obstacles, battery, emergency, metrics
+    ) -> None:
         if event_type == "sensor_failure":
             faults.fail(str(target), now)
         elif event_type == "sensor_drift":
@@ -177,28 +202,45 @@ class SimulationScenarioRunner:
         elif event_type == "low_battery":
             battery.set_low(float(params.get("percentage", 9.0)))
         elif event_type == "dynamic_obstacle":
-            obstacles.add(DynamicObstacle(
-                name=str(params.get("name", "dynamic_obstacle")),
-                kind=str(params.get("kind", "dynamic_obstacle")),
-                position=(float(params.get("x", 1.0)), float(params.get("y", 0.0))),
-                velocity=(float(params.get("vx", 0.0)), float(params.get("vy", 0.0))),
-                radius_m=float(params.get("radius_m", 0.4)),
-            ))
-            metrics.obstacle_detection_latency_ms.append(float(params.get("detection_latency_ms", 180.0)))
+            obstacles.add(
+                DynamicObstacle(
+                    name=str(params.get("name", "dynamic_obstacle")),
+                    kind=str(params.get("kind", "dynamic_obstacle")),
+                    position=(float(params.get("x", 1.0)), float(params.get("y", 0.0))),
+                    velocity=(float(params.get("vx", 0.0)), float(params.get("vy", 0.0))),
+                    radius_m=float(params.get("radius_m", 0.4)),
+                )
+            )
+            metrics.obstacle_detection_latency_ms.append(
+                float(params.get("detection_latency_ms", 180.0))
+            )
         elif event_type == "blocked_path":
-            obstacles.add(PedestrianSimulator.blocking_person("blocked_path_person", float(params.get("x", 1.5)), float(params.get("y", 0.0))))
+            obstacles.add(
+                PedestrianSimulator.blocking_person(
+                    "blocked_path_person", float(params.get("x", 1.5)), float(params.get("y", 0.0))
+                )
+            )
         elif event_type == "collision":
             metrics.collisions += 1
         elif event_type == "near_miss":
             metrics.near_misses += 1
-        elif event_type in {"speech_noise", "dashboard_pause", "dashboard_estop", "tts_emergency", "servo_fault", "robot_pushed", "wifi_loss", "map_mismatch"}:
+        elif event_type in {
+            "speech_noise",
+            "dashboard_pause",
+            "dashboard_estop",
+            "tts_emergency",
+            "servo_fault",
+            "robot_pushed",
+            "wifi_loss",
+            "map_mismatch",
+        }:
             metrics.recovery_attempts += 1
             metrics.recovery_successes += 1
             metrics.replanning_latency_ms.append(float(params.get("replanning_latency_ms", 500.0)))
 
 
-def _make_obstacles(entity_configs: Iterable[dict]) -> List[DynamicObstacle]:
-    result: List[DynamicObstacle] = []
+def _make_obstacles(entity_configs: Iterable[dict]) -> list[DynamicObstacle]:
+    result: list[DynamicObstacle] = []
     for item in entity_configs:
         kind = str(item.get("type", "dynamic_obstacle"))
         name = str(item.get("name", kind))
@@ -215,13 +257,15 @@ def _make_obstacles(entity_configs: Iterable[dict]) -> List[DynamicObstacle]:
         elif kind == "moving_cart":
             result.append(PedestrianSimulator.moving_cart(name, x, y))
         else:
-            result.append(DynamicObstacle(
-                name=name,
-                kind=kind,
-                position=(x, y),
-                velocity=(float(item.get("vx", 0.0)), float(item.get("vy", 0.0))),
-                radius_m=float(item.get("radius_m", 0.35)),
-            ))
+            result.append(
+                DynamicObstacle(
+                    name=name,
+                    kind=kind,
+                    position=(x, y),
+                    velocity=(float(item.get("vx", 0.0)), float(item.get("vy", 0.0))),
+                    radius_m=float(item.get("radius_m", 0.35)),
+                )
+            )
     return result
 
 

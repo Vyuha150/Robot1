@@ -30,7 +30,9 @@ def test_validate_config_load_env_file_strips_quotes_and_ignores_comments(tmp_pa
 
 
 def test_validate_config_rejects_runtime_secret_requirement_without_secrets(root: Path):
-    result = run_py("devops/scripts/validate_config.py", "--env", "local_dev", "--require-runtime-secrets")
+    result = run_py(
+        "devops/scripts/validate_config.py", "--env", "local_dev", "--require-runtime-secrets"
+    )
     assert result.returncode != 0
     assert "BONBON_JWT_SECRET" in result.stderr
     assert "BONBON_ADMIN_PASSWORD" in result.stderr
@@ -60,7 +62,9 @@ def test_verify_release_rejects_bad_checksum(tmp_path: Path):
     checksum = tmp_path / "artifact.bin.sha256"
     artifact.write_text("payload", encoding="utf-8")
     checksum.write_text("0" * 64 + " artifact.bin\n", encoding="utf-8")
-    result = run_py("devops/scripts/verify_release.py", "--artifact", str(artifact), "--sha256", str(checksum))
+    result = run_py(
+        "devops/scripts/verify_release.py", "--artifact", str(artifact), "--sha256", str(checksum)
+    )
     assert result.returncode != 0
     assert "checksum mismatch" in result.stderr
 

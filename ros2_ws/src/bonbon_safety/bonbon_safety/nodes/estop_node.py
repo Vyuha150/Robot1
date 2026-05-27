@@ -27,16 +27,13 @@ from __future__ import annotations
 
 import logging
 import os
-import time
 import threading
-from typing import Optional
 
 import rclpy
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
+from bonbon_msgs.msg import ModuleHealth, SafetyState
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Bool
-
-from bonbon_msgs.msg import SafetyState, ModuleHealth
 
 logger = logging.getLogger(__name__)
 
@@ -53,27 +50,33 @@ RELIABLE_D5 = QoSProfile(
 )
 
 # GPIO constants (Jetson.GPIO uses BCM numbering)
-ESTOP_INPUT_PIN  = 17   # reads physical e-stop button state (active LOW)
-RELAY_OUTPUT_PIN = 18   # asserts relay to cut motor power (active HIGH)
+ESTOP_INPUT_PIN = 17  # reads physical e-stop button state (active LOW)
+RELAY_OUTPUT_PIN = 18  # asserts relay to cut motor power (active HIGH)
 
 _SIMULATION = os.environ.get("BONBON_SIMULATION", "0") == "1"
 
 
 class _MockGPIO:
     """Drop-in GPIO mock used in simulation / CI environments."""
+
     BCM = "BCM"
-    IN  = "IN"
+    IN = "IN"
     OUT = "OUT"
     HIGH = 1
-    LOW  = 0
+    LOW = 0
     PUD_UP = "PUD_UP"
 
-    def setmode(self, *a): pass
-    def setup(self, *a, **kw): pass
-    def cleanup(self): pass
+    def setmode(self, *a):
+        pass
+
+    def setup(self, *a, **kw):
+        pass
+
+    def cleanup(self):
+        pass
 
     def input(self, pin: int) -> int:
-        return self.HIGH   # e-stop not pressed by default in simulation
+        return self.HIGH  # e-stop not pressed by default in simulation
 
     def output(self, pin: int, value: int):
         logger.debug("[MockGPIO] pin %d → %d", pin, value)
@@ -85,6 +88,7 @@ def _load_gpio():
         return _MockGPIO()
     try:
         import Jetson.GPIO as GPIO  # type: ignore[import]
+
         return GPIO
     except ImportError:
         logger.warning("Jetson.GPIO not found — falling back to MockGPIO")
@@ -97,7 +101,7 @@ class EstopNode(LifecycleNode):
     """
 
     NODE_NAME = "estop_node"
-    POLL_HZ   = 50
+    POLL_HZ = 50
 
     def __init__(self) -> None:
         super().__init__(self.NODE_NAME)
@@ -105,23 +109,23 @@ class EstopNode(LifecycleNode):
         self._estop_pressed: bool = False
         self._relay_asserted: bool = False
         self._poll_timer = None
-        self._pub_estop: Optional[rclpy.publisher.Publisher] = None
-        self._pub_health: Optional[rclpy.publisher.Publisher] = None
+        self._pub_estop: rclpy.publisher.Publisher | None = None
+        self._pub_health: rclpy.publisher.Publisher | None = None
         self._lock = threading.Lock()
 
-        self.declare_parameter("estop_input_pin",  ESTOP_INPUT_PIN)
+        self.declare_parameter("estop_input_pin", ESTOP_INPUT_PIN)
         self.declare_parameter("relay_output_pin", RELAY_OUTPUT_PIN)
-        self.declare_parameter("poll_hz",          float(self.POLL_HZ))
+        self.declare_parameter("poll_hz", float(self.POLL_HZ))
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         try:
-            self._in_pin  = self.get_parameter("estop_input_pin").value
+            self._in_pin = self.get_parameter("estop_input_pin").value
             self._out_pin = self.get_parameter("relay_output_pin").value
 
             self._gpio.setmode(self._gpio.BCM)
-            self._gpio.setup(self._in_pin,  self._gpio.IN, pull_up_down=self._gpio.PUD_UP)
+            self._gpio.setup(self._in_pin, self._gpio.IN, pull_up_down=self._gpio.PUD_UP)
             self._gpio.setup(self._out_pin, self._gpio.OUT)
             # Relay starts de-asserted (motor power on)
             self._gpio.output(self._out_pin, self._gpio.LOW)
@@ -134,9 +138,7 @@ class EstopNode(LifecycleNode):
             return TransitionCallbackReturn.FAILURE
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self._pub_estop = self.create_lifecycle_publisher(
-            Bool, "/bonbon/estop/state", RELIABLE_TL
-        )
+        self._pub_estop = self.create_lifecycle_publisher(Bool, "/bonbon/estop/state", RELIABLE_TL)
         self._pub_health = self.create_lifecycle_publisher(
             ModuleHealth, "/bonbon/safety/estop_node/health", RELIABLE_D5
         )
@@ -173,17 +175,15 @@ class EstopNode(LifecycleNode):
         """Read e-stop button GPIO.  Publish on state change."""
         raw = self._gpio.input(self._in_pin)
         # Active LOW: button pressed = GPIO LOW = raw == 0
-        pressed = (raw == self._gpio.LOW)
+        pressed = raw == self._gpio.LOW
 
         with self._lock:
-            changed = (pressed != self._estop_pressed)
+            changed = pressed != self._estop_pressed
             self._estop_pressed = pressed
 
         if changed:
             if pressed:
-                self.get_logger().fatal(
-                    "E-STOP BUTTON PRESSED — asserting motor power relay"
-                )
+                self.get_logger().fatal("E-STOP BUTTON PRESSED — asserting motor power relay")
                 self._assert_relay()
             else:
                 self.get_logger().warn("E-stop button RELEASED")
@@ -197,9 +197,7 @@ class EstopNode(LifecycleNode):
         Belt-and-suspenders: hardware path also exists independently.
         """
         if msg.state == SafetyState.SAFE_STOP and not self._relay_asserted:
-            self.get_logger().fatal(
-                "Software SAFE_STOP received — asserting relay"
-            )
+            self.get_logger().fatal("Software SAFE_STOP received — asserting relay")
             self._assert_relay()
         elif msg.state == SafetyState.INITIALIZING and self._relay_asserted:
             self.get_logger().warn("Startup/reset — de-asserting relay")
@@ -233,12 +231,8 @@ class EstopNode(LifecycleNode):
         msg = ModuleHealth()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.module_name = "estop_node"
-        msg.status = (
-            ModuleHealth.WARN if self._estop_pressed else ModuleHealth.OK
-        )
-        msg.status_text = (
-            "E-STOP PRESSED" if self._estop_pressed else "E-stop clear"
-        )
+        msg.status = ModuleHealth.WARN if self._estop_pressed else ModuleHealth.OK
+        msg.status_text = "E-STOP PRESSED" if self._estop_pressed else "E-stop clear"
         self._pub_health.publish(msg)
 
 

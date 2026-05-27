@@ -19,12 +19,24 @@ class WorldLauncher:
     def __init__(self, world_dir: str | Path) -> None:
         self.world_dir = Path(world_dir)
 
-    def plan(self, world_name: str, *, headless: bool = True, use_ignition: bool = True) -> WorldLaunchPlan:
+    def plan(
+        self, world_name: str, *, headless: bool = True, use_ignition: bool = True
+    ) -> WorldLaunchPlan:
         world_path = self.world_dir / f"{world_name}.world"
         if not world_path.exists():
             raise FileNotFoundError(f"World file not found: {world_path}")
         if use_ignition:
-            command = ("ign", "gazebo", "-r", "-s" if headless else str(world_path), str(world_path))
+            command = (
+                "ign",
+                "gazebo",
+                "-r",
+                "-s" if headless else str(world_path),
+                str(world_path),
+            )
         else:
-            command = ("gazebo", "--verbose", str(world_path)) if not headless else ("gzserver", str(world_path))
+            command = (
+                ("gazebo", "--verbose", str(world_path))
+                if not headless
+                else ("gzserver", str(world_path))
+            )
         return WorldLaunchPlan(world_name, world_path, headless, use_ignition, command)

@@ -11,7 +11,12 @@ REQUIRED_ENVS = {
     "simulation": ["BONBON_ENV"],
     "lab_robot": ["BONBON_ENV", "BONBON_ROBOT_HOST", "BONBON_ROBOT_USER"],
     "staging_robot": ["BONBON_ENV", "BONBON_ROBOT_HOST", "BONBON_ROBOT_USER"],
-    "production_robot": ["BONBON_ENV", "BONBON_ROBOT_HOST", "BONBON_ROBOT_USER", "BONBON_RELEASE_CHANNEL"],
+    "production_robot": [
+        "BONBON_ENV",
+        "BONBON_ROBOT_HOST",
+        "BONBON_ROBOT_USER",
+        "BONBON_RELEASE_CHANNEL",
+    ],
 }
 
 REQUIRED_CONFIG_FILES = ["runtime.env", "services.yaml"]

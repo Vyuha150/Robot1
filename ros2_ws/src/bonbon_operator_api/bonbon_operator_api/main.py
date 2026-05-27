@@ -18,16 +18,14 @@ import logging
 import threading
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
-from typing import Any, Optional
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 
 from bonbon_operator_api.api.auth_api import auth_router
 from bonbon_operator_api.api.command_api import cmd_router
-from bonbon_operator_api.api.config_api import config_router, _ConfigStore
+from bonbon_operator_api.api.config_api import _ConfigStore, config_router
 from bonbon_operator_api.api.diagnostics_api import diag_router
 from bonbon_operator_api.api.llm_test_api import llm_router
 from bonbon_operator_api.api.memory_api import memory_router
@@ -108,13 +106,12 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
         event_task = asyncio.create_task(_event_dispatcher(event_queue, ws_manager))
 
         # Background task: periodic status broadcast
-        status_task = asyncio.create_task(
-            _status_broadcaster(aggregator, ws_manager, metrics)
-        )
+        status_task = asyncio.create_task(_status_broadcaster(aggregator, ws_manager, metrics))
 
         logger.info(
             "BonBon Operator API ready — host=%s port=%d",
-            cfg.server.host, cfg.server.port,
+            cfg.server.host,
+            cfg.server.port,
         )
         yield
 
@@ -143,7 +140,7 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
     # CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cfg.cors.allowed_origins,      # CORSConfig field
+        allow_origins=cfg.cors.allowed_origins,  # CORSConfig field
         allow_credentials=cfg.cors.allow_credentials,
         allow_methods=cfg.cors.allowed_methods,
         allow_headers=cfg.cors.allowed_headers,
@@ -162,13 +159,13 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
     app.state.config_store = config_store
 
     # Routers
-    app.include_router(auth_router,   prefix="/api/v1")
+    app.include_router(auth_router, prefix="/api/v1")
     app.include_router(status_router, prefix="/api/v1")
-    app.include_router(cmd_router,    prefix="/api/v1")
-    app.include_router(diag_router,   prefix="/api/v1")
+    app.include_router(cmd_router, prefix="/api/v1")
+    app.include_router(diag_router, prefix="/api/v1")
     app.include_router(config_router, prefix="/api/v1")
     app.include_router(memory_router, prefix="/api/v1")
-    app.include_router(llm_router,    prefix="/api/v1")
+    app.include_router(llm_router, prefix="/api/v1")
     app.include_router(testbench_router, prefix="/api/v1")
     app.include_router(ws_router)
 
@@ -253,7 +250,8 @@ async def _status_broadcaster(
 # Public factory function (used by uvicorn --factory and ROS2 node)
 # ---------------------------------------------------------------------------
 
-def create_app(config: Optional[OperatorAPIConfig] = None) -> FastAPI:
+
+def create_app(config: OperatorAPIConfig | None = None) -> FastAPI:
     """FastAPI application factory.
 
     Parameters
@@ -270,6 +268,7 @@ def create_app(config: Optional[OperatorAPIConfig] = None) -> FastAPI:
 # OperatorAPIServer — wraps uvicorn for use from the ROS2 node
 # ---------------------------------------------------------------------------
 
+
 class OperatorAPIServer:
     """Launch and manage the FastAPI server in a background thread.
 
@@ -281,7 +280,7 @@ class OperatorAPIServer:
 
     def __init__(self, config: OperatorAPIConfig) -> None:
         self._cfg = config
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._server = None
 
     def start(self) -> None:
@@ -305,7 +304,8 @@ class OperatorAPIServer:
         self._thread.start()
         logger.info(
             "OperatorAPIServer started on %s:%d",
-            self._cfg.server.host, self._cfg.server.port,
+            self._cfg.server.host,
+            self._cfg.server.port,
         )
 
     def stop(self) -> None:
@@ -320,6 +320,7 @@ class OperatorAPIServer:
 def run_server() -> None:
     """Entry point for ``operator_api_server`` console script."""
     import uvicorn
+
     cfg = OperatorAPIConfig()
     app = create_app(cfg)
     uvicorn.run(

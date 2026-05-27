@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 import pytest
-
 from bonbon_operator_api.audit.audit_logger import AuditLogger
 
 
@@ -74,16 +72,14 @@ def test_query_offset(al):
 
 # Scenario 8: Log with request_data serialised
 def test_log_with_request_data(al):
-    al.log("u1", "alice", "admin", "action:test",
-           request_data={"key": "value", "count": 42})
+    al.log("u1", "alice", "admin", "action:test", request_data={"key": "value", "count": 42})
     results = al.query(actor_id="u1", limit=1)
     assert results  # at least one row
 
 
 # Scenario 9: Log with ip_address
 def test_log_with_ip(al):
-    eid = al.log("u1", "alice", "admin", "action:test",
-                 ip_address="192.168.1.100")
+    al.log("u1", "alice", "admin", "action:test", ip_address="192.168.1.100")
     results = al.query(actor_id="u1", limit=1)
     assert any(r["ip_address"] == "192.168.1.100" for r in results)
 
@@ -98,8 +94,10 @@ def test_log_with_duration(al):
 # Scenario 11: Log never raises even with corrupt data
 def test_log_never_raises(al, monkeypatch):
     """Simulate DB failure; log() must not propagate exception."""
+
     def _broken_conn():
         raise RuntimeError("DB is gone")
+
     monkeypatch.setattr(al, "_conn", _broken_conn)
     eid = al.log("u1", "alice", "admin", "action:test")  # must not raise
     assert isinstance(eid, str)
@@ -109,6 +107,7 @@ def test_log_never_raises(al, monkeypatch):
 def test_query_returns_empty_on_failure(al, monkeypatch):
     def _broken_conn():
         raise RuntimeError("DB is gone")
+
     monkeypatch.setattr(al, "_conn", _broken_conn)
     results = al.query()
     assert results == []
@@ -118,6 +117,7 @@ def test_query_returns_empty_on_failure(al, monkeypatch):
 def test_count_returns_zero_on_failure(al, monkeypatch):
     def _broken_conn():
         raise RuntimeError("DB is gone")
+
     monkeypatch.setattr(al, "_conn", _broken_conn)
     assert al.count() == 0
 
@@ -150,16 +150,16 @@ def test_multiple_events_query(al):
 
 # Scenario 17: Outcome field stored correctly
 def test_outcome_stored(al):
-    al.log("u1", "alice", "admin", "command:navigate",
-           outcome="safety_blocked", detail="halted state")
+    al.log(
+        "u1", "alice", "admin", "command:navigate", outcome="safety_blocked", detail="halted state"
+    )
     results = al.query(actor_id="u1", action="command:navigate", limit=1)
     assert results[0]["outcome"] == "safety_blocked"
 
 
 # Scenario 18: Detail field stored correctly
 def test_detail_stored(al):
-    al.log("u1", "alice", "admin", "action:test",
-           detail="some detail text here")
+    al.log("u1", "alice", "admin", "action:test", detail="some detail text here")
     results = al.query(actor_id="u1", limit=1)
     assert "some detail text here" in results[0]["detail"]
 

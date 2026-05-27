@@ -16,42 +16,45 @@ from __future__ import annotations
 import time
 
 import pytest
-
 from bonbon_data_stores.schema.models import (
     AuditLogEntry,
     EnvironmentZone,
     InteractionEvent,
     MapMetadata,
-    NavigationEvent,
     NavigationOutcome,
     PrivacyLevel,
     RetentionPolicy,
     RobotMode,
     RobotState,
-    SafetyEvent,
     SafetyEventType,
     UserPreference,
     UserRecord,
 )
 from bonbon_data_stores.sqlite.migrations import SchemaMigrator
 
-
 # ---------------------------------------------------------------------------
 # Scenario 5: Schema migrations
 # ---------------------------------------------------------------------------
+
 
 class TestSchemaMigrations:
     def test_migrate_creates_tables(self, db_conn):
         tables = {
             row["name"]
             for row in db_conn.get()
-                              .execute("SELECT name FROM sqlite_master WHERE type='table';")
-                              .fetchall()
+            .execute("SELECT name FROM sqlite_master WHERE type='table';")
+            .fetchall()
         }
         for expected in (
-            "users", "interactions", "robot_states",
-            "safety_events", "navigation_events", "audit_log",
-            "map_metadata", "environment_zones", "ai_context",
+            "users",
+            "interactions",
+            "robot_states",
+            "safety_events",
+            "navigation_events",
+            "audit_log",
+            "map_metadata",
+            "environment_zones",
+            "ai_context",
             "schema_migrations",
         ):
             assert expected in tables, f"Table {expected!r} missing"
@@ -70,6 +73,7 @@ class TestSchemaMigrations:
 # ---------------------------------------------------------------------------
 # Scenario 6: UserProfileRepository
 # ---------------------------------------------------------------------------
+
 
 class TestUserProfileRepository:
     def test_save_and_get(self, user_repo, sample_user):
@@ -119,7 +123,7 @@ class TestUserProfileRepository:
             input_text="linked to user",
         )
         interaction_repo.save(linked)
-        results = user_repo.forget_user(sample_user.user_id)
+        user_repo.forget_user(sample_user.user_id)
         # User should be deleted
         assert user_repo.get_by_id(sample_user.user_id) is None
         # Interaction user_id should be nulled (not deleted)
@@ -136,6 +140,7 @@ class TestUserProfileRepository:
 # ---------------------------------------------------------------------------
 # Scenario 7: InteractionHistoryRepository
 # ---------------------------------------------------------------------------
+
 
 class TestInteractionHistoryRepository:
     def test_save_and_get(self, interaction_repo, sample_interaction):
@@ -172,6 +177,7 @@ class TestInteractionHistoryRepository:
 # Scenario 8: RobotStateRepository
 # ---------------------------------------------------------------------------
 
+
 class TestRobotStateRepository:
     def test_save_and_get_latest(self, robot_state_repo, sample_robot_state):
         robot_state_repo.save(sample_robot_state)
@@ -196,6 +202,7 @@ class TestRobotStateRepository:
 # Scenario 9: SafetyEventRepository
 # ---------------------------------------------------------------------------
 
+
 class TestSafetyEventRepository:
     def test_save_and_get_unresolved(self, safety_repo, sample_safety_event):
         safety_repo.save(sample_safety_event)
@@ -219,6 +226,7 @@ class TestSafetyEventRepository:
 # Scenario 10: NavigationEventRepository
 # ---------------------------------------------------------------------------
 
+
 class TestNavigationEventRepository:
     def test_save_and_get(self, nav_repo, sample_nav_event):
         eid = nav_repo.save(sample_nav_event)
@@ -240,6 +248,7 @@ class TestNavigationEventRepository:
 # ---------------------------------------------------------------------------
 # Scenario 11: AuditLogRepository
 # ---------------------------------------------------------------------------
+
 
 class TestAuditLogRepository:
     def test_append_and_get(self, audit_repo):
@@ -266,6 +275,7 @@ class TestAuditLogRepository:
 # ---------------------------------------------------------------------------
 # Scenario 12: MapMetadataRepository
 # ---------------------------------------------------------------------------
+
 
 class TestMapMetadataRepository:
     def test_save_and_get(self, map_repo):

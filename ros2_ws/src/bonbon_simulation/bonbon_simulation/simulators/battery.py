@@ -20,7 +20,9 @@ class BatterySimulator:
             self.state.percentage = min(100.0, self.state.percentage + dt_sec * 12.0 / 3600.0)
         else:
             multiplier = 1.0 if moving else 0.35
-            self.state.percentage = max(0.0, self.state.percentage - dt_sec * self.drain_pct_per_hour * multiplier / 3600.0)
+            self.state.percentage = max(
+                0.0, self.state.percentage - dt_sec * self.drain_pct_per_hour * multiplier / 3600.0
+            )
         self.state.voltage_v = 18.0 + (self.state.percentage / 100.0) * 7.2
 
     def set_low(self, pct: float = 9.0) -> None:

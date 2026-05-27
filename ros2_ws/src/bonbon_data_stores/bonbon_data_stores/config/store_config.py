@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Dict, Optional
 
 from pydantic import BaseModel, Field, model_validator
-
 
 # ---------------------------------------------------------------------------
 # Sub-config blocks
 # ---------------------------------------------------------------------------
+
 
 class SQLiteConfig(BaseModel):
     """Configuration for the SQLite memory store."""
@@ -32,7 +31,7 @@ class SQLiteConfig(BaseModel):
     retention_sweep_interval_sec: int = Field(default=3600, ge=60)
 
     @model_validator(mode="after")
-    def _ensure_parent_dir(self) -> "SQLiteConfig":
+    def _ensure_parent_dir(self) -> SQLiteConfig:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         return self
 
@@ -61,7 +60,7 @@ class FAISSConfig(BaseModel):
     enabled: bool = Field(default=True)
 
     @model_validator(mode="after")
-    def _ensure_index_dir(self) -> "FAISSConfig":
+    def _ensure_index_dir(self) -> FAISSConfig:
         self.index_dir.mkdir(parents=True, exist_ok=True)
         return self
 
@@ -73,7 +72,9 @@ class ChromaConfig(BaseModel):
         default=Path("/tmp/bonbon/data/chromadb"),
         description="Persistent storage directory for ChromaDB.",
     )
-    collection_prefix: str = Field(default="bonbon_", description="Prefix for all collection names.")
+    collection_prefix: str = Field(
+        default="bonbon_", description="Prefix for all collection names."
+    )
     max_results: int = Field(default=10, ge=1, le=100, description="Default max results per query.")
     distance_threshold: float = Field(
         default=0.75,
@@ -84,7 +85,7 @@ class ChromaConfig(BaseModel):
     enabled: bool = Field(default=True)
 
     @model_validator(mode="after")
-    def _ensure_persist_dir(self) -> "ChromaConfig":
+    def _ensure_persist_dir(self) -> ChromaConfig:
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         return self
 
@@ -126,7 +127,7 @@ class BackupConfig(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _ensure_backup_dir(self) -> "BackupConfig":
+    def _ensure_backup_dir(self) -> BackupConfig:
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         return self
 
@@ -154,10 +155,10 @@ class PrivacyConfig(BaseModel):
         description="Strip PII from exported records.",
     )
     # Retention defaults (in days; 0 = permanent-until-deleted)
-    retention_defaults: Dict[str, int] = Field(
+    retention_defaults: dict[str, int] = Field(
         default_factory=lambda: {
-            "ephemeral": 0,           # purged after session
-            "session_only": 0,        # purged at session end
+            "ephemeral": 0,  # purged after session
+            "session_only": 0,  # purged at session end
             "7_days": 7,
             "30_days": 30,
             "1_year": 365,
@@ -169,6 +170,7 @@ class PrivacyConfig(BaseModel):
 # ---------------------------------------------------------------------------
 # Top-level config
 # ---------------------------------------------------------------------------
+
 
 class DataStoreConfig(BaseModel):
     """Root configuration object for the whole bonbon_data_stores package.
@@ -192,7 +194,7 @@ class DataStoreConfig(BaseModel):
     log_level: str = Field(default="INFO")
 
     @classmethod
-    def from_env(cls, base_dir: Optional[str] = None) -> "DataStoreConfig":
+    def from_env(cls, base_dir: str | None = None) -> DataStoreConfig:
         """Build config rooted at *base_dir* (or the BONBON_DATA_DIR env var).
 
         All sub-paths are placed under *base_dir* so the whole store can be

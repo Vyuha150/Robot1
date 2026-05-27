@@ -9,13 +9,12 @@ from __future__ import annotations
 import os
 import secrets
 from pathlib import Path
-from typing import List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class CORSConfig(BaseModel):
-    allowed_origins: List[str] = Field(
+    allowed_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
             "http://localhost:8080",
@@ -24,8 +23,8 @@ class CORSConfig(BaseModel):
         ]
     )
     allow_credentials: bool = True
-    allowed_methods: List[str] = Field(default_factory=lambda: ["*"])
-    allowed_headers: List[str] = Field(default_factory=lambda: ["*"])
+    allowed_methods: list[str] = Field(default_factory=lambda: ["*"])
+    allowed_headers: list[str] = Field(default_factory=lambda: ["*"])
 
 
 class JWTConfig(BaseModel):
@@ -34,7 +33,7 @@ class JWTConfig(BaseModel):
     token_expire_minutes: int = Field(default=60, ge=5, le=1440)
 
     @model_validator(mode="after")
-    def _require_secret(self) -> "JWTConfig":
+    def _require_secret(self) -> JWTConfig:
         if not self.secret:
             env_secret = os.environ.get("BONBON_JWT_SECRET", "")
             if not env_secret:
@@ -61,7 +60,7 @@ class ServerConfig(BaseModel):
 
 
 class ROS2Config(BaseModel):
-    enabled: bool = True                # set False to run without ROS2 (tests, dev)
+    enabled: bool = True  # set False to run without ROS2 (tests, dev)
     namespace: str = "/bonbon"
     offline_timeout_sec: float = Field(default=15.0, ge=2.0)
     service_timeout_sec: float = Field(default=5.0, ge=0.5, le=30.0)
@@ -98,7 +97,7 @@ class AuditConfig(BaseModel):
     retention_days: int = Field(default=90, ge=7)
 
     @model_validator(mode="after")
-    def _ensure_dir(self) -> "AuditConfig":
+    def _ensure_dir(self) -> AuditConfig:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         return self
 
@@ -119,25 +118,30 @@ class RateLimitConfig(BaseModel):
 # Critical vs limited config parameters
 # ---------------------------------------------------------------------------
 
-CRITICAL_CONFIG_KEYS = frozenset({
-    "safety.emergency_distance_m",
-    "safety.watchdog_timeout_sec",
-    "navigation.max_speed_mps",
-    "navigation.obstacle_distance_m",
-})
+CRITICAL_CONFIG_KEYS = frozenset(
+    {
+        "safety.emergency_distance_m",
+        "safety.watchdog_timeout_sec",
+        "navigation.max_speed_mps",
+        "navigation.obstacle_distance_m",
+    }
+)
 
-LIMITED_CONFIG_KEYS = frozenset({
-    "tts.default_volume",
-    "tts.default_language",
-    "navigation.preferred_speed_mps",
-    "perception.detection_confidence_threshold",
-    "robot.interaction_timeout_sec",
-})
+LIMITED_CONFIG_KEYS = frozenset(
+    {
+        "tts.default_volume",
+        "tts.default_language",
+        "navigation.preferred_speed_mps",
+        "perception.detection_confidence_threshold",
+        "robot.interaction_timeout_sec",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # Root config
 # ---------------------------------------------------------------------------
+
 
 class OperatorAPIConfig(BaseModel):
     """Root configuration for the bonbon_operator_api package."""
@@ -150,18 +154,16 @@ class OperatorAPIConfig(BaseModel):
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
     users_db_path: Path = Field(default=Path("/tmp/bonbon/operator_api/users.db"))
-    config_store_path: Path = Field(
-        default=Path("/tmp/bonbon/operator_api/robot_config.json")
-    )
+    config_store_path: Path = Field(default=Path("/tmp/bonbon/operator_api/robot_config.json"))
     log_level: str = "INFO"
 
     @classmethod
-    def from_env(cls) -> "OperatorAPIConfig":
+    def from_env(cls) -> OperatorAPIConfig:
         """Build config reading secrets from environment variables."""
         return cls()
 
     @model_validator(mode="after")
-    def _ensure_dirs(self) -> "OperatorAPIConfig":
+    def _ensure_dirs(self) -> OperatorAPIConfig:
         self.users_db_path.parent.mkdir(parents=True, exist_ok=True)
         self.config_store_path.parent.mkdir(parents=True, exist_ok=True)
         return self

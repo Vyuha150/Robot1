@@ -24,6 +24,7 @@ The layer also computes an approach vector for "passing announcements"
 so the navigation node can trigger TTS when crossing within
 announce_distance_m of a person.
 """
+
 from __future__ import annotations
 
 import logging
@@ -31,7 +32,6 @@ import math
 import time
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -42,15 +42,16 @@ logger = logging.getLogger(__name__)
 
 # ── Person obstacle ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class PersonObstacle:
-    track_id:      str
-    x:             float
-    y:             float
-    velocity_mps:  float
-    facing_robot:  bool
-    age_group:     str       # "child" | "adult" | "elderly" | "unknown"
-    last_seen:     float = field(default_factory=time.monotonic)
+    track_id: str
+    x: float
+    y: float
+    velocity_mps: float
+    facing_robot: bool
+    age_group: str  # "child" | "adult" | "elderly" | "unknown"
+    last_seen: float = field(default_factory=time.monotonic)
 
     @property
     def is_vulnerable(self) -> bool:
@@ -64,13 +65,15 @@ class PersonObstacle:
 @dataclass
 class PassingAlert:
     """Trigger a TTS announcement when approaching a person closely."""
-    person_id:      str
-    distance_m:     float
+
+    person_id: str
+    distance_m: float
     should_announce: bool
-    announced:      bool = False
+    announced: bool = False
 
 
 # ── Costmap layer ─────────────────────────────────────────────────────────────
+
 
 class HumanAwareCostmapLayer:
     """
@@ -95,23 +98,23 @@ class HumanAwareCostmapLayer:
 
     def __init__(
         self,
-        cfg:       HumanAwareConfig,
-        resolution: float = 0.05,   # m/px
-        width:     int    = 400,    # px
-        height:    int    = 400,    # px
-        origin_x:  float  = -10.0,  # map frame
-        origin_y:  float  = -10.0,
+        cfg: HumanAwareConfig,
+        resolution: float = 0.05,  # m/px
+        width: int = 400,  # px
+        height: int = 400,  # px
+        origin_x: float = -10.0,  # map frame
+        origin_y: float = -10.0,
     ) -> None:
-        self._cfg        = cfg
+        self._cfg = cfg
         self._resolution = resolution
-        self._width      = width
-        self._height     = height
-        self._origin_x   = origin_x
-        self._origin_y   = origin_y
+        self._width = width
+        self._height = height
+        self._origin_x = origin_x
+        self._origin_y = origin_y
 
-        self._persons: Dict[str, PersonObstacle] = {}
-        self._lock     = Lock()
-        self._dirty    = False
+        self._persons: dict[str, PersonObstacle] = {}
+        self._lock = Lock()
+        self._dirty = False
 
         self._grid = np.zeros((height, width), dtype=np.int8)
 
@@ -119,22 +122,22 @@ class HumanAwareCostmapLayer:
 
     def update_person(
         self,
-        track_id:     str,
-        x:            float,
-        y:            float,
+        track_id: str,
+        x: float,
+        y: float,
         velocity_mps: float = 0.0,
-        facing_robot: bool  = False,
-        age_group:    str   = "adult",
+        facing_robot: bool = False,
+        age_group: str = "adult",
     ) -> None:
         with self._lock:
             self._persons[track_id] = PersonObstacle(
-                track_id     = track_id,
-                x            = x,
-                y            = y,
-                velocity_mps = velocity_mps,
-                facing_robot = facing_robot,
-                age_group    = age_group,
-                last_seen    = time.monotonic(),
+                track_id=track_id,
+                x=x,
+                y=y,
+                velocity_mps=velocity_mps,
+                facing_robot=facing_robot,
+                age_group=age_group,
+                last_seen=time.monotonic(),
             )
             self._dirty = True
 
@@ -147,7 +150,8 @@ class HumanAwareCostmapLayer:
         """Remove persons not seen for > decay_sec.  Returns number removed."""
         with self._lock:
             stale = [
-                tid for tid, p in self._persons.items()
+                tid
+                for tid, p in self._persons.items()
                 if (time.monotonic() - p.last_seen) > self._cfg.person_decay_sec
             ]
             for tid in stale:
@@ -157,7 +161,7 @@ class HumanAwareCostmapLayer:
                 logger.debug("Expired %d stale persons", len(stale))
             return len(stale)
 
-    def get_persons(self) -> List[PersonObstacle]:
+    def get_persons(self) -> list[PersonObstacle]:
         with self._lock:
             return list(self._persons.values())
 
@@ -200,11 +204,7 @@ class HumanAwareCostmapLayer:
                     continue
                 # Exponential cost: 100 at centre, ~0 at edge
                 ratio = 1.0 - (dist_m / radius)
-                cost  = int(
-                    100.0 * math.exp(
-                        -self._cfg.person_cost_scaling * (1.0 - ratio)
-                    ) * ratio
-                )
+                cost = int(100.0 * math.exp(-self._cfg.person_cost_scaling * (1.0 - ratio)) * ratio)
                 cost = max(0, min(100, cost))
                 if cost > self._grid[row, col]:
                     self._grid[row, col] = cost
@@ -231,7 +231,7 @@ class HumanAwareCostmapLayer:
         self,
         robot_x: float,
         robot_y: float,
-    ) -> List[PassingAlert]:
+    ) -> list[PassingAlert]:
         """
         Return passing alerts for persons within announce_distance_m.
         Only persons facing the robot or in the robot's path are flagged.
@@ -243,11 +243,13 @@ class HumanAwareCostmapLayer:
             for p in self._persons.values():
                 d = math.hypot(p.x - robot_x, p.y - robot_y)
                 if d <= self._cfg.announce_distance_m:
-                    alerts.append(PassingAlert(
-                        person_id       = p.track_id,
-                        distance_m      = d,
-                        should_announce = True,
-                    ))
+                    alerts.append(
+                        PassingAlert(
+                            person_id=p.track_id,
+                            distance_m=d,
+                            should_announce=True,
+                        )
+                    )
         return alerts
 
     # ── Grid metadata ─────────────────────────────────────────────────────────
@@ -257,9 +259,9 @@ class HumanAwareCostmapLayer:
         return self._resolution
 
     @property
-    def origin(self) -> Tuple[float, float]:
+    def origin(self) -> tuple[float, float]:
         return (self._origin_x, self._origin_y)
 
     @property
-    def size(self) -> Tuple[int, int]:
+    def size(self) -> tuple[int, int]:
         return (self._width, self._height)

@@ -22,7 +22,8 @@ import asyncio
 import logging
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from bonbon_operator_api.ros2.status_aggregator import RobotStatusAggregator
 
@@ -31,44 +32,46 @@ logger = logging.getLogger(__name__)
 # Try to import rclpy; fall back gracefully when not available
 try:
     import rclpy
-    from rclpy.node import Node
     from rclpy.executors import MultiThreadedExecutor
-    from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
-    from std_msgs.msg import String, Bool, Float32
+    from rclpy.node import Node
+    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from std_msgs.msg import Bool, Float32, String
+
     _ROS2_AVAILABLE = True
 except ImportError:
     _ROS2_AVAILABLE = False
     logger.warning("rclpy not available — ROS2 bridge running in stub mode")
 
 # Topic names (mirror the rest of BonBon ROS2 architecture)
-_TOPIC_SAFETY_STATE    = "/bonbon/safety/state"
-_TOPIC_BATTERY         = "/bonbon/battery/status"
-_TOPIC_NAV_STATE       = "/bonbon/navigation/state"
-_TOPIC_PERCEPTION      = "/bonbon/perception/status"
-_TOPIC_TTS_STATE       = "/bonbon/tts/state"
-_TOPIC_ACTUATION       = "/bonbon/actuation/state"
-_TOPIC_MODULE_STATUS   = "/bonbon/modules/status"
-_TOPIC_HEARTBEAT       = "/bonbon/heartbeat"
+_TOPIC_SAFETY_STATE = "/bonbon/safety/state"
+_TOPIC_BATTERY = "/bonbon/battery/status"
+_TOPIC_NAV_STATE = "/bonbon/navigation/state"
+_TOPIC_PERCEPTION = "/bonbon/perception/status"
+_TOPIC_TTS_STATE = "/bonbon/tts/state"
+_TOPIC_ACTUATION = "/bonbon/actuation/state"
+_TOPIC_MODULE_STATUS = "/bonbon/modules/status"
+_TOPIC_HEARTBEAT = "/bonbon/heartbeat"
 
 # Service names
-_SVC_EMERGENCY_STOP    = "/bonbon/safety/emergency_stop"
-_SVC_SPEAK             = "/bonbon/tts/speak"
-_SVC_NAVIGATE          = "/bonbon/navigation/navigate"
-_SVC_PAUSE             = "/bonbon/navigation/pause"
-_SVC_RESUME            = "/bonbon/navigation/resume"
-_SVC_DOCK              = "/bonbon/navigation/dock"
-_SVC_CANCEL_TASK       = "/bonbon/task/cancel"
-_SVC_RESTART_MODULE    = "/bonbon/modules/restart"
-_SVC_GET_CONFIG        = "/bonbon/config/get"
-_SVC_SET_CONFIG        = "/bonbon/config/set"
-_SVC_MEMORY_QUERY      = "/bonbon/memory/query"
-_SVC_RAG_QUERY         = "/bonbon/rag/query"
+_SVC_EMERGENCY_STOP = "/bonbon/safety/emergency_stop"
+_SVC_SPEAK = "/bonbon/tts/speak"
+_SVC_NAVIGATE = "/bonbon/navigation/navigate"
+_SVC_PAUSE = "/bonbon/navigation/pause"
+_SVC_RESUME = "/bonbon/navigation/resume"
+_SVC_DOCK = "/bonbon/navigation/dock"
+_SVC_CANCEL_TASK = "/bonbon/task/cancel"
+_SVC_RESTART_MODULE = "/bonbon/modules/restart"
+_SVC_GET_CONFIG = "/bonbon/config/get"
+_SVC_SET_CONFIG = "/bonbon/config/set"
+_SVC_MEMORY_QUERY = "/bonbon/memory/query"
+_SVC_RAG_QUERY = "/bonbon/rag/query"
 
-_SERVICE_TIMEOUT_SEC   = 5.0
+_SERVICE_TIMEOUT_SEC = 5.0
 
 
 class BridgeError(Exception):
     """Raised when a ROS2 service call fails or times out."""
+
     def __init__(self, message: str, code: str = "BRIDGE_ERROR") -> None:
         super().__init__(message)
         self.code = code
@@ -91,17 +94,17 @@ class ROS2DashboardBridge:
     def __init__(
         self,
         aggregator: RobotStatusAggregator,
-        event_queue: Optional[asyncio.Queue] = None,
+        event_queue: asyncio.Queue | None = None,
         node_name: str = "bonbon_dashboard_bridge",
     ) -> None:
         self._aggregator = aggregator
-        self._event_queue: Optional[asyncio.Queue] = event_queue
+        self._event_queue: asyncio.Queue | None = event_queue
         self._node_name = node_name
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
         self._node = None
         self._executor = None
-        self._spin_thread: Optional[threading.Thread] = None
+        self._spin_thread: threading.Thread | None = None
         self._running = False
 
     # ------------------------------------------------------------------
@@ -170,62 +173,67 @@ class ROS2DashboardBridge:
     # These block a thread pool worker — that is acceptable for commands.
     # ------------------------------------------------------------------
 
-    def call_emergency_stop(self, reason: str) -> Dict[str, Any]:
+    def call_emergency_stop(self, reason: str) -> dict[str, Any]:
         return self._call_service_stub("emergency_stop", {"reason": reason})
 
-    def call_speak(self, text: str, language: str, priority: str) -> Dict[str, Any]:
-        return self._call_service_stub("speak", {
-            "text": text, "language": language, "priority": priority
-        })
+    def call_speak(self, text: str, language: str, priority: str) -> dict[str, Any]:
+        return self._call_service_stub(
+            "speak", {"text": text, "language": language, "priority": priority}
+        )
 
     def call_navigate(
         self,
         goal_x: float,
         goal_y: float,
-        goal_yaw: Optional[float],
-        map_id: Optional[str],
-        speed_limit_mps: Optional[float],
-    ) -> Dict[str, Any]:
-        return self._call_service_stub("navigate", {
-            "goal_x": goal_x, "goal_y": goal_y,
-            "goal_yaw": goal_yaw, "map_id": map_id,
-            "speed_limit_mps": speed_limit_mps,
-        })
+        goal_yaw: float | None,
+        map_id: str | None,
+        speed_limit_mps: float | None,
+    ) -> dict[str, Any]:
+        return self._call_service_stub(
+            "navigate",
+            {
+                "goal_x": goal_x,
+                "goal_y": goal_y,
+                "goal_yaw": goal_yaw,
+                "map_id": map_id,
+                "speed_limit_mps": speed_limit_mps,
+            },
+        )
 
-    def call_pause(self) -> Dict[str, Any]:
+    def call_pause(self) -> dict[str, Any]:
         return self._call_service_stub("pause", {})
 
-    def call_resume(self) -> Dict[str, Any]:
+    def call_resume(self) -> dict[str, Any]:
         return self._call_service_stub("resume", {})
 
-    def call_dock(self, station_id: Optional[str]) -> Dict[str, Any]:
+    def call_dock(self, station_id: str | None) -> dict[str, Any]:
         return self._call_service_stub("dock", {"station_id": station_id})
 
-    def call_cancel_task(self, task_id: Optional[str]) -> Dict[str, Any]:
+    def call_cancel_task(self, task_id: str | None) -> dict[str, Any]:
         return self._call_service_stub("cancel_task", {"task_id": task_id})
 
-    def call_restart_module(self, module_name: str) -> Dict[str, Any]:
+    def call_restart_module(self, module_name: str) -> dict[str, Any]:
         return self._call_service_stub("restart_module", {"module": module_name})
 
-    def call_get_config(self, key: str) -> Dict[str, Any]:
+    def call_get_config(self, key: str) -> dict[str, Any]:
         return self._call_service_stub("get_config", {"key": key})
 
-    def call_set_config(self, key: str, value: Any) -> Dict[str, Any]:
+    def call_set_config(self, key: str, value: Any) -> dict[str, Any]:
         return self._call_service_stub("set_config", {"key": key, "value": value})
 
-    def call_memory_query(self, query: str, limit: int) -> Dict[str, Any]:
+    def call_memory_query(self, query: str, limit: int) -> dict[str, Any]:
         return self._call_service_stub("memory_query", {"query": query, "limit": limit})
 
-    def call_rag_query(self, query: str, collection: str, top_k: int) -> Dict[str, Any]:
-        return self._call_service_stub("rag_query", {
-            "query": query, "collection": collection, "top_k": top_k
-        })
+    def call_rag_query(self, query: str, collection: str, top_k: int) -> dict[str, Any]:
+        return self._call_service_stub(
+            "rag_query", {"query": query, "collection": collection, "top_k": top_k}
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _call_service_stub(self, name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _call_service_stub(self, name: str, params: dict[str, Any]) -> dict[str, Any]:
         """Stub implementation used when ROS2 is unavailable."""
         if not _ROS2_AVAILABLE or not self._running:
             logger.debug("ROS2 stub call: %s %s", name, params)
@@ -235,16 +243,13 @@ class ROS2DashboardBridge:
             return self._node.call_service(name, params)
         return {"success": False, "error": "bridge not ready"}
 
-    def _emit_event(self, channel: str, event: str, data: Dict[str, Any]) -> None:
+    def _emit_event(self, channel: str, event: str, data: dict[str, Any]) -> None:
         """Push an event onto the asyncio queue (called from ROS2 thread)."""
         if self._event_queue is None or self._loop is None:
             return
         try:
-            msg = {"channel": channel, "event": event, "data": data,
-                   "timestamp": time.time()}
-            asyncio.run_coroutine_threadsafe(
-                self._event_queue.put(msg), self._loop
-            )
+            msg = {"channel": channel, "event": event, "data": data, "timestamp": time.time()}
+            asyncio.run_coroutine_threadsafe(self._event_queue.put(msg), self._loop)
         except Exception as exc:
             logger.debug("Event emit error: %s", exc)
 
@@ -276,26 +281,18 @@ if _ROS2_AVAILABLE:
             )
 
             # Subscriptions
-            self.create_subscription(String, _TOPIC_SAFETY_STATE,
-                                     self._on_safety, _best_effort)
-            self.create_subscription(String, _TOPIC_BATTERY,
-                                     self._on_battery, _best_effort)
-            self.create_subscription(String, _TOPIC_NAV_STATE,
-                                     self._on_navigation, _best_effort)
-            self.create_subscription(String, _TOPIC_PERCEPTION,
-                                     self._on_perception, _best_effort)
-            self.create_subscription(String, _TOPIC_TTS_STATE,
-                                     self._on_tts, _best_effort)
-            self.create_subscription(String, _TOPIC_ACTUATION,
-                                     self._on_actuation, _best_effort)
-            self.create_subscription(String, _TOPIC_MODULE_STATUS,
-                                     self._on_module, _best_effort)
-            self.create_subscription(Bool, _TOPIC_HEARTBEAT,
-                                     self._on_heartbeat, _best_effort)
+            self.create_subscription(String, _TOPIC_SAFETY_STATE, self._on_safety, _best_effort)
+            self.create_subscription(String, _TOPIC_BATTERY, self._on_battery, _best_effort)
+            self.create_subscription(String, _TOPIC_NAV_STATE, self._on_navigation, _best_effort)
+            self.create_subscription(String, _TOPIC_PERCEPTION, self._on_perception, _best_effort)
+            self.create_subscription(String, _TOPIC_TTS_STATE, self._on_tts, _best_effort)
+            self.create_subscription(String, _TOPIC_ACTUATION, self._on_actuation, _best_effort)
+            self.create_subscription(String, _TOPIC_MODULE_STATUS, self._on_module, _best_effort)
+            self.create_subscription(Bool, _TOPIC_HEARTBEAT, self._on_heartbeat, _best_effort)
 
         # -- Subscription callbacks --
 
-        def _parse(self, msg: String) -> Dict[str, Any]:
+        def _parse(self, msg: String) -> dict[str, Any]:
             try:
                 return _json.loads(msg.data)
             except Exception:
@@ -338,7 +335,7 @@ if _ROS2_AVAILABLE:
 
         # -- Service calls --
 
-        def call_service(self, name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        def call_service(self, name: str, params: dict[str, Any]) -> dict[str, Any]:
             """Synchronous service call with timeout (called from thread pool)."""
             # For ROS2 service clients, we'd set up clients per service.
             # This is a simplified dispatch — production would use typed services.

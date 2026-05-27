@@ -21,7 +21,6 @@ Usage::
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from bonbon_data_stores.backup.backup_manager import BackupRestoreManager
 from bonbon_data_stores.config.store_config import DataStoreConfig
@@ -30,14 +29,6 @@ from bonbon_data_stores.privacy.privacy_manager import MemoryPrivacyManager
 from bonbon_data_stores.privacy.retention_manager import RetentionPolicyManager
 from bonbon_data_stores.rag.chroma_store import ChromaRAGStore
 from bonbon_data_stores.rag.rag_query_engine import RAGQueryEngine
-from bonbon_data_stores.schema.models import (
-    AuditLogEntry,
-    InteractionEvent,
-    NavigationEvent,
-    RobotState,
-    SafetyEvent,
-    UserRecord,
-)
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
 from bonbon_data_stores.sqlite.migrations import SchemaMigrator
 from bonbon_data_stores.sqlite.repositories.audit_log_repo import AuditLogRepository
@@ -64,7 +55,7 @@ class SQLiteMemoryStore:
             store.users.save(user)
     """
 
-    def __init__(self, config: Optional[DataStoreConfig] = None) -> None:
+    def __init__(self, config: DataStoreConfig | None = None) -> None:
         self._cfg = config or DataStoreConfig()
 
         # Core connection
@@ -76,13 +67,13 @@ class SQLiteMemoryStore:
         )
 
         # Repositories
-        self.users        = UserProfileRepository(self._conn)
+        self.users = UserProfileRepository(self._conn)
         self.interactions = InteractionHistoryRepository(self._conn)
         self.robot_states = RobotStateRepository(self._conn)
         self.safety_events = SafetyEventRepository(self._conn)
         self.navigation_events = NavigationEventRepository(self._conn)
-        self.audit_log    = AuditLogRepository(self._conn)
-        self.maps         = MapMetadataRepository(self._conn)
+        self.audit_log = AuditLogRepository(self._conn)
+        self.maps = MapMetadataRepository(self._conn)
 
         # Optional vector store
         self.embeddings = EmbeddingManager(
@@ -166,7 +157,7 @@ class SQLiteMemoryStore:
         self._is_open = False
         logger.info("bonbon_data_stores closed")
 
-    def __enter__(self) -> "SQLiteMemoryStore":
+    def __enter__(self) -> SQLiteMemoryStore:
         self.open()
         return self
 

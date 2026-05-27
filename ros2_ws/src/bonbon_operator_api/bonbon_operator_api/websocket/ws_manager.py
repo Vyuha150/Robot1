@@ -14,10 +14,8 @@ Channels
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
-from typing import Dict, Optional, Set
 
 from fastapi import WebSocket
 
@@ -29,7 +27,7 @@ logger = logging.getLogger(__name__)
 _MAX_CONNECTIONS_PER_USER = 5
 
 # Valid channel names
-VALID_CHANNELS: Set[str] = {
+VALID_CHANNELS: set[str] = {
     "robot-status",
     "safety-events",
     "navigation-events",
@@ -46,13 +44,11 @@ class WebSocketConnectionManager:
 
     def __init__(self) -> None:
         # channel -> {websocket: user_id}
-        self._channels: Dict[str, Dict[WebSocket, str]] = {
-            ch: {} for ch in VALID_CHANNELS
-        }
+        self._channels: dict[str, dict[WebSocket, str]] = {ch: {} for ch in VALID_CHANNELS}
         # user_id -> count of open connections
-        self._user_conn_count: Dict[str, int] = {}
+        self._user_conn_count: dict[str, int] = {}
         # websocket -> set of subscribed channels (for cleanup)
-        self._ws_channels: Dict[WebSocket, Set[str]] = {}
+        self._ws_channels: dict[WebSocket, set[str]] = {}
 
     # ------------------------------------------------------------------
     # Connection management
@@ -86,7 +82,9 @@ class WebSocketConnectionManager:
         self._user_conn_count[user_id] = count + 1
         logger.debug(
             "WS connected: user=%s channel=%s total_on_channel=%d",
-            user_id, channel, len(self._channels[channel]),
+            user_id,
+            channel,
+            len(self._channels[channel]),
         )
 
     def disconnect(self, websocket: WebSocket) -> None:
@@ -112,7 +110,7 @@ class WebSocketConnectionManager:
         event: str,
         data,
         *,
-        exclude_ws: Optional[WebSocket] = None,
+        exclude_ws: WebSocket | None = None,
     ) -> None:
         """Send a JSON message to all clients subscribed to *channel*."""
         if channel not in self._channels:
@@ -159,7 +157,7 @@ class WebSocketConnectionManager:
     # Diagnostics
     # ------------------------------------------------------------------
 
-    def connection_counts(self) -> Dict[str, int]:
+    def connection_counts(self) -> dict[str, int]:
         return {ch: len(conns) for ch, conns in self._channels.items()}
 
     def total_connections(self) -> int:

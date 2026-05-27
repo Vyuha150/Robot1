@@ -6,7 +6,9 @@ ROS2 launch_testing integration tests for bonbon_hal.
 Verifies that all 8 HAL nodes launch cleanly in mock mode and publish
 their expected topics.
 """
+
 from __future__ import annotations
+
 import os
 import time
 import unittest
@@ -18,7 +20,7 @@ import launch_testing.actions
 import launch_testing.markers
 import pytest
 import rclpy
-from sensor_msgs.msg import LaserScan, Imu, BatteryState, Image
+from sensor_msgs.msg import BatteryState, Image, Imu, LaserScan
 from std_msgs.msg import Bool
 
 pytestmark = pytest.mark.launch_test
@@ -28,7 +30,8 @@ pytestmark = pytest.mark.launch_test
 def launch_description():
     os.environ["BONBON_SIMULATION"] = "1"
     from ament_index_python.packages import get_package_share_directory
-    pkg  = get_package_share_directory("bonbon_hal")
+
+    pkg = get_package_share_directory("bonbon_hal")
     base = os.path.join(pkg, "config", "hal_params.yaml")
 
     def _node(name, extra_params=None):
@@ -36,21 +39,26 @@ def launch_description():
         if extra_params:
             params.append(extra_params)
         return launch_ros.actions.LifecycleNode(
-            package="bonbon_hal", executable=name,
-            name=name, namespace="/bonbon",
-            parameters=params, output="screen",
+            package="bonbon_hal",
+            executable=name,
+            name=name,
+            namespace="/bonbon",
+            parameters=params,
+            output="screen",
         )
 
-    return launch.LaunchDescription([
-        _node("lidar_node"),
-        _node("imu_node"),
-        _node("battery_node"),
-        _node("camera_node"),
-        _node("mic_node"),
-        _node("speaker_node"),
-        _node("estop_hal_node"),
-        launch_testing.actions.ReadyToTest(),
-    ])
+    return launch.LaunchDescription(
+        [
+            _node("lidar_node"),
+            _node("imu_node"),
+            _node("battery_node"),
+            _node("camera_node"),
+            _node("mic_node"),
+            _node("speaker_node"),
+            _node("estop_hal_node"),
+            launch_testing.actions.ReadyToTest(),
+        ]
+    )
 
 
 def generate_launch_description():
@@ -72,8 +80,7 @@ class TestHalIntegration(unittest.TestCase):
 
     def _wait(self, topic, msg_type, timeout=15.0):
         received = []
-        sub = self.node.create_subscription(msg_type, topic,
-                                             lambda m: received.append(m), 10)
+        sub = self.node.create_subscription(msg_type, topic, lambda m: received.append(m), 10)
         deadline = time.monotonic() + timeout
         while not received and time.monotonic() < deadline:
             rclpy.spin_once(self.node, timeout_sec=0.2)
@@ -111,8 +118,7 @@ class TestHalIntegration(unittest.TestCase):
         except ImportError:
             self.skipTest("bonbon_msgs not available")
         # Just verify the topic can be subscribed (don't wait for a fault)
-        sub = self.node.create_subscription(HalFault, "/bonbon/hal/fault",
-                                             lambda m: None, 10)
+        sub = self.node.create_subscription(HalFault, "/bonbon/hal/fault", lambda m: None, 10)
         self.node.destroy_subscription(sub)
 
     def test_lidar_health_published(self):

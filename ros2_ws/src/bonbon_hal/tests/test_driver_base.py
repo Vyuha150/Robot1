@@ -3,27 +3,44 @@ test_driver_base.py
 ===================
 Tests for DriverBase, DriverHealth, DriverStatus, and DriverFault.
 """
+
 from __future__ import annotations
+
 import pytest
-from bonbon_hal.base.driver_base import DriverBase, DriverStatus, DriverFault, DriverHealth
+from bonbon_hal.base.driver_base import DriverBase, DriverFault, DriverHealth, DriverStatus
 
 
 class _OkDriver(DriverBase):
-    def __init__(self, **kw): super().__init__("test", **kw)
-    def _do_connect(self) -> bool: return True
-    def _do_disconnect(self) -> None: pass
+    def __init__(self, **kw):
+        super().__init__("test", **kw)
+
+    def _do_connect(self) -> bool:
+        return True
+
+    def _do_disconnect(self) -> None:
+        pass
 
 
 class _FailDriver(DriverBase):
-    def __init__(self): super().__init__("fail_dev")
-    def _do_connect(self) -> bool: return False
-    def _do_disconnect(self) -> None: pass
+    def __init__(self):
+        super().__init__("fail_dev")
+
+    def _do_connect(self) -> bool:
+        return False
+
+    def _do_disconnect(self) -> None:
+        pass
 
 
 class _ExceptionDriver(DriverBase):
-    def __init__(self): super().__init__("exc_dev")
-    def _do_connect(self) -> bool: raise OSError("device not found")
-    def _do_disconnect(self) -> None: pass
+    def __init__(self):
+        super().__init__("exc_dev")
+
+    def _do_connect(self) -> bool:
+        raise OSError("device not found")
+
+    def _do_disconnect(self) -> None:
+        pass
 
 
 class TestDriverBase:

@@ -8,10 +8,9 @@ Tests for the STT layer:
   - Silence / empty segment
   - Word timestamps pass-through
 """
-import time
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from bonbon_speech.config.speech_config import STTConfig
 from bonbon_speech.stt.base_stt import TranscriptionResult
 from bonbon_speech.stt.mock_stt import MockSTT
@@ -41,6 +40,7 @@ def samples(n: int = 16000) -> np.ndarray:
 
 # ── TranscriptionResult ───────────────────────────────────────────────────────
 
+
 class TestTranscriptionResult:
     def test_defaults(self):
         r = TranscriptionResult()
@@ -59,6 +59,7 @@ class TestTranscriptionResult:
 
 
 # ── MockSTT basics ────────────────────────────────────────────────────────────
+
 
 class TestMockSTTBasics:
     def test_load_sets_loaded(self):
@@ -107,6 +108,7 @@ class TestMockSTTBasics:
 
 # ── Confidence gate ───────────────────────────────────────────────────────────
 
+
 class TestConfidenceGate:
     def test_low_confidence_flagged(self):
         responses = [TranscriptionResult(text="maybe", confidence=0.3)]
@@ -133,11 +135,12 @@ class TestConfidenceGate:
 
 # ── Timeout handling ──────────────────────────────────────────────────────────
 
+
 class TestTimeout:
     def test_timeout_returns_is_timeout_true(self):
         stt = MockSTT(
             make_cfg(inference_timeout_sec=0.1, max_consecutive_timeouts=5),
-            block_sec=0.5,   # will exceed timeout
+            block_sec=0.5,  # will exceed timeout
         )
         stt.load()
         result = stt.transcribe(samples())
@@ -189,6 +192,7 @@ class TestTimeout:
 
 # ── Error handling ────────────────────────────────────────────────────────────
 
+
 class TestErrorHandling:
     def test_corrupt_call_returns_result_not_raises(self):
         stt = MockSTT(make_cfg(), corrupt_on=[0])
@@ -204,12 +208,13 @@ class TestErrorHandling:
         ]
         stt = MockSTT(make_cfg(), responses=responses, corrupt_on=[0])
         stt.load()
-        stt.transcribe(samples())    # corrupted call
+        stt.transcribe(samples())  # corrupted call
         result = stt.transcribe(samples())  # should work
         assert result.text == "ok"
 
 
 # ── Multi-language ────────────────────────────────────────────────────────────
+
 
 class TestMultiLanguage:
     def test_language_from_response(self):
@@ -242,6 +247,7 @@ class TestMultiLanguage:
 
 
 # ── Word timestamps ───────────────────────────────────────────────────────────
+
 
 class TestWordTimestamps:
     def test_word_fields_passed_through(self):
@@ -277,6 +283,7 @@ class TestWordTimestamps:
 
 
 # ── Inference timing ──────────────────────────────────────────────────────────
+
 
 class TestInferenceTiming:
     def test_inference_ms_set(self):

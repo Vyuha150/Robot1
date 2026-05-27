@@ -11,6 +11,7 @@ Exposed when langchain is installed:
   build_scene_chain      — build a chain for natural-language scene summaries
   describe_scene         — run a SceneSnapshot through the scene chain
 """
+
 # Intentionally thin — do NOT import langchain at module load time.
 # Consumers must import from the submodules directly:
 #

@@ -62,24 +62,19 @@ from __future__ import annotations
 import math
 import threading
 import time
-from typing import Optional
 
 import rclpy
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import (
-    QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
-)
-
-from builtin_interfaces.msg import Time
-from geometry_msgs.msg import Twist
-from std_msgs.msg import Header
-
 from bonbon_msgs.msg import (
-    SafetyState as SafetyStateMsg,
     ModuleHealth,
     ServoState,
     ServoStateArray,
 )
+from bonbon_msgs.msg import (
+    SafetyState as SafetyStateMsg,
+)
+from geometry_msgs.msg import Twist
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 # ── QoS profiles ──────────────────────────────────────────────────────────────
 
@@ -107,22 +102,23 @@ BEST_EFFORT_D1 = QoSProfile(
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-NODE_NAME    = "safety_gate_node"
+NODE_NAME = "safety_gate_node"
 HEALTH_TOPIC = "/bonbon/actuation/safety_gate_node/health"
-STATS_TOPIC  = "/bonbon/safety_gate/stats"
+STATS_TOPIC = "/bonbon/safety_gate/stats"
 
 # ── Gating statistics (plain Python — no bonbon_msgs dependency) ─────────────
+
 
 class GateStats:
     """Thread-safe monotonic counters for pass/block decisions."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self.servo_passed:  int = 0
+        self.servo_passed: int = 0
         self.servo_blocked: int = 0
-        self.vel_passed:    int = 0
-        self.vel_scaled:    int = 0
-        self.vel_blocked:   int = 0
+        self.vel_passed: int = 0
+        self.vel_scaled: int = 0
+        self.vel_blocked: int = 0
         self.total_blocked: int = 0
         self._start_time: float = time.monotonic()
 
@@ -142,7 +138,7 @@ class GateStats:
     def record_vel_scale(self) -> None:
         with self._lock:
             self.vel_scaled += 1
-            self.vel_passed += 1   # it was forwarded, just reduced
+            self.vel_passed += 1  # it was forwarded, just reduced
 
     def record_vel_block(self) -> None:
         with self._lock:
@@ -152,17 +148,18 @@ class GateStats:
     def snapshot(self) -> dict:
         with self._lock:
             return {
-                "servo_passed":  self.servo_passed,
+                "servo_passed": self.servo_passed,
                 "servo_blocked": self.servo_blocked,
-                "vel_passed":    self.vel_passed,
-                "vel_scaled":    self.vel_scaled,
-                "vel_blocked":   self.vel_blocked,
+                "vel_passed": self.vel_passed,
+                "vel_scaled": self.vel_scaled,
+                "vel_blocked": self.vel_blocked,
                 "total_blocked": self.total_blocked,
-                "uptime_sec":    time.monotonic() - self._start_time,
+                "uptime_sec": time.monotonic() - self._start_time,
             }
 
 
 # ── Node ──────────────────────────────────────────────────────────────────────
+
 
 class SafetyGateNode(LifecycleNode):
     """
@@ -177,8 +174,8 @@ class SafetyGateNode(LifecycleNode):
         self._lock = threading.Lock()
 
         # Current safety state (updated by subscriber)
-        self._safety_state: Optional[SafetyStateMsg] = None
-        self._state_recv_time: float = 0.0          # time.monotonic()
+        self._safety_state: SafetyStateMsg | None = None
+        self._state_recv_time: float = 0.0  # time.monotonic()
         self._supervisor_ok: bool = False
 
         self._stats = GateStats()
@@ -188,10 +185,10 @@ class SafetyGateNode(LifecycleNode):
         self._processed_count: int = 0
 
         # Publishers / subscribers — created in on_activate
-        self._pub_neck: Optional[object] = None
-        self._pub_arm:  Optional[object] = None
-        self._pub_vel:  Optional[object] = None
-        self._pub_health: Optional[object] = None
+        self._pub_neck: object | None = None
+        self._pub_arm: object | None = None
+        self._pub_vel: object | None = None
+        self._pub_health: object | None = None
 
         self._health_timer = None
         self._watchdog_timer = None
@@ -199,38 +196,28 @@ class SafetyGateNode(LifecycleNode):
         # Declare all params so they appear in `ros2 param list`
         self._declare_parameters()
 
-        self.get_logger().info(
-            f"[{NODE_NAME}] Node created — awaiting configure()"
-        )
+        self.get_logger().info(f"[{NODE_NAME}] Node created — awaiting configure()")
 
     # ── Parameter declarations ────────────────────────────────────────────────
 
     def _declare_parameters(self) -> None:
         self.declare_parameter("caution_velocity_cap_mps", 0.3)
-        self.declare_parameter("block_servos_in_danger",   True)
-        self.declare_parameter("health_rate_hz",           1.0)
-        self.declare_parameter("stats_rate_hz",            2.0)
-        self.declare_parameter("watchdog_timeout_sec",     2.0)
+        self.declare_parameter("block_servos_in_danger", True)
+        self.declare_parameter("health_rate_hz", 1.0)
+        self.declare_parameter("stats_rate_hz", 2.0)
+        self.declare_parameter("watchdog_timeout_sec", 2.0)
 
     # ── Lifecycle transitions ─────────────────────────────────────────────────
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info(f"[{NODE_NAME}] Configuring…")
         try:
-            self._caution_vel_cap = self.get_parameter(
-                "caution_velocity_cap_mps"
-            ).value
-            self._block_servos_in_danger = self.get_parameter(
-                "block_servos_in_danger"
-            ).value
+            self._caution_vel_cap = self.get_parameter("caution_velocity_cap_mps").value
+            self._block_servos_in_danger = self.get_parameter("block_servos_in_danger").value
             self._health_rate_hz = self.get_parameter("health_rate_hz").value
-            self._watchdog_timeout_sec = self.get_parameter(
-                "watchdog_timeout_sec"
-            ).value
+            self._watchdog_timeout_sec = self.get_parameter("watchdog_timeout_sec").value
         except Exception as exc:
-            self.get_logger().error(
-                f"[{NODE_NAME}] Parameter load failed: {exc}"
-            )
+            self.get_logger().error(f"[{NODE_NAME}] Parameter load failed: {exc}")
             return TransitionCallbackReturn.FAILURE
 
         self.get_logger().info(
@@ -278,21 +265,15 @@ class SafetyGateNode(LifecycleNode):
         self._pub_arm = self.create_lifecycle_publisher(
             ServoStateArray, "/bonbon/servo/arm/command", RELIABLE_D10
         )
-        self._pub_vel = self.create_lifecycle_publisher(
-            Twist, "/cmd_vel", BEST_EFFORT_D1
-        )
-        self._pub_health = self.create_lifecycle_publisher(
-            ModuleHealth, HEALTH_TOPIC, RELIABLE_TL
-        )
+        self._pub_vel = self.create_lifecycle_publisher(Twist, "/cmd_vel", BEST_EFFORT_D1)
+        self._pub_health = self.create_lifecycle_publisher(ModuleHealth, HEALTH_TOPIC, RELIABLE_TL)
 
         # ── Timers ────────────────────────────────────────────────────────────
         health_period = 1.0 / max(self._health_rate_hz, 0.1)
         self._health_timer = self.create_timer(health_period, self._publish_health)
 
         watchdog_period = max(self._watchdog_timeout_sec / 2.0, 0.1)
-        self._watchdog_timer = self.create_timer(
-            watchdog_period, self._check_supervisor_watchdog
-        )
+        self._watchdog_timer = self.create_timer(watchdog_period, self._check_supervisor_watchdog)
 
         self.get_logger().info(f"[{NODE_NAME}] Active — gate is OPEN (waiting for SafetyState)")
         return TransitionCallbackReturn.SUCCESS
@@ -316,10 +297,10 @@ class SafetyGateNode(LifecycleNode):
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info(f"[{NODE_NAME}] Cleanup")
-        self._pub_neck    = None
-        self._pub_arm     = None
-        self._pub_vel     = None
-        self._pub_health  = None
+        self._pub_neck = None
+        self._pub_arm = None
+        self._pub_vel = None
+        self._pub_health = None
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
@@ -331,9 +312,9 @@ class SafetyGateNode(LifecycleNode):
 
     def _on_safety_state(self, msg: SafetyStateMsg) -> None:
         with self._lock:
-            self._safety_state   = msg
+            self._safety_state = msg
             self._state_recv_time = time.monotonic()
-            self._supervisor_ok  = True
+            self._supervisor_ok = True
         self.get_logger().debug(
             f"[{NODE_NAME}] Safety state: {msg.state_name} "
             f"actuation={msg.actuation_permitted} "
@@ -347,8 +328,7 @@ class SafetyGateNode(LifecycleNode):
             self._stats.record_servo_block()
             self._warning_count += 1
             self.get_logger().debug(
-                f"[{NODE_NAME}] BLOCKED neck servo cmd "
-                f"(state={self._current_state_name()})"
+                f"[{NODE_NAME}] BLOCKED neck servo cmd " f"(state={self._current_state_name()})"
             )
             return
 
@@ -363,8 +343,7 @@ class SafetyGateNode(LifecycleNode):
             self._stats.record_servo_block()
             self._warning_count += 1
             self.get_logger().debug(
-                f"[{NODE_NAME}] BLOCKED arm servo cmd "
-                f"(state={self._current_state_name()})"
+                f"[{NODE_NAME}] BLOCKED arm servo cmd " f"(state={self._current_state_name()})"
             )
             return
 
@@ -385,8 +364,7 @@ class SafetyGateNode(LifecycleNode):
             self._stats.record_vel_block()
             self._warning_count += 1
             self.get_logger().debug(
-                f"[{NODE_NAME}] BLOCKED cmd_vel "
-                f"(state={self._current_state_name()})"
+                f"[{NODE_NAME}] BLOCKED cmd_vel " f"(state={self._current_state_name()})"
             )
             return
 
@@ -466,9 +444,9 @@ class SafetyGateNode(LifecycleNode):
 
         scale = max_vel_mps / speed
         clamped = Twist()
-        clamped.linear.x  = vx * scale
-        clamped.linear.y  = vy * scale
-        clamped.linear.z  = msg.linear.z
+        clamped.linear.x = vx * scale
+        clamped.linear.y = vy * scale
+        clamped.linear.z = msg.linear.z
         clamped.angular.x = msg.angular.x
         clamped.angular.y = msg.angular.y
         clamped.angular.z = msg.angular.z
@@ -515,9 +493,7 @@ class SafetyGateNode(LifecycleNode):
             # Supervisor came back
             with self._lock:
                 self._supervisor_ok = True
-            self.get_logger().info(
-                f"[{NODE_NAME}] Safety supervisor heartbeat RECOVERED"
-            )
+            self.get_logger().info(f"[{NODE_NAME}] Safety supervisor heartbeat RECOVERED")
 
     # ── Health publishing ─────────────────────────────────────────────────────
 
@@ -531,43 +507,37 @@ class SafetyGateNode(LifecycleNode):
         stats = self._stats.snapshot()
         with self._lock:
             supervisor_ok = self._supervisor_ok
-            state_name = (
-                self._safety_state.state_name if self._safety_state else "UNKNOWN"
-            )
+            state_name = self._safety_state.state_name if self._safety_state else "UNKNOWN"
             blocked_total = stats["total_blocked"]
 
         # Determine health status
         if not supervisor_ok:
-            status     = ModuleHealth.ERROR
-            status_txt = f"Supervisor HEARTBEAT LOST — defensive mode active"
+            status = ModuleHealth.ERROR
+            status_txt = "Supervisor HEARTBEAT LOST — defensive mode active"
         elif blocked_total > 0:
-            status     = ModuleHealth.WARN
-            status_txt = (
-                f"Gate active. {blocked_total} commands blocked. "
-                f"Safety: {state_name}"
-            )
+            status = ModuleHealth.WARN
+            status_txt = f"Gate active. {blocked_total} commands blocked. " f"Safety: {state_name}"
         else:
-            status     = ModuleHealth.OK
-            status_txt = (
-                f"Gate active. All commands passed. Safety: {state_name}"
-            )
+            status = ModuleHealth.OK
+            status_txt = f"Gate active. All commands passed. Safety: {state_name}"
 
-        msg                          = ModuleHealth()
-        msg.header.stamp             = now
-        msg.module_name              = NODE_NAME
-        msg.status                   = status
-        msg.status_text              = status_txt
-        msg.uptime_sec               = uptime
+        msg = ModuleHealth()
+        msg.header.stamp = now
+        msg.module_name = NODE_NAME
+        msg.status = status
+        msg.status_text = status_txt
+        msg.uptime_sec = uptime
         msg.last_successful_cycle_sec = 0.0
-        msg.error_count              = self._error_count
-        msg.warning_count            = self._warning_count
-        msg.processed_count          = self._processed_count
-        msg.latency_ms               = 0.0
+        msg.error_count = self._error_count
+        msg.warning_count = self._warning_count
+        msg.processed_count = self._processed_count
+        msg.latency_ms = 0.0
 
         self._pub_health.publish(msg)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

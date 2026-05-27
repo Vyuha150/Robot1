@@ -7,12 +7,11 @@ SpeakerBridge (HAL) is not tested here because it requires bonbon_hal
 and a real audio device.  The interface contract is verified via the
 mock double.
 """
+
 import io
-import struct
 import wave
 
 import pytest
-
 from bonbon_tts.speaker.speaker_bridge import MockSpeakerBridge
 
 
@@ -31,16 +30,16 @@ def _make_wav(duration_sec: float = 0.1, sample_rate: int = 22050) -> bytes:
 class TestMockSpeakerBridge:
     def test_initial_state(self):
         s = MockSpeakerBridge()
-        assert s.play_count  == 0
-        assert s.stop_count  == 0
+        assert s.play_count == 0
+        assert s.stop_count == 0
         assert not s.is_playing()
         assert s.is_available()
 
     def test_play_records_wav(self):
-        s   = MockSpeakerBridge()
+        s = MockSpeakerBridge()
         wav = _make_wav()
         s.play(wav)
-        assert s.play_count  == 1
+        assert s.play_count == 1
         assert s.play_calls[0] == wav
 
     def test_multiple_plays(self):
@@ -62,10 +61,10 @@ class TestMockSpeakerBridge:
             s.play(_make_wav())
         # Next play should succeed
         s.play(_make_wav())
-        assert s.play_count == 1   # only the successful one counted
+        assert s.play_count == 1  # only the successful one counted
 
     def test_play_duration_accumulated(self):
-        s   = MockSpeakerBridge()
+        s = MockSpeakerBridge()
         wav = _make_wav(duration_sec=0.5)
         s.play(wav)
         s.play(wav)
@@ -80,8 +79,8 @@ class TestMockSpeakerBridge:
         s.play(_make_wav())
         s.stop()
         s.reset()
-        assert s.play_count  == 0
-        assert s.stop_count  == 0
+        assert s.play_count == 0
+        assert s.stop_count == 0
         assert s.playing_duration_sec == pytest.approx(0.0)
 
     def test_backend_name(self):
@@ -91,9 +90,10 @@ class TestMockSpeakerBridge:
     def test_blocking_simulation(self):
         """simulate_play_blocking=True makes play() sleep for WAV duration."""
         import time
-        s   = MockSpeakerBridge(simulate_play_blocking=True)
+
+        s = MockSpeakerBridge(simulate_play_blocking=True)
         wav = _make_wav(duration_sec=0.05)
-        t0  = time.monotonic()
+        t0 = time.monotonic()
         s.play(wav)
         elapsed = time.monotonic() - t0
         # Should have slept at least 40ms (generous lower bound for CI)

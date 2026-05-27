@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -164,7 +163,9 @@ def test_aggregator_online_after_update(aggregator):
 
 # Scenario 17: Module update reflected in status
 def test_module_update_reflected(aggregator):
-    aggregator.update_module("bonbon_tts", {"state": "active", "health": "healthy", "message": "OK"})
+    aggregator.update_module(
+        "bonbon_tts", {"state": "active", "health": "healthy", "message": "OK"}
+    )
     status = aggregator.get_status()
     assert "bonbon_tts" in status.modules
     assert status.modules["bonbon_tts"].state == "active"
@@ -178,7 +179,9 @@ def test_safety_state_update(aggregator):
 
 # Scenario 19: Navigation state update reflected
 def test_navigation_update(aggregator):
-    aggregator.update_navigation({"state": "navigating", "current_x": 5.0, "current_y": 3.0, "current_yaw": 0.0})
+    aggregator.update_navigation(
+        {"state": "navigating", "current_x": 5.0, "current_y": 3.0, "current_yaw": 0.0}
+    )
     status = aggregator.get_status()
     assert status.navigation.state == "navigating"
     assert status.navigation.current_x == 5.0

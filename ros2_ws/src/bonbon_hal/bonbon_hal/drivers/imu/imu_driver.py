@@ -1,4 +1,5 @@
 """Abstract IMU driver — MPU-6050 9-DOF."""
+
 from __future__ import annotations
 
 import time
@@ -13,7 +14,7 @@ class ImuReading:
     # Linear acceleration m/s²  (body frame: x=forward, y=left, z=up)
     accel_x: float = 0.0
     accel_y: float = 0.0
-    accel_z: float = 9.81   # resting = +g upward
+    accel_z: float = 9.81  # resting = +g upward
 
     # Angular velocity rad/s
     gyro_x: float = 0.0
@@ -25,14 +26,14 @@ class ImuReading:
     orient_y: float = 0.0
     orient_z: float = 0.0
     orient_w: float = 1.0
-    orientation_valid: bool = False   # only True when a filter is running
+    orientation_valid: bool = False  # only True when a filter is running
 
     # Onboard temperature sensor
     temperature_c: float = 25.0
 
     # Covariance — -1 = unknown
-    accel_covariance:  float = -1.0
-    gyro_covariance:   float = -1.0
+    accel_covariance: float = -1.0
+    gyro_covariance: float = -1.0
     orient_covariance: float = -1.0
 
     timestamp: float = field(default_factory=time.monotonic)

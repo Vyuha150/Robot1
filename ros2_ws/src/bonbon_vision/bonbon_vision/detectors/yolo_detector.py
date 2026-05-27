@@ -27,23 +27,24 @@ TensorRT export (one-time, done offline on Jetson):
   yolo export model=yolov8n.pt format=engine device=0 half=True
   → produces yolov8n.engine; pass its path as detector_model_path
 """
+
 from __future__ import annotations
 
 import logging
 import time
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 
 from ..config.vision_config import DetectorConfig
-from .base_detector import BaseDetector, COCO_NAMES, ObjectDetection
+from .base_detector import COCO_NAMES, BaseDetector, ObjectDetection
 
 logger = logging.getLogger(__name__)
 
 # Optional import — graceful failure
 try:
     from ultralytics import YOLO as _YOLO
+
     _HAS_ULTRALYTICS = True
 except ImportError:
     _HAS_ULTRALYTICS = False
@@ -72,10 +73,7 @@ class YoloDetector(BaseDetector):
         Enters degraded mode on failure (if allowed by config).
         """
         if not _HAS_ULTRALYTICS:
-            msg = (
-                "ultralytics not installed. "
-                "Install with: pip install ultralytics"
-            )
+            msg = "ultralytics not installed. " "Install with: pip install ultralytics"
             logger.error("detector=yolo event=load_failed reason=%r", msg)
             self._enter_degraded("ultralytics not installed")
             return
@@ -91,24 +89,19 @@ class YoloDetector(BaseDetector):
         try:
             self._model = _YOLO(str(model_path))
             logger.info(
-                "detector=yolo event=model_loaded path=%r "
-                "load_ms=%.0f",
+                "detector=yolo event=model_loaded path=%r " "load_ms=%.0f",
                 str(model_path),
                 (time.monotonic() - t0) * 1000,
             )
             self._warmup()
         except Exception as exc:
-            logger.error(
-                "detector=yolo event=load_exception error=%r", str(exc)
-            )
+            logger.error("detector=yolo event=load_exception error=%r", str(exc))
             self._enter_degraded(str(exc))
 
     def _warmup(self) -> None:
         """Run one blank-frame inference to trigger JIT / GPU alloc."""
         try:
-            dummy = np.zeros(
-                (self._cfg.img_size, self._cfg.img_size, 3), dtype=np.uint8
-            )
+            dummy = np.zeros((self._cfg.img_size, self._cfg.img_size, 3), dtype=np.uint8)
             t0 = time.monotonic()
             self._model(
                 dummy,
@@ -118,17 +111,13 @@ class YoloDetector(BaseDetector):
             )
             warmup_ms = (time.monotonic() - t0) * 1000
             self._warmup_done = True
-            logger.info(
-                "detector=yolo event=warmup_done warmup_ms=%.0f", warmup_ms
-            )
+            logger.info("detector=yolo event=warmup_done warmup_ms=%.0f", warmup_ms)
         except Exception as exc:
-            logger.warning(
-                "detector=yolo event=warmup_failed error=%r", str(exc)
-            )
+            logger.warning("detector=yolo event=warmup_failed error=%r", str(exc))
 
     # ── Inference ─────────────────────────────────────────────────────────────
 
-    def _detect_impl(self, bgr: np.ndarray) -> List[ObjectDetection]:
+    def _detect_impl(self, bgr: np.ndarray) -> list[ObjectDetection]:
         if self._model is None:
             return []
 
@@ -144,15 +133,15 @@ class YoloDetector(BaseDetector):
             device=self._cfg.device or None,
         )
 
-        detections: List[ObjectDetection] = []
+        detections: list[ObjectDetection] = []
         for result in results:
             boxes = result.boxes
             if boxes is None:
                 continue
             for box in boxes:
                 cls_id = int(box.cls[0])
-                conf   = float(box.conf[0])
-                xyxy   = box.xyxy[0].cpu().numpy()
+                conf = float(box.conf[0])
+                xyxy = box.xyxy[0].cpu().numpy()
                 x1, y1, x2, y2 = map(int, xyxy)
                 det = ObjectDetection(
                     class_id=cls_id,

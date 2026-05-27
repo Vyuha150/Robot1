@@ -17,7 +17,6 @@ import sqlite3
 import time
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import jwt
 
@@ -26,7 +25,7 @@ from bonbon_operator_api.models.auth_models import TokenPayload, UserCreate, Use
 
 logger = logging.getLogger(__name__)
 
-_PBKDF2_ITERS = 260_000   # OWASP recommended minimum
+_PBKDF2_ITERS = 260_000  # OWASP recommended minimum
 
 # Attempt to use passlib bcrypt for stronger hashing.
 # Fall back to PBKDF2 if bcrypt is unavailable or incompatible.
@@ -34,6 +33,7 @@ _crypt_ctx = None  # type: ignore
 _USE_PASSLIB = False
 try:
     from passlib.context import CryptContext  # type: ignore
+
     _crypt_ctx_candidate = CryptContext(schemes=["bcrypt"], deprecated="auto")
     # Verify the backend actually works (Python 3.12+ bcrypt incompatibilities)
     _crypt_ctx_candidate.hash("probe")
@@ -142,14 +142,15 @@ class AuthManager:
                             f"{_DEFAULT_ADMIN_PASSWORD_ENV} must be set before "
                             "the first operator API startup."
                         )
-                self.create_user(UserCreate(
-                    username=_DEFAULT_ADMIN_USERNAME,
-                    password=pw,
-                    role="admin",
-                ))
+                self.create_user(
+                    UserCreate(
+                        username=_DEFAULT_ADMIN_USERNAME,
+                        password=pw,
+                        role="admin",
+                    )
+                )
                 logger.warning(
-                    "Default admin account created. "
-                    "Password came from %s.",
+                    "Default admin account created. " "Password came from %s.",
                     _DEFAULT_ADMIN_PASSWORD_ENV,
                 )
 
@@ -171,21 +172,17 @@ class AuthManager:
                 )
                 conn.commit()
             except sqlite3.IntegrityError:
-                raise ValueError(f"Username '{req.username}' already exists")
+                raise ValueError(f"Username '{req.username}' already exists") from None
         return UserInfo(user_id=user_id, username=req.username, role=req.role, is_active=True)
 
-    def get_user_by_username(self, username: str) -> Optional[dict]:
+    def get_user_by_username(self, username: str) -> dict | None:
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM users WHERE username = ?;", (username,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM users WHERE username = ?;", (username,)).fetchone()
         return dict(row) if row else None
 
-    def get_user_by_id(self, user_id: str) -> Optional[dict]:
+    def get_user_by_id(self, user_id: str) -> dict | None:
         with self._get_conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM users WHERE user_id = ?;", (user_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM users WHERE user_id = ?;", (user_id,)).fetchone()
         return dict(row) if row else None
 
     def list_users(self) -> list:
@@ -195,7 +192,7 @@ class AuthManager:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def update_user(self, user_id: str, req: UserUpdate) -> Optional[UserInfo]:
+    def update_user(self, user_id: str, req: UserUpdate) -> UserInfo | None:
         user = self.get_user_by_id(user_id)
         if not user:
             return None
@@ -237,7 +234,7 @@ class AuthManager:
     # Auth
     # ------------------------------------------------------------------
 
-    def authenticate(self, username: str, password: str) -> Optional[dict]:
+    def authenticate(self, username: str, password: str) -> dict | None:
         """Return the user record if credentials are valid, else None."""
         user = self.get_user_by_username(username)
         if not user or not user["is_active"]:

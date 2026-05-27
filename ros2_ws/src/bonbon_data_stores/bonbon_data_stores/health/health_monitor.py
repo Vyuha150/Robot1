@@ -12,15 +12,14 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, Optional
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
-class HealthLevel(str, Enum):
-    HEALTHY   = "healthy"
-    DEGRADED  = "degraded"
+class HealthLevel(StrEnum):
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
 
 
@@ -29,7 +28,7 @@ class StoreHealth:
     name: str
     available: bool
     latency_ms: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     record_count: int = 0
 
 
@@ -41,7 +40,7 @@ class DataStoreHealth:
     chroma: StoreHealth = field(default_factory=lambda: StoreHealth("chroma", False))
     checked_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "level": self.level.value,
             "checked_at": self.checked_at,
@@ -98,7 +97,7 @@ class DataStoreHealthMonitor:
         self._chroma = chroma_store
         self._warn_ms = write_latency_warn_ms
         self._fail_ms = write_latency_fail_ms
-        self._last_health: Optional[DataStoreHealth] = None
+        self._last_health: DataStoreHealth | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -106,9 +105,9 @@ class DataStoreHealthMonitor:
 
     def check(self) -> DataStoreHealth:
         """Run a full health check and return a ``DataStoreHealth`` snapshot."""
-        sqlite_health  = self._check_sqlite()
-        faiss_health   = self._check_faiss()
-        chroma_health  = self._check_chroma()
+        sqlite_health = self._check_sqlite()
+        faiss_health = self._check_faiss()
+        chroma_health = self._check_chroma()
 
         # Determine overall level
         if not sqlite_health.available or sqlite_health.latency_ms > self._fail_ms:
@@ -136,7 +135,7 @@ class DataStoreHealthMonitor:
         return health
 
     @property
-    def last_health(self) -> Optional[DataStoreHealth]:
+    def last_health(self) -> DataStoreHealth | None:
         return self._last_health
 
     # ------------------------------------------------------------------
@@ -155,8 +154,11 @@ class DataStoreHealthMonitor:
             latency_ms = (time.monotonic() - t0) * 1000
 
             if latency_ms > self._warn_ms:
-                logger.warning("SQLite write latency %.1f ms exceeds %.1f ms threshold",
-                               latency_ms, self._warn_ms)
+                logger.warning(
+                    "SQLite write latency %.1f ms exceeds %.1f ms threshold",
+                    latency_ms,
+                    self._warn_ms,
+                )
 
             # Count a real table for the record_count field
             row = db.execute("SELECT COUNT(*) FROM interactions;").fetchone()

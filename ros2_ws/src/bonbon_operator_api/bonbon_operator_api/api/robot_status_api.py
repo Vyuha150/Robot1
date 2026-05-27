@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Request
 
-from bonbon_operator_api.auth.dependencies import get_current_user, require_permission
+from bonbon_operator_api.auth.dependencies import require_permission
 from bonbon_operator_api.models.auth_models import TokenPayload
 from bonbon_operator_api.models.response_models import APIResponse
 
@@ -35,13 +34,15 @@ async def get_safety_state(
     """Return safety subsystem state only."""
     aggregator = request.app.state.status_aggregator
     status = aggregator.get_status()
-    return APIResponse.ok({
-        "state": status.safety.state,
-        "active_faults": status.safety.active_faults,
-        "watchdog_ok": status.safety.watchdog_ok,
-        "last_event_ts": status.safety.last_event_ts,
-        "overall_health": status.overall_health(),
-    })
+    return APIResponse.ok(
+        {
+            "state": status.safety.state,
+            "active_faults": status.safety.active_faults,
+            "watchdog_ok": status.safety.watchdog_ok,
+            "last_event_ts": status.safety.last_event_ts,
+            "overall_health": status.overall_health(),
+        }
+    )
 
 
 @status_router.get("/status/battery", response_model=APIResponse)
@@ -74,16 +75,17 @@ async def get_health_summary(
     """Return a concise health summary."""
     aggregator = request.app.state.status_aggregator
     status = aggregator.get_status()
-    return APIResponse.ok({
-        "is_online": status.is_online,
-        "overall_health": status.overall_health(),
-        "safety_state": status.safety.state,
-        "battery_pct": status.battery.percentage,
-        "navigation_state": status.navigation.state,
-        "active_task": status.active_task,
-        "last_updated": status.last_updated,
-        "modules": {
-            name: {"state": m.state, "health": m.health}
-            for name, m in status.modules.items()
-        },
-    })
+    return APIResponse.ok(
+        {
+            "is_online": status.is_online,
+            "overall_health": status.overall_health(),
+            "safety_state": status.safety.state,
+            "battery_pct": status.battery.percentage,
+            "navigation_state": status.navigation.state,
+            "active_task": status.active_task,
+            "last_updated": status.last_updated,
+            "modules": {
+                name: {"state": m.state, "health": m.health} for name, m in status.modules.items()
+            },
+        }
+    )

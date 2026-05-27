@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -44,13 +44,13 @@ class _ConfigStore:
         if not self._path.exists():
             self._path.write_text("{}", encoding="utf-8")
 
-    def get_all(self) -> Dict[str, Any]:
+    def get_all(self) -> dict[str, Any]:
         try:
             return json.loads(self._path.read_text(encoding="utf-8"))
         except Exception:
             return {}
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         return self.get_all().get(key)
 
     def set(self, key: str, value: Any) -> None:
@@ -113,7 +113,7 @@ async def set_config_key(
         raise HTTPException(
             status_code=400,
             detail=f"Key '{key}' is not a writable config key. "
-                   f"Writable keys: {sorted(_ALL_WRITABLE)}",
+            f"Writable keys: {sorted(_ALL_WRITABLE)}",
         )
 
     if not role_mgr.has_permission(current_user.role, required_perm):

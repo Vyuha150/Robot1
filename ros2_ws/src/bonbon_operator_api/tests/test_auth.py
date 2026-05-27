@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -10,9 +9,9 @@ from fastapi.testclient import TestClient
 # Scenario 1: Successful login returns JWT
 # ---------------------------------------------------------------------------
 def test_login_success(client: TestClient):
-    resp = client.post("/api/v1/auth/login", json={
-        "username": "admin", "password": "BonBon@dmin2025!"
-    })
+    resp = client.post(
+        "/api/v1/auth/login", json={"username": "admin", "password": "BonBon@dmin2025!"}
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is True
@@ -25,9 +24,9 @@ def test_login_success(client: TestClient):
 # Scenario 2: Wrong password returns 401
 # ---------------------------------------------------------------------------
 def test_login_wrong_password(client: TestClient):
-    resp = client.post("/api/v1/auth/login", json={
-        "username": "admin", "password": "WrongPassword!"
-    })
+    resp = client.post(
+        "/api/v1/auth/login", json={"username": "admin", "password": "WrongPassword!"}
+    )
     assert resp.status_code == 401
 
 
@@ -35,9 +34,7 @@ def test_login_wrong_password(client: TestClient):
 # Scenario 3: Unknown user returns 401
 # ---------------------------------------------------------------------------
 def test_login_unknown_user(client: TestClient):
-    resp = client.post("/api/v1/auth/login", json={
-        "username": "nobody", "password": "Whatever1!"
-    })
+    resp = client.post("/api/v1/auth/login", json={"username": "nobody", "password": "Whatever1!"})
     assert resp.status_code == 401
 
 
@@ -102,10 +99,12 @@ def test_admin_create_user(client: TestClient, admin_token: str):
 # ---------------------------------------------------------------------------
 def test_duplicate_username_rejected(client: TestClient, admin_token: str):
     payload = {"username": "dup_user", "password": "Pass1234!", "role": "viewer"}
-    client.post("/api/v1/auth/users", json=payload,
-                headers={"Authorization": f"Bearer {admin_token}"})
-    resp = client.post("/api/v1/auth/users", json=payload,
-                       headers={"Authorization": f"Bearer {admin_token}"})
+    client.post(
+        "/api/v1/auth/users", json=payload, headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    resp = client.post(
+        "/api/v1/auth/users", json=payload, headers={"Authorization": f"Bearer {admin_token}"}
+    )
     assert resp.status_code == 409
 
 
@@ -126,10 +125,11 @@ def test_weak_password_rejected(client: TestClient, admin_token: str):
 # ---------------------------------------------------------------------------
 def test_admin_update_user_role(client: TestClient, admin_token: str, auth_manager):
     from bonbon_operator_api.models.auth_models import UserCreate
+
     try:
-        auth_manager.create_user(UserCreate(
-            username="role_target", password="Pass1234!", role="viewer"
-        ))
+        auth_manager.create_user(
+            UserCreate(username="role_target", password="Pass1234!", role="viewer")
+        )
     except ValueError:
         pass
     user = auth_manager.get_user_by_username("role_target")
@@ -159,10 +159,11 @@ def test_invalid_role_rejected(client: TestClient, admin_token: str):
 # ---------------------------------------------------------------------------
 def test_admin_delete_user(client: TestClient, admin_token: str, auth_manager):
     from bonbon_operator_api.models.auth_models import UserCreate
+
     try:
-        auth_manager.create_user(UserCreate(
-            username="to_delete", password="Pass1234!", role="viewer"
-        ))
+        auth_manager.create_user(
+            UserCreate(username="to_delete", password="Pass1234!", role="viewer")
+        )
     except ValueError:
         pass
     user = auth_manager.get_user_by_username("to_delete")
@@ -191,7 +192,9 @@ def test_cannot_delete_own_account(client: TestClient, admin_token: str, auth_ma
 # ---------------------------------------------------------------------------
 def test_expired_token_rejected(client: TestClient):
     import time
+
     import jwt
+
     expired_payload = {
         "sub": "fake-id",
         "username": "expired_user",
@@ -239,9 +242,7 @@ def test_operator_cannot_read_audit(client: TestClient, operator_token: str):
 # ---------------------------------------------------------------------------
 def test_login_creates_audit_event(client: TestClient, audit_logger):
     before = audit_logger.count()
-    client.post("/api/v1/auth/login", json={
-        "username": "admin", "password": "BonBon@dmin2025!"
-    })
+    client.post("/api/v1/auth/login", json={"username": "admin", "password": "BonBon@dmin2025!"})
     after = audit_logger.count()
     assert after > before
 
@@ -251,17 +252,18 @@ def test_login_creates_audit_event(client: TestClient, audit_logger):
 # ---------------------------------------------------------------------------
 def test_deactivated_user_rejected(client: TestClient, admin_token: str, auth_manager):
     from bonbon_operator_api.models.auth_models import UserCreate, UserUpdate
+
     try:
-        auth_manager.create_user(UserCreate(
-            username="soon_inactive", password="Pass1234!", role="viewer"
-        ))
+        auth_manager.create_user(
+            UserCreate(username="soon_inactive", password="Pass1234!", role="viewer")
+        )
     except ValueError:
         pass
     user = auth_manager.get_user_by_username("soon_inactive")
     auth_manager.update_user(user["user_id"], UserUpdate(is_active=False))
-    resp = client.post("/api/v1/auth/login", json={
-        "username": "soon_inactive", "password": "Pass1234!"
-    })
+    resp = client.post(
+        "/api/v1/auth/login", json={"username": "soon_inactive", "password": "Pass1234!"}
+    )
     assert resp.status_code == 401
 
 

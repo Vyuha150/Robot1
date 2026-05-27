@@ -19,17 +19,19 @@ Covered
 * summary() dict structure
 * Thread safety: concurrent load_async() calls are safe
 """
-import time
+
 import threading
+import time
 import unittest
 
 from bonbon_vision.models.model_manager import ModelManager, ModelState
 
-
 # ── Stub detectors ────────────────────────────────────────────────────────────
+
 
 class _OKDetector:
     """load_model() succeeds after a tiny delay."""
+
     def __init__(self, delay_sec=0.01):
         self._delay = delay_sec
         self.is_degraded = False
@@ -40,6 +42,7 @@ class _OKDetector:
 
 class _FailDetector:
     """load_model() always raises."""
+
     def __init__(self, msg="load failed"):
         self._msg = msg
         self.is_degraded = False
@@ -50,6 +53,7 @@ class _FailDetector:
 
 class _DegradedDetector:
     """load_model() succeeds but sets is_degraded = True."""
+
     def __init__(self):
         self.is_degraded = False
 
@@ -58,6 +62,7 @@ class _DegradedDetector:
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
+
 
 class TestLoadAsync(unittest.TestCase):
     def test_initial_state_is_unloaded(self):
@@ -101,7 +106,7 @@ class TestLoadAsync(unittest.TestCase):
         """Calling load_async twice should not start a second thread."""
         mgr = ModelManager(_OKDetector(delay_sec=0.2))
         mgr.load_async()
-        mgr.load_async()   # second call — should be a no-op
+        mgr.load_async()  # second call — should be a no-op
         ok = mgr.wait_ready(timeout=5.0)
         self.assertTrue(ok)
 

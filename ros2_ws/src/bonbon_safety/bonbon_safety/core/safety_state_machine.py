@@ -41,32 +41,36 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Callable, Dict, FrozenSet, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 # ── State enum ────────────────────────────────────────────────────────────────
 
+
 class SafetyLevel(IntEnum):
     """Ordered safety levels.  Higher value = more restrictive capability."""
+
     INITIALIZING = 0
-    NORMAL       = 1
-    CAUTION      = 2
-    DANGER       = 3
-    DOCKING      = 4   # concurrent with CAUTION velocity semantics
-    DEGRADED     = 5   # non-critical module offline
-    FAULT        = 6   # hardware fault — manual reset required
-    SAFE_STOP    = 7   # e-stop hardware triggered — motor power cut
+    NORMAL = 1
+    CAUTION = 2
+    DANGER = 3
+    DOCKING = 4  # concurrent with CAUTION velocity semantics
+    DEGRADED = 5  # non-critical module offline
+    FAULT = 6  # hardware fault — manual reset required
+    SAFE_STOP = 7  # e-stop hardware triggered — motor power cut
 
 
 # ── State properties ──────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class SafetyStateProperties:
     """Immutable capability descriptor for a safety state."""
+
     actuation_permitted: bool
     navigation_permitted: bool
     max_velocity_mps: float
@@ -74,7 +78,7 @@ class SafetyStateProperties:
     description: str
 
 
-STATE_PROPERTIES: Dict[SafetyLevel, SafetyStateProperties] = {
+STATE_PROPERTIES: dict[SafetyLevel, SafetyStateProperties] = {
     SafetyLevel.INITIALIZING: SafetyStateProperties(
         actuation_permitted=False,
         navigation_permitted=False,
@@ -136,6 +140,7 @@ STATE_PROPERTIES: Dict[SafetyLevel, SafetyStateProperties] = {
 
 # ── Sensor snapshot ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class SensorSnapshot:
     """
@@ -145,9 +150,10 @@ class SensorSnapshot:
     not available". The FSM treats unknown data conservatively — it does NOT
     assume the best case.
     """
+
     # Spatial safety
-    nearest_obstacle_m: float = -1.0        # min LIDAR range; -1 = LIDAR offline
-    nearest_human_m: float = -1.0           # closest person track; -1 = no track
+    nearest_obstacle_m: float = -1.0  # min LIDAR range; -1 = LIDAR offline
+    nearest_human_m: float = -1.0  # closest person track; -1 = no track
     cliff_detected_left: bool = False
     cliff_detected_right: bool = False
 
@@ -156,28 +162,28 @@ class SensorSnapshot:
     bumper_rear: bool = False
 
     # Sensor health flags (False = sensor healthy / online)
-    lidar_stale: bool = False               # True if LIDAR scan not received in time
+    lidar_stale: bool = False  # True if LIDAR scan not received in time
     camera_stale: bool = False
     imu_stale: bool = False
-    imu_drift_detected: bool = False        # drift exceeds calibration threshold
+    imu_drift_detected: bool = False  # drift exceeds calibration threshold
 
     # Power and thermal
     battery_percent: float = 100.0
     cpu_temp_c: float = 20.0
-    motor_temp_c: float = 20.0             # from thermistor readings
+    motor_temp_c: float = 20.0  # from thermistor readings
 
     # Actuation health
-    servo_fault: bool = False               # any Dynamixel overload / error
-    odrive_fault: bool = False              # any wheel motor driver error
+    servo_fault: bool = False  # any Dynamixel overload / error
+    odrive_fault: bool = False  # any wheel motor driver error
 
     # Software triggers
-    estop_hardware: bool = False            # GPIO e-stop pin asserted
-    unsafe_command_detected: bool = False   # LLM safety filter raised alarm
-    navigation_timeout: bool = False        # nav2 goal timed out without arrival
+    estop_hardware: bool = False  # GPIO e-stop pin asserted
+    unsafe_command_detected: bool = False  # LLM safety filter raised alarm
+    navigation_timeout: bool = False  # nav2 goal timed out without arrival
 
     # Node health (populated by watchdog)
-    critical_node_crashed: bool = False     # CLASS A node missing heartbeat
-    important_node_crashed: bool = False    # CLASS B node missing heartbeat
+    critical_node_crashed: bool = False  # CLASS A node missing heartbeat
+    important_node_crashed: bool = False  # CLASS B node missing heartbeat
 
     # Timestamp for staleness detection
     timestamp: float = field(default_factory=time.monotonic)
@@ -185,17 +191,20 @@ class SensorSnapshot:
 
 # ── Transition record ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class StateTransition:
     """Records a single state transition for audit logging."""
+
     from_state: SafetyLevel
     to_state: SafetyLevel
     reason: str
     timestamp: float = field(default_factory=time.monotonic)
-    snapshot: Optional[SensorSnapshot] = None
+    snapshot: SensorSnapshot | None = None
 
 
 # ── FSM ───────────────────────────────────────────────────────────────────────
+
 
 class SafetyStateMachine:
     """
@@ -250,7 +259,7 @@ class SafetyStateMachine:
         self._degraded_modules: set[str] = set()
 
         # Hysteresis counters
-        self._clear_cycles: int = 0         # cycles with no hazard detected
+        self._clear_cycles: int = 0  # cycles with no hazard detected
         self._hysteresis_caution = hysteresis_cycles_caution
         self._hysteresis_danger = hysteresis_cycles_danger
 
@@ -264,14 +273,14 @@ class SafetyStateMachine:
         self.cpu_temp_fault_c = cpu_temp_fault_c
 
         # Transition history (last 100)
-        self._history: List[StateTransition] = []
+        self._history: list[StateTransition] = []
         self._max_history = 100
 
         # Startup sequence flag — set by mark_startup_complete(), consumed by update()
         self._startup_complete_pending: bool = False
 
         # Transition callbacks (set by supervisor node)
-        self._on_transition: List[Callable[[StateTransition], None]] = []
+        self._on_transition: list[Callable[[StateTransition], None]] = []
 
         logger.info(
             "SafetyStateMachine initialised",
@@ -297,21 +306,19 @@ class SafetyStateMachine:
         return time.monotonic() - self._state_entry_time
 
     @property
-    def history(self) -> List[StateTransition]:
+    def history(self) -> list[StateTransition]:
         """Return a copy of the recent state transition history (newest last)."""
         return list(self._history)
 
     @property
-    def degraded_modules(self) -> FrozenSet[str]:
+    def degraded_modules(self) -> frozenset[str]:
         return frozenset(self._degraded_modules)
 
-    def add_transition_callback(
-        self, callback: Callable[[StateTransition], None]
-    ) -> None:
+    def add_transition_callback(self, callback: Callable[[StateTransition], None]) -> None:
         """Register a callback invoked on every state transition."""
         self._on_transition.append(callback)
 
-    def register_module_degraded(self, module_name: str) -> Optional[StateTransition]:
+    def register_module_degraded(self, module_name: str) -> StateTransition | None:
         """Mark a non-critical module as degraded."""
         if module_name not in self._degraded_modules:
             self._degraded_modules.add(module_name)
@@ -323,7 +330,7 @@ class SafetyStateMachine:
                 )
         return None
 
-    def clear_module_degraded(self, module_name: str) -> Optional[StateTransition]:
+    def clear_module_degraded(self, module_name: str) -> StateTransition | None:
         """Mark a non-critical module as recovered."""
         self._degraded_modules.discard(module_name)
         if not self._degraded_modules and self._state == SafetyLevel.DEGRADED:
@@ -331,7 +338,7 @@ class SafetyStateMachine:
             return self._transition(SafetyLevel.NORMAL, "All degraded modules recovered")
         return None
 
-    def reset(self, operator_id: str = "unknown") -> Optional[StateTransition]:
+    def reset(self, operator_id: str = "unknown") -> StateTransition | None:
         """
         Operator-triggered reset from FAULT or SAFE_STOP → INITIALIZING.
 
@@ -339,9 +346,7 @@ class SafetyStateMachine:
         The supervisor node must re-run the startup self-test after this.
         """
         if self._state not in (SafetyLevel.FAULT, SafetyLevel.SAFE_STOP):
-            logger.warning(
-                "reset() called from non-resettable state %s", self._state.name
-            )
+            logger.warning("reset() called from non-resettable state %s", self._state.name)
             return None
         logger.info("Manual reset by operator '%s'", operator_id)
         return self._transition(
@@ -370,21 +375,19 @@ class SafetyStateMachine:
         logger.error("Startup failed: %s", reason)
         return self._transition(SafetyLevel.FAULT, f"Startup failure: {reason}")
 
-    def trigger_docking(self, reason: str = "battery low") -> Optional[StateTransition]:
+    def trigger_docking(self, reason: str = "battery low") -> StateTransition | None:
         """Force a transition to DOCKING from NORMAL or CAUTION."""
         if self._state in (SafetyLevel.NORMAL, SafetyLevel.CAUTION, SafetyLevel.DEGRADED):
             return self._transition(SafetyLevel.DOCKING, reason)
         return None
 
-    def docking_complete(self) -> Optional[StateTransition]:
+    def docking_complete(self) -> StateTransition | None:
         """Called when the robot successfully docks and battery begins charging."""
         if self._state == SafetyLevel.DOCKING:
             return self._transition(SafetyLevel.NORMAL, "Docking complete — battery charging")
         return None
 
-    def update(
-        self, snapshot: SensorSnapshot
-    ) -> Tuple[SafetyLevel, Optional[StateTransition]]:
+    def update(self, snapshot: SensorSnapshot) -> tuple[SafetyLevel, StateTransition | None]:
         """
         Core FSM update — evaluate sensor snapshot and compute next state.
 
@@ -396,7 +399,6 @@ class SafetyStateMachine:
         threshold comparisons live here, not scattered across the codebase.
         """
         current = self._state
-        transition: Optional[StateTransition] = None
 
         # ── 1. Hardware e-stop is unconditional ───────────────────────────────
         if snapshot.estop_hardware and current != SafetyLevel.SAFE_STOP:
@@ -547,11 +549,13 @@ class SafetyStateMachine:
 
     def _is_fault_condition(self, s: SensorSnapshot) -> bool:
         """Conditions that require a manual reset to recover."""
-        return any([
-            s.critical_node_crashed,
-            s.servo_fault and s.odrive_fault,          # both drive systems dead
-            s.cpu_temp_c >= self.cpu_temp_fault_c,
-        ])
+        return any(
+            [
+                s.critical_node_crashed,
+                s.servo_fault and s.odrive_fault,  # both drive systems dead
+                s.cpu_temp_c >= self.cpu_temp_fault_c,
+            ]
+        )
 
     def _fault_reason(self, s: SensorSnapshot) -> str:
         if s.critical_node_crashed:
@@ -564,20 +568,19 @@ class SafetyStateMachine:
 
     def _is_danger_condition(self, s: SensorSnapshot) -> bool:
         """Conditions that require immediate full stop."""
-        human_danger = (
-            s.nearest_human_m >= 0
-            and s.nearest_human_m <= self.human_danger_m
-        )
+        human_danger = s.nearest_human_m >= 0 and s.nearest_human_m <= self.human_danger_m
         lidar_danger = s.lidar_stale and self.lidar_stale_danger
-        return any([
-            s.bumper_front,
-            s.bumper_rear,
-            s.cliff_detected_left,
-            s.cliff_detected_right,
-            human_danger,
-            lidar_danger,
-            s.imu_drift_detected,
-        ])
+        return any(
+            [
+                s.bumper_front,
+                s.bumper_rear,
+                s.cliff_detected_left,
+                s.cliff_detected_right,
+                human_danger,
+                lidar_danger,
+                s.imu_drift_detected,
+            ]
+        )
 
     def _danger_reason(self, s: SensorSnapshot) -> str:
         if s.bumper_front or s.bumper_rear:
@@ -606,22 +609,21 @@ class SafetyStateMachine:
 
     def _is_caution_condition(self, s: SensorSnapshot) -> bool:
         """Conditions that require speed reduction."""
-        human_caution = (
-            s.nearest_human_m >= 0
-            and s.nearest_human_m <= self.human_caution_m
+        human_caution = s.nearest_human_m >= 0 and s.nearest_human_m <= self.human_caution_m
+        return any(
+            [
+                human_caution,
+                s.lidar_stale and not self.lidar_stale_danger,
+                s.camera_stale,
+                s.imu_stale,
+                # Note: servo_fault / odrive_fault → DEGRADED (not CAUTION)
+                s.important_node_crashed,
+                0 <= s.battery_percent <= self.battery_caution_pct,
+                s.cpu_temp_c >= self.cpu_temp_caution_c,
+                s.unsafe_command_detected,
+                s.navigation_timeout,
+            ]
         )
-        return any([
-            human_caution,
-            s.lidar_stale and not self.lidar_stale_danger,
-            s.camera_stale,
-            s.imu_stale,
-            # Note: servo_fault / odrive_fault → DEGRADED (not CAUTION)
-            s.important_node_crashed,
-            0 <= s.battery_percent <= self.battery_caution_pct,
-            s.cpu_temp_c >= self.cpu_temp_caution_c,
-            s.unsafe_command_detected,
-            s.navigation_timeout,
-        ])
 
     def _caution_reason(self, s: SensorSnapshot) -> str:
         if s.nearest_human_m >= 0 and s.nearest_human_m <= self.human_caution_m:
@@ -653,7 +655,7 @@ class SafetyStateMachine:
         self,
         new_state: SafetyLevel,
         reason: str,
-        snapshot: Optional[SensorSnapshot] = None,
+        snapshot: SensorSnapshot | None = None,
     ) -> StateTransition:
         old_state = self._state
         self._state = new_state
@@ -695,7 +697,7 @@ class SafetyStateMachine:
 
     # ── Diagnostics ───────────────────────────────────────────────────────────
 
-    def transition_history(self) -> List[StateTransition]:
+    def transition_history(self) -> list[StateTransition]:
         """Return a copy of the recent transition history."""
         return list(self._history)
 

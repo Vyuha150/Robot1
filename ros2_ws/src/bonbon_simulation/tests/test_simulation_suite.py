@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from bonbon_simulation.core.config import SimulationConfig, load_scenario
 from bonbon_simulation.core.robot_spawn_manager import RobotSpawnManager
 from bonbon_simulation.core.world_launcher import WorldLauncher
@@ -20,7 +19,9 @@ def run_named(runner, package_root: Path, name: str):
 
 def test_basic_robot_spawn(package_root: Path):
     cfg = SimulationConfig.from_file(package_root / "config" / "simulation_params.yaml")
-    manager = RobotSpawnManager(package_root / "models" / "bonbon_robot" / "urdf" / "bonbon_robot.urdf.xacro", cfg.robot)
+    manager = RobotSpawnManager(
+        package_root / "models" / "bonbon_robot" / "urdf" / "bonbon_robot.urdf.xacro", cfg.robot
+    )
     request = manager.create_spawn_request(x=1.0, y=2.0, yaw=0.5)
     assert request.robot_name == "bonbon"
     assert request.pose == (1.0, 2.0, 0.5)

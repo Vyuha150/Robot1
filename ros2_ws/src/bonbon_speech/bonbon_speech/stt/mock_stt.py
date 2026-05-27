@@ -9,10 +9,11 @@ Features:
   * Can be told to corrupt (raise) on specific call indices.
   * Can simulate low-confidence results.
 """
+
 from __future__ import annotations
 
 import time
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -35,10 +36,10 @@ class MockSTT(BaseSTT):
 
     def __init__(
         self,
-        cfg: Optional[STTConfig] = None,
-        responses: Optional[List[TranscriptionResult]] = None,
+        cfg: STTConfig | None = None,
+        responses: list[TranscriptionResult] | None = None,
         block_sec: float = 0.0,
-        corrupt_on: Optional[Sequence[int]] = None,
+        corrupt_on: Sequence[int] | None = None,
     ) -> None:
         if cfg is None:
             cfg = STTConfig()
@@ -46,12 +47,12 @@ class MockSTT(BaseSTT):
         self._responses = responses or [
             TranscriptionResult(text="hello world", language="en", confidence=0.95)
         ]
-        self._block_sec  = block_sec
+        self._block_sec = block_sec
         self._corrupt_on = set(corrupt_on or [])
-        self._call_idx   = 0
-        self.loaded      = False
+        self._call_idx = 0
+        self.loaded = False
         # Introspection
-        self.call_count  = 0
+        self.call_count = 0
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -96,9 +97,9 @@ class MockSTT(BaseSTT):
 
     # ── Test helpers ─────────────────────────────────────────────────────────
 
-    def set_responses(self, responses: List[TranscriptionResult]) -> None:
+    def set_responses(self, responses: list[TranscriptionResult]) -> None:
         self._responses = responses
-        self._call_idx  = 0
+        self._call_idx = 0
 
     def set_block(self, block_sec: float) -> None:
         self._block_sec = block_sec

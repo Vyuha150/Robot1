@@ -13,11 +13,11 @@ Privacy controls
 * forget_person(id)         → hard-delete from all stores (GDPR)
 * purge_old_data()          → time-based eviction of old episodes
 """
+
 from __future__ import annotations
 
 import hashlib
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_perception_ai.config.perception_config import MemoryConfig
 from bonbon_perception_ai.memory.structured_store import StructuredStore
@@ -34,10 +34,10 @@ class MemoryManager:
     """
 
     def __init__(self, cfg: MemoryConfig) -> None:
-        self.cfg         = cfg
-        self._vector     = FAISSVectorStore(cfg)
+        self.cfg = cfg
+        self._vector = FAISSVectorStore(cfg)
         self._structured = StructuredStore(cfg)
-        self._open       = False
+        self._open = False
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -63,9 +63,7 @@ class MemoryManager:
         for cls_name in snap.present_object_classes:
             self._structured.upsert_object(cls_name, confidence=0.8)
 
-    def recall_similar_scenes(
-        self, query: SceneSnapshot, k: int = 5
-    ) -> List[EpisodeRecord]:
+    def recall_similar_scenes(self, query: SceneSnapshot, k: int = 5) -> list[EpisodeRecord]:
         """Return up to k past scenes semantically similar to query."""
         if not self._open:
             return []
@@ -80,12 +78,12 @@ class MemoryManager:
     ) -> None:
         if not self._open:
             return
-        safe_id  = self._safe_id(person_id)
+        safe_id = self._safe_id(person_id)
         safe_fid = face_id if self.cfg.privacy_store_faces else ""
         self._structured.upsert_person(
             safe_id,
-            face_id      = safe_fid,
-            is_anonymous = self.cfg.privacy_anonymize_persons,
+            face_id=safe_fid,
+            is_anonymous=self.cfg.privacy_anonymize_persons,
         )
 
     def record_interaction(self, person_id: str, intent: UserIntent) -> None:
@@ -95,11 +93,11 @@ class MemoryManager:
         self._structured.upsert_person(safe_id)
         self._structured.log_interaction(safe_id, intent)
 
-    def get_person_history(self, person_id: str) -> Optional[Dict[str, Any]]:
+    def get_person_history(self, person_id: str) -> dict[str, Any] | None:
         if not self._open:
             return None
         safe_id = self._safe_id(person_id)
-        info    = self._structured.get_person(safe_id)
+        info = self._structured.get_person(safe_id)
         if info is None:
             return None
         interactions = self._structured.get_recent_interactions(safe_id)
@@ -134,12 +132,12 @@ class MemoryManager:
     def vector_backend(self) -> str:
         return self._vector.backend
 
-    def list_known_persons(self) -> List[Dict[str, Any]]:
+    def list_known_persons(self) -> list[dict[str, Any]]:
         if not self._open:
             return []
         return self._structured.list_persons()
 
-    def list_known_objects(self) -> List[Dict[str, Any]]:
+    def list_known_objects(self) -> list[dict[str, Any]]:
         if not self._open:
             return []
         return self._structured.get_known_objects()

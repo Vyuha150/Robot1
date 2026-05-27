@@ -27,48 +27,52 @@ The bridge enforces:
 SafetyState heartbeat watchdog: if no SafetyState received within
 watchdog_timeout_sec, enter defensive mode (zero velocity).
 """
+
 from __future__ import annotations
 
 import logging
 import math
 import time
 from dataclasses import dataclass
-from enum import Enum
-from typing import Callable, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 # Safety state constants (mirror bonbon_msgs/SafetyState.msg)
 SAFETY_INITIALIZING = 0
-SAFETY_NORMAL       = 1
-SAFETY_CAUTION      = 2
-SAFETY_DANGER       = 3
-SAFETY_DOCKING      = 4
-SAFETY_DEGRADED     = 5
-SAFETY_FAULT        = 6
-SAFETY_SAFE_STOP    = 7
+SAFETY_NORMAL = 1
+SAFETY_CAUTION = 2
+SAFETY_DANGER = 3
+SAFETY_DOCKING = 4
+SAFETY_DEGRADED = 5
+SAFETY_FAULT = 6
+SAFETY_SAFE_STOP = 7
 
-_MOTION_BLOCKED_STATES = frozenset({
-    SAFETY_DANGER,
-    SAFETY_FAULT,
-    SAFETY_SAFE_STOP,
-})
+_MOTION_BLOCKED_STATES = frozenset(
+    {
+        SAFETY_DANGER,
+        SAFETY_FAULT,
+        SAFETY_SAFE_STOP,
+    }
+)
 
 
 # ── Gated velocity ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class GatedVelocity:
     """Result of filtering a velocity command through the safety bridge."""
-    linear_mps:   float
-    angular_rps:  float
-    was_capped:   bool     # True if speed was reduced
-    was_blocked:  bool     # True if motion is fully blocked
+
+    linear_mps: float
+    angular_rps: float
+    was_capped: bool  # True if speed was reduced
+    was_blocked: bool  # True if motion is fully blocked
     safety_state: int
-    reason:       str      = ""
+    reason: str = ""
 
 
 # ── Bridge ────────────────────────────────────────────────────────────────────
+
 
 class SafetyStopBridge:
     """
@@ -90,35 +94,35 @@ class SafetyStopBridge:
 
     def __init__(
         self,
-        max_speed_mps:       float = 0.80,
-        caution_speed_mps:   float = 0.30,
-        dock_speed_mps:      float = 0.15,
+        max_speed_mps: float = 0.80,
+        caution_speed_mps: float = 0.30,
+        dock_speed_mps: float = 0.15,
         watchdog_timeout_sec: float = 2.0,
     ) -> None:
-        self._max_speed     = max_speed_mps
+        self._max_speed = max_speed_mps
         self._caution_speed = caution_speed_mps
-        self._dock_speed    = dock_speed_mps
-        self._watchdog      = watchdog_timeout_sec
+        self._dock_speed = dock_speed_mps
+        self._watchdog = watchdog_timeout_sec
 
-        self._safety_state:  int   = SAFETY_INITIALIZING
-        self._nav_permitted: bool  = False
-        self._act_permitted: bool  = False
-        self._last_update:   float = 0.0
+        self._safety_state: int = SAFETY_INITIALIZING
+        self._nav_permitted: bool = False
+        self._act_permitted: bool = False
+        self._last_update: float = 0.0
         self._safety_blocked_count = 0
-        self._last_block_log:float = 0.0
+        self._last_block_log: float = 0.0
 
     # ── Safety state update ───────────────────────────────────────────────────
 
     def update_safety_state(
         self,
-        state:                int,
+        state: int,
         navigation_permitted: bool = True,
-        actuation_permitted:  bool = True,
+        actuation_permitted: bool = True,
     ) -> None:
-        self._safety_state  = state
+        self._safety_state = state
         self._nav_permitted = navigation_permitted
         self._act_permitted = actuation_permitted
-        self._last_update   = time.monotonic()
+        self._last_update = time.monotonic()
 
     # ── Velocity gating ───────────────────────────────────────────────────────
 
@@ -159,25 +163,24 @@ class SafetyStopBridge:
 
         reason = (
             f"capped {abs(linear):.2f}→{abs(linear_out):.2f}m/s (state={state})"
-            if was_capped else ""
+            if was_capped
+            else ""
         )
 
         return GatedVelocity(
-            linear_mps   = linear_out,
-            angular_rps  = angular_out,
-            was_capped   = was_capped,
-            was_blocked  = False,
-            safety_state = state,
-            reason       = reason,
+            linear_mps=linear_out,
+            angular_rps=angular_out,
+            was_capped=was_capped,
+            was_blocked=False,
+            safety_state=state,
+            reason=reason,
         )
 
-    def _speed_cap(self, state: int, linear: float) -> Tuple[float, bool]:
+    def _speed_cap(self, state: int, linear: float) -> tuple[float, bool]:
         """Return (cap_mps, was_capped)."""
         if state == SAFETY_DOCKING:
             cap = self._dock_speed
-        elif state == SAFETY_CAUTION:
-            cap = self._caution_speed
-        elif state == SAFETY_DEGRADED:
+        elif state == SAFETY_CAUTION or state == SAFETY_DEGRADED:
             cap = self._caution_speed
         else:
             cap = self._max_speed
@@ -189,12 +192,12 @@ class SafetyStopBridge:
             logger.warning("SafetyStopBridge BLOCK: %s", reason)
             self._last_block_log = now
         return GatedVelocity(
-            linear_mps   = 0.0,
-            angular_rps  = 0.0,
-            was_capped   = False,
-            was_blocked  = True,
-            safety_state = state,
-            reason       = reason,
+            linear_mps=0.0,
+            angular_rps=0.0,
+            was_capped=False,
+            was_blocked=True,
+            safety_state=state,
+            reason=reason,
         )
 
     # ── Accessors ─────────────────────────────────────────────────────────────
@@ -220,11 +223,11 @@ class SafetyStopBridge:
     def safety_state_name(self) -> str:
         return {
             SAFETY_INITIALIZING: "INITIALIZING",
-            SAFETY_NORMAL:       "NORMAL",
-            SAFETY_CAUTION:      "CAUTION",
-            SAFETY_DANGER:       "DANGER",
-            SAFETY_DOCKING:      "DOCKING",
-            SAFETY_DEGRADED:     "DEGRADED",
-            SAFETY_FAULT:        "FAULT",
-            SAFETY_SAFE_STOP:    "SAFE_STOP",
+            SAFETY_NORMAL: "NORMAL",
+            SAFETY_CAUTION: "CAUTION",
+            SAFETY_DANGER: "DANGER",
+            SAFETY_DOCKING: "DOCKING",
+            SAFETY_DEGRADED: "DEGRADED",
+            SAFETY_FAULT: "FAULT",
+            SAFETY_SAFE_STOP: "SAFE_STOP",
         }.get(self._safety_state, f"UNKNOWN({self._safety_state})")

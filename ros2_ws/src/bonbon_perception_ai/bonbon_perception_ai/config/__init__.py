@@ -1,12 +1,13 @@
 """bonbon_perception_ai.config — typed configuration hierarchy."""
+
 from bonbon_perception_ai.config.perception_config import (
     FusionConfig,
-    SceneConfig,
     IntentConfig,
-    RiskConfig,
     MemoryConfig,
-    PrivacyConfig,
     PerceptionAIConfig,
+    PrivacyConfig,
+    RiskConfig,
+    SceneConfig,
 )
 
 __all__ = [

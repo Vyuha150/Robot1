@@ -1,4 +1,4 @@
-from .mic_driver import MicDriver, AudioChunk
+from .mic_driver import AudioChunk, MicDriver
 from .mock_mic_driver import MockMicDriver
 from .respeaker_driver import RespeakerDriver
 

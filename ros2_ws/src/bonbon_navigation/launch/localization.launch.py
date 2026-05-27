@@ -15,6 +15,7 @@ Usage::
       map:=/path/to/cafe_map.yaml \\
       rtabmap_db:=/var/lib/bonbon/rtabmap.db
 """
+
 from __future__ import annotations
 
 from launch import LaunchDescription
@@ -66,11 +67,11 @@ def generate_launch_description() -> LaunchDescription:
         ),
     ]
 
-    use_sim_time   = LaunchConfiguration("use_sim_time")
-    map_yaml       = LaunchConfiguration("map")
-    rtabmap_db     = LaunchConfiguration("rtabmap_db")
-    log_level      = LaunchConfiguration("log_level")
-    nav2_params    = LaunchConfiguration("nav2_params_file")
+    use_sim_time = LaunchConfiguration("use_sim_time")
+    map_yaml = LaunchConfiguration("map")
+    rtabmap_db = LaunchConfiguration("rtabmap_db")
+    log_level = LaunchConfiguration("log_level")
+    nav2_params = LaunchConfiguration("nav2_params_file")
     rtabmap_params = LaunchConfiguration("rtabmap_params_file")
 
     # Static map server

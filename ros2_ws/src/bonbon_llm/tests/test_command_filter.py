@@ -12,16 +12,16 @@ Tests cover
 * Speech forbidden-word filter
 * Behavior filter by class and confidence
 """
-import pytest
 
+import pytest
+from bonbon_llm.config.llm_config import SafetyFilterConfig
 from bonbon_llm.safety.command_filter import (
     FilterStatus,
     SafetyCommandFilter,
 )
-from bonbon_llm.config.llm_config import SafetyFilterConfig
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def filt() -> SafetyCommandFilter:
@@ -29,6 +29,7 @@ def filt() -> SafetyCommandFilter:
 
 
 # ── BLOCKED: direct hardware control attempts ─────────────────────────────────
+
 
 class TestHardBlockedPatterns:
 
@@ -86,6 +87,7 @@ class TestHardBlockedPatterns:
 
 # ── SAFE: benign speech ────────────────────────────────────────────────────────
 
+
 class TestSafeSpeech:
 
     def test_greeting_safe(self, filt):
@@ -119,6 +121,7 @@ class TestSafeSpeech:
 
 # ── RISKY: intent classes needing authorization ───────────────────────────────
 
+
 class TestRiskyBehaviors:
 
     def test_navigate_to_risky(self, filt):
@@ -144,9 +147,7 @@ class TestRiskyBehaviors:
     def test_low_confidence_risky_command_blocked(self, filt):
         # navigate_to_goal at very low confidence should be BLOCKED or RISKY
         result = filt.filter_behavior("navigate_to_goal", confidence=0.10)
-        assert result.status != FilterStatus.SAFE, (
-            "Low-confidence navigation should not be SAFE"
-        )
+        assert result.status != FilterStatus.SAFE, "Low-confidence navigation should not be SAFE"
 
     def test_stop_navigation_safe(self, filt):
         result = filt.filter_behavior("stop_navigation", confidence=0.99)
@@ -154,6 +155,7 @@ class TestRiskyBehaviors:
 
 
 # ── is_safe_speech helper ──────────────────────────────────────────────────────
+
 
 class TestIsSafeSpeech:
 
@@ -169,6 +171,7 @@ class TestIsSafeSpeech:
 
 
 # ── Edge cases ────────────────────────────────────────────────────────────────
+
 
 class TestEdgeCases:
 

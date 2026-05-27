@@ -23,10 +23,10 @@ Prerequisites
     ros2 run launch_testing launch_test \\
         bonbon_safety/tests/integration/test_safety_integration.py
 """
+
 from __future__ import annotations
 
 import os
-import sys
 import time
 import unittest
 
@@ -37,7 +37,6 @@ import launch_testing.actions
 import launch_testing.markers
 import pytest
 import rclpy
-from rclpy.node import Node
 from std_msgs.msg import Bool
 
 # Mark this module for launch_testing auto-discovery
@@ -46,12 +45,14 @@ pytestmark = pytest.mark.launch_test
 
 # ── Launch description ─────────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def launch_description():
     """Bring up all 3 safety nodes in simulation mode."""
     os.environ["BONBON_SIMULATION"] = "1"
 
     from ament_index_python.packages import get_package_share_directory
+
     pkg = get_package_share_directory("bonbon_safety")
     params_file = os.path.join(pkg, "config", "safety_params.yaml")
 
@@ -80,12 +81,14 @@ def launch_description():
         output="screen",
     )
 
-    return launch.LaunchDescription([
-        supervisor,
-        watchdog,
-        estop,
-        launch_testing.actions.ReadyToTest(),
-    ])
+    return launch.LaunchDescription(
+        [
+            supervisor,
+            watchdog,
+            estop,
+            launch_testing.actions.ReadyToTest(),
+        ]
+    )
 
 
 def generate_launch_description():
@@ -93,6 +96,7 @@ def generate_launch_description():
 
 
 # ── Test class ────────────────────────────────────────────────────────────────
+
 
 @launch_testing.markers.keep_alive
 class TestSafetyIntegration(unittest.TestCase):
@@ -112,9 +116,7 @@ class TestSafetyIntegration(unittest.TestCase):
     def _wait_for_message(self, topic, msg_type, timeout_sec=10.0):
         """Block until one message arrives on topic or timeout expires."""
         received = []
-        sub = self.node.create_subscription(
-            msg_type, topic, lambda m: received.append(m), 10
-        )
+        sub = self.node.create_subscription(msg_type, topic, lambda m: received.append(m), 10)
         deadline = time.monotonic() + timeout_sec
         while not received and time.monotonic() < deadline:
             rclpy.spin_once(self.node, timeout_sec=0.1)
@@ -153,9 +155,7 @@ class TestSafetyIntegration(unittest.TestCase):
         except ImportError:
             self.skipTest("bonbon_msgs not available")
 
-        msg = self._wait_for_message(
-            "/bonbon/safety/watchdog_node/health", ModuleHealth
-        )
+        msg = self._wait_for_message("/bonbon/safety/watchdog_node/health", ModuleHealth)
         self.assertIsNotNone(msg, "Watchdog health not published within timeout")
         self.assertEqual(msg.module_name, "watchdog_node")
 
@@ -186,13 +186,12 @@ class TestSafetyIntegration(unittest.TestCase):
         msg = self._wait_for_message("/bonbon/safety/state", SafetyState, timeout_sec=5.0)
         self.assertIsNotNone(msg)
         self.assertNotEqual(
-            msg.state, SafetyState.INITIALIZING,
+            msg.state,
+            SafetyState.INITIALIZING,
             "Supervisor still INITIALIZING after startup_timeout_sec",
         )
 
     def test_critical_crash_flag_published(self):
         """Watchdog must publish /bonbon/safety/critical_node_crashed (Bool)."""
-        msg = self._wait_for_message(
-            "/bonbon/safety/critical_node_crashed", Bool, timeout_sec=15.0
-        )
+        msg = self._wait_for_message("/bonbon/safety/critical_node_crashed", Bool, timeout_sec=15.0)
         self.assertIsNotNone(msg, "critical_node_crashed flag not published")

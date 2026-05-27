@@ -9,11 +9,10 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from bonbon_operator_api.auth.dependencies import get_current_user, require_permission
+from bonbon_operator_api.auth.dependencies import require_permission
 from bonbon_operator_api.models.auth_models import TokenPayload
 from bonbon_operator_api.models.command_models import (
     CancelTaskCommand,
@@ -26,8 +25,8 @@ from bonbon_operator_api.models.command_models import (
     SpeakCommand,
 )
 from bonbon_operator_api.models.response_models import APIResponse
-from bonbon_operator_api.safety.safety_gate import SafetyGateError
 from bonbon_operator_api.safety.command_validator import ValidationError
+from bonbon_operator_api.safety.safety_gate import SafetyGateError
 
 logger = logging.getLogger(__name__)
 
@@ -56,23 +55,21 @@ def _gate_and_dispatch(
         )
     except ValidationError as exc:
         request.app.state.metrics.record_command(command_type, "validation_error")
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except SafetyGateError as exc:
         code = getattr(exc, "code", "SAFETY_GATE_REJECTED")
         if code == "DUPLICATE_COMMAND":
             request.app.state.metrics.record_command(command_type, "duplicate")
-            raise HTTPException(status_code=409, detail=str(exc))
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         request.app.state.metrics.record_command(command_type, "safety_blocked")
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @cmd_router.post("/emergency_stop", response_model=APIResponse)
 async def emergency_stop(
     request: Request,
     body: EmergencyStopCommand,
-    current_user: TokenPayload = Depends(
-        require_permission("robot:command:emergency_stop")
-    ),
+    current_user: TokenPayload = Depends(require_permission("robot:command:emergency_stop")),
 ) -> APIResponse:
     """Immediately halt the robot — always accepted regardless of safety state."""
     command_id = str(uuid.uuid4())
@@ -84,12 +81,14 @@ async def emergency_stop(
         bridge.call_emergency_stop(body.reason)
 
     metrics.record_command("emergency_stop", "accepted")
-    return APIResponse.ok(CommandResponse(
-        accepted=True,
-        command_id=command_id,
-        message="Emergency stop issued",
-        queued_at=time.time(),
-    ))
+    return APIResponse.ok(
+        CommandResponse(
+            accepted=True,
+            command_id=command_id,
+            message="Emergency stop issued",
+            queued_at=time.time(),
+        )
+    )
 
 
 @cmd_router.post("/speak", response_model=APIResponse)
@@ -112,12 +111,14 @@ async def speak(
         )
 
     metrics.record_command("speak", "accepted")
-    return APIResponse.ok(CommandResponse(
-        accepted=True,
-        command_id=command_id,
-        message="Speak command queued",
-        queued_at=time.time(),
-    ))
+    return APIResponse.ok(
+        CommandResponse(
+            accepted=True,
+            command_id=command_id,
+            message="Speak command queued",
+            queued_at=time.time(),
+        )
+    )
 
 
 @cmd_router.post("/navigate", response_model=APIResponse)
@@ -142,12 +143,14 @@ async def navigate(
         )
 
     metrics.record_command("navigate", "accepted")
-    return APIResponse.ok(CommandResponse(
-        accepted=True,
-        command_id=command_id,
-        message=f"Navigate to ({body.goal_x}, {body.goal_y}) accepted",
-        queued_at=time.time(),
-    ))
+    return APIResponse.ok(
+        CommandResponse(
+            accepted=True,
+            command_id=command_id,
+            message=f"Navigate to ({body.goal_x}, {body.goal_y}) accepted",
+            queued_at=time.time(),
+        )
+    )
 
 
 @cmd_router.post("/pause", response_model=APIResponse)
@@ -166,12 +169,14 @@ async def pause(
         bridge.call_pause()
 
     metrics.record_command("pause", "accepted")
-    return APIResponse.ok(CommandResponse(
-        accepted=True,
-        command_id=command_id,
-        message="Pause command accepted",
-        queued_at=time.time(),
-    ))
+    return APIResponse.ok(
+        CommandResponse(
+            accepted=True,
+            command_id=command_id,
+            message="Pause command accepted",
+            queued_at=time.time(),
+        )
+    )
 
 
 @cmd_router.post("/resume", response_model=APIResponse)
@@ -190,12 +195,14 @@ async def resume(
         bridge.call_resume()
 
     metrics.record_command("resume", "accepted")
-    return APIResponse.ok(CommandResponse(
-        accepted=True,
-        command_id=command_id,
-        message="Resume command accepted",
-        queued_at=time.time(),
-    ))
+    return APIResponse.ok(
+        CommandResponse(
+            accepted=True,
+            command_id=command_id,
+            message="Resume command accepted",
+            queued_at=time.time(),
+        )
+    )
 
 
 @cmd_router.post("/dock", response_model=APIResponse)
@@ -214,12 +221,14 @@ async def dock(
         bridge.call_dock(station_id=body.station_id)
 
     metrics.record_command("dock", "accepted")
-    return APIResponse.ok(CommandResponse(
-        accepted=True,
-        command_id=command_id,
-        message="Dock command accepted",
-        queued_at=time.time(),
-    ))
+    return APIResponse.ok(
+        CommandResponse(
+            accepted=True,
+            command_id=command_id,
+            message="Dock command accepted",
+            queued_at=time.time(),
+        )
+    )
 
 
 @cmd_router.post("/cancel_task", response_model=APIResponse)
@@ -238,9 +247,11 @@ async def cancel_task(
         bridge.call_cancel_task(task_id=body.task_id)
 
     metrics.record_command("cancel_task", "accepted")
-    return APIResponse.ok(CommandResponse(
-        accepted=True,
-        command_id=command_id,
-        message="Cancel task accepted",
-        queued_at=time.time(),
-    ))
+    return APIResponse.ok(
+        CommandResponse(
+            accepted=True,
+            command_id=command_id,
+            message="Cancel task accepted",
+            queued_at=time.time(),
+        )
+    )

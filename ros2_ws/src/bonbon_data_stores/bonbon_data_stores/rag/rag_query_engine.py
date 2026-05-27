@@ -7,9 +7,8 @@ collections and returns merged, de-duplicated, score-sorted results.
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
 
-from bonbon_data_stores.rag.chroma_store import ChromaRAGStore, COLLECTION_NAMES
+from bonbon_data_stores.rag.chroma_store import COLLECTION_NAMES, ChromaRAGStore
 from bonbon_data_stores.schema.models import RAGSearchResult
 
 logger = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ class RAGQueryEngine:
     def __init__(
         self,
         store: ChromaRAGStore,
-        default_collections: Optional[List[str]] = None,
+        default_collections: list[str] | None = None,
         default_n_results: int = 5,
     ) -> None:
         self._store = store
@@ -46,10 +45,10 @@ class RAGQueryEngine:
     def query(
         self,
         query_text: str,
-        collections: Optional[List[str]] = None,
-        n_results: Optional[int] = None,
+        collections: list[str] | None = None,
+        n_results: int | None = None,
         min_score: float = 0.0,
-    ) -> List[RAGSearchResult]:
+    ) -> list[RAGSearchResult]:
         """Search *collections* and return merged, score-sorted results.
 
         Parameters
@@ -73,7 +72,7 @@ class RAGQueryEngine:
         target_collections = collections or self._default_collections
         k = n_results or self._default_n
 
-        merged: List[RAGSearchResult] = []
+        merged: list[RAGSearchResult] = []
         seen_ids: set = set()
 
         for coll in target_collections:
@@ -87,18 +86,16 @@ class RAGQueryEngine:
                 logger.warning("RAG query failed for collection %r: %s", coll, exc)
 
         merged.sort(key=lambda r: r.score, reverse=True)
-        return merged[:k * len(target_collections)]
+        return merged[: k * len(target_collections)]
 
     def query_single(
         self,
         query_text: str,
         collection: str,
-        n_results: Optional[int] = None,
-    ) -> List[RAGSearchResult]:
+        n_results: int | None = None,
+    ) -> list[RAGSearchResult]:
         """Query a single named collection."""
-        return self._store.query(
-            collection, query_text, n_results=n_results or self._default_n
-        )
+        return self._store.query(collection, query_text, n_results=n_results or self._default_n)
 
     def add_knowledge(self, document: str, metadata=None, doc_id=None) -> str:
         """Convenience: add to the ``knowledge`` collection."""

@@ -16,19 +16,19 @@ inactive      → on_activate   → active  (pipeline starts)
 active        → on_deactivate → inactive
 inactive      → on_cleanup    → unconfigured
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
-from typing import Optional
+
+import numpy as np
 
 # ── ROS2 imports (stubbed in tests via sys.modules injection) ─────────────────
 import rclpy
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
-
-import numpy as np
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -54,27 +54,27 @@ class SpeechNode(LifecycleNode):
         super().__init__(node_name)
 
         # Declared at configure time
-        self._cfg       = None
-        self._buf       = None
-        self._preproc   = None
-        self._vad       = None
-        self._stt       = None
-        self._diarizer  = None
-        self._ww        = None
+        self._cfg = None
+        self._buf = None
+        self._preproc = None
+        self._vad = None
+        self._stt = None
+        self._diarizer = None
+        self._ww = None
 
         # Publishers / subscribers — created at configure
-        self._pub_command      = None
+        self._pub_command = None
         self._pub_transcription = None
-        self._pub_health       = None
-        self._sub_audio        = None
+        self._pub_health = None
+        self._sub_audio = None
 
         # Health
         self._health_timer = None
-        self._pipeline_ok  = False
-        self._error_msg    = ""
+        self._pipeline_ok = False
+        self._error_msg = ""
 
         # Wake-word state
-        self._ww_armed: bool = True   # True = accepting wake words
+        self._ww_armed: bool = True  # True = accepting wake words
         self._ww_listen_deadline: float = 0.0
 
         # Thread lock for VAD state
@@ -91,9 +91,7 @@ class SpeechNode(LifecycleNode):
             self._create_interfaces()
             self._init_pipeline()
             self._pipeline_ok = True
-            self.get_logger().info(
-                "configured ok summary=%s", self._cfg.summary()
-            )
+            self.get_logger().info("configured ok summary=%s", self._cfg.summary())
             return TransitionCallbackReturn.SUCCESS
         except Exception as exc:
             self.get_logger().error(f"configure failed: {exc}")
@@ -105,12 +103,17 @@ class SpeechNode(LifecycleNode):
 
     def _load_config(self) -> None:
         from bonbon_speech.config.speech_config import SpeechConfig
+
         self._cfg = SpeechConfig.from_ros_params(self)
         self._cfg.validate()
 
     def _create_interfaces(self) -> None:
-        from bonbon_msgs.msg import AudioChunk, SpeechCommand, SpeechTranscription  # type: ignore
-        from bonbon_msgs.msg import ModuleHealth  # type: ignore
+        from bonbon_msgs.msg import (  # type: ignore
+            AudioChunk,
+            ModuleHealth,  # type: ignore
+            SpeechCommand,
+            SpeechTranscription,
+        )
 
         best_effort_qos = QoSProfile(
             reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -133,8 +136,7 @@ class SpeechNode(LifecycleNode):
             ModuleHealth, "/health/speech", reliable_qos
         )
         self._sub_audio = self.create_subscription(
-            AudioChunk, "/hal/audio",
-            self._on_audio_chunk, best_effort_qos
+            AudioChunk, "/hal/audio", self._on_audio_chunk, best_effort_qos
         )
 
     def _init_pipeline(self) -> None:
@@ -142,6 +144,7 @@ class SpeechNode(LifecycleNode):
 
         # Audio buffer
         from bonbon_speech.audio.audio_buffer import AudioBuffer
+
         self._buf = AudioBuffer(
             sample_rate=cfg.audio.sample_rate,
             max_buffer_sec=cfg.audio.max_buffer_sec,
@@ -150,8 +153,10 @@ class SpeechNode(LifecycleNode):
 
         # Preprocessor
         from bonbon_speech.audio.audio_preprocessor import (
-            AudioPreprocessor, PreprocessorConfig,
+            AudioPreprocessor,
+            PreprocessorConfig,
         )
+
         self._preproc = AudioPreprocessor(PreprocessorConfig())
 
         # VAD
@@ -197,29 +202,36 @@ class SpeechNode(LifecycleNode):
     def _make_vad(self, cfg):
         if cfg.vad.backend == "silero":
             from bonbon_speech.vad.silero_vad import SileroVAD
+
             return SileroVAD(cfg.vad, cfg.audio.sample_rate)
         else:
             from bonbon_speech.vad.mock_vad import MockVAD
+
             return MockVAD(cfg.audio.sample_rate)
 
     def _make_stt(self, cfg):
         if cfg.stt.backend in ("whisper", "faster_whisper"):
             from bonbon_speech.stt.whisper_stt import WhisperSTT
+
             return WhisperSTT(cfg.stt)
         else:
             from bonbon_speech.stt.mock_stt import MockSTT
+
             return MockSTT(cfg.stt)
 
     def _make_diarizer(self, cfg):
         if cfg.diarization.backend == "pyannote":
             from bonbon_speech.diarization.pyannote_diarizer import PyAnnoteDiarizer
+
             return PyAnnoteDiarizer(cfg.diarization)
         else:
             from bonbon_speech.diarization.mock_diarizer import MockDiarizer
+
             return MockDiarizer(cfg.diarization)
 
     def _make_wake_word(self, cfg):
         from bonbon_speech.wake_word.wake_word_detector import make_wake_word_detector
+
         return make_wake_word_detector(cfg.wake_word)
 
     # ── Lifecycle: activate / deactivate / cleanup ────────────────────────────
@@ -257,10 +269,10 @@ class SpeechNode(LifecycleNode):
 
     def _teardown_pipeline(self) -> None:
         for component, name in [
-            (self._vad,      "VAD"),
-            (self._stt,      "STT"),
+            (self._vad, "VAD"),
+            (self._stt, "STT"),
             (self._diarizer, "Diarizer"),
-            (self._ww,       "WakeWord"),
+            (self._ww, "WakeWord"),
         ]:
             if component is not None:
                 try:
@@ -304,18 +316,18 @@ class SpeechNode(LifecycleNode):
                 if detected:
                     self.get_logger().info(
                         "wake_word detected keyword=%r score=%.3f",
-                        self._cfg.wake_word.keyword, score,
+                        self._cfg.wake_word.keyword,
+                        score,
                     )
                     self._ww_armed = False
                     self._ww_listen_deadline = (
-                        time.monotonic()
-                        + self._cfg.wake_word.listen_timeout_sec
+                        time.monotonic() + self._cfg.wake_word.listen_timeout_sec
                     )
                     with self._vad_lock:
                         self._vad.reset()
                     self._buf.clear()
                 else:
-                    return   # not armed for speech yet
+                    return  # not armed for speech yet
             else:
                 # Listening window — re-arm if timed out
                 if time.monotonic() > self._ww_listen_deadline:
@@ -339,9 +351,9 @@ class SpeechNode(LifecycleNode):
         if self._cfg.wake_word.enabled:
             self._ww_armed = True
 
-        self._process_segment(segment, msg.header, wake_word_triggered=(
-            self._cfg.wake_word.enabled  # was gated
-        ))
+        self._process_segment(
+            segment, msg.header, wake_word_triggered=(self._cfg.wake_word.enabled)  # was gated
+        )
 
     # ── Segment processing ────────────────────────────────────────────────────
 
@@ -355,25 +367,23 @@ class SpeechNode(LifecycleNode):
             return
 
         # STT
-        stt_result = self._stt.transcribe(
-            segment.samples, segment.sample_rate
-        )
+        stt_result = self._stt.transcribe(segment.samples, segment.sample_rate)
 
         transcription_ms = (time.monotonic() - t0) * 1000.0
         stt_result.inference_ms = transcription_ms
 
         # Diarization (optional)
-        speaker_id   = "SPEAKER_00"
+        speaker_id = "SPEAKER_00"
         all_speakers = ["SPEAKER_00"]
         if self._diarizer is not None:
             diar = self._diarizer.diarize(segment.samples, segment.sample_rate)
             if not diar.is_timeout:
-                speaker_id   = diar.dominant_speaker
+                speaker_id = diar.dominant_speaker
                 all_speakers = diar.all_speaker_ids
 
         # Privacy: anonymise speaker if required
         if self._cfg.privacy.anonymize_speaker:
-            speaker_id   = "SPEAKER_ANON"
+            speaker_id = "SPEAKER_ANON"
             all_speakers = ["SPEAKER_ANON"]
 
         # Build and publish messages
@@ -414,23 +424,27 @@ class SpeechNode(LifecycleNode):
         force_cut: bool,
     ) -> None:
         from bonbon_msgs.msg import SpeechCommand  # type: ignore
+
         msg = SpeechCommand()
-        msg.header             = header
-        msg.text               = stt.text
-        msg.language           = stt.language
-        msg.confidence         = float(stt.confidence)
-        msg.is_low_confidence  = stt.is_low_confidence
-        msg.is_timeout         = stt.is_timeout
-        msg.is_silence         = stt.is_silence
+        msg.header = header
+        msg.text = stt.text
+        msg.language = stt.language
+        msg.confidence = float(stt.confidence)
+        msg.is_low_confidence = stt.is_low_confidence
+        msg.is_timeout = stt.is_timeout
+        msg.is_silence = stt.is_silence
         msg.wake_word_triggered = wake_word_triggered
-        msg.speaker_id         = speaker_id
+        msg.speaker_id = speaker_id
         msg.audio_duration_sec = float(duration_sec)
-        msg.transcription_ms   = float(transcription_ms)
-        msg.doa_angle_deg      = float(doa)
+        msg.transcription_ms = float(transcription_ms)
+        msg.doa_angle_deg = float(doa)
         self._pub_command.publish(msg)
         self.get_logger().debug(
             "published SpeechCommand text=%r conf=%.3f lang=%r speaker=%s",
-            msg.text[:60], msg.confidence, msg.language, speaker_id,
+            msg.text[:60],
+            msg.confidence,
+            msg.language,
+            speaker_id,
         )
 
     def _publish_transcription(
@@ -445,50 +459,53 @@ class SpeechNode(LifecycleNode):
         force_cut: bool,
     ) -> None:
         from bonbon_msgs.msg import SpeechTranscription  # type: ignore
+
         msg = SpeechTranscription()
-        msg.header               = header
-        msg.text                 = stt.text
-        msg.language             = stt.language
-        msg.confidence           = float(stt.confidence)
-        msg.words                = list(stt.words)
+        msg.header = header
+        msg.text = stt.text
+        msg.language = stt.language
+        msg.confidence = float(stt.confidence)
+        msg.words = list(stt.words)
         msg.word_start_times_sec = [float(t) for t in stt.word_start_times_sec]
-        msg.word_end_times_sec   = [float(t) for t in stt.word_end_times_sec]
-        msg.word_confidences     = [float(c) for c in stt.word_confidences]
-        msg.speaker_id           = speaker_id
-        msg.all_speaker_ids      = list(all_speakers)
-        msg.audio_duration_sec   = float(duration_sec)
-        msg.transcription_ms     = float(transcription_ms)
-        msg.doa_angle_deg        = float(doa)
-        msg.vad_force_cut        = force_cut
+        msg.word_end_times_sec = [float(t) for t in stt.word_end_times_sec]
+        msg.word_confidences = [float(c) for c in stt.word_confidences]
+        msg.speaker_id = speaker_id
+        msg.all_speaker_ids = list(all_speakers)
+        msg.audio_duration_sec = float(duration_sec)
+        msg.transcription_ms = float(transcription_ms)
+        msg.doa_angle_deg = float(doa)
+        msg.vad_force_cut = force_cut
         self._pub_transcription.publish(msg)
 
     def _publish_silence(self, header) -> None:
         from bonbon_msgs.msg import SpeechCommand  # type: ignore
+
         msg = SpeechCommand()
-        msg.header     = header
+        msg.header = header
         msg.is_silence = True
-        msg.text       = ""
+        msg.text = ""
         self._pub_command.publish(msg)
 
     # ── Constants mirroring ModuleHealth.msg ─────────────────────────────────
-    _HEALTH_OK    = 0
-    _HEALTH_WARN  = 1
+    _HEALTH_OK = 0
+    _HEALTH_WARN = 1
     _HEALTH_ERROR = 2
 
     def _publish_health(self) -> None:
         try:
             from bonbon_msgs.msg import ModuleHealth  # type: ignore
+
             stt_degraded = self._stt.is_degraded if self._stt else False
-            overall_ok   = self._pipeline_ok and not stt_degraded
+            overall_ok = self._pipeline_ok and not stt_degraded
 
             msg = ModuleHealth()
             msg.module_name = "bonbon_speech.speech_node"
-            msg.status      = self._HEALTH_OK if overall_ok else self._HEALTH_ERROR
+            msg.status = self._HEALTH_OK if overall_ok else self._HEALTH_ERROR
             msg.status_text = (
                 self._cfg.summary() if overall_ok else self._error_msg or "pipeline degraded"
             )
-            msg.uptime_sec  = 0.0          # watchdog does not require uptime
-            msg.latency_ms  = 0.0
+            msg.uptime_sec = 0.0  # watchdog does not require uptime
+            msg.latency_ms = 0.0
             msg.error_count = 0
             self._pub_health.publish(msg)
         except Exception as exc:
@@ -496,6 +513,7 @@ class SpeechNode(LifecycleNode):
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

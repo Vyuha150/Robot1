@@ -3,10 +3,12 @@ test_estop_driver.py
 ====================
 Tests for MockEstopDriver: press/release, relay control, callbacks, recovery.
 """
+
 from __future__ import annotations
+
 import pytest
 from bonbon_hal.base.driver_base import DriverFault
-from bonbon_hal.drivers.estop import MockEstopDriver, EstopState
+from bonbon_hal.drivers.estop import EstopState, MockEstopDriver
 
 
 @pytest.fixture
@@ -66,7 +68,7 @@ class TestEstopCallbacks:
         events = []
         drv.register_press_callback(lambda p: events.append(p))
         drv.press()
-        drv.press()   # already pressed — should not fire again
+        drv.press()  # already pressed — should not fire again
         assert len(events) == 1
 
     def test_double_release_fires_once(self, drv):

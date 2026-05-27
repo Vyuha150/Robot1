@@ -1,9 +1,9 @@
 """
 Tests for bonbon_speech.audio.audio_preprocessor.AudioPreprocessor
 """
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from bonbon_speech.audio.audio_preprocessor import AudioPreprocessor, PreprocessorConfig
 
 
@@ -12,6 +12,7 @@ def make_proc(**kwargs) -> AudioPreprocessor:
 
 
 # ── DC removal ────────────────────────────────────────────────────────────────
+
 
 class TestDCRemoval:
     def test_removes_dc_offset(self):
@@ -40,19 +41,25 @@ class TestDCRemoval:
 
 # ── Normalisation ─────────────────────────────────────────────────────────────
 
+
 class TestNormalisation:
     def test_rms_normalise_target(self):
-        proc = make_proc(remove_dc_offset=False, normalise=True,
-                         normalise_mode="rms", target_rms=0.1,
-                         noise_gate_enabled=False)
+        proc = make_proc(
+            remove_dc_offset=False,
+            normalise=True,
+            normalise_mode="rms",
+            target_rms=0.1,
+            noise_gate_enabled=False,
+        )
         samples = np.random.randn(1024).astype(np.float32) * 5.0
         out = proc.process(samples)
         rms = proc.rms(out)
         assert abs(rms - 0.1) < 0.01
 
     def test_peak_normalise(self):
-        proc = make_proc(remove_dc_offset=False, normalise=True,
-                         normalise_mode="peak", noise_gate_enabled=False)
+        proc = make_proc(
+            remove_dc_offset=False, normalise=True, normalise_mode="peak", noise_gate_enabled=False
+        )
         samples = np.array([0.0, 0.5, -0.25, 0.1], dtype=np.float32)
         out = proc.process(samples)
         assert abs(np.max(np.abs(out)) - 1.0) < 1e-5
@@ -60,12 +67,11 @@ class TestNormalisation:
     def test_silent_not_normalise_divide_by_zero(self):
         proc = make_proc(normalise=True)
         samples = np.zeros(512, dtype=np.float32)
-        out = proc.process(samples)   # must not raise
+        out = proc.process(samples)  # must not raise
         assert np.all(out == 0.0)
 
     def test_normalise_off(self):
-        proc = make_proc(remove_dc_offset=False, normalise=False,
-                         noise_gate_enabled=False)
+        proc = make_proc(remove_dc_offset=False, normalise=False, noise_gate_enabled=False)
         samples = np.array([0.0, 0.1, 0.2], dtype=np.float32)
         out = proc.process(samples)
         np.testing.assert_array_almost_equal(out, samples)
@@ -73,10 +79,12 @@ class TestNormalisation:
 
 # ── Noise gate ────────────────────────────────────────────────────────────────
 
+
 class TestNoiseGate:
     def test_gate_zeros_below_floor(self):
-        proc = make_proc(remove_dc_offset=False, normalise=False,
-                         noise_gate_enabled=True, noise_gate_floor=0.01)
+        proc = make_proc(
+            remove_dc_offset=False, normalise=False, noise_gate_enabled=True, noise_gate_floor=0.01
+        )
         samples = np.array([0.005, -0.004, 0.02, -0.03], dtype=np.float32)
         out = proc.process(samples)
         assert out[0] == 0.0
@@ -85,8 +93,7 @@ class TestNoiseGate:
         assert out[3] == pytest.approx(-0.03, abs=1e-5)
 
     def test_gate_off_preserves_small_values(self):
-        proc = make_proc(remove_dc_offset=False, normalise=False,
-                         noise_gate_enabled=False)
+        proc = make_proc(remove_dc_offset=False, normalise=False, noise_gate_enabled=False)
         samples = np.array([0.001, -0.002], dtype=np.float32)
         out = proc.process(samples)
         np.testing.assert_array_almost_equal(out, samples)
@@ -94,10 +101,10 @@ class TestNoiseGate:
 
 # ── Clamp ─────────────────────────────────────────────────────────────────────
 
+
 class TestClamp:
     def test_clamps_to_minus1_plus1(self):
-        proc = make_proc(remove_dc_offset=False, normalise=False,
-                         noise_gate_enabled=False)
+        proc = make_proc(remove_dc_offset=False, normalise=False, noise_gate_enabled=False)
         samples = np.array([5.0, -3.0, 0.5], dtype=np.float32)
         out = proc.process(samples)
         assert out[0] == pytest.approx(1.0)
@@ -106,6 +113,7 @@ class TestClamp:
 
 
 # ── Diagnostics ───────────────────────────────────────────────────────────────
+
 
 class TestDiagnostics:
     def test_rms_known_value(self):
@@ -141,6 +149,7 @@ class TestDiagnostics:
 
 # ── Edge cases ────────────────────────────────────────────────────────────────
 
+
 class TestEdgeCases:
     def test_empty_input(self):
         proc = AudioPreprocessor()
@@ -148,8 +157,7 @@ class TestEdgeCases:
         assert out.size == 0
 
     def test_2d_input_flattened(self):
-        proc = make_proc(normalise=False, remove_dc_offset=False,
-                         noise_gate_enabled=False)
+        proc = make_proc(normalise=False, remove_dc_offset=False, noise_gate_enabled=False)
         samples = np.ones((2, 256), dtype=np.float32)
         out = proc.process(samples)
         assert out.ndim == 1
@@ -169,8 +177,7 @@ class TestEdgeCases:
         np.testing.assert_array_equal(samples, original)
 
     def test_single_sample(self):
-        proc = make_proc(normalise=False, remove_dc_offset=True,
-                         noise_gate_enabled=False)
+        proc = make_proc(normalise=False, remove_dc_offset=True, noise_gate_enabled=False)
         samples = np.array([0.5], dtype=np.float32)
         out = proc.process(samples)
         # DC of a single sample is itself → result is 0

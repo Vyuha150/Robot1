@@ -11,11 +11,10 @@ Design principles
 * Context (scene, safety state) is injected at each request, not baked
   into the system prompt, so stale data never persists across requests.
 """
+
 from __future__ import annotations
 
 from string import Template
-from typing import Dict, List, Optional
-
 
 # ── Main system prompt ────────────────────────────────────────────────────────
 
@@ -87,19 +86,22 @@ def build_context_string(
     Assemble a context string from live ROS2 message snapshots.
     Safe to call with None arguments (returns empty string).
     """
-    parts: List[str] = []
+    parts: list[str] = []
 
     if scene_msg is not None:
         try:
-            prox = (f"{scene_msg.human_proximity_m:.1f} m"
-                    if scene_msg.human_proximity_m >= 0 else "none")
+            prox = (
+                f"{scene_msg.human_proximity_m:.1f} m"
+                if scene_msg.human_proximity_m >= 0
+                else "none"
+            )
             scene_ctx = _SCENE_CONTEXT_TMPL.substitute(
-                activity   = scene_msg.activity_label or "idle",
-                persons    = ", ".join(scene_msg.present_person_ids) or "none",
-                objects    = ", ".join(scene_msg.present_object_classes) or "none",
-                proximity  = prox,
-                confidence = f"{scene_msg.confidence:.0%}",
-                uncertainty= scene_msg.uncertainty_level,
+                activity=scene_msg.activity_label or "idle",
+                persons=", ".join(scene_msg.present_person_ids) or "none",
+                objects=", ".join(scene_msg.present_object_classes) or "none",
+                proximity=prox,
+                confidence=f"{scene_msg.confidence:.0%}",
+                uncertainty=scene_msg.uncertainty_level,
             )
             parts.append(scene_ctx)
         except Exception:
@@ -108,10 +110,10 @@ def build_context_string(
     if safety_snapshot is not None:
         try:
             saf_ctx = _SAFETY_CONTEXT_TMPL.substitute(
-                state_name = safety_snapshot.state_name,
-                nav_ok     = "YES" if safety_snapshot.navigation_permitted else "NO",
-                act_ok     = "YES" if safety_snapshot.actuation_permitted  else "NO",
-                max_vel    = f"{safety_snapshot.max_velocity_mps:.1f}",
+                state_name=safety_snapshot.state_name,
+                nav_ok="YES" if safety_snapshot.navigation_permitted else "NO",
+                act_ok="YES" if safety_snapshot.actuation_permitted else "NO",
+                max_vel=f"{safety_snapshot.max_velocity_mps:.1f}",
             )
             parts.append(saf_ctx)
         except Exception:

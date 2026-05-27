@@ -19,10 +19,8 @@ S08  Node crash sequence: CLASS_C crash → DEGRADED; CLASS_A crash → FAULT
 S09  Navigation timeout during NORMAL → expected escalation
 S010 Full lifecycle: startup → operation → fault → reset → normal
 """
-from __future__ import annotations
 
-import time
-import pytest
+from __future__ import annotations
 
 from bonbon_safety.core.safety_state_machine import (
     SafetyLevel,
@@ -30,8 +28,8 @@ from bonbon_safety.core.safety_state_machine import (
     SensorSnapshot,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _fsm(hysteresis_caution=3, hysteresis_danger=5) -> SafetyStateMachine:
     fsm = SafetyStateMachine(
@@ -78,6 +76,7 @@ def _drive_to_normal(fsm: SafetyStateMachine, max_cycles: int = 30) -> bool:
 
 # ── S01: LIDAR loss mid-navigation ────────────────────────────────────────────
 
+
 class TestS01LidarLoss:
     def test_lidar_loss_triggers_danger(self):
         fsm = _fsm()
@@ -102,18 +101,20 @@ class TestS01LidarLoss:
         # Restore LIDAR
         recovered = _drive_to_normal(fsm, max_cycles=20)
         assert recovered or fsm.state in (
-            SafetyLevel.CAUTION, SafetyLevel.NORMAL
+            SafetyLevel.CAUTION,
+            SafetyLevel.NORMAL,
         ), f"Did not recover from DANGER: {fsm.state.name}"
 
 
 # ── S02: Human walks into danger zone progressively ──────────────────────────
+
 
 class TestS02HumanProximity:
     def test_human_at_2m_triggers_caution(self):
         fsm = _fsm()
         _startup(fsm)
         snap = _nominal()
-        snap.nearest_human_m = 1.8   # within 2m caution zone
+        snap.nearest_human_m = 1.8  # within 2m caution zone
         level, _ = fsm.update(snap)
         assert level == SafetyLevel.CAUTION
 
@@ -121,7 +122,7 @@ class TestS02HumanProximity:
         fsm = _fsm()
         _startup(fsm)
         snap = _nominal()
-        snap.nearest_human_m = 0.4   # within 0.5m danger zone
+        snap.nearest_human_m = 0.4  # within 0.5m danger zone
         level, _ = fsm.update(snap)
         assert level == SafetyLevel.DANGER
 
@@ -140,11 +141,12 @@ class TestS02HumanProximity:
         # First two should be NORMAL (outside 2m), rest CAUTION or DANGER
         assert states[0] == SafetyLevel.NORMAL
         assert states[1] == SafetyLevel.NORMAL
-        assert states[2] == SafetyLevel.CAUTION   # 1.5m < 2m
-        assert states[4] == SafetyLevel.DANGER     # 0.3m < 0.5m
+        assert states[2] == SafetyLevel.CAUTION  # 1.5m < 2m
+        assert states[4] == SafetyLevel.DANGER  # 0.3m < 0.5m
 
 
 # ── S03: CPU overheat → FAULT → reset → NORMAL ───────────────────────────────
+
 
 class TestS03Overheat:
     def test_overheat_triggers_fault(self):
@@ -181,6 +183,7 @@ class TestS03Overheat:
 
 
 # ── S04: Battery drain sequence ───────────────────────────────────────────────
+
 
 class TestS04BatteryDrain:
     def test_battery_at_15_triggers_caution(self):
@@ -236,6 +239,7 @@ class TestS04BatteryDrain:
 
 # ── S05: E-stop pressed/released/reset ───────────────────────────────────────
 
+
 class TestS05Estop:
     def test_estop_during_navigation(self):
         fsm = _fsm()
@@ -255,9 +259,7 @@ class TestS05Estop:
         # Release the button
         for _ in range(10):
             level, _ = fsm.update(_nominal())
-            assert level == SafetyLevel.SAFE_STOP, (
-                "SAFE_STOP should persist without operator reset"
-            )
+            assert level == SafetyLevel.SAFE_STOP, "SAFE_STOP should persist without operator reset"
 
     def test_full_estop_recovery(self):
         fsm = _fsm()
@@ -275,6 +277,7 @@ class TestS05Estop:
 
 # ── S06: Simultaneous faults — priority ordering ──────────────────────────────
 
+
 class TestS06SimultaneousFaults:
     def test_estop_beats_critical_crash(self):
         fsm = _fsm()
@@ -290,7 +293,7 @@ class TestS06SimultaneousFaults:
         _startup(fsm)
         snap = _nominal()
         snap.critical_node_crashed = True  # → FAULT
-        snap.nearest_human_m = 1.5         # → would be CAUTION
+        snap.nearest_human_m = 1.5  # → would be CAUTION
         level, _ = fsm.update(snap)
         assert level == SafetyLevel.FAULT
 
@@ -298,13 +301,14 @@ class TestS06SimultaneousFaults:
         fsm = _fsm()
         _startup(fsm)
         snap = _nominal()
-        snap.nearest_human_m = 0.3   # → DANGER
-        snap.cpu_temp_c = 76.0       # → would be CAUTION
+        snap.nearest_human_m = 0.3  # → DANGER
+        snap.cpu_temp_c = 76.0  # → would be CAUTION
         level, _ = fsm.update(snap)
         assert level == SafetyLevel.DANGER
 
 
 # ── S07: Hysteresis prevents rapid oscillation ────────────────────────────────
+
 
 class TestS07Hysteresis:
     def test_caution_hysteresis_n_cycles(self):
@@ -322,9 +326,9 @@ class TestS07Hysteresis:
         # N-1 clear cycles: must stay CAUTION
         for i in range(n_hysteresis - 1):
             level, _ = fsm.update(_nominal())
-            assert level == SafetyLevel.CAUTION, (
-                f"Dropped from CAUTION too early at cycle {i+1}/{n_hysteresis}"
-            )
+            assert (
+                level == SafetyLevel.CAUTION
+            ), f"Dropped from CAUTION too early at cycle {i+1}/{n_hysteresis}"
 
     def test_danger_hysteresis_n_cycles(self):
         """DANGER must not drop before N clear cycles (default=5)."""
@@ -339,9 +343,9 @@ class TestS07Hysteresis:
 
         for i in range(n_hysteresis - 1):
             level, _ = fsm.update(_nominal())
-            assert level == SafetyLevel.DANGER, (
-                f"Dropped from DANGER too early at cycle {i+1}/{n_hysteresis}"
-            )
+            assert (
+                level == SafetyLevel.DANGER
+            ), f"Dropped from DANGER too early at cycle {i+1}/{n_hysteresis}"
 
     def test_rapid_trigger_does_not_oscillate(self):
         """Alternating hazard/clear should not cause NORMAL→CAUTION→NORMAL per cycle."""
@@ -358,15 +362,14 @@ class TestS07Hysteresis:
             states.append(level)
 
         # Count NORMAL↔CAUTION transitions
-        transitions = sum(
-            1 for a, b in zip(states, states[1:]) if a != b
-        )
-        assert transitions <= 4, (
-            f"Too many oscillations ({transitions}) — hysteresis not working: {states}"
-        )
+        transitions = sum(1 for a, b in zip(states, states[1:]) if a != b)
+        assert (
+            transitions <= 4
+        ), f"Too many oscillations ({transitions}) — hysteresis not working: {states}"
 
 
 # ── S08: Node crash sequence ──────────────────────────────────────────────────
+
 
 class TestS08NodeCrash:
     def test_important_crash_triggers_degraded(self):
@@ -388,6 +391,7 @@ class TestS08NodeCrash:
 
 # ── S09: Navigation timeout ───────────────────────────────────────────────────
 
+
 class TestS09NavTimeout:
     def test_nav_timeout_triggers_escalation(self):
         fsm = _fsm()
@@ -397,11 +401,14 @@ class TestS09NavTimeout:
         level, _ = fsm.update(snap)
         # Navigation timeout should trigger at least CAUTION (may also trigger FAULT)
         assert level in (
-            SafetyLevel.CAUTION, SafetyLevel.DANGER, SafetyLevel.FAULT
+            SafetyLevel.CAUTION,
+            SafetyLevel.DANGER,
+            SafetyLevel.FAULT,
         ), f"Nav timeout produced unexpected state: {level.name}"
 
 
 # ── S10: Full lifecycle ───────────────────────────────────────────────────────
+
 
 class TestS10FullLifecycle:
     def test_full_startup_operation_fault_reset_normal(self):
@@ -451,9 +458,9 @@ class TestS10FullLifecycle:
 
         snap = _nominal()
         snap.nearest_human_m = 1.0
-        fsm.update(snap)       # NORMAL→CAUTION
+        fsm.update(snap)  # NORMAL→CAUTION
 
-        fsm.update(_nominal()) # start hysteresis
+        fsm.update(_nominal())  # start hysteresis
         fsm.update(_nominal())
         fsm.update(_nominal())
         fsm.update(_nominal())  # CAUTION→NORMAL

@@ -22,6 +22,7 @@ Overflow
 When the queue is full, the lowest-priority item is dropped.  If all
 items share the same priority, the oldest is dropped.
 """
+
 from __future__ import annotations
 
 import heapq
@@ -31,12 +32,12 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 # ── Priority ──────────────────────────────────────────────────────────────────
+
 
 class Priority(IntEnum):
     """
@@ -56,17 +57,19 @@ class Priority(IntEnum):
     NORMAL = 2   alias for USER_RESPONSE
     LOW    = 3   alias for FILLER
     """
-    EMERGENCY               = 0
-    SAFETY_WARNING          = 1
-    HIGH                    = 1   # backward-compat alias
-    USER_RESPONSE           = 2
-    NORMAL                  = 2   # backward-compat alias
-    FILLER                  = 3
-    LOW                     = 3   # backward-compat alias
+
+    EMERGENCY = 0
+    SAFETY_WARNING = 1
+    HIGH = 1  # backward-compat alias
+    USER_RESPONSE = 2
+    NORMAL = 2  # backward-compat alias
+    FILLER = 3
+    LOW = 3  # backward-compat alias
     BACKGROUND_NOTIFICATION = 4
 
 
 # ── Utterance ─────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class Utterance:
@@ -95,14 +98,14 @@ class Utterance:
         this utterance next.  Automatically True for EMERGENCY priority.
     """
 
-    text:          str
-    priority:      Priority = Priority.NORMAL
-    source:        str      = ""
-    utterance_id:  str      = field(default_factory=lambda: uuid.uuid4().hex[:8])
-    enqueue_ts:    float    = field(default_factory=time.monotonic)
-    max_age_sec:   float    = 30.0
-    dedup_key:     str      = ""
-    interrupt:     bool     = False
+    text: str
+    priority: Priority = Priority.NORMAL
+    source: str = ""
+    utterance_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    enqueue_ts: float = field(default_factory=time.monotonic)
+    max_age_sec: float = 30.0
+    dedup_key: str = ""
+    interrupt: bool = False
 
     def is_stale(self) -> bool:
         """Return True if this utterance should be dropped without playing."""
@@ -112,7 +115,7 @@ class Utterance:
 
     # heapq ordering: sort by (priority, enqueue_ts) so same-priority
     # items are played FIFO.
-    def __lt__(self, other: "Utterance") -> bool:
+    def __lt__(self, other: Utterance) -> bool:
         if self.priority != other.priority:
             return self.priority < other.priority
         return self.enqueue_ts < other.enqueue_ts
@@ -124,6 +127,7 @@ class Utterance:
 
 
 # ── Queue ─────────────────────────────────────────────────────────────────────
+
 
 class UtteranceQueue:
     """
@@ -137,11 +141,11 @@ class UtteranceQueue:
     """
 
     def __init__(self, max_depth: int = 32, dedup_enabled: bool = True) -> None:
-        self._max_depth    = max_depth
-        self._dedup        = dedup_enabled
-        self._heap:        List[Utterance] = []
-        self._dedup_index: Dict[str, str]  = {}   # dedup_key → utterance_id
-        self._lock         = threading.Lock()
+        self._max_depth = max_depth
+        self._dedup = dedup_enabled
+        self._heap: list[Utterance] = []
+        self._dedup_index: dict[str, str] = {}  # dedup_key → utterance_id
+        self._lock = threading.Lock()
         self._overflow_count = 0
 
     # ── Enqueue ────────────────────────────────────────────────────────────────
@@ -178,14 +182,17 @@ class UtteranceQueue:
             heapq.heappush(self._heap, utt)
             logger.debug(
                 "Queue: enqueued id=%s prio=%s depth=%d src=%r",
-                utt.utterance_id, utt.priority.name, len(self._heap), utt.source,
+                utt.utterance_id,
+                utt.priority.name,
+                len(self._heap),
+                utt.source,
             )
 
         return utt.interrupt
 
     # ── Dequeue ────────────────────────────────────────────────────────────────
 
-    def dequeue(self) -> Optional[Utterance]:
+    def dequeue(self) -> Utterance | None:
         """
         Pop and return the highest-priority non-stale utterance.
 
@@ -206,7 +213,7 @@ class UtteranceQueue:
 
     # ── Peek ──────────────────────────────────────────────────────────────────
 
-    def peek_priority(self) -> Optional[Priority]:
+    def peek_priority(self) -> Priority | None:
         """Return the priority of the next utterance without removing it."""
         with self._lock:
             if self._heap:
@@ -267,5 +274,7 @@ class UtteranceQueue:
             del self._dedup_index[dropped.dedup_key]
         logger.warning(
             "Queue: overflow — dropped id=%s prio=%s text=%r",
-            dropped.utterance_id, dropped.priority.name, dropped.text[:40],
+            dropped.utterance_id,
+            dropped.priority.name,
+            dropped.text[:40],
         )

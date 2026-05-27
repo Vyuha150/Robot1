@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from bonbon_simulation.core.config import SimulationConfig
 from bonbon_simulation.core.runner import SimulationScenarioRunner
 
@@ -15,7 +14,9 @@ def package_root() -> Path:
 
 @pytest.fixture
 def fast_config(tmp_path: Path) -> SimulationConfig:
-    return SimulationConfig(report_dir=tmp_path / "reports", artifact_dir=tmp_path / "artifacts", time_step_sec=0.1)
+    return SimulationConfig(
+        report_dir=tmp_path / "reports", artifact_dir=tmp_path / "artifacts", time_step_sec=0.1
+    )
 
 
 @pytest.fixture

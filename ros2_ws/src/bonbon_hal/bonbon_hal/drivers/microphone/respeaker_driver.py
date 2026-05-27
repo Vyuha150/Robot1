@@ -11,15 +11,15 @@ The ReSpeaker v2.0 exposes:
 
 We capture channel 0 (processed mono ASR channel) and DOA from HID.
 """
+
 from __future__ import annotations
 
 import logging
 import struct
-import time
-from typing import Optional
 
 from bonbon_hal.base.driver_base import DriverFault
-from .mic_driver import MicDriver, AudioChunk
+
+from .mic_driver import AudioChunk, MicDriver
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +28,19 @@ _RESPEAKER_VID = 0x2886
 _RESPEAKER_PID = 0x0018
 
 _HAS_USB = False
-_HAS_SD  = False
+_HAS_SD = False
 try:
-    import usb.core                   # type: ignore[import]
-    import usb.util                   # type: ignore[import]
+    import usb.core  # type: ignore[import]
+    import usb.util  # type: ignore[import]
+
     _HAS_USB = True
 except ImportError:
     logger.warning("pyusb not installed. pip install pyusb")
 
 try:
-    import sounddevice as sd          # type: ignore[import]
     import numpy as np
+    import sounddevice as sd  # type: ignore[import]
+
     _HAS_SD = True
 except ImportError:
     logger.warning("sounddevice not installed. pip install sounddevice numpy")
@@ -51,24 +53,24 @@ class RespeakerDriver(MicDriver):
     Captures audio via sounddevice (ALSA), reads DOA via USB HID.
     """
 
-    DOA_CMD = b'\x00\x1B'   # vendor command to read DOA angle
+    DOA_CMD = b"\x00\x1b"  # vendor command to read DOA angle
 
     def __init__(
         self,
-        sample_rate:  int = 16000,
+        sample_rate: int = 16000,
         chunk_frames: int = 1024,
-        device_name:  str = "ReSpeaker",  # partial name match
-        channel:      int = 0,            # 0 = processed ASR mono
+        device_name: str = "ReSpeaker",  # partial name match
+        channel: int = 0,  # 0 = processed ASR mono
     ) -> None:
         super().__init__(driver_mode="real")
-        self._sample_rate  = sample_rate
+        self._sample_rate = sample_rate
         self._chunk_frames = chunk_frames
-        self._device_name  = device_name
-        self._channel      = channel
+        self._device_name = device_name
+        self._channel = channel
         self._device_index = None
-        self._usb_dev      = None
-        self._stream       = None
-        self._buffer       = None
+        self._usb_dev = None
+        self._stream = None
+        self._buffer = None
 
     def _do_connect(self) -> bool:
         if not _HAS_SD:
@@ -85,9 +87,11 @@ class RespeakerDriver(MicDriver):
                     f"Audio device '{self._device_name}' not found",
                     "DEVICE_NOT_FOUND",
                 )
-            logger.info("RespeakerDriver: using audio device %d: %s",
-                        self._device_index,
-                        sd.query_devices(self._device_index)["name"])
+            logger.info(
+                "RespeakerDriver: using audio device %d: %s",
+                self._device_index,
+                sd.query_devices(self._device_index)["name"],
+            )
 
             # Try to find USB HID for DOA
             if _HAS_USB:
@@ -151,9 +155,7 @@ class RespeakerDriver(MicDriver):
         if not self._usb_dev:
             return -1.0
         try:
-            result = self._usb_dev.ctrl_transfer(
-                0xC0, 0, 0x1B, 0, 2
-            )
+            result = self._usb_dev.ctrl_transfer(0xC0, 0, 0x1B, 0, 2)
             angle = struct.unpack("<H", bytes(result))[0] / 10.0
             return float(angle)
         except Exception:

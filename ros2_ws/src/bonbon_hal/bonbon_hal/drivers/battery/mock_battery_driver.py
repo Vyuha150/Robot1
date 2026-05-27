@@ -7,45 +7,47 @@ Fault injection:
   disconnect_after_n    : simulate I2C disconnect
   sudden_drop_pct       : suddenly drop SoC by this much (one cycle)
 """
+
 from __future__ import annotations
 
-import time
 import random
+import time
 
 from bonbon_hal.base.driver_base import DriverFault
-from .battery_driver import BatteryDriver, BatteryReading, voltage_to_percent
+
+from .battery_driver import BatteryDriver, BatteryReading
 
 
 class MockBatteryDriver(BatteryDriver):
 
     # 3S LiPo: full=12.6V, nominal=11.1V, empty=9.9V
-    FULL_V  = 12.6
-    EMPTY_V =  9.9
+    FULL_V = 12.6
+    EMPTY_V = 9.9
 
     def __init__(
         self,
-        initial_percent:     float = 85.0,
-        drain_rate_pct_s:    float = 0.001,   # 0.001% / read ≈ 100% in ~28 hrs at 10 Hz
-        charge_rate_pct_s:   float = 0.002,
-        is_charging:         bool  = False,
-        disconnect_after_n:  int   = 0,
-        voltage_spike_v:     float = 0.0,
-        sudden_drop_pct:     float = 0.0,
-        start_disconnected:  bool  = False,
-        noise_v:             float = 0.02,
+        initial_percent: float = 85.0,
+        drain_rate_pct_s: float = 0.001,  # 0.001% / read ≈ 100% in ~28 hrs at 10 Hz
+        charge_rate_pct_s: float = 0.002,
+        is_charging: bool = False,
+        disconnect_after_n: int = 0,
+        voltage_spike_v: float = 0.0,
+        sudden_drop_pct: float = 0.0,
+        start_disconnected: bool = False,
+        noise_v: float = 0.02,
     ) -> None:
         super().__init__(driver_mode="mock")
-        self._pct          = initial_percent
-        self._drain_rate   = drain_rate_pct_s
-        self._charge_rate  = charge_rate_pct_s
-        self._charging     = is_charging
-        self._disc_after   = disconnect_after_n
-        self._spike_v      = voltage_spike_v
-        self._drop_pct     = sudden_drop_pct
-        self._noise_v      = noise_v
-        self._start_disc   = start_disconnected
-        self._read_count   = 0
-        self._last_read_t  = time.monotonic()
+        self._pct = initial_percent
+        self._drain_rate = drain_rate_pct_s
+        self._charge_rate = charge_rate_pct_s
+        self._charging = is_charging
+        self._disc_after = disconnect_after_n
+        self._spike_v = voltage_spike_v
+        self._drop_pct = sudden_drop_pct
+        self._noise_v = noise_v
+        self._start_disc = start_disconnected
+        self._read_count = 0
+        self._last_read_t = time.monotonic()
 
     def _do_connect(self) -> bool:
         if self._start_disc:
@@ -61,7 +63,7 @@ class MockBatteryDriver(BatteryDriver):
             raise DriverFault("Not connected", "NOT_CONNECTED")
 
         now = time.monotonic()
-        dt  = now - self._last_read_t
+        dt = now - self._last_read_t
         self._last_read_t = now
         self._read_count += 1
 
@@ -90,8 +92,8 @@ class MockBatteryDriver(BatteryDriver):
             self._spike_v = 0.0
 
         current = random.gauss(-3.5 if not self._charging else 2.0, 0.1)
-        power   = voltage * current
-        temp    = random.gauss(35.0, 1.0)
+        power = voltage * current
+        temp = random.gauss(35.0, 1.0)
         time_rem = (self._pct / 100.0) * 144000 if not self._charging else -1.0
 
         self._record_success()

@@ -12,10 +12,11 @@ Pipeline (configurable):
 All operations are NumPy-based and run in-line on the ROS2 callback thread,
 so they must be fast (< 1 ms for a 512-sample chunk at 16 kHz).
 """
+
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -25,15 +26,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PreprocessorConfig:
     """Knobs for the audio preprocessor."""
-    remove_dc_offset:    bool  = True
-    normalise:           bool  = True
+
+    remove_dc_offset: bool = True
+    normalise: bool = True
     # "peak" divides by max(abs); "rms" divides by RMS+eps
-    normalise_mode:      str   = "rms"    # "peak" | "rms"
+    normalise_mode: str = "rms"  # "peak" | "rms"
     # Target RMS level after normalisation (linear, not dB)
-    target_rms:          float = 0.1
+    target_rms: float = 0.1
     # Noise gate: samples with |amplitude| below this become 0
-    noise_gate_enabled:  bool  = False
-    noise_gate_floor:    float = 0.005   # linear amplitude floor
+    noise_gate_enabled: bool = False
+    noise_gate_floor: float = 0.005  # linear amplitude floor
 
 
 class AudioPreprocessor:
@@ -79,8 +81,7 @@ class AudioPreprocessor:
             out = self._noise_gate(out, self._cfg.noise_gate_floor)
 
         if self._cfg.normalise:
-            out = self._normalise(out, self._cfg.normalise_mode,
-                                  self._cfg.target_rms)
+            out = self._normalise(out, self._cfg.normalise_mode, self._cfg.target_rms)
 
         # Hard clamp — safety net for edge cases
         out = np.clip(out, -1.0, 1.0)
@@ -117,9 +118,7 @@ class AudioPreprocessor:
         return out
 
     @staticmethod
-    def _normalise(
-        samples: np.ndarray, mode: str, target_rms: float
-    ) -> np.ndarray:
+    def _normalise(samples: np.ndarray, mode: str, target_rms: float) -> np.ndarray:
         eps = 1e-9
         if mode == "peak":
             pk = np.max(np.abs(samples))

@@ -24,12 +24,12 @@ Intentionally lightweight: zero ML inference, regex + keyword matching
 only.  Keeps the guard latency < 1 ms so it never adds meaningful delay
 to the 30-second Ollama timeout budget.
 """
+
 from __future__ import annotations
 
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from bonbon_llm.config.llm_config import HallucinationConfig
 from bonbon_llm.core.rag_retriever import RetrievalResult
@@ -39,46 +39,47 @@ logger = logging.getLogger(__name__)
 
 # ── Result type ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class GuardResult:
-    is_grounded:       bool
-    confidence:        float          # 0–1 grounding confidence
-    flagged_claims:    List[str]      = field(default_factory=list)
-    reason:            str            = ""
-    safe_response:     str            = ""   # cleaned version or fallback
-    original_response: str            = ""
+    is_grounded: bool
+    confidence: float  # 0–1 grounding confidence
+    flagged_claims: list[str] = field(default_factory=list)
+    reason: str = ""
+    safe_response: str = ""  # cleaned version or fallback
+    original_response: str = ""
 
 
 # ── Patterns for impossible capability claims ─────────────────────────────────
 
 _IMPOSSIBLE_CAPS_PATTERNS = [
-    (re.compile(r"\bi\s+can\s+fly\b",             re.I), "claims ability to fly"),
-    (re.compile(r"\bi\s+have\s+arms?\b",           re.I), "claims to have arms"),
-    (re.compile(r"\bi\s+can\s+carry\s+more\s+than\s+[3-9]\d", re.I),
-                                                           "exaggerated payload claim"),
-    (re.compile(r"\bi\s+am\s+a\s+human\b",        re.I), "claims to be human"),
-    (re.compile(r"\bi\s+have\s+a\s+face\b",       re.I), "claims to have a face"),
+    (re.compile(r"\bi\s+can\s+fly\b", re.I), "claims ability to fly"),
+    (re.compile(r"\bi\s+have\s+arms?\b", re.I), "claims to have arms"),
+    (re.compile(r"\bi\s+can\s+carry\s+more\s+than\s+[3-9]\d", re.I), "exaggerated payload claim"),
+    (re.compile(r"\bi\s+am\s+a\s+human\b", re.I), "claims to be human"),
+    (re.compile(r"\bi\s+have\s+a\s+face\b", re.I), "claims to have a face"),
     (re.compile(r"\bi\s+can\s+see\s+in\s+the\s+dark\b", re.I), "claims night vision"),
-    (re.compile(r"\bi\s+remember\s+you\s+from\s+(last|yesterday|previous)", re.I),
-                                                           "false cross-session memory"),
-    (re.compile(r"\bi\s+know\s+your\s+name\b",    re.I), "false name recall"),
+    (
+        re.compile(r"\bi\s+remember\s+you\s+from\s+(last|yesterday|previous)", re.I),
+        "false cross-session memory",
+    ),
+    (re.compile(r"\bi\s+know\s+your\s+name\b", re.I), "false name recall"),
     (re.compile(r"\bi\s+can\s+access\s+the\s+internet\b", re.I), "false internet claim"),
     (re.compile(r"\bi\s+can\s+make\s+phone\s+calls\b", re.I), "false phone claim"),
     (re.compile(r"\bi\s+can\s+process\s+payments?\b", re.I), "false payment claim"),
 ]
 
 # Prices in the knowledge base — fabricated prices outside this set are suspicious
-_KNOWN_PRICES_SGD = {3.50, 4.00, 5.00, 4.50, 1.50, 4.00, 3.50, 4.00, 4.50}
+_KNOWN_PRICES_SGD = {3.50, 4.00, 5.00, 4.50, 1.50}
 
 _PRICE_RE = re.compile(r"s\$\s*(\d+\.?\d*)", re.I)
 
 # Numbers that look like velocity/distance claims from the LLM
-_VELOCITY_CLAIM_RE = re.compile(
-    r"(\d+\.?\d*)\s*(m/s|km/h|meters?\s+per\s+second)", re.I
-)
+_VELOCITY_CLAIM_RE = re.compile(r"(\d+\.?\d*)\s*(m/s|km/h|meters?\s+per\s+second)", re.I)
 
 
 # ── Guard ─────────────────────────────────────────────────────────────────────
+
 
 class HallucinationGuard:
     """
@@ -89,8 +90,7 @@ class HallucinationGuard:
         self._cfg = cfg
         # Compile extra impossible capability phrases from config
         self._extra_impossible = [
-            re.compile(re.escape(phrase), re.I)
-            for phrase in cfg.impossible_capability_phrases
+            re.compile(re.escape(phrase), re.I) for phrase in cfg.impossible_capability_phrases
         ]
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ class HallucinationGuard:
     def check(
         self,
         response: str,
-        rag_results: Optional[List[RetrievalResult]] = None,
+        rag_results: list[RetrievalResult] | None = None,
         llm_confidence: float = 1.0,
     ) -> GuardResult:
         """
@@ -112,13 +112,13 @@ class HallucinationGuard:
         """
         if not self._cfg.enabled:
             return GuardResult(
-                is_grounded    = True,
-                confidence     = 1.0,
-                safe_response  = response,
-                original_response = response,
+                is_grounded=True,
+                confidence=1.0,
+                safe_response=response,
+                original_response=response,
             )
 
-        flags: List[str] = []
+        flags: list[str] = []
 
         # 1. Impossible capability claims
         flags += self._check_impossible_capabilities(response)
@@ -133,7 +133,7 @@ class HallucinationGuard:
         grounding = self._compute_grounding_score(response, rag_results or [])
 
         # Compute combined confidence
-        cap_penalty   = 0.40 * len(flags)           # each flag reduces confidence
+        cap_penalty = 0.40 * len(flags)  # each flag reduces confidence
         grounding_pen = max(0.0, self._cfg.min_grounding_score - grounding)
         combined_conf = max(0.0, llm_confidence - cap_penalty - grounding_pen)
 
@@ -147,10 +147,9 @@ class HallucinationGuard:
         # grounded by default: the hash-based embedding fallback may not
         # retrieve the most relevant documents for brief, focused queries, so
         # a low overlap score alone should not mark a benign answer as hallucinated.
-        short_benign = (len(flags) == 0 and len(response.split()) < 15)
-        is_grounded = (
-            len(flags) == 0
-            and (grounding >= self._cfg.min_grounding_score or short_benign)
+        short_benign = len(flags) == 0 and len(response.split()) < 15
+        is_grounded = len(flags) == 0 and (
+            grounding >= self._cfg.min_grounding_score or short_benign
         )
 
         if flags:
@@ -158,23 +157,28 @@ class HallucinationGuard:
 
         safe = self._make_safe(response, flags) if not is_grounded else response
 
-        reason = "; ".join(flags) if flags else (
-            f"low grounding score ({grounding:.2f} < {self._cfg.min_grounding_score})"
-            if grounding < self._cfg.min_grounding_score else ""
+        reason = (
+            "; ".join(flags)
+            if flags
+            else (
+                f"low grounding score ({grounding:.2f} < {self._cfg.min_grounding_score})"
+                if grounding < self._cfg.min_grounding_score
+                else ""
+            )
         )
 
         return GuardResult(
-            is_grounded       = is_grounded,
-            confidence        = combined_conf,
-            flagged_claims    = flags,
-            reason            = reason,
-            safe_response     = safe,
-            original_response = response,
+            is_grounded=is_grounded,
+            confidence=combined_conf,
+            flagged_claims=flags,
+            reason=reason,
+            safe_response=safe,
+            original_response=response,
         )
 
     # ── Checkers ──────────────────────────────────────────────────────────────
 
-    def _check_impossible_capabilities(self, text: str) -> List[str]:
+    def _check_impossible_capabilities(self, text: str) -> list[str]:
         flags = []
         for regex, label in _IMPOSSIBLE_CAPS_PATTERNS:
             if regex.search(text):
@@ -187,8 +191,8 @@ class HallucinationGuard:
     def _check_prices(
         self,
         text: str,
-        rag_results: List[RetrievalResult],
-    ) -> List[str]:
+        rag_results: list[RetrievalResult],
+    ) -> list[str]:
         flags = []
         matches = _PRICE_RE.findall(text)
         if not matches:
@@ -210,7 +214,7 @@ class HallucinationGuard:
                 pass
         return flags
 
-    def _check_velocity_claims(self, text: str) -> List[str]:
+    def _check_velocity_claims(self, text: str) -> list[str]:
         flags = []
         # BonBon max speed = 0.8 m/s; flag claims > 1.5 m/s
         for m in _VELOCITY_CLAIM_RE.finditer(text):
@@ -227,7 +231,7 @@ class HallucinationGuard:
     def _compute_grounding_score(
         self,
         text: str,
-        rag_results: List[RetrievalResult],
+        rag_results: list[RetrievalResult],
     ) -> float:
         """
         Simple keyword-overlap grounding score between response and RAG docs.
@@ -253,7 +257,7 @@ class HallucinationGuard:
         best_rag_score = max((r.score for r in rag_results), default=0.0)
         return min(1.0, score * 0.6 + best_rag_score * 0.4)
 
-    def _make_safe(self, text: str, flags: List[str]) -> str:
+    def _make_safe(self, text: str, flags: list[str]) -> str:
         """Remove or replace flagged claims from the response."""
         safe = text
         for regex, _ in _IMPOSSIBLE_CAPS_PATTERNS:

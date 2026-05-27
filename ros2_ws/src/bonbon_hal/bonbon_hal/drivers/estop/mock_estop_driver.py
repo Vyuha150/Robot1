@@ -4,11 +4,13 @@ Mock e-stop driver.
 Allows tests to press/release the virtual e-stop button via
 press() and release() methods.
 """
+
 from __future__ import annotations
 
 import time
 
 from bonbon_hal.base.driver_base import DriverFault
+
 from .estop_driver import EstopDriver, EstopState
 
 
@@ -16,15 +18,15 @@ class MockEstopDriver(EstopDriver):
 
     def __init__(
         self,
-        start_pressed:       bool  = False,
-        start_disconnected:  bool  = False,
+        start_pressed: bool = False,
+        start_disconnected: bool = False,
         simulate_latency_sec: float = 0.0,
     ) -> None:
         super().__init__(driver_mode="mock")
-        self._pressed         = start_pressed
-        self._relay_asserted  = False
-        self._start_disc      = start_disconnected
-        self._latency         = simulate_latency_sec
+        self._pressed = start_pressed
+        self._relay_asserted = False
+        self._start_disc = start_disconnected
+        self._latency = simulate_latency_sec
 
     def _do_connect(self) -> bool:
         if self._start_disc:

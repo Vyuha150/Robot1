@@ -24,6 +24,11 @@ install/
 build/
 log/
 
+# Frontend generated artefacts
+node_modules/
+**/node_modules/
+**/dist/
+
 # Deployment/runtime artefacts
 deployment/logs/
 deployment/ota/release_metadata.env

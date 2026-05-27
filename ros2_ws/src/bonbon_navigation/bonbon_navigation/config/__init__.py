@@ -1,15 +1,16 @@
 """bonbon_navigation.config — Navigation configuration dataclasses."""
+
 from bonbon_navigation.config.nav_config import (
-    RobotFootprintConfig,
-    Nav2Config,
-    RTABMapConfig,
-    LocationConfig,
-    StuckDetectorConfig,
-    RecoveryConfig,
-    DockingConfig,
     BatteryRoutingConfig,
+    DockingConfig,
     HumanAwareConfig,
+    LocationConfig,
+    Nav2Config,
     NavigationConfig,
+    RecoveryConfig,
+    RobotFootprintConfig,
+    RTABMapConfig,
+    StuckDetectorConfig,
 )
 
 __all__ = [

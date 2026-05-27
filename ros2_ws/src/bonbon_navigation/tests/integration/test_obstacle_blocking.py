@@ -7,31 +7,29 @@ Simulates a robot stuck behind an obstacle:
   - Goal eventually failed with RESULT_STUCK
   - Safety bridge blocks motion when DANGER state injected mid-recovery
 """
-import math
+
 import time
 
 import pytest
-
 from bonbon_navigation.config.nav_config import (
     RecoveryConfig,
     StuckDetectorConfig,
 )
 from bonbon_navigation.core.goal_manager import (
-    GoalManager,
     RESULT_STUCK,
-    RESULT_PLAN_FAILED,
+    GoalManager,
 )
 from bonbon_navigation.core.recovery_executor import RecoveryExecutor, RecoveryOutcome
 from bonbon_navigation.core.stuck_detector import StuckDetector
 from bonbon_navigation.safety.safety_stop_bridge import (
-    SafetyStopBridge,
-    SAFETY_NORMAL,
-    SAFETY_DANGER,
     SAFETY_CAUTION,
+    SAFETY_DANGER,
+    SAFETY_NORMAL,
+    SafetyStopBridge,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _recovery_cfg(sequence=None) -> RecoveryConfig:
     return RecoveryConfig(
@@ -63,21 +61,20 @@ class ObstacleHarness:
     """
 
     def __init__(self):
-        self.gm       = GoalManager()
-        self.stuck    = StuckDetector(_stuck_cfg())
+        self.gm = GoalManager()
+        self.stuck = StuckDetector(_stuck_cfg())
         self.recovery = RecoveryExecutor(_recovery_cfg())
-        self.bridge   = SafetyStopBridge(watchdog_timeout_sec=5.0)
+        self.bridge = SafetyStopBridge(watchdog_timeout_sec=5.0)
         self.bridge.update_safety_state(SAFETY_NORMAL)
 
-        self.events:   list = []
+        self.events: list = []
         self.vel_cmds: list = []
 
         self.recovery.set_announce_fn(lambda t: self.events.append(("announce", t)))
         self.recovery.set_escalate_fn(lambda r: self.events.append(("escalate", r)))
         self.recovery.set_clear_costmap_fn(lambda: self.events.append(("clear_costmap",)))
 
-    def tick(self, robot_x: float = 5.0, robot_y: float = 5.0,
-             velocity: float = 0.0):
+    def tick(self, robot_x: float = 5.0, robot_y: float = 5.0, velocity: float = 0.0):
         """One simulation tick — robot stays fixed (blocked by obstacle)."""
         self.stuck.update(robot_x, robot_y, velocity)
         stuck_result = self.stuck.check()
@@ -85,8 +82,9 @@ class ObstacleHarness:
         active = self.gm.get_active()
         if active and stuck_result.is_stuck and not self.recovery.is_active():
             self.events.append(("stuck_detected",))
-            self.gm.mark_failed(active.goal_id, result_code=RESULT_STUCK,
-                                message="obstacle blocking")
+            self.gm.mark_failed(
+                active.goal_id, result_code=RESULT_STUCK, message="obstacle blocking"
+            )
             self.recovery.reset(trigger_reason="obstacle")
 
         if self.recovery.is_active():
@@ -99,17 +97,19 @@ class ObstacleHarness:
         if self.gm.get_active() is None and not self.recovery.is_active():
             nxt = self.gm.activate_next()
             if nxt:
-                self.stuck.reset()   # start monitoring from fresh state
+                self.stuck.reset()  # start monitoring from fresh state
                 self.events.append(("activated", nxt.goal_id))
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+
 class TestObstacleBlocking:
     def test_stuck_detection_fires(self):
         h = ObstacleHarness()
-        h.gm.enqueue(target_x=10.0, target_y=10.0, target_yaw=0.0,
-                     priority=1, timeout_sec=60.0, goal_id="g1")
+        h.gm.enqueue(
+            target_x=10.0, target_y=10.0, target_yaw=0.0, priority=1, timeout_sec=60.0, goal_id="g1"
+        )
         h.tick()  # activate
         for _ in range(10):
             h.tick(robot_x=5.0, robot_y=5.0, velocity=0.0)
@@ -118,21 +118,21 @@ class TestObstacleBlocking:
 
     def test_recovery_starts_after_stuck(self):
         h = ObstacleHarness()
-        h.gm.enqueue(target_x=10.0, target_y=10.0, target_yaw=0.0,
-                     priority=1, timeout_sec=60.0, goal_id="g1")
+        h.gm.enqueue(
+            target_x=10.0, target_y=10.0, target_yaw=0.0, priority=1, timeout_sec=60.0, goal_id="g1"
+        )
         h.tick()
         for _ in range(10):
             h.tick(robot_x=5.0, robot_y=5.0, velocity=0.0)
             time.sleep(0.02)
-        recovery_started = any(
-            e[0] in ("clear_costmap", "announce", "escalate") for e in h.events
-        )
+        recovery_started = any(e[0] in ("clear_costmap", "announce", "escalate") for e in h.events)
         assert recovery_started or h.recovery.is_active()
 
     def test_announce_emitted_during_recovery(self):
         h = ObstacleHarness()
-        h.gm.enqueue(target_x=10.0, target_y=10.0, target_yaw=0.0,
-                     priority=1, timeout_sec=60.0, goal_id="g1")
+        h.gm.enqueue(
+            target_x=10.0, target_y=10.0, target_yaw=0.0, priority=1, timeout_sec=60.0, goal_id="g1"
+        )
         h.tick()
         for _ in range(10):
             h.tick(robot_x=5.0, robot_y=5.0, velocity=0.0)
@@ -144,8 +144,9 @@ class TestObstacleBlocking:
 
     def test_escalate_after_exhausted_recovery(self):
         h = ObstacleHarness()
-        h.gm.enqueue(target_x=10.0, target_y=10.0, target_yaw=0.0,
-                     priority=1, timeout_sec=60.0, goal_id="g1")
+        h.gm.enqueue(
+            target_x=10.0, target_y=10.0, target_yaw=0.0, priority=1, timeout_sec=60.0, goal_id="g1"
+        )
         h.tick()
         for _ in range(10):
             h.tick(robot_x=5.0, robot_y=5.0, velocity=0.0)
@@ -159,6 +160,7 @@ class TestObstacleBlocking:
 
 
 # ── Safety bridge blocks motion mid-recovery ──────────────────────────────────
+
 
 class TestSafetyBlockDuringRecovery:
     def test_danger_state_zeros_velocity(self):
@@ -201,6 +203,7 @@ class TestSafetyBlockDuringRecovery:
 
 # ── Full cascade sequence ─────────────────────────────────────────────────────
 
+
 class TestFullRecoveryCascade:
     def test_cascade_order(self):
         """Verify behaviors execute in configured sequence order."""
@@ -234,8 +237,9 @@ class TestFullRecoveryCascade:
     def test_plan_failure_limit(self):
         """After max_plan_failures, record_plan_failure returns True."""
         gm = GoalManager(max_plan_failures=3)
-        gm.enqueue(target_x=5.0, target_y=5.0, target_yaw=0.0,
-                   priority=1, timeout_sec=60.0, goal_id="g1")
+        gm.enqueue(
+            target_x=5.0, target_y=5.0, target_yaw=0.0, priority=1, timeout_sec=60.0, goal_id="g1"
+        )
         gm.activate_next()
         for _ in range(2):
             assert gm.record_plan_failure("g1") is False

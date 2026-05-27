@@ -11,7 +11,6 @@ import logging
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ class SQLiteConnection:
 
     def get(self) -> sqlite3.Connection:
         """Return the current thread's connection, creating it if necessary."""
-        conn: Optional[sqlite3.Connection] = getattr(self._local, "conn", None)
+        conn: sqlite3.Connection | None = getattr(self._local, "conn", None)
         if conn is None:
             conn = self._open()
             self._local.conn = conn
@@ -65,7 +64,7 @@ class SQLiteConnection:
 
     def close(self) -> None:
         """Close the current thread's connection (if open)."""
-        conn: Optional[sqlite3.Connection] = getattr(self._local, "conn", None)
+        conn: sqlite3.Connection | None = getattr(self._local, "conn", None)
         if conn is not None:
             try:
                 conn.close()
@@ -94,7 +93,7 @@ class SQLiteConnection:
     def rollback(self) -> None:
         self.get().rollback()
 
-    def __enter__(self) -> "SQLiteConnection":
+    def __enter__(self) -> SQLiteConnection:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -108,12 +107,13 @@ class SQLiteConnection:
     # ------------------------------------------------------------------
 
     def _open(self) -> sqlite3.Connection:
-        logger.debug("Opening SQLite connection to %s (thread %s)",
-                     self._db_path, threading.get_ident())
+        logger.debug(
+            "Opening SQLite connection to %s (thread %s)", self._db_path, threading.get_ident()
+        )
         conn = sqlite3.connect(
             str(self._db_path),
-            check_same_thread=False,    # we manage thread-safety ourselves
-            isolation_level=None,       # autocommit off; we manage transactions
+            check_same_thread=False,  # we manage thread-safety ourselves
+            isolation_level=None,  # autocommit off; we manage transactions
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         )
         conn.row_factory = sqlite3.Row

@@ -22,24 +22,25 @@ call, with cooldown enforcement.
 Called by SpeechSynthesizer when queue depth exceeds the trigger threshold.
 Only plays if the cooldown has elapsed since the last filler play.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import random
 import time
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 # ── FillerClip ────────────────────────────────────────────────────────────────
 
+
 class FillerClip:
     """A single filler audio clip held in memory."""
 
     def __init__(self, name: str, wav_bytes: bytes) -> None:
-        self.name      = name
+        self.name = name
         self.wav_bytes = wav_bytes
 
     def __repr__(self) -> str:
@@ -47,6 +48,7 @@ class FillerClip:
 
 
 # ── FillerPlayer ─────────────────────────────────────────────────────────────
+
 
 class FillerPlayer:
     """
@@ -70,20 +72,20 @@ class FillerPlayer:
 
     def __init__(
         self,
-        filler_dir:           str   = "",
-        cooldown_sec:         float = 3.0,
-        trigger_queue_depth:  int   = 2,
-        trigger_latency_ms:   float = 400.0,
-        enabled:              bool  = True,
+        filler_dir: str = "",
+        cooldown_sec: float = 3.0,
+        trigger_queue_depth: int = 2,
+        trigger_latency_ms: float = 400.0,
+        enabled: bool = True,
     ) -> None:
-        self._filler_dir          = filler_dir
-        self._cooldown_sec        = cooldown_sec
+        self._filler_dir = filler_dir
+        self._cooldown_sec = cooldown_sec
         self._trigger_queue_depth = trigger_queue_depth
-        self._trigger_latency_ms  = trigger_latency_ms
-        self._enabled             = enabled
+        self._trigger_latency_ms = trigger_latency_ms
+        self._enabled = enabled
 
-        self._clips:          List[FillerClip] = []
-        self._last_played_ts: float            = 0.0
+        self._clips: list[FillerClip] = []
+        self._last_played_ts: float = 0.0
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -102,8 +104,9 @@ class FillerPlayer:
         if self._filler_dir and os.path.isdir(self._filler_dir):
             self._clips = self._load_from_dir(self._filler_dir)
             if self._clips:
-                logger.info("FillerPlayer: loaded %d clips from %r",
-                            len(self._clips), self._filler_dir)
+                logger.info(
+                    "FillerPlayer: loaded %d clips from %r", len(self._clips), self._filler_dir
+                )
                 return len(self._clips)
 
         logger.info("FillerPlayer: no clip dir found, generating built-in clips")
@@ -115,8 +118,8 @@ class FillerPlayer:
     def maybe_play(
         self,
         speaker_play_fn,
-        queue_depth:   int,
-        elapsed_ms:    float,
+        queue_depth: int,
+        elapsed_ms: float,
     ) -> bool:
         """
         Conditionally play a filler clip.
@@ -190,7 +193,7 @@ class FillerPlayer:
     # ── Built-in clip generation ───────────────────────────────────────────────
 
     @staticmethod
-    def generate_builtin() -> List[FillerClip]:
+    def generate_builtin() -> list[FillerClip]:
         """
         Generate minimal built-in filler clips using pure-Python WAV synthesis.
 
@@ -201,23 +204,26 @@ class FillerPlayer:
 
         All produced with only stdlib ``wave``, ``math``, ``struct``.
         """
-        from bonbon_tts.backends.mock_tts import generate_beep_wav, generate_silence_wav
+        from bonbon_tts.backends.mock_tts import generate_beep_wav
 
         clips = []
 
         # "thinking" — 440 Hz + short silence (0.25 s total)
-        beep1 = generate_beep_wav(duration_sec=0.12, freq_hz=440.0,
-                                  sample_rate=22050, amplitude=0.18)
+        beep1 = generate_beep_wav(
+            duration_sec=0.12, freq_hz=440.0, sample_rate=22050, amplitude=0.18
+        )
         clips.append(FillerClip("thinking", beep1))
 
         # "one_moment" — 523 Hz (C5) soft tone
-        beep2 = generate_beep_wav(duration_sec=0.10, freq_hz=523.0,
-                                  sample_rate=22050, amplitude=0.15)
+        beep2 = generate_beep_wav(
+            duration_sec=0.10, freq_hz=523.0, sample_rate=22050, amplitude=0.15
+        )
         clips.append(FillerClip("one_moment", beep2))
 
         # "please_wait" — 660 Hz brief tone
-        beep3 = generate_beep_wav(duration_sec=0.08, freq_hz=660.0,
-                                  sample_rate=22050, amplitude=0.15)
+        beep3 = generate_beep_wav(
+            duration_sec=0.08, freq_hz=660.0, sample_rate=22050, amplitude=0.15
+        )
         clips.append(FillerClip("please_wait", beep3))
 
         return clips
@@ -225,9 +231,9 @@ class FillerPlayer:
     # ── Private helpers ────────────────────────────────────────────────────────
 
     @staticmethod
-    def _load_from_dir(directory: str) -> List[FillerClip]:
+    def _load_from_dir(directory: str) -> list[FillerClip]:
         """Load all WAV files from *directory* into memory."""
-        clips: List[FillerClip] = []
+        clips: list[FillerClip] = []
         try:
             entries = sorted(os.listdir(directory))
         except OSError as exc:
@@ -241,8 +247,7 @@ class FillerPlayer:
             try:
                 with open(path, "rb") as fh:
                     wav_bytes = fh.read()
-                clips.append(FillerClip(name=os.path.splitext(fname)[0],
-                                        wav_bytes=wav_bytes))
+                clips.append(FillerClip(name=os.path.splitext(fname)[0], wav_bytes=wav_bytes))
             except OSError as exc:
                 logger.warning("FillerPlayer: cannot read %r: %s", path, exc)
 

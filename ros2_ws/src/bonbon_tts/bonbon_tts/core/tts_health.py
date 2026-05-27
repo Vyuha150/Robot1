@@ -23,16 +23,16 @@ Typical usage
     if not report.is_healthy:
         logger.warning("TTS health degraded: %s", report.summary())
 """
+
 from __future__ import annotations
 
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Deque
-
+from dataclasses import dataclass
 
 # ── Health report ─────────────────────────────────────────────────────────────
+
 
 @dataclass
 class TTSHealthReport:
@@ -43,28 +43,28 @@ class TTSHealthReport:
     ``time.monotonic()`` at report generation time.
     """
 
-    synthesizer_ok:     bool
-    speaker_ok:         bool
-    backend:            str
-    queue_depth:        int
-    queue_overflows:    int
+    synthesizer_ok: bool
+    speaker_ok: bool
+    backend: str
+    queue_depth: int
+    queue_overflows: int
 
     # Latency statistics (milliseconds)
-    last_synthesis_ms:  float
-    mean_synthesis_ms:  float
-    p95_synthesis_ms:   float   # 95th-percentile over the rolling window
+    last_synthesis_ms: float
+    mean_synthesis_ms: float
+    p95_synthesis_ms: float  # 95th-percentile over the rolling window
 
     # Error / degradation counters
-    synthesis_errors:   int
-    fallback_count:     int
+    synthesis_errors: int
+    fallback_count: int
 
     # Throughput
-    utterances_played:  int
-    total_audio_sec:    float
+    utterances_played: int
+    total_audio_sec: float
 
     # Uptime
-    uptime_sec:         float
-    timestamp:          float
+    uptime_sec: float
+    timestamp: float
 
     # ── Derived properties ────────────────────────────────────────────────────
 
@@ -104,6 +104,7 @@ class TTSHealthReport:
 
 # ── Health tracker ────────────────────────────────────────────────────────────
 
+
 class TTSHealthTracker:
     """
     Collects runtime metrics for the TTS pipeline.
@@ -118,22 +119,22 @@ class TTSHealthTracker:
     """
 
     def __init__(self, window_size: int = 50) -> None:
-        self._lock              = threading.Lock()
-        self._start_ts          = time.monotonic()
-        self._window_size       = window_size
+        self._lock = threading.Lock()
+        self._start_ts = time.monotonic()
+        self._window_size = window_size
 
         # Rolling latency window
-        self._latency_window:   Deque[float] = deque(maxlen=window_size)
+        self._latency_window: deque[float] = deque(maxlen=window_size)
 
         # Counters
-        self._synthesis_errors  = 0
-        self._fallback_count    = 0
+        self._synthesis_errors = 0
+        self._fallback_count = 0
         self._utterances_played = 0
-        self._queue_overflows   = 0
-        self._total_audio_sec   = 0.0
+        self._queue_overflows = 0
+        self._total_audio_sec = 0.0
 
         # Last observed latency
-        self._last_ms           = 0.0
+        self._last_ms = 0.0
 
     # ── Mutation helpers ──────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ class TTSHealthTracker:
         """Record one successfully played utterance."""
         with self._lock:
             self._utterances_played += 1
-            self._total_audio_sec   += duration_sec
+            self._total_audio_sec += duration_sec
 
     def record_queue_overflow(self) -> None:
         """Record one queue overflow event."""
@@ -179,10 +180,10 @@ class TTSHealthTracker:
 
     def get_report(
         self,
-        queue_depth:  int,
-        backend:      str,
-        synth_ok:     bool,
-        speaker_ok:   bool,
+        queue_depth: int,
+        backend: str,
+        synth_ok: bool,
+        speaker_ok: bool,
     ) -> TTSHealthReport:
         """
         Build and return a ``TTSHealthReport`` snapshot.
@@ -199,33 +200,33 @@ class TTSHealthTracker:
             True if the speaker bridge reports as healthy.
         """
         with self._lock:
-            window  = list(self._latency_window)
+            window = list(self._latency_window)
             last_ms = self._last_ms
-            errors  = self._synthesis_errors
-            falls   = self._fallback_count
-            played  = self._utterances_played
-            oflows  = self._queue_overflows
+            errors = self._synthesis_errors
+            falls = self._fallback_count
+            played = self._utterances_played
+            oflows = self._queue_overflows
             total_a = self._total_audio_sec
 
         mean_ms = (sum(window) / len(window)) if window else 0.0
-        p95_ms  = self._percentile(window, 95) if window else 0.0
-        uptime  = time.monotonic() - self._start_ts
+        p95_ms = self._percentile(window, 95) if window else 0.0
+        uptime = time.monotonic() - self._start_ts
 
         return TTSHealthReport(
-            synthesizer_ok    = synth_ok,
-            speaker_ok        = speaker_ok,
-            backend           = backend,
-            queue_depth       = queue_depth,
-            queue_overflows   = oflows,
-            last_synthesis_ms = last_ms,
-            mean_synthesis_ms = mean_ms,
-            p95_synthesis_ms  = p95_ms,
-            synthesis_errors  = errors,
-            fallback_count    = falls,
-            utterances_played = played,
-            total_audio_sec   = total_a,
-            uptime_sec        = uptime,
-            timestamp         = time.monotonic(),
+            synthesizer_ok=synth_ok,
+            speaker_ok=speaker_ok,
+            backend=backend,
+            queue_depth=queue_depth,
+            queue_overflows=oflows,
+            last_synthesis_ms=last_ms,
+            mean_synthesis_ms=mean_ms,
+            p95_synthesis_ms=p95_ms,
+            synthesis_errors=errors,
+            fallback_count=falls,
+            utterances_played=played,
+            total_audio_sec=total_a,
+            uptime_sec=uptime,
+            timestamp=time.monotonic(),
         )
 
     # ── Helpers ───────────────────────────────────────────────────────────────
@@ -247,10 +248,10 @@ class TTSHealthTracker:
         """Reset all counters (useful for tests)."""
         with self._lock:
             self._latency_window.clear()
-            self._synthesis_errors  = 0
-            self._fallback_count    = 0
+            self._synthesis_errors = 0
+            self._fallback_count = 0
             self._utterances_played = 0
-            self._queue_overflows   = 0
-            self._total_audio_sec   = 0.0
-            self._last_ms           = 0.0
-            self._start_ts          = time.monotonic()
+            self._queue_overflows = 0
+            self._total_audio_sec = 0.0
+            self._last_ms = 0.0
+            self._start_ts = time.monotonic()

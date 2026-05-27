@@ -19,7 +19,6 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 from bonbon_safety.core.safety_state_machine import SensorSnapshot
 
@@ -29,24 +28,27 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ThreatAssessorConfig:
     """Maximum age (seconds) before a sensor reading is considered stale."""
-    lidar_max_age_sec: float = 0.5      # RPLIDAR S2 at 10 Hz → expect every 0.1s
-    imu_max_age_sec: float = 0.1        # 100 Hz IMU
-    camera_max_age_sec: float = 0.2     # 30 Hz camera; 2 missed frames = stale
-    battery_max_age_sec: float = 5.0    # BMS publishes slowly
-    servo_max_age_sec: float = 0.5      # Dynamixel state at 20 Hz
-    person_max_age_sec: float = 1.0     # Perception fusion tracks up to 1s after last detection
+
+    lidar_max_age_sec: float = 0.5  # RPLIDAR S2 at 10 Hz → expect every 0.1s
+    imu_max_age_sec: float = 0.1  # 100 Hz IMU
+    camera_max_age_sec: float = 0.2  # 30 Hz camera; 2 missed frames = stale
+    battery_max_age_sec: float = 5.0  # BMS publishes slowly
+    servo_max_age_sec: float = 0.5  # Dynamixel state at 20 Hz
+    person_max_age_sec: float = 1.0  # Perception fusion tracks up to 1s after last detection
     imu_drift_threshold_rads: float = 0.1  # rad/s angular drift
 
     def __post_init__(self) -> None:
         for field_name in (
-            "lidar_max_age_sec", "imu_max_age_sec", "camera_max_age_sec",
-            "battery_max_age_sec", "servo_max_age_sec", "person_max_age_sec",
+            "lidar_max_age_sec",
+            "imu_max_age_sec",
+            "camera_max_age_sec",
+            "battery_max_age_sec",
+            "servo_max_age_sec",
+            "person_max_age_sec",
         ):
             val = getattr(self, field_name)
             if val < 0:
-                raise ValueError(
-                    f"ThreatAssessorConfig.{field_name} must be >= 0, got {val}"
-                )
+                raise ValueError(f"ThreatAssessorConfig.{field_name} must be >= 0, got {val}")
 
 
 class ThreatAssessor:
@@ -60,7 +62,7 @@ class ThreatAssessor:
     callback and applies staleness checks.
     """
 
-    def __init__(self, config: Optional[ThreatAssessorConfig] = None) -> None:
+    def __init__(self, config: ThreatAssessorConfig | None = None) -> None:
         self._cfg = config or ThreatAssessorConfig()
         self._reset_state()
 
@@ -100,7 +102,7 @@ class ThreatAssessor:
         *,
         has_cliff_left: bool = False,
         has_cliff_right: bool = False,
-        timestamp: Optional[float] = None,
+        timestamp: float | None = None,
     ) -> None:
         """
         Called when a new LaserScan message arrives.
@@ -123,11 +125,11 @@ class ThreatAssessor:
         self,
         angular_velocity_norm_rads: float = 0.0,
         *,
-        angular_velocity_z: Optional[float] = None,
+        angular_velocity_z: float | None = None,
         linear_accel_x: float = 0.0,
         linear_accel_y: float = 0.0,
         linear_accel_z: float = 9.81,
-        timestamp: Optional[float] = None,
+        timestamp: float | None = None,
     ) -> None:
         """
         Called when a new Imu message arrives.
@@ -162,7 +164,7 @@ class ThreatAssessor:
         self,
         persons,
         *,
-        timestamp: Optional[float] = None,
+        timestamp: float | None = None,
     ) -> None:
         """
         Called by perception fusion with tracked person data.
@@ -181,9 +183,7 @@ class ThreatAssessor:
             self._nearest_human_m = float(persons)
         elif isinstance(persons, list):
             if persons:
-                self._nearest_human_m = min(
-                    float(p.get("distance_m", -1.0)) for p in persons
-                )
+                self._nearest_human_m = min(float(p.get("distance_m", -1.0)) for p in persons)
             else:
                 self._nearest_human_m = -1.0
         else:
@@ -258,9 +258,7 @@ class ThreatAssessor:
     def update_navigation_timeout(self, timed_out: bool) -> None:
         self._navigation_timeout = timed_out
 
-    def update_node_health(
-        self, critical_crashed: bool, important_crashed: bool
-    ) -> None:
+    def update_node_health(self, critical_crashed: bool, important_crashed: bool) -> None:
         self._critical_node_crashed = critical_crashed
         self._important_node_crashed = important_crashed
 
@@ -276,29 +274,36 @@ class ThreatAssessor:
         now = time.monotonic()
 
         # Staleness checks — treat never-received as stale
-        lidar_stale = (now - self._t_lidar) > self._cfg.lidar_max_age_sec if self._t_lidar > 0 else True
-        imu_stale   = (now - self._t_imu)   > self._cfg.imu_max_age_sec   if self._t_imu   > 0 else True
-        camera_stale = (now - self._t_camera) > self._cfg.camera_max_age_sec if self._t_camera > 0 else True
+        lidar_stale = (
+            (now - self._t_lidar) > self._cfg.lidar_max_age_sec if self._t_lidar > 0 else True
+        )
+        imu_stale = (now - self._t_imu) > self._cfg.imu_max_age_sec if self._t_imu > 0 else True
+        camera_stale = (
+            (now - self._t_camera) > self._cfg.camera_max_age_sec if self._t_camera > 0 else True
+        )
 
         # If person data is stale, we cannot rely on nearest_human_m
-        person_stale = (now - self._t_person) > self._cfg.person_max_age_sec if self._t_person > 0 else True
+        person_stale = (
+            (now - self._t_person) > self._cfg.person_max_age_sec if self._t_person > 0 else True
+        )
         nearest_human = -1.0 if person_stale else self._nearest_human_m
 
         # IMU drift: only meaningful if IMU data is fresh
-        imu_drift = (
-            (not imu_stale)
-            and (self._imu_angular_velocity_norm > self._cfg.imu_drift_threshold_rads)
+        imu_drift = (not imu_stale) and (
+            self._imu_angular_velocity_norm > self._cfg.imu_drift_threshold_rads
         )
 
         if lidar_stale and self._t_lidar > 0:
             logger.warning(
                 "LIDAR stale: %.2f s since last scan (max %.2f s)",
-                now - self._t_lidar, self._cfg.lidar_max_age_sec,
+                now - self._t_lidar,
+                self._cfg.lidar_max_age_sec,
             )
         if imu_stale and self._t_imu > 0:
             logger.warning(
                 "IMU stale: %.2f s since last reading (max %.2f s)",
-                now - self._t_imu, self._cfg.imu_max_age_sec,
+                now - self._t_imu,
+                self._cfg.imu_max_age_sec,
             )
 
         return SensorSnapshot(

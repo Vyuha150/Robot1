@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -12,17 +12,18 @@ T = TypeVar("T")
 
 class APIResponse(BaseModel):
     """Standard JSON envelope for all REST responses."""
+
     success: bool
-    data: Optional[Any] = None
-    error: Optional[str] = None
+    data: Any | None = None
+    error: str | None = None
     timestamp: float = Field(default_factory=time.time)
 
     @classmethod
-    def ok(cls, data: Any = None) -> "APIResponse":
+    def ok(cls, data: Any = None) -> APIResponse:
         return cls(success=True, data=data)
 
     @classmethod
-    def fail(cls, error: str) -> "APIResponse":
+    def fail(cls, error: str) -> APIResponse:
         return cls(success=False, error=error)
 
 
@@ -43,6 +44,7 @@ class PaginatedResponse(BaseModel):
 
 class WSMessage(BaseModel):
     """Standard WebSocket message envelope."""
+
     channel: str
     event: str
     data: Any

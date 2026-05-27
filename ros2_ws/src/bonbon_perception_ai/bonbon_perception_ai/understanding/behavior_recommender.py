@@ -10,38 +10,38 @@ Design principles
 * Falls back to "idle" when nothing actionable is detected.
 * Confidence is propagated from the triggering source.
 """
+
 from __future__ import annotations
 
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 from bonbon_perception_ai.fusion.types import FusionContext
 from bonbon_perception_ai.understanding.intent_engine import UserIntent
 from bonbon_perception_ai.understanding.risk_assessor import RiskEvent
 from bonbon_perception_ai.understanding.scene_analyzer import SceneSnapshot
 
-
 # ── Output type ───────────────────────────────────────────────────────────────
+
 
 @dataclass
 class BehaviorRecommendation:
     behavior_class: str
     confidence: float
-    priority: int                        # 0=LOW 1=NORMAL 2=HIGH 3=URGENT
-    trigger_type: str                    # "user_intent"|"risk_event"|"context_event"|"periodic"
+    priority: int  # 0=LOW 1=NORMAL 2=HIGH 3=URGENT
+    trigger_type: str  # "user_intent"|"risk_event"|"context_event"|"periodic"
     trigger_id: str
-    params: Dict[str, str]               = field(default_factory=dict)
-    timeout_sec: float                   = 0.0
-    recommendation_id: str               = field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: float                     = field(default_factory=time.monotonic)
+    params: dict[str, str] = field(default_factory=dict)
+    timeout_sec: float = 0.0
+    recommendation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: float = field(default_factory=time.monotonic)
 
 
 # ── Priority constants ────────────────────────────────────────────────────────
-PRIORITY_LOW    = 0
+PRIORITY_LOW = 0
 PRIORITY_NORMAL = 1
-PRIORITY_HIGH   = 2
+PRIORITY_HIGH = 2
 PRIORITY_URGENT = 3
 
 # ── Behavior class → param template keys ─────────────────────────────────────
@@ -69,8 +69,8 @@ class BehaviorRecommender:
         self,
         ctx: FusionContext,
         scene: SceneSnapshot,
-        intent: Optional[UserIntent],
-        risks: List[RiskEvent],
+        intent: UserIntent | None,
+        risks: list[RiskEvent],
     ) -> BehaviorRecommendation:
         """
         Return the single highest-priority recommendation for this cycle.
@@ -95,36 +95,36 @@ class BehaviorRecommender:
 
         # 4. Default: idle
         return BehaviorRecommendation(
-            behavior_class = "idle",
-            confidence     = 0.95,
-            priority       = PRIORITY_LOW,
-            trigger_type   = "periodic",
-            trigger_id     = scene.scene_id,
+            behavior_class="idle",
+            confidence=0.95,
+            priority=PRIORITY_LOW,
+            trigger_type="periodic",
+            trigger_id=scene.scene_id,
         )
 
     # ── Risk-driven behavior ──────────────────────────────────────────────────
 
-    def _from_risk(self, risk: RiskEvent) -> Optional[BehaviorRecommendation]:
-        mapping: Dict[str, Tuple[str, int]] = {
-            "person_too_close":           ("alert_safety",    PRIORITY_URGENT),
+    def _from_risk(self, risk: RiskEvent) -> BehaviorRecommendation | None:
+        mapping: dict[str, tuple[str, int]] = {
+            "person_too_close": ("alert_safety", PRIORITY_URGENT),
             "navigation_with_uncertainty": ("stop_navigation", PRIORITY_HIGH),
-            "conflicting_commands":        ("speak_clarification", PRIORITY_NORMAL),
-            "stale_sensors":               ("wait_for_input",  PRIORITY_HIGH),
+            "conflicting_commands": ("speak_clarification", PRIORITY_NORMAL),
+            "stale_sensors": ("wait_for_input", PRIORITY_HIGH),
         }
         if risk.risk_type in mapping:
             behavior, priority = mapping[risk.risk_type]
             return BehaviorRecommendation(
-                behavior_class = behavior,
-                confidence     = risk.confidence,
-                priority       = priority,
-                trigger_type   = "risk_event",
-                trigger_id     = risk.risk_id,
-                params         = {
+                behavior_class=behavior,
+                confidence=risk.confidence,
+                priority=priority,
+                trigger_type="risk_event",
+                trigger_id=risk.risk_id,
+                params={
                     "risk_type": risk.risk_type,
-                    "severity":  risk.severity,
+                    "severity": risk.severity,
                     "subject_id": risk.subject_id,
                 },
-                timeout_sec    = 5.0,
+                timeout_sec=5.0,
             )
         return None
 
@@ -132,32 +132,32 @@ class BehaviorRecommender:
 
     def _from_intent(
         self, intent: UserIntent, scene: SceneSnapshot
-    ) -> Optional[BehaviorRecommendation]:
+    ) -> BehaviorRecommendation | None:
         if intent.is_ambiguous:
             return BehaviorRecommendation(
-                behavior_class = "speak_clarification",
-                confidence     = 0.80,
-                priority       = PRIORITY_NORMAL,
-                trigger_type   = "user_intent",
-                trigger_id     = intent.intent_id,
-                params         = {
-                    "speaker_id":  intent.speaker_id,
+                behavior_class="speak_clarification",
+                confidence=0.80,
+                priority=PRIORITY_NORMAL,
+                trigger_type="user_intent",
+                trigger_id=intent.intent_id,
+                params={
+                    "speaker_id": intent.speaker_id,
                     "speech_text": intent.fallback_response,
                 },
-                timeout_sec    = 8.0,
+                timeout_sec=8.0,
             )
 
         slot = intent.slot_dict
 
         if intent.intent_class == "greeting":
             return BehaviorRecommendation(
-                behavior_class = "speak_greeting",
-                confidence     = intent.confidence,
-                priority       = PRIORITY_NORMAL,
-                trigger_type   = "user_intent",
-                trigger_id     = intent.intent_id,
-                params         = {"speaker_id": intent.speaker_id},
-                timeout_sec    = 5.0,
+                behavior_class="speak_greeting",
+                confidence=intent.confidence,
+                priority=PRIORITY_NORMAL,
+                trigger_type="user_intent",
+                trigger_id=intent.intent_id,
+                params={"speaker_id": intent.speaker_id},
+                timeout_sec=5.0,
             )
 
         if intent.intent_class == "order_item":
@@ -167,13 +167,13 @@ class BehaviorRecommender:
             if "quantity" in slot:
                 params["quantity"] = slot["quantity"]
             return BehaviorRecommendation(
-                behavior_class = "serve_item",
-                confidence     = intent.confidence,
-                priority       = PRIORITY_NORMAL,
-                trigger_type   = "user_intent",
-                trigger_id     = intent.intent_id,
-                params         = params,
-                timeout_sec    = 30.0,
+                behavior_class="serve_item",
+                confidence=intent.confidence,
+                priority=PRIORITY_NORMAL,
+                trigger_type="user_intent",
+                trigger_id=intent.intent_id,
+                params=params,
+                timeout_sec=30.0,
             )
 
         if intent.intent_class == "navigate_to":
@@ -181,48 +181,48 @@ class BehaviorRecommender:
             if "destination" in slot:
                 params["destination"] = slot["destination"]
             return BehaviorRecommendation(
-                behavior_class = "navigate_to_goal",
-                confidence     = intent.confidence,
-                priority       = PRIORITY_NORMAL,
-                trigger_type   = "user_intent",
-                trigger_id     = intent.intent_id,
-                params         = params,
-                timeout_sec    = 60.0,
+                behavior_class="navigate_to_goal",
+                confidence=intent.confidence,
+                priority=PRIORITY_NORMAL,
+                trigger_type="user_intent",
+                trigger_id=intent.intent_id,
+                params=params,
+                timeout_sec=60.0,
             )
 
         if intent.intent_class == "cancel":
             return BehaviorRecommendation(
-                behavior_class = "stop_navigation",
-                confidence     = intent.confidence,
-                priority       = PRIORITY_HIGH,
-                trigger_type   = "user_intent",
-                trigger_id     = intent.intent_id,
-                params         = {"speaker_id": intent.speaker_id},
+                behavior_class="stop_navigation",
+                confidence=intent.confidence,
+                priority=PRIORITY_HIGH,
+                trigger_type="user_intent",
+                trigger_id=intent.intent_id,
+                params={"speaker_id": intent.speaker_id},
             )
 
         if intent.intent_class in ("ask_question", "confirm", "deny"):
             return BehaviorRecommendation(
-                behavior_class = "speak_response",
-                confidence     = intent.confidence,
-                priority       = PRIORITY_NORMAL,
-                trigger_type   = "user_intent",
-                trigger_id     = intent.intent_id,
-                params         = {
+                behavior_class="speak_response",
+                confidence=intent.confidence,
+                priority=PRIORITY_NORMAL,
+                trigger_type="user_intent",
+                trigger_id=intent.intent_id,
+                params={
                     "speaker_id": intent.speaker_id,
-                    "intent":     intent.intent_class,
-                    "raw_text":   intent.raw_text[:100],
+                    "intent": intent.intent_class,
+                    "raw_text": intent.raw_text[:100],
                 },
-                timeout_sec    = 8.0,
+                timeout_sec=8.0,
             )
 
         if intent.intent_class == "help_request":
             return BehaviorRecommendation(
-                behavior_class = "alert_safety",
-                confidence     = intent.confidence,
-                priority       = PRIORITY_HIGH,
-                trigger_type   = "user_intent",
-                trigger_id     = intent.intent_id,
-                params         = {"speaker_id": intent.speaker_id},
+                behavior_class="alert_safety",
+                confidence=intent.confidence,
+                priority=PRIORITY_HIGH,
+                trigger_type="user_intent",
+                trigger_id=intent.intent_id,
+                params={"speaker_id": intent.speaker_id},
             )
 
         return None
@@ -231,7 +231,7 @@ class BehaviorRecommender:
 
     def _from_scene(
         self, scene: SceneSnapshot, ctx: FusionContext
-    ) -> Optional[BehaviorRecommendation]:
+    ) -> BehaviorRecommendation | None:
         # Person just entered scene and robot is idle → approach / greet
         if (
             scene.dominant_activity == "idle"
@@ -239,14 +239,14 @@ class BehaviorRecommender:
             and scene.human_proximity_m > 1.5
         ):
             return BehaviorRecommendation(
-                behavior_class = "approach_person",
-                confidence     = 0.65,
-                priority       = PRIORITY_LOW,
-                trigger_type   = "context_event",
-                trigger_id     = scene.scene_id,
-                params         = {
+                behavior_class="approach_person",
+                confidence=0.65,
+                priority=PRIORITY_LOW,
+                trigger_type="context_event",
+                trigger_id=scene.scene_id,
+                params={
                     "target_id": scene.present_person_ids[0],
                 },
-                timeout_sec    = 10.0,
+                timeout_sec=10.0,
             )
         return None

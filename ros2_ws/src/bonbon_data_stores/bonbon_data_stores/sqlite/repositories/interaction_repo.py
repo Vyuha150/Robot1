@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import InteractionEvent, PrivacyLevel
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
@@ -29,48 +29,49 @@ class InteractionHistoryRepository(BaseRepository):
             privacy_level, retention_policy, metadata
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
         """
-        self._execute(sql, (
-            event.event_id,
-            event.timestamp,
-            event.session_id,
-            event.user_id,
-            event.input_modality,
-            event.input_text,
-            event.intent,
-            event.intent_confidence,
-            event.response_text,
-            event.response_modality,
-            event.tts_latency_ms,
-            event.satisfaction_score,
-            event.language,
-            event.audio_ref,
-            event.privacy_level.value,
-            event.retention_policy.value,
-            json.dumps(event.metadata),
-        ))
+        self._execute(
+            sql,
+            (
+                event.event_id,
+                event.timestamp,
+                event.session_id,
+                event.user_id,
+                event.input_modality,
+                event.input_text,
+                event.intent,
+                event.intent_confidence,
+                event.response_text,
+                event.response_modality,
+                event.tts_latency_ms,
+                event.satisfaction_score,
+                event.language,
+                event.audio_ref,
+                event.privacy_level.value,
+                event.retention_policy.value,
+                json.dumps(event.metadata),
+            ),
+        )
         return event.event_id
 
-    def get_by_id(self, event_id: str) -> Optional[InteractionEvent]:
+    def get_by_id(self, event_id: str) -> InteractionEvent | None:
         row = self._fetchone("SELECT * FROM interactions WHERE event_id = ?;", (event_id,))
         return self._row_to_model(row) if row else None
 
-    def get_by_user(
-        self, user_id: str, limit: int = 50, offset: int = 0
-    ) -> List[InteractionEvent]:
+    def get_by_user(self, user_id: str, limit: int = 50, offset: int = 0) -> list[InteractionEvent]:
         rows = self._fetchall(
             "SELECT * FROM interactions WHERE user_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?;",
             (user_id, limit, offset),
         )
         return [self._row_to_model(r) for r in rows]
 
-    def get_by_session(self, session_id: str) -> List[InteractionEvent]:
+    def get_by_session(self, session_id: str) -> list[InteractionEvent]:
         rows = self._fetchall(
             "SELECT * FROM interactions WHERE session_id = ? ORDER BY timestamp ASC;",
             (session_id,),
         )
         return [self._row_to_model(r) for r in rows]
 
-    def get_recent(self, limit: int = 20) -> List[InteractionEvent]:
+    def get_recent(self, limit: int = 20) -> list[InteractionEvent]:
         rows = self._fetchall(
             "SELECT * FROM interactions ORDER BY timestamp DESC LIMIT ?;",
             (limit,),
@@ -92,7 +93,7 @@ class InteractionHistoryRepository(BaseRepository):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _row_to_model(row: Dict[str, Any]) -> InteractionEvent:
+    def _row_to_model(row: dict[str, Any]) -> InteractionEvent:
         return InteractionEvent(
             event_id=row["event_id"],
             timestamp=row["timestamp"],

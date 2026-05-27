@@ -3,15 +3,17 @@ test_camera_driver.py
 =====================
 Tests for MockCameraDriver: frames, corruption, disconnection, recovery.
 """
+
 from __future__ import annotations
+
 import pytest
 from bonbon_hal.base.driver_base import DriverFault
-from bonbon_hal.drivers.camera import MockCameraDriver, ColorFrame, DepthFrame
+from bonbon_hal.drivers.camera import MockCameraDriver
 
 
 @pytest.fixture
 def drv() -> MockCameraDriver:
-    d = MockCameraDriver(width=64, height=48)   # small frames for test speed
+    d = MockCameraDriver(width=64, height=48)  # small frames for test speed
     d.connect()
     return d
 
@@ -34,6 +36,7 @@ class TestMockCameraNormal:
 
     def test_depth_frame_dimensions(self, drv):
         import numpy as np
+
         _, depth = drv.read_frames()
         assert depth.width == 64
         assert depth.height == 48
@@ -43,6 +46,7 @@ class TestMockCameraNormal:
     def test_depth_values_positive(self, drv):
         _, depth = drv.read_frames()
         import numpy as np
+
         valid = depth.data[~np.isnan(depth.data)]
         assert (valid > 0).all()
 
@@ -85,6 +89,7 @@ class TestMockCameraFaults:
 
     def test_depth_noise(self):
         import numpy as np
+
         drv = MockCameraDriver(depth_noise_sigma=0.1, width=64, height=48)
         drv.connect()
         _, d1 = drv.read_frames()
@@ -97,7 +102,8 @@ class TestMockCameraRecovery:
     def test_reconnect_restores_reads(self):
         drv = MockCameraDriver(disconnect_after_n_reads=2, width=64, height=48)
         drv.connect()
-        drv.read_frames(); drv.read_frames()
+        drv.read_frames()
+        drv.read_frames()
         try:
             drv.read_frames()
         except DriverFault:

@@ -18,7 +18,12 @@ def run_py(*args: str, env: dict[str, str] | None = None) -> subprocess.Complete
 
 
 def test_docker_build_success_check_files_exist():
-    for name in ["Dockerfile.ros2", "Dockerfile.ai", "Dockerfile.navigation", "Dockerfile.dashboard"]:
+    for name in [
+        "Dockerfile.ros2",
+        "Dockerfile.ai",
+        "Dockerfile.navigation",
+        "Dockerfile.dashboard",
+    ]:
         path = ROOT / "deployment" / "docker" / name
         assert path.exists()
         assert "FROM " in path.read_text(encoding="utf-8")
@@ -81,7 +86,9 @@ def test_deployment_dry_run_has_safety_gates():
 def test_rollback_dry_run_supported():
     text = (ROOT / "devops" / "scripts" / "rollback_robot.sh").read_text(encoding="utf-8")
     assert "run_cmd ssh" in text
-    assert "BONBON_DRY_RUN" in (ROOT / "devops" / "scripts" / "common.sh").read_text(encoding="utf-8")
+    assert "BONBON_DRY_RUN" in (ROOT / "devops" / "scripts" / "common.sh").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_service_health_check_lists_required_services():
@@ -150,8 +157,12 @@ def test_failed_deployment_rollback_documented():
 
 
 def test_monitoring_stack_startup_configured():
-    compose = (ROOT / "deployment" / "compose" / "docker-compose.simulation.yml").read_text(encoding="utf-8")
-    prometheus = (ROOT / "deployment" / "monitoring" / "prometheus" / "prometheus.yml").read_text(encoding="utf-8")
+    compose = (ROOT / "deployment" / "compose" / "docker-compose.simulation.yml").read_text(
+        encoding="utf-8"
+    )
+    prometheus = (ROOT / "deployment" / "monitoring" / "prometheus" / "prometheus.yml").read_text(
+        encoding="utf-8"
+    )
     assert "prometheus" in compose
     assert "bonbon-safety" in prometheus
 
@@ -164,7 +175,9 @@ def test_log_collection_script():
 
 def test_version_generation(tmp_path: Path):
     output = tmp_path / "release.env"
-    result = run_py("devops/scripts/release_version.py", "--channel", "test", "--output", str(output))
+    result = run_py(
+        "devops/scripts/release_version.py", "--channel", "test", "--output", str(output)
+    )
     assert result.returncode == 0, result.stderr
     text = output.read_text(encoding="utf-8")
     assert "BONBON_VERSION=test-" in text
@@ -176,7 +189,9 @@ def test_release_checksum_verification(tmp_path: Path):
     artifact.write_text("bonbon-release", encoding="utf-8")
     import hashlib
 
-    checksum.write_text(f"{hashlib.sha256(b'bonbon-release').hexdigest()}  artifact.txt\n", encoding="utf-8")
+    checksum.write_text(
+        f"{hashlib.sha256(b'bonbon-release').hexdigest()}  artifact.txt\n", encoding="utf-8"
+    )
     result = run_py(
         "devops/scripts/verify_release.py",
         "--artifact",
@@ -190,8 +205,14 @@ def test_release_checksum_verification(tmp_path: Path):
 def test_rosdep_failures_are_not_masked():
     dockerfile = (ROOT / "deployment" / "docker" / "Dockerfile.ros2").read_text(encoding="utf-8")
     ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    assert "rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble &&" in dockerfile
-    assert "rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble || true" not in ci
+    assert (
+        "rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble &&"
+        in dockerfile
+    )
+    assert (
+        "rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble || true"
+        not in ci
+    )
 
 
 def test_deployment_audit_logging_present():

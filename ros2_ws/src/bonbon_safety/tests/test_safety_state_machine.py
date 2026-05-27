@@ -16,22 +16,20 @@ Coverage targets
 - Transition history is recorded
 - Threshold boundaries (exact boundary values)
 """
+
 from __future__ import annotations
 
-import time
 import pytest
-
 from bonbon_safety.core.safety_state_machine import (
+    STATE_PROPERTIES,
     SafetyLevel,
     SafetyStateMachine,
-    SafetyStateProperties,
     SensorSnapshot,
     StateTransition,
-    STATE_PROPERTIES,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_fsm(**kwargs) -> SafetyStateMachine:
     """Create an FSM with fast hysteresis by default for test speed."""
@@ -70,6 +68,7 @@ def _startup_complete(fsm: SafetyStateMachine) -> None:
 
 
 # ── State properties ──────────────────────────────────────────────────────────
+
 
 class TestStateProperties:
     def test_all_states_have_properties(self):
@@ -116,6 +115,7 @@ class TestStateProperties:
 
 # ── INITIALIZING ──────────────────────────────────────────────────────────────
 
+
 class TestInitializing:
     def test_starts_in_initializing(self):
         fsm = _make_fsm()
@@ -138,6 +138,7 @@ class TestInitializing:
 
 
 # ── NORMAL ────────────────────────────────────────────────────────────────────
+
 
 class TestNormal:
     def _get_normal_fsm(self) -> SafetyStateMachine:
@@ -245,6 +246,7 @@ class TestNormal:
 
 # ── CAUTION ───────────────────────────────────────────────────────────────────
 
+
 class TestCaution:
     def _get_caution_fsm(self) -> SafetyStateMachine:
         fsm = _make_fsm()
@@ -269,9 +271,9 @@ class TestCaution:
         # Send clear snapshot fewer times than hysteresis threshold (3 cycles)
         for i in range(2):
             level, _ = fsm.update(_nominal())
-            assert level == SafetyLevel.CAUTION, (
-                f"Expected CAUTION during hysteresis, got {level.name} at cycle {i}"
-            )
+            assert (
+                level == SafetyLevel.CAUTION
+            ), f"Expected CAUTION during hysteresis, got {level.name} at cycle {i}"
 
     def test_caution_resolves_to_normal_after_hysteresis(self):
         fsm = self._get_caution_fsm()
@@ -292,6 +294,7 @@ class TestCaution:
 
 # ── DANGER ────────────────────────────────────────────────────────────────────
 
+
 class TestDanger:
     def _get_danger_fsm(self) -> SafetyStateMachine:
         fsm = _make_fsm()
@@ -307,9 +310,9 @@ class TestDanger:
         fsm = self._get_danger_fsm()
         for i in range(4):  # 4 < hysteresis_cycles_danger=5
             level, _ = fsm.update(_nominal())
-            assert level == SafetyLevel.DANGER, (
-                f"Expected DANGER during hysteresis, got {level.name} at cycle {i}"
-            )
+            assert (
+                level == SafetyLevel.DANGER
+            ), f"Expected DANGER during hysteresis, got {level.name} at cycle {i}"
 
     def test_danger_resolves_after_hysteresis(self):
         fsm = self._get_danger_fsm()
@@ -329,6 +332,7 @@ class TestDanger:
 
 
 # ── SAFE_STOP ─────────────────────────────────────────────────────────────────
+
 
 class TestSafeStop:
     def _get_safe_stop_fsm(self) -> SafetyStateMachine:
@@ -352,7 +356,7 @@ class TestSafeStop:
     def test_safe_stop_stays_locked_even_after_estop_released_without_reset(self):
         """Releasing e-stop button alone must NOT exit SAFE_STOP — operator reset required."""
         fsm = self._get_safe_stop_fsm()
-        level, _ = fsm.update(_nominal())   # estop_hardware=False, no reset()
+        level, _ = fsm.update(_nominal())  # estop_hardware=False, no reset()
         assert level == SafetyLevel.SAFE_STOP
 
     def test_safe_stop_exits_to_initializing_after_reset(self):
@@ -367,6 +371,7 @@ class TestSafeStop:
 
 
 # ── FAULT ─────────────────────────────────────────────────────────────────────
+
 
 class TestFault:
     def _get_fault_fsm(self) -> SafetyStateMachine:
@@ -402,6 +407,7 @@ class TestFault:
 
 # ── DOCKING ───────────────────────────────────────────────────────────────────
 
+
 class TestDocking:
     def _get_docking_fsm(self) -> SafetyStateMachine:
         fsm = _make_fsm()
@@ -436,17 +442,21 @@ class TestDocking:
 
 # ── E-stop from any state ─────────────────────────────────────────────────────
 
+
 class TestEstopUniversal:
     """E-stop must reach SAFE_STOP from every non-terminal state."""
 
-    @pytest.mark.parametrize("start_state", [
-        SafetyLevel.NORMAL,
-        SafetyLevel.CAUTION,
-        SafetyLevel.DANGER,
-        SafetyLevel.DOCKING,
-        SafetyLevel.DEGRADED,
-        SafetyLevel.FAULT,
-    ])
+    @pytest.mark.parametrize(
+        "start_state",
+        [
+            SafetyLevel.NORMAL,
+            SafetyLevel.CAUTION,
+            SafetyLevel.DANGER,
+            SafetyLevel.DOCKING,
+            SafetyLevel.DEGRADED,
+            SafetyLevel.FAULT,
+        ],
+    )
     def test_estop_from_any_state(self, start_state: SafetyLevel):
         fsm = _make_fsm()
 
@@ -480,21 +490,22 @@ class TestEstopUniversal:
         snap = _nominal()
         snap.estop_hardware = True
         level, trans = fsm.update(snap)
-        assert level == SafetyLevel.SAFE_STOP, (
-            f"Expected SAFE_STOP from {start_state.name}, got {level.name}"
-        )
+        assert (
+            level == SafetyLevel.SAFE_STOP
+        ), f"Expected SAFE_STOP from {start_state.name}, got {level.name}"
 
 
 # ── Transition history ────────────────────────────────────────────────────────
+
 
 class TestTransitionHistory:
     def test_history_records_transitions(self):
         fsm = _make_fsm()
         _startup_complete(fsm)
-        fsm.update(_nominal())   # INITIALIZING → NORMAL
+        fsm.update(_nominal())  # INITIALIZING → NORMAL
         snap = _nominal()
         snap.nearest_human_m = 1.0
-        fsm.update(snap)         # NORMAL → CAUTION
+        fsm.update(snap)  # NORMAL → CAUTION
         assert len(fsm.history) >= 2
 
     def test_transition_fields_correct(self):
@@ -520,6 +531,7 @@ class TestTransitionHistory:
 
 # ── Transition callbacks ──────────────────────────────────────────────────────
 
+
 class TestTransitionCallbacks:
     def test_callback_fires_on_transition(self):
         fired = []
@@ -542,6 +554,7 @@ class TestTransitionCallbacks:
 
 # ── Priority ordering ─────────────────────────────────────────────────────────
 
+
 class TestPriorityOrdering:
     """When multiple conditions are present simultaneously, verify correct precedence."""
 
@@ -551,8 +564,8 @@ class TestPriorityOrdering:
         _startup_complete(fsm)
         fsm.update(_nominal())
         snap = _nominal()
-        snap.battery_percent = 5.0     # would trigger DOCKING
-        snap.estop_hardware = True     # should win
+        snap.battery_percent = 5.0  # would trigger DOCKING
+        snap.estop_hardware = True  # should win
         level, _ = fsm.update(snap)
         assert level == SafetyLevel.SAFE_STOP
 
@@ -561,8 +574,8 @@ class TestPriorityOrdering:
         _startup_complete(fsm)
         fsm.update(_nominal())
         snap = _nominal()
-        snap.nearest_human_m = 0.1   # DANGER
-        snap.estop_hardware = True    # SAFE_STOP should win
+        snap.nearest_human_m = 0.1  # DANGER
+        snap.estop_hardware = True  # SAFE_STOP should win
         level, _ = fsm.update(snap)
         assert level == SafetyLevel.SAFE_STOP
 
@@ -571,7 +584,7 @@ class TestPriorityOrdering:
         _startup_complete(fsm)
         fsm.update(_nominal())
         snap = _nominal()
-        snap.nearest_human_m = 1.5       # would be CAUTION
+        snap.nearest_human_m = 1.5  # would be CAUTION
         snap.critical_node_crashed = True  # should be FAULT
         level, _ = fsm.update(snap)
         assert level == SafetyLevel.FAULT

@@ -20,22 +20,22 @@ Usage
     if mgr.state == ModelState.READY:
         ...
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
 from enum import IntEnum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ModelState(IntEnum):
     UNLOADED = 0
-    LOADING  = 1
-    READY    = 2
-    FAILED   = 3
+    LOADING = 1
+    READY = 2
+    FAILED = 3
 
 
 class ModelManager:
@@ -50,14 +50,14 @@ class ModelManager:
     """
 
     def __init__(self, detector, allow_degraded: bool = True) -> None:
-        self._detector      = detector
+        self._detector = detector
         self._allow_degraded = allow_degraded
-        self._state         = ModelState.UNLOADED
-        self._lock          = threading.Lock()
-        self._ready_event   = threading.Event()
-        self._load_start_t: Optional[float] = None
-        self._load_end_t:   Optional[float] = None
-        self._error:        Optional[str]   = None
+        self._state = ModelState.UNLOADED
+        self._lock = threading.Lock()
+        self._ready_event = threading.Event()
+        self._load_start_t: float | None = None
+        self._load_end_t: float | None = None
+        self._error: str | None = None
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ class ModelManager:
             return (self._load_end_t - self._load_start_t) * 1000.0
 
     @property
-    def error(self) -> Optional[str]:
+    def error(self) -> str | None:
         with self._lock:
             return self._error
 
@@ -95,8 +95,7 @@ class ModelManager:
             self._state = ModelState.LOADING
             self._ready_event.clear()
 
-        thread = threading.Thread(target=self._load_worker, daemon=True,
-                                  name="model_loader")
+        thread = threading.Thread(target=self._load_worker, daemon=True, name="model_loader")
         thread.start()
         logger.info("stage=model_manager event=load_started async=True")
 
@@ -124,16 +123,16 @@ class ModelManager:
     def reload(self) -> None:
         """Reset to UNLOADED and trigger a fresh async load."""
         with self._lock:
-            self._state  = ModelState.UNLOADED
-            self._error  = None
+            self._state = ModelState.UNLOADED
+            self._error = None
         self.load_async()
 
     def summary(self) -> dict:
         with self._lock:
             return {
-                "state":       self._state.name,
-                "load_ms":     self.load_ms,
-                "error":       self._error,
+                "state": self._state.name,
+                "load_ms": self.load_ms,
+                "error": self._error,
                 "allow_degraded": self._allow_degraded,
             }
 
@@ -147,12 +146,10 @@ class ModelManager:
             self._detector.load_model()
             is_degraded = getattr(self._detector, "is_degraded", False)
             if is_degraded:
-                raise RuntimeError(
-                    "Detector entered degraded state during load_model()"
-                )
+                raise RuntimeError("Detector entered degraded state during load_model()")
 
             with self._lock:
-                self._state      = ModelState.READY
+                self._state = ModelState.READY
                 self._load_end_t = time.monotonic()
 
             logger.info(
@@ -162,20 +159,21 @@ class ModelManager:
 
         except Exception as exc:
             with self._lock:
-                self._state      = ModelState.FAILED
+                self._state = ModelState.FAILED
                 self._load_end_t = time.monotonic()
-                self._error      = str(exc)
+                self._error = str(exc)
 
             if self._allow_degraded:
                 logger.warning(
                     "stage=model_manager event=load_failed error=%r "
                     "degraded_mode=True load_ms=%.0f",
-                    str(exc), self.load_ms,
+                    str(exc),
+                    self.load_ms,
                 )
             else:
                 logger.error(
-                    "stage=model_manager event=load_failed error=%r "
-                    "degraded_mode=False", str(exc),
+                    "stage=model_manager event=load_failed error=%r " "degraded_mode=False",
+                    str(exc),
                 )
                 raise
 

@@ -8,13 +8,13 @@ Tests for the VAD layer:
   - Wrong-wake-word flow (not triggering speech)
   - AudioSegment fields
 """
-import time
-import pytest
-import numpy as np
 
-from bonbon_speech.vad.base_vad import AudioSegment, BaseVAD
+import time
+
+import numpy as np
+import pytest
+from bonbon_speech.vad.base_vad import AudioSegment
 from bonbon_speech.vad.mock_vad import MockVAD
-from bonbon_speech.config.speech_config import VADConfig
 
 
 def silence_chunk(n: int = 512) -> np.ndarray:
@@ -33,6 +33,7 @@ def speech_chunk(n: int = 512) -> np.ndarray:
 
 
 # ── AudioSegment ──────────────────────────────────────────────────────────────
+
 
 class TestAudioSegment:
     def test_duration_computed_from_samples(self):
@@ -60,12 +61,13 @@ class TestAudioSegment:
 
 # ── MockVAD: silence ─────────────────────────────────────────────────────────
 
+
 class TestMockVADSilence:
     def test_all_silence_no_emission(self):
         vad = MockVAD(speech_pattern=[False] * 20)
         vad.load()
         for _ in range(20):
-            result = vad.process_chunk(silence_chunk())
+            vad.process_chunk(silence_chunk())
         assert vad.emit_count == 0
 
     def test_empty_pattern_defaults_to_silence(self):
@@ -76,6 +78,7 @@ class TestMockVADSilence:
 
 
 # ── MockVAD: speech emission ──────────────────────────────────────────────────
+
 
 class TestMockVADSpeech:
     def test_speech_then_silence_emits_segment(self):
@@ -130,6 +133,7 @@ class TestMockVADSpeech:
 
 # ── MockVAD: force emit ───────────────────────────────────────────────────────
 
+
 class TestMockVADForceEmit:
     def test_force_emit_returns_segment(self):
         vad = MockVAD()
@@ -158,12 +162,13 @@ class TestMockVADForceEmit:
 
 # ── MockVAD: set_speech_pattern ───────────────────────────────────────────────
 
+
 class TestMockVADPattern:
     def test_pattern_cycles(self):
         vad = MockVAD(speech_pattern=[True, False])
         vad.load()
         # Feed 4 chunks — one cycle = emit once
-        results = [vad.process_chunk(speech_chunk(512)) for _ in range(4)]
+        [vad.process_chunk(speech_chunk(512)) for _ in range(4)]
         # Should have emitted once (after True→False transition)
         assert vad.emit_count >= 1
 
@@ -178,6 +183,7 @@ class TestMockVADPattern:
 
 # ── MockVAD: reset ────────────────────────────────────────────────────────────
 
+
 class TestMockVADReset:
     def test_reset_clears_state(self):
         pattern = [True] * 5  # partial speech, no silence → no emit yet
@@ -185,7 +191,7 @@ class TestMockVADReset:
         vad.load()
         for _ in range(5):
             vad.process_chunk(speech_chunk())
-        assert vad.emit_count == 0   # not emitted yet
+        assert vad.emit_count == 0  # not emitted yet
         vad.reset()
         # After reset, pattern index restarts; another run of all-speech
         for _ in range(5):
@@ -201,6 +207,7 @@ class TestMockVADReset:
 
 
 # ── Noisy audio ───────────────────────────────────────────────────────────────
+
 
 class TestNoisyAudio:
     def test_low_amplitude_noise_no_emission(self):
@@ -218,7 +225,11 @@ class TestNoisyAudio:
         vad.load()
         emitted = None
         for is_speech_step in pattern:
-            chunk = speech_chunk(512) + noise_chunk(512, 0.01) if is_speech_step else noise_chunk(512, 0.01)
+            chunk = (
+                speech_chunk(512) + noise_chunk(512, 0.01)
+                if is_speech_step
+                else noise_chunk(512, 0.01)
+            )
             seg = vad.process_chunk(chunk)
             if seg is not None:
                 emitted = seg
@@ -227,12 +238,14 @@ class TestNoisyAudio:
 
 # ── Wrong wake word (VAD isolation) ──────────────────────────────────────────
 
+
 class TestWrongWakeWordFlow:
     """
     If the wake-word gating prevents speech from reaching the VAD,
     the VAD should never emit.  We simulate this by only pushing
     silence chunks (gate closed).
     """
+
     def test_silence_only_no_emission(self):
         vad = MockVAD(speech_pattern=[False] * 100)
         vad.load()

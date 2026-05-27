@@ -24,24 +24,23 @@ Covered scenarios
 * Thread safety — concurrent detect() calls do not crash
 * MockDetector.force_degraded() helper
 """
+
 import math
-import time
 import threading
 import unittest
 
 import numpy as np
-
 from bonbon_vision.config.vision_config import DetectorConfig
 from bonbon_vision.detectors.base_detector import (
+    COCO_NAMES,
     BaseDetector,
     DetectionResult,
     ObjectDetection,
-    COCO_NAMES,
 )
 from bonbon_vision.detectors.mock_detector import MockDetector
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _cfg(**kwargs) -> DetectorConfig:
     defaults = dict(
@@ -67,6 +66,7 @@ def _depth_map(h=480, w=640, val=2.0) -> np.ndarray:
 
 
 # ── ObjectDetection dataclass ─────────────────────────────────────────────────
+
 
 class TestObjectDetection(unittest.TestCase):
     def _make(self, cls_id=0, bbox=(10, 20, 100, 200)):
@@ -102,6 +102,7 @@ class TestObjectDetection(unittest.TestCase):
 
 
 # ── MockDetector — Normal ─────────────────────────────────────────────────────
+
 
 class TestMockDetectorNormal(unittest.TestCase):
     def setUp(self):
@@ -163,13 +164,14 @@ class TestMockDetectorNormal(unittest.TestCase):
 
 # ── Fake camera test ──────────────────────────────────────────────────────────
 
+
 class TestFakeCameraScenarios(unittest.TestCase):
     """End-to-end: synthetic frames with known properties go through detect()."""
 
     def test_bright_synthetic_frame(self):
         detector = MockDetector(num_detections=2)
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        frame[100:300, 150:250] = [255, 200, 180]   # simulated person ROI
+        frame[100:300, 150:250] = [255, 200, 180]  # simulated person ROI
         r = detector.detect(frame)
         self.assertGreater(len(r.detections), 0)
         detector.shutdown()
@@ -200,6 +202,7 @@ class TestFakeCameraScenarios(unittest.TestCase):
 
 # ── Empty / low-light scenarios ────────────────────────────────────────────────
 
+
 class TestEmptyAndLowLight(unittest.TestCase):
     def test_black_frame_returns_detections(self):
         """MockDetector does not inspect pixel values — it always returns N objects."""
@@ -220,19 +223,20 @@ class TestEmptyAndLowLight(unittest.TestCase):
         detector = MockDetector(num_detections=2, skip_every_n=3)
         results = [detector.detect(_frame()) for _ in range(6)]
         # Calls 3 and 6 should have 0 detections
-        self.assertEqual(len(results[2].detections), 0)   # 3rd call
-        self.assertEqual(len(results[5].detections), 0)   # 6th call
+        self.assertEqual(len(results[2].detections), 0)  # 3rd call
+        self.assertEqual(len(results[5].detections), 0)  # 6th call
         detector.shutdown()
 
 
 # ── Corrupted inference ───────────────────────────────────────────────────────
 
+
 class TestCorruptedInference(unittest.TestCase):
     def test_corrupt_on_call_sets_error_field(self):
         """corrupt_on_call=2 → 2nd detect() returns error, not a crash."""
         detector = MockDetector(num_detections=1, corrupt_on_call=2)
-        detector.detect(_frame())   # call 1 — OK
-        r = detector.detect(_frame())   # call 2 — error
+        detector.detect(_frame())  # call 1 — OK
+        r = detector.detect(_frame())  # call 2 — error
         self.assertIsNotNone(r.error)
         self.assertIn("simulated inference error", r.error)
         detector.shutdown()
@@ -240,8 +244,8 @@ class TestCorruptedInference(unittest.TestCase):
     def test_call_after_error_recovers(self):
         """Error on call 1 does not permanently break the detector."""
         detector = MockDetector(num_detections=1, corrupt_on_call=1)
-        detector.detect(_frame())   # error call
-        r = detector.detect(_frame())   # should be fine
+        detector.detect(_frame())  # error call
+        r = detector.detect(_frame())  # should be fine
         self.assertIsNone(r.error)
         detector.shutdown()
 
@@ -255,10 +259,11 @@ class TestCorruptedInference(unittest.TestCase):
 
 # ── Timeout handling ──────────────────────────────────────────────────────────
 
+
 class TestTimeout(unittest.TestCase):
     def test_single_timeout_returns_timed_out_flag(self):
         cfg = _cfg(inference_timeout_sec=0.05, max_consecutive_timeouts=5)
-        detector = MockDetector(cfg=cfg, block_sec=0.2)   # blocks 200 ms > 50 ms timeout
+        detector = MockDetector(cfg=cfg, block_sec=0.2)  # blocks 200 ms > 50 ms timeout
         r = detector.detect(_frame())
         self.assertTrue(r.timed_out)
         detector.shutdown()
@@ -275,8 +280,8 @@ class TestTimeout(unittest.TestCase):
     def test_max_consecutive_timeouts_triggers_degraded(self):
         cfg = _cfg(inference_timeout_sec=0.05, max_consecutive_timeouts=2)
         detector = MockDetector(cfg=cfg, block_sec=0.2)
-        detector.detect(_frame())   # 1st timeout
-        detector.detect(_frame())   # 2nd timeout → enters degraded
+        detector.detect(_frame())  # 1st timeout
+        detector.detect(_frame())  # 2nd timeout → enters degraded
         self.assertTrue(detector.is_degraded)
         detector.shutdown()
 
@@ -293,13 +298,14 @@ class TestTimeout(unittest.TestCase):
     def test_timeout_disabled_when_zero(self):
         """inference_timeout_sec=0 → no timeout wrapper, blocking allowed."""
         cfg = _cfg(inference_timeout_sec=0.0)
-        detector = MockDetector(cfg=cfg, block_sec=0.0)   # no actual block
+        detector = MockDetector(cfg=cfg, block_sec=0.0)  # no actual block
         r = detector.detect(_frame())
         self.assertFalse(r.timed_out)
         detector.shutdown()
 
 
 # ── Degraded mode ─────────────────────────────────────────────────────────────
+
 
 class TestDegradedMode(unittest.TestCase):
     def test_start_degraded_flag(self):
@@ -349,6 +355,7 @@ class TestDegradedMode(unittest.TestCase):
 
 # ── Depth and bearing filling ─────────────────────────────────────────────────
 
+
 class TestDepthAndBearing(unittest.TestCase):
     def test_depth_filled_from_depth_map(self):
         detector = MockDetector(num_detections=1)
@@ -385,18 +392,21 @@ class TestDepthAndBearing(unittest.TestCase):
 
     def test_fill_bearing_static_method(self):
         det = ObjectDetection(
-            class_id=0, class_name="person", confidence=0.9,
+            class_id=0,
+            class_name="person",
+            confidence=0.9,
             bbox=(0, 0, 640, 480),  # centre at x=320 in 640-wide frame
         )
         BaseDetector._fill_bearing(
-            type("D", (), {"_hfov_deg": 60.0})(),  # minimal duck-typed instance
-            det, 640
+            type("D", (), {"_hfov_deg": 60.0})(), det, 640  # minimal duck-typed instance
         )
         self.assertAlmostEqual(det.bearing_deg, 0.0, delta=0.1)
 
     def test_fill_bearing_right_edge(self):
         det = ObjectDetection(
-            class_id=0, class_name="person", confidence=0.9,
+            class_id=0,
+            class_name="person",
+            confidence=0.9,
             bbox=(600, 200, 40, 100),  # centre near right
         )
         # Use the static method via a proper detector instance
@@ -407,6 +417,7 @@ class TestDepthAndBearing(unittest.TestCase):
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
+
 
 class TestStats(unittest.TestCase):
     def test_total_inferences_increments(self):
@@ -428,6 +439,7 @@ class TestStats(unittest.TestCase):
 
 
 # ── Thread safety ─────────────────────────────────────────────────────────────
+
 
 class TestThreadSafety(unittest.TestCase):
     def test_concurrent_detect_calls_no_exception(self):

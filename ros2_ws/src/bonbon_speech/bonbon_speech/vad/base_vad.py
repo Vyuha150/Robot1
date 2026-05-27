@@ -4,12 +4,12 @@ bonbon_speech.vad.base_vad
 Abstract base class for Voice Activity Detection backends + AudioSegment
 dataclass returned when a complete speech segment is detected.
 """
+
 from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 import numpy as np
 
@@ -28,12 +28,13 @@ class AudioSegment:
     force_cut:      True when the segment was emitted due to max_speech_sec
     doa_angle_deg:  direction-of-arrival if available from the HAL mic
     """
-    samples:        np.ndarray            = field(default_factory=lambda: np.zeros(0, dtype=np.float32))
-    sample_rate:    int                   = 16000
-    duration_sec:   float                 = 0.0
-    onset_time:     float                 = field(default_factory=time.monotonic)
-    force_cut:      bool                  = False
-    doa_angle_deg:  float                 = 0.0
+
+    samples: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=np.float32))
+    sample_rate: int = 16000
+    duration_sec: float = 0.0
+    onset_time: float = field(default_factory=time.monotonic)
+    force_cut: bool = False
+    doa_angle_deg: float = 0.0
 
     def __post_init__(self):
         if self.duration_sec == 0.0 and self.samples.size > 0:
@@ -74,7 +75,7 @@ class BaseVAD(ABC):
         self,
         samples: np.ndarray,
         doa_angle_deg: float = 0.0,
-    ) -> Optional[AudioSegment]:
+    ) -> AudioSegment | None:
         """
         Feed one audio chunk to the VAD state machine.
 

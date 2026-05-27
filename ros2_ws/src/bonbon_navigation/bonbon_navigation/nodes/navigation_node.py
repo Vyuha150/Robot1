@@ -39,58 +39,65 @@ Safety contract
 * The node never directly writes to /cmd_vel — all motion goes through
   /bonbon/safety_gate/cmd_vel.
 """
+
 from __future__ import annotations
 
 import math
 import threading
-import time
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import rclpy
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.qos import (
-    QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy, QoSHistoryPolicy,
+    QoSDurabilityPolicy,
+    QoSHistoryPolicy,
+    QoSProfile,
+    QoSReliabilityPolicy,
 )
 
-from bonbon_navigation.config.nav_config import NavigationConfig
-from bonbon_navigation.core.map_manager import MapManager
-from bonbon_navigation.core.localization_monitor import (
-    LocalizationMonitor, LocalizationQuality,
-)
-from bonbon_navigation.core.goal_manager import (
-    GoalManager, NavigationGoalEntry,
-    RESULT_SUCCESS, RESULT_TIMEOUT, RESULT_UNREACHABLE,
-    RESULT_STUCK, RESULT_SAFETY_STOP, RESULT_CANCELLED, RESULT_PLAN_FAILED,
-)
-from bonbon_navigation.core.stuck_detector import StuckDetector
-from bonbon_navigation.core.recovery_executor import RecoveryExecutor, RecoveryOutcome
-from bonbon_navigation.core.battery_router import BatteryRouter
-from bonbon_navigation.planners.human_aware_costmap import HumanAwareCostmapLayer
 from bonbon_navigation.behaviors.docking_controller import (
-    DockingController, DockingPhase,
+    DockingController,
+    DockingPhase,
 )
+from bonbon_navigation.config.nav_config import NavigationConfig
+from bonbon_navigation.core.battery_router import BatteryRouter
+from bonbon_navigation.core.goal_manager import (
+    RESULT_PLAN_FAILED,
+    RESULT_SAFETY_STOP,
+    RESULT_STUCK,
+    RESULT_TIMEOUT,
+    RESULT_UNREACHABLE,
+    GoalManager,
+    NavigationGoalEntry,
+)
+from bonbon_navigation.core.localization_monitor import (
+    LocalizationMonitor,
+)
+from bonbon_navigation.core.map_manager import MapManager
+from bonbon_navigation.core.recovery_executor import RecoveryExecutor, RecoveryOutcome
+from bonbon_navigation.core.stuck_detector import StuckDetector
+from bonbon_navigation.planners.human_aware_costmap import HumanAwareCostmapLayer
 from bonbon_navigation.safety.safety_stop_bridge import (
+    SAFETY_DANGER,
+    SAFETY_FAULT,
+    SAFETY_SAFE_STOP,
     SafetyStopBridge,
-    SAFETY_NORMAL, SAFETY_CAUTION, SAFETY_DOCKING,
-    SAFETY_DANGER, SAFETY_FAULT, SAFETY_SAFE_STOP,
 )
-
 
 # ── QoS profiles ─────────────────────────────────────────────────────────────
 
 _QOS_RELIABLE_TL = QoSProfile(
-    reliability  = QoSReliabilityPolicy.RELIABLE,
-    durability   = QoSDurabilityPolicy.TRANSIENT_LOCAL,
-    history      = QoSHistoryPolicy.KEEP_LAST,
-    depth        = 1,
+    reliability=QoSReliabilityPolicy.RELIABLE,
+    durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    depth=1,
 )
 
 _QOS_SENSOR = QoSProfile(
-    reliability  = QoSReliabilityPolicy.BEST_EFFORT,
-    durability   = QoSDurabilityPolicy.VOLATILE,
-    history      = QoSHistoryPolicy.KEEP_LAST,
-    depth        = 5,
+    reliability=QoSReliabilityPolicy.BEST_EFFORT,
+    durability=QoSDurabilityPolicy.VOLATILE,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    depth=5,
 )
 
 _QOS_DEFAULT = QoSProfile(depth=10)
@@ -98,32 +105,33 @@ _QOS_DEFAULT = QoSProfile(depth=10)
 
 # ── Navigation states (mirrors NavigationStatus.msg constants) ────────────────
 
-STATE_IDLE           = 0
-STATE_PLANNING       = 1
-STATE_EXECUTING      = 2
-STATE_RECOVERING     = 3
-STATE_DOCKING        = 4
-STATE_ARRIVED        = 5
-STATE_BLOCKED        = 6
-STATE_FAILED         = 7
-STATE_CANCELLED      = 8
+STATE_IDLE = 0
+STATE_PLANNING = 1
+STATE_EXECUTING = 2
+STATE_RECOVERING = 3
+STATE_DOCKING = 4
+STATE_ARRIVED = 5
+STATE_BLOCKED = 6
+STATE_FAILED = 7
+STATE_CANCELLED = 8
 STATE_SAFETY_STOPPED = 9
 
 _STATE_NAMES = {
-    STATE_IDLE:           "IDLE",
-    STATE_PLANNING:       "PLANNING",
-    STATE_EXECUTING:      "EXECUTING",
-    STATE_RECOVERING:     "RECOVERING",
-    STATE_DOCKING:        "DOCKING",
-    STATE_ARRIVED:        "ARRIVED",
-    STATE_BLOCKED:        "BLOCKED",
-    STATE_FAILED:         "FAILED",
-    STATE_CANCELLED:      "CANCELLED",
+    STATE_IDLE: "IDLE",
+    STATE_PLANNING: "PLANNING",
+    STATE_EXECUTING: "EXECUTING",
+    STATE_RECOVERING: "RECOVERING",
+    STATE_DOCKING: "DOCKING",
+    STATE_ARRIVED: "ARRIVED",
+    STATE_BLOCKED: "BLOCKED",
+    STATE_FAILED: "FAILED",
+    STATE_CANCELLED: "CANCELLED",
     STATE_SAFETY_STOPPED: "SAFETY_STOPPED",
 }
 
 
 # ── Node ──────────────────────────────────────────────────────────────────────
+
 
 class NavigationNode(LifecycleNode):
     """
@@ -139,47 +147,47 @@ class NavigationNode(LifecycleNode):
 
     def __init__(self) -> None:
         super().__init__("navigation_node")
-        self._cfg:    Optional[NavigationConfig]    = None
-        self._state:  int                           = STATE_IDLE
-        self._lock:   threading.Lock                = threading.Lock()
-        self._active: bool                          = False
+        self._cfg: NavigationConfig | None = None
+        self._state: int = STATE_IDLE
+        self._lock: threading.Lock = threading.Lock()
+        self._active: bool = False
 
         # Subsystems (created in on_configure)
-        self._map_manager:       Optional[MapManager]              = None
-        self._loc_monitor:       Optional[LocalizationMonitor]     = None
-        self._goal_manager:      Optional[GoalManager]             = None
-        self._stuck_detector:    Optional[StuckDetector]           = None
-        self._recovery_executor: Optional[RecoveryExecutor]        = None
-        self._battery_router:    Optional[BatteryRouter]           = None
-        self._human_costmap:     Optional[HumanAwareCostmapLayer]  = None
-        self._docking_ctrl:      Optional[DockingController]       = None
-        self._safety_bridge:     Optional[SafetyStopBridge]        = None
+        self._map_manager: MapManager | None = None
+        self._loc_monitor: LocalizationMonitor | None = None
+        self._goal_manager: GoalManager | None = None
+        self._stuck_detector: StuckDetector | None = None
+        self._recovery_executor: RecoveryExecutor | None = None
+        self._battery_router: BatteryRouter | None = None
+        self._human_costmap: HumanAwareCostmapLayer | None = None
+        self._docking_ctrl: DockingController | None = None
+        self._safety_bridge: SafetyStopBridge | None = None
 
         # Nav2 action client (lazy import to decouple from ROS2 at test time)
-        self._nav2_client:   Any  = None
-        self._nav2_future:   Any  = None
+        self._nav2_client: Any = None
+        self._nav2_future: Any = None
 
         # Cached sensor data
-        self._last_odom_x:   float = 0.0
-        self._last_odom_y:   float = 0.0
+        self._last_odom_x: float = 0.0
+        self._last_odom_y: float = 0.0
         self._last_odom_yaw: float = 0.0
-        self._last_vel:      float = 0.0
+        self._last_vel: float = 0.0
 
         # Passing announcement tracking
         self._announced_persons: set = set()
 
         # Timers
-        self._status_timer  = None
-        self._health_timer  = None
-        self._nav_timer     = None
+        self._status_timer = None
+        self._health_timer = None
+        self._nav_timer = None
 
         # Publishers / subscribers
-        self._pub_status    = None
-        self._pub_goal      = None
-        self._pub_dock      = None
-        self._pub_recovery  = None
-        self._pub_health    = None
-        self._pub_tts       = None
+        self._pub_status = None
+        self._pub_goal = None
+        self._pub_dock = None
+        self._pub_recovery = None
+        self._pub_health = None
+        self._pub_tts = None
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -203,9 +211,9 @@ class NavigationNode(LifecycleNode):
             )
 
             self._goal_manager = GoalManager(
-                max_queue_size   = 10,
-                default_timeout_sec = self._cfg.nav2.navigate_to_pose_timeout_sec,
-                max_plan_failures = 3,
+                max_queue_size=10,
+                default_timeout_sec=self._cfg.nav2.navigate_to_pose_timeout_sec,
+                max_plan_failures=3,
             )
 
             self._stuck_detector = StuckDetector(self._cfg.stuck_detector)
@@ -217,9 +225,7 @@ class NavigationNode(LifecycleNode):
             self._recovery_executor.set_backup_fn(self._execute_backup)
             self._recovery_executor.set_spin_fn(self._execute_spin)
 
-            self._battery_router = BatteryRouter(
-                self._cfg.battery_routing, self._map_manager
-            )
+            self._battery_router = BatteryRouter(self._cfg.battery_routing, self._map_manager)
 
             self._human_costmap = HumanAwareCostmapLayer(
                 self._cfg.human_aware,
@@ -236,28 +242,34 @@ class NavigationNode(LifecycleNode):
             self._docking_ctrl.set_coarse_nav_fn(self._send_nav2_goal_raw)
 
             self._safety_bridge = SafetyStopBridge(
-                max_speed_mps       = self._cfg.robot.max_speed_mps,
-                caution_speed_mps   = self._cfg.robot.caution_speed_mps,
-                dock_speed_mps      = self._cfg.robot.dock_speed_mps,
-                watchdog_timeout_sec= 2.0,
+                max_speed_mps=self._cfg.robot.max_speed_mps,
+                caution_speed_mps=self._cfg.robot.caution_speed_mps,
+                dock_speed_mps=self._cfg.robot.dock_speed_mps,
+                watchdog_timeout_sec=2.0,
             )
 
             # Init Nav2 action client
             self._init_nav2_client()
 
             # Publishers
-            self._pub_status   = self.create_publisher(
-                self._import_msg("NavigationStatus"), "/navigation/status", _QOS_DEFAULT)
-            self._pub_goal     = self.create_publisher(
-                self._import_msg("NavigationGoal"),   "/navigation/goal",   _QOS_DEFAULT)
-            self._pub_dock     = self.create_publisher(
-                self._import_msg("DockingStatus"),    "/navigation/docking_status", _QOS_DEFAULT)
+            self._pub_status = self.create_publisher(
+                self._import_msg("NavigationStatus"), "/navigation/status", _QOS_DEFAULT
+            )
+            self._pub_goal = self.create_publisher(
+                self._import_msg("NavigationGoal"), "/navigation/goal", _QOS_DEFAULT
+            )
+            self._pub_dock = self.create_publisher(
+                self._import_msg("DockingStatus"), "/navigation/docking_status", _QOS_DEFAULT
+            )
             self._pub_recovery = self.create_publisher(
-                self._import_msg("RecoveryStatus"),   "/navigation/recovery_status", _QOS_DEFAULT)
-            self._pub_health   = self.create_publisher(
-                self._import_msg("ModuleHealth"),     "/health/navigation", _QOS_RELIABLE_TL)
-            self._pub_tts      = self.create_publisher(
-                self._import_msg("TTSRequest"),       "/bonbon/tts/request", _QOS_DEFAULT)
+                self._import_msg("RecoveryStatus"), "/navigation/recovery_status", _QOS_DEFAULT
+            )
+            self._pub_health = self.create_publisher(
+                self._import_msg("ModuleHealth"), "/health/navigation", _QOS_RELIABLE_TL
+            )
+            self._pub_tts = self.create_publisher(
+                self._import_msg("TTSRequest"), "/bonbon/tts/request", _QOS_DEFAULT
+            )
 
             # Subscribers
             self.create_subscription(
@@ -281,14 +293,15 @@ class NavigationNode(LifecycleNode):
             # Odometry
             try:
                 from nav_msgs.msg import Odometry
-                self.create_subscription(
-                    Odometry, "/odom", self._on_odom, _QOS_SENSOR)
+
+                self.create_subscription(Odometry, "/odom", self._on_odom, _QOS_SENSOR)
             except ImportError:
                 self.get_logger().warn("[navigation] nav_msgs unavailable")
 
             # AMCL/RTAB-Map localization
             try:
                 from geometry_msgs.msg import PoseWithCovarianceStamped
+
                 self.create_subscription(
                     PoseWithCovarianceStamped,
                     "/amcl_pose",
@@ -298,7 +311,7 @@ class NavigationNode(LifecycleNode):
                 self.create_subscription(
                     PoseWithCovarianceStamped,
                     "/rtabmap/localization_pose",
-                    self._on_amcl_pose,   # same handler
+                    self._on_amcl_pose,  # same handler
                     _QOS_DEFAULT,
                 )
             except ImportError:
@@ -307,6 +320,7 @@ class NavigationNode(LifecycleNode):
             # Battery
             try:
                 from sensor_msgs.msg import BatteryState
+
                 self.create_subscription(
                     BatteryState,
                     self._cfg.battery_routing.battery_topic,
@@ -391,8 +405,9 @@ class NavigationNode(LifecycleNode):
             if timed_out:
                 self.get_logger().warning("[navigation] Goal timeout: %s", timed_out.goal_id[:8])
                 self._cancel_nav2_goal()
-                self._goal_manager.mark_failed(timed_out.goal_id, RESULT_TIMEOUT,
-                                               "navigation timeout")
+                self._goal_manager.mark_failed(
+                    timed_out.goal_id, RESULT_TIMEOUT, "navigation timeout"
+                )
                 self._tts_speak("I'm sorry, I couldn't reach the destination in time.")
                 self._transition_state(STATE_FAILED)
                 return
@@ -430,8 +445,9 @@ class NavigationNode(LifecycleNode):
                 "[navigation] Goal rejected: motion blocked (safety=%s)",
                 self._safety_bridge.safety_state_name(),
             )
-            self._goal_manager.mark_failed(goal.goal_id, RESULT_SAFETY_STOP,
-                                           "safety state blocks navigation")
+            self._goal_manager.mark_failed(
+                goal.goal_id, RESULT_SAFETY_STOP, "safety state blocks navigation"
+            )
             self._transition_state(STATE_SAFETY_STOPPED)
             return
 
@@ -442,14 +458,14 @@ class NavigationNode(LifecycleNode):
 
         self.get_logger().info(
             "[navigation] Sending goal to Nav2: %s  (%.2f, %.2f)",
-            goal.goal_id[:8], goal.target_x, goal.target_y,
+            goal.goal_id[:8],
+            goal.target_x,
+            goal.target_y,
         )
         self._transition_state(STATE_PLANNING)
         self._stuck_detector.reset()
 
-        success = self._send_nav2_goal(
-            goal.target_x, goal.target_y, goal.target_yaw
-        )
+        success = self._send_nav2_goal(goal.target_x, goal.target_y, goal.target_yaw)
         if not success:
             if self._goal_manager.record_plan_failure(goal.goal_id):
                 self._goal_manager.mark_failed(
@@ -466,10 +482,10 @@ class NavigationNode(LifecycleNode):
         """Initiate precision docking sequence."""
         if self._docking_ctrl:
             self._docking_ctrl.start(
-                charger_id  = goal.named_location or "charger",
-                charger_x   = goal.target_x,
-                charger_y   = goal.target_y,
-                charger_yaw = goal.target_yaw,
+                charger_id=goal.named_location or "charger",
+                charger_x=goal.target_x,
+                charger_y=goal.target_y,
+                charger_yaw=goal.target_yaw,
             )
         self._transition_state(STATE_DOCKING)
 
@@ -495,8 +511,7 @@ class NavigationNode(LifecycleNode):
         elif outcome == RecoveryOutcome.EXHAUSTED:
             active = self._goal_manager.get_active() if self._goal_manager else None
             if active:
-                self._goal_manager.mark_failed(active.goal_id, RESULT_STUCK,
-                                               "recovery exhausted")
+                self._goal_manager.mark_failed(active.goal_id, RESULT_STUCK, "recovery exhausted")
                 self.get_logger().error("[navigation] Recovery exhausted: goal failed")
                 self._transition_state(STATE_FAILED)
 
@@ -515,7 +530,8 @@ class NavigationNode(LifecycleNode):
             active = self._goal_manager.get_active() if self._goal_manager else None
             if active:
                 self._goal_manager.mark_failed(
-                    active.goal_id, RESULT_PLAN_FAILED,
+                    active.goal_id,
+                    RESULT_PLAN_FAILED,
                     self._docking_ctrl.state.failure_reason,
                 )
             self._transition_state(STATE_FAILED)
@@ -526,6 +542,7 @@ class NavigationNode(LifecycleNode):
     def _init_nav2_client(self) -> None:
         try:
             from nav2_simple_commander.robot_navigator import BasicNavigator
+
             self._nav2_client = BasicNavigator()
             self.get_logger().info("[navigation] Nav2 BasicNavigator initialised")
         except ImportError:
@@ -541,10 +558,10 @@ class NavigationNode(LifecycleNode):
             return False
         try:
             from geometry_msgs.msg import PoseStamped
-            from rclpy.time import Time
+
             pose = PoseStamped()
             pose.header.frame_id = "map"
-            pose.header.stamp    = self.get_clock().now().to_msg()
+            pose.header.stamp = self.get_clock().now().to_msg()
             pose.pose.position.x = x
             pose.pose.position.y = y
             pose.pose.position.z = 0.0
@@ -562,8 +579,9 @@ class NavigationNode(LifecycleNode):
     def _send_nav2_goal_raw(self, pose_tuple) -> None:
         """Helper for docking controller coarse navigation."""
         if isinstance(pose_tuple, (tuple, list)) and len(pose_tuple) >= 2:
-            self._send_nav2_goal(pose_tuple[0], pose_tuple[1],
-                                 pose_tuple[2] if len(pose_tuple) > 2 else 0.0)
+            self._send_nav2_goal(
+                pose_tuple[0], pose_tuple[1], pose_tuple[2] if len(pose_tuple) > 2 else 0.0
+            )
 
     def _check_nav2_result(self) -> None:
         """Poll the Nav2 future for completion."""
@@ -579,6 +597,7 @@ class NavigationNode(LifecycleNode):
                 return
 
             from action_msgs.msg import GoalStatus
+
             if result == GoalStatus.STATUS_SUCCEEDED:
                 # Check arrival tolerance
                 d = active.distance_to(self._last_odom_x, self._last_odom_y)
@@ -586,13 +605,15 @@ class NavigationNode(LifecycleNode):
                     self._goal_manager.mark_succeeded(active.goal_id)
                     self._transition_state(STATE_ARRIVED)
                     self.get_logger().info(
-                        "[navigation] Arrived: %s (dist=%.2fm)", active.goal_id[:8], d)
+                        "[navigation] Arrived: %s (dist=%.2fm)", active.goal_id[:8], d
+                    )
                     if active.named_location:
                         self._tts_speak(f"I've arrived at {active.named_location}.")
                 else:
                     self.get_logger().warning(
                         "[navigation] Nav2 succeeded but %.2fm from goal (tol=%.2fm)",
-                        d, active.arrival_tol_m,
+                        d,
+                        active.arrival_tol_m,
                     )
                     self._goal_manager.mark_succeeded(active.goal_id)
                     self._transition_state(STATE_ARRIVED)
@@ -641,7 +662,7 @@ class NavigationNode(LifecycleNode):
             return
 
         # Extract goal parameters from param_names/param_values
-        params: Dict[str, str] = {}
+        params: dict[str, str] = {}
         for name, val in zip(msg.param_names, msg.param_values):
             params[name] = val
 
@@ -656,8 +677,7 @@ class NavigationNode(LifecycleNode):
             if pose:
                 goal_x, goal_y, goal_yaw = pose.x, pose.y, pose.yaw
             else:
-                self.get_logger().warning(
-                    "[navigation] Unknown location: %r", named)
+                self.get_logger().warning("[navigation] Unknown location: %r", named)
                 return
 
         # Check safety
@@ -666,39 +686,42 @@ class NavigationNode(LifecycleNode):
             return
 
         goal_id = self._goal_manager.enqueue(
-            target_x        = goal_x,
-            target_y        = goal_y,
-            target_yaw      = goal_yaw,
-            goal_type       = 2 if named and named.startswith("charger") else 1,
-            priority        = int(msg.priority),
-            named_location  = named,
-            requester_id    = "behavior_engine",
-            recommendation_id = msg.recommendation_id,
-            preempt         = (int(msg.priority) >= 2),  # HIGH+ preempts
+            target_x=goal_x,
+            target_y=goal_y,
+            target_yaw=goal_yaw,
+            goal_type=2 if named and named.startswith("charger") else 1,
+            priority=int(msg.priority),
+            named_location=named,
+            requester_id="behavior_engine",
+            recommendation_id=msg.recommendation_id,
+            preempt=(int(msg.priority) >= 2),  # HIGH+ preempts
         )
         self.get_logger().info(
             "[navigation] Goal accepted: %s → %r (%.2f, %.2f)",
-            goal_id[:8], named, goal_x, goal_y,
+            goal_id[:8],
+            named,
+            goal_x,
+            goal_y,
         )
 
     def _on_safety_state(self, msg) -> None:
         if self._safety_bridge:
             self._safety_bridge.update_safety_state(
-                state                = int(msg.state),
-                navigation_permitted = bool(msg.navigation_permitted),
-                actuation_permitted  = bool(msg.actuation_permitted),
+                state=int(msg.state),
+                navigation_permitted=bool(msg.navigation_permitted),
+                actuation_permitted=bool(msg.actuation_permitted),
             )
         # Immediate stop on hard-blocked states
         if int(msg.state) in (SAFETY_DANGER, SAFETY_FAULT, SAFETY_SAFE_STOP):
             if self._state in (STATE_EXECUTING, STATE_PLANNING, STATE_RECOVERING):
-                self.get_logger().warning(
-                    "[navigation] Safety stop: state=%s", msg.state_name)
+                self.get_logger().warning("[navigation] Safety stop: state=%s", msg.state_name)
                 self._cancel_nav2_goal()
                 if self._goal_manager:
                     active = self._goal_manager.get_active()
                     if active:
                         self._goal_manager.mark_failed(
-                            active.goal_id, RESULT_SAFETY_STOP,
+                            active.goal_id,
+                            RESULT_SAFETY_STOP,
                             f"safety state={msg.state_name}",
                         )
                 self._transition_state(STATE_SAFETY_STOPPED)
@@ -709,18 +732,18 @@ class NavigationNode(LifecycleNode):
         seen_ids = set()
         for p in msg.persons:
             self._human_costmap.update_person(
-                track_id     = p.track_id,
-                x            = p.position.x,
-                y            = p.position.y,
-                velocity_mps = p.velocity_mps,
-                facing_robot = p.facing_robot,
-                age_group    = p.age_group,
+                track_id=p.track_id,
+                x=p.position.x,
+                y=p.position.y,
+                velocity_mps=p.velocity_mps,
+                facing_robot=p.facing_robot,
+                age_group=p.age_group,
             )
             seen_ids.add(p.track_id)
 
     def _on_odom(self, msg) -> None:
-        self._last_odom_x   = msg.pose.pose.position.x
-        self._last_odom_y   = msg.pose.pose.position.y
+        self._last_odom_x = msg.pose.pose.position.x
+        self._last_odom_y = msg.pose.pose.position.y
         q = msg.pose.pose.orientation
         # yaw from quaternion
         siny = 2.0 * (q.w * q.z + q.x * q.y)
@@ -729,9 +752,7 @@ class NavigationNode(LifecycleNode):
         self._last_vel = abs(msg.twist.twist.linear.x)
 
         if self._stuck_detector and self._state == STATE_EXECUTING:
-            self._stuck_detector.update(
-                self._last_odom_x, self._last_odom_y, self._last_vel
-            )
+            self._stuck_detector.update(self._last_odom_x, self._last_odom_y, self._last_vel)
         if self._loc_monitor:
             self._loc_monitor.update_pose_simple(
                 self._last_odom_x, self._last_odom_y, self._last_odom_yaw
@@ -744,20 +765,24 @@ class NavigationNode(LifecycleNode):
         q = p.orientation
         siny = 2.0 * (q.w * q.z + q.x * q.y)
         cosy = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
-        yaw  = math.atan2(siny, cosy)
+        yaw = math.atan2(siny, cosy)
         c = msg.pose.covariance
         self._loc_monitor.update_pose(
-            x=p.position.x, y=p.position.y, yaw=yaw,
-            cov_xx=c[0], cov_yy=c[7], cov_yawyaw=c[35],
+            x=p.position.x,
+            y=p.position.y,
+            yaw=yaw,
+            cov_xx=c[0],
+            cov_yy=c[7],
+            cov_yawyaw=c[35],
         )
 
     def _on_battery(self, msg) -> None:
         if self._battery_router:
             self._battery_router.update_battery(
-                percentage  = float(msg.percentage) * 100.0,
-                voltage_v   = float(msg.voltage),
-                current_a   = float(msg.current),
-                is_charging = (msg.power_supply_status == 1),  # CHARGING = 1
+                percentage=float(msg.percentage) * 100.0,
+                voltage_v=float(msg.voltage),
+                current_a=float(msg.current),
+                is_charging=(msg.power_supply_status == 1),  # CHARGING = 1
             )
 
     # ── Battery routing check ─────────────────────────────────────────────────
@@ -781,18 +806,17 @@ class NavigationNode(LifecycleNode):
 
         priority = 3 if decision.urgency == "urgent" else 2  # URGENT or HIGH
         self._goal_manager.enqueue(
-            target_x       = charger.x,
-            target_y       = charger.y,
-            target_yaw     = charger.yaw,
-            goal_type      = 2,  # TYPE_CHARGER
-            priority       = priority,
-            named_location = charger.name,
-            require_precise= True,
-            requester_id   = "battery_router",
-            preempt        = (priority == 3),  # critical preempts
+            target_x=charger.x,
+            target_y=charger.y,
+            target_yaw=charger.yaw,
+            goal_type=2,  # TYPE_CHARGER
+            priority=priority,
+            named_location=charger.name,
+            require_precise=True,
+            requester_id="battery_router",
+            preempt=(priority == 3),  # critical preempts
         )
-        self.get_logger().warning("[navigation] %s — routing to %s",
-                                  decision.reason, charger.name)
+        self.get_logger().warning("[navigation] %s — routing to %s", decision.reason, charger.name)
         if priority == 3:
             self._tts_speak("My battery is critically low. I need to charge now.")
 
@@ -801,9 +825,7 @@ class NavigationNode(LifecycleNode):
     def _check_passing_alerts(self) -> None:
         if self._human_costmap is None or self._state != STATE_EXECUTING:
             return
-        alerts = self._human_costmap.get_passing_alerts(
-            self._last_odom_x, self._last_odom_y
-        )
+        alerts = self._human_costmap.get_passing_alerts(self._last_odom_x, self._last_odom_y)
         for alert in alerts:
             if alert.person_id not in self._announced_persons:
                 self._tts_speak("Excuse me, coming through! Please watch your step.")
@@ -822,9 +844,7 @@ class NavigationNode(LifecycleNode):
 
     def _escalate(self, reason: str) -> None:
         self.get_logger().error("[navigation] Escalating: %s", reason)
-        self._tts_speak(
-            "I'm sorry, I need help. Please ask a staff member to assist me."
-        )
+        self._tts_speak("I'm sorry, I need help. Please ask a staff member to assist me.")
 
     # ── Velocity publishing ───────────────────────────────────────────────────
 
@@ -837,8 +857,9 @@ class NavigationNode(LifecycleNode):
             return
         try:
             from geometry_msgs.msg import Twist
+
             twist = Twist()
-            twist.linear.x  = gated.linear_mps
+            twist.linear.x = gated.linear_mps
             twist.angular.z = gated.angular_rps
             # Published to safety gate topic — NOT directly to /cmd_vel
             # (safety_gate_node relays to /cmd_vel after its own checks)
@@ -852,7 +873,7 @@ class NavigationNode(LifecycleNode):
             return
         try:
             msg = self._import_msg("TTSRequest")()
-            msg.text     = text
+            msg.text = text
             msg.priority = priority
             self._pub_tts.publish(msg)
         except Exception as exc:
@@ -877,26 +898,24 @@ class NavigationNode(LifecycleNode):
         try:
             active = self._goal_manager.get_active() if self._goal_manager else None
             msg = self._import_msg("NavigationStatus")()
-            msg.header.stamp   = self.get_clock().now().to_msg()
-            msg.header.frame_id= "map"
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = "map"
             msg.active_goal_id = active.goal_id if active else ""
-            msg.state          = self._state
-            msg.state_name     = _STATE_NAMES.get(self._state, "UNKNOWN")
+            msg.state = self._state
+            msg.state_name = _STATE_NAMES.get(self._state, "UNKNOWN")
             msg.distance_remaining_m = -1.0
-            msg.linear_velocity_mps  = self._last_vel
-            msg.goals_queued   = self._goal_manager.queue_size() if self._goal_manager else 0
+            msg.linear_velocity_mps = self._last_vel
+            msg.goals_queued = self._goal_manager.queue_size() if self._goal_manager else 0
 
             if active:
                 msg.elapsed_sec = active.elapsed_sec
-                msg.distance_remaining_m = active.distance_to(
-                    self._last_odom_x, self._last_odom_y
-                )
+                msg.distance_remaining_m = active.distance_to(self._last_odom_x, self._last_odom_y)
 
             if self._recovery_executor and self._recovery_executor.is_active():
                 rs = self._recovery_executor.get_state()
                 if rs:
                     msg.recovery_behavior = rs.behavior
-                    msg.recovery_attempt  = rs.total_attempts
+                    msg.recovery_attempt = rs.total_attempts
 
             if self._loc_monitor:
                 pose = self._loc_monitor.get_pose()
@@ -913,9 +932,9 @@ class NavigationNode(LifecycleNode):
         try:
             msg = self._import_msg("ModuleHealth")()
             msg.header.stamp = self.get_clock().now().to_msg()
-            msg.module_name  = "bonbon_navigation.navigation_node"
-            msg.status       = 0  # OK
-            msg.status_text  = (
+            msg.module_name = "bonbon_navigation.navigation_node"
+            msg.status = 0  # OK
+            msg.status_text = (
                 f"state={_STATE_NAMES.get(self._state,'?')} "
                 f"localized={self._loc_monitor.is_localized() if self._loc_monitor else '?'}"
             )
@@ -927,43 +946,43 @@ class NavigationNode(LifecycleNode):
 
     def _create_services(self) -> None:
         try:
-            from bonbon_srvs.srv import NavigateTo, CancelNavigation, GetNearestCharger
-            self.create_service(NavigateTo, "/navigation/navigate_to",
-                                self._srv_navigate_to)
-            self.create_service(CancelNavigation, "/navigation/cancel",
-                                self._srv_cancel)
-            self.create_service(GetNearestCharger, "/navigation/get_nearest_charger",
-                                self._srv_get_nearest_charger)
+            from bonbon_srvs.srv import CancelNavigation, GetNearestCharger, NavigateTo
+
+            self.create_service(NavigateTo, "/navigation/navigate_to", self._srv_navigate_to)
+            self.create_service(CancelNavigation, "/navigation/cancel", self._srv_cancel)
+            self.create_service(
+                GetNearestCharger, "/navigation/get_nearest_charger", self._srv_get_nearest_charger
+            )
         except ImportError:
             self.get_logger().warn("[navigation] bonbon_srvs not available — services skipped")
 
     def _srv_navigate_to(self, request, response):
-        named   = request.named_location
-        goal_x  = request.target_pose.pose.position.x if not named else 0.0
-        goal_y  = request.target_pose.pose.position.y if not named else 0.0
-        goal_yaw= 0.0
+        named = request.named_location
+        goal_x = request.target_pose.pose.position.x if not named else 0.0
+        goal_y = request.target_pose.pose.position.y if not named else 0.0
+        goal_yaw = 0.0
 
         if named:
             pose = self._map_manager.resolve_location(named) if self._map_manager else None
             if pose is None:
-                response.success     = False
-                response.message     = f"Unknown location: {named!r}"
+                response.success = False
+                response.message = f"Unknown location: {named!r}"
                 response.result_code = RESULT_PLAN_FAILED
                 return response
             goal_x, goal_y, goal_yaw = pose.x, pose.y, pose.yaw
 
         gid = self._goal_manager.enqueue(
-            target_x        = goal_x,
-            target_y        = goal_y,
-            target_yaw      = goal_yaw,
-            named_location  = named,
-            timeout_sec     = request.timeout_sec,
-            requester_id    = request.requester_id,
-            preempt         = not request.enqueue,
-            goal_id         = request.goal_id or "",
+            target_x=goal_x,
+            target_y=goal_y,
+            target_yaw=goal_yaw,
+            named_location=named,
+            timeout_sec=request.timeout_sec,
+            requester_id=request.requester_id,
+            preempt=not request.enqueue,
+            goal_id=request.goal_id or "",
         )
-        response.success     = True
-        response.message     = f"Goal accepted: {gid[:8]}"
+        response.success = True
+        response.message = f"Goal accepted: {gid[:8]}"
         response.result_code = 0
         return response
 
@@ -972,25 +991,29 @@ class NavigationNode(LifecycleNode):
         if n:
             self._cancel_nav2_goal()
             self._transition_state(STATE_CANCELLED)
-        response.success        = True
-        response.goals_cancelled= n
-        response.message        = f"Cancelled {n} goal(s)"
+        response.success = True
+        response.goals_cancelled = n
+        response.message = f"Cancelled {n} goal(s)"
         return response
 
     def _srv_get_nearest_charger(self, request, response):
-        charger = self._map_manager.nearest_charger(
-            self._last_odom_x, self._last_odom_y
-        ) if self._map_manager else None
+        charger = (
+            self._map_manager.nearest_charger(self._last_odom_x, self._last_odom_y)
+            if self._map_manager
+            else None
+        )
         if charger:
-            response.found       = True
-            response.charger_id  = charger.name
-            response.distance_m  = charger.distance_to_m if hasattr(charger, "distance_to_m") \
-                                   else math.hypot(charger.x - self._last_odom_x,
-                                                   charger.y - self._last_odom_y)
-            response.message     = "OK"
+            response.found = True
+            response.charger_id = charger.name
+            response.distance_m = (
+                charger.distance_to_m
+                if hasattr(charger, "distance_to_m")
+                else math.hypot(charger.x - self._last_odom_x, charger.y - self._last_odom_y)
+            )
+            response.message = "OK"
         else:
-            response.found       = False
-            response.message     = "No charger registered"
+            response.found = False
+            response.message = "No charger registered"
         return response
 
     # ── Import helper ─────────────────────────────────────────────────────────
@@ -999,10 +1022,12 @@ class NavigationNode(LifecycleNode):
     def _import_msg(name: str):
         """Lazy-import a bonbon_msgs message class by name."""
         from bonbon_msgs import msg as bonbon_msg
+
         return getattr(bonbon_msg, name)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

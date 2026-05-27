@@ -6,19 +6,18 @@ Tests the full goal lifecycle when a goal exceeds its timeout_sec.
 No ROS2 runtime required — uses stub callbacks to simulate the
 navigation node's internal logic.
 """
-import time
 
-import pytest
+import time
 
 from bonbon_navigation.config.nav_config import RecoveryConfig
 from bonbon_navigation.core.goal_manager import (
-    GoalManager,
     RESULT_TIMEOUT,
+    GoalManager,
 )
 from bonbon_navigation.core.recovery_executor import RecoveryExecutor, RecoveryOutcome
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _recovery_cfg() -> RecoveryConfig:
     return RecoveryConfig(
@@ -48,7 +47,9 @@ class NavigationHarness:
 
     def enqueue(self, goal_id: str, priority: int = 1) -> str:
         return self.gm.enqueue(
-            target_x=5.0, target_y=5.0, target_yaw=0.0,
+            target_x=5.0,
+            target_y=5.0,
+            target_yaw=0.0,
             priority=priority,
             timeout_sec=self._goal_timeout,
             goal_id=goal_id,
@@ -63,8 +64,7 @@ class NavigationHarness:
             timed_out = self.gm.check_timeout()
             if timed_out:
                 self.events.append(("timeout", active.goal_id))
-                self.gm.mark_failed(active.goal_id, result_code=RESULT_TIMEOUT,
-                                    message="timeout")
+                self.gm.mark_failed(active.goal_id, result_code=RESULT_TIMEOUT, message="timeout")
                 self.recovery.reset(trigger_reason="timeout")
 
         # Run recovery if active
@@ -83,6 +83,7 @@ class NavigationHarness:
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
+
 
 class TestNavigationTimeout:
     def test_goal_times_out(self):

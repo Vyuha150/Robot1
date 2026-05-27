@@ -10,37 +10,30 @@ Validates navigation behaviour in a narrow 3 m × 30 m corridor:
 
 No ROS2 runtime required.
 """
-import math
-import time
 
 import pytest
-
-from bonbon_navigation.config.nav_config import (
-    DockingConfig,
-    HumanAwareConfig,
-    RecoveryConfig,
-    StuckDetectorConfig,
-)
 from bonbon_navigation.behaviors.docking_controller import (
     DockingController,
     DockingPhase,
 )
-from bonbon_navigation.core.goal_manager import GoalManager, RESULT_SUCCESS as RESULT_SUCCEEDED
-from bonbon_navigation.core.stuck_detector import StuckDetector
+from bonbon_navigation.config.nav_config import (
+    DockingConfig,
+    HumanAwareConfig,
+)
+from bonbon_navigation.core.goal_manager import GoalManager
 from bonbon_navigation.planners.human_aware_costmap import HumanAwareCostmapLayer
 from bonbon_navigation.safety.safety_stop_bridge import (
-    SafetyStopBridge,
-    SAFETY_NORMAL,
     SAFETY_CAUTION,
     SAFETY_DOCKING,
+    SAFETY_NORMAL,
+    SafetyStopBridge,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 CORRIDOR_START = (0.0, 0.0)
-CORRIDOR_END   = (28.0, 0.0)
-CHARGER_POS    = (1.0, 0.0, 0.0)    # (x, y, yaw) — west end charger
+CORRIDOR_END = (28.0, 0.0)
+CHARGER_POS = (1.0, 0.0, 0.0)  # (x, y, yaw) — west end charger
 
 
 def _docking_cfg() -> DockingConfig:
@@ -76,6 +69,7 @@ def _human_cfg() -> HumanAwareConfig:
 
 # ── Straight corridor traversal ───────────────────────────────────────────────
 
+
 class TestCorridorTraversal:
     def test_velocity_passes_at_normal_speed(self):
         bridge = SafetyStopBridge(watchdog_timeout_sec=5.0)
@@ -94,9 +88,14 @@ class TestCorridorTraversal:
 
     def test_goal_manager_corridor_goal(self):
         gm = GoalManager()
-        gm.enqueue(target_x=CORRIDOR_END[0], target_y=CORRIDOR_END[1],
-                   target_yaw=0.0, priority=1, timeout_sec=120.0,
-                   goal_id="corridor_end")
+        gm.enqueue(
+            target_x=CORRIDOR_END[0],
+            target_y=CORRIDOR_END[1],
+            target_yaw=0.0,
+            priority=1,
+            timeout_sec=120.0,
+            goal_id="corridor_end",
+        )
         active = gm.activate_next()
         assert active is not None
         assert active.goal_id == "corridor_end"
@@ -107,27 +106,38 @@ class TestCorridorTraversal:
 
 # ── Human awareness in corridor ───────────────────────────────────────────────
 
+
 class TestCorridorHumanAwareness:
     def test_pedestrian_inflates_cost(self):
         cfg = _human_cfg()
         layer = HumanAwareCostmapLayer(
-            cfg, resolution=0.05, width=700, height=80,
-            origin_x=-1.0, origin_y=-2.0,
+            cfg,
+            resolution=0.05,
+            width=700,
+            height=80,
+            origin_x=-1.0,
+            origin_y=-2.0,
         )
         # Pedestrian at corridor midpoint (15.0, 0.0)
-        layer.update_person("ped_1", x=15.0, y=0.0, velocity_mps=0.5,
-                             facing_robot=True, age_group="adult")
+        layer.update_person(
+            "ped_1", x=15.0, y=0.0, velocity_mps=0.5, facing_robot=True, age_group="adult"
+        )
         cost = layer.cost_at(15.0, 0.0)
         assert cost > 0
 
     def test_pedestrian_personal_space_radius(self):
         cfg = _human_cfg()
         layer = HumanAwareCostmapLayer(
-            cfg, resolution=0.05, width=700, height=80,
-            origin_x=-1.0, origin_y=-2.0,
+            cfg,
+            resolution=0.05,
+            width=700,
+            height=80,
+            origin_x=-1.0,
+            origin_y=-2.0,
         )
-        layer.update_person("ped_1", x=15.0, y=0.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "ped_1", x=15.0, y=0.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         # Cost at exactly person_inflation_radius away should be ~0
         cost_at_edge = layer.cost_at(15.0 + 0.80, 0.0)
         cost_at_centre = layer.cost_at(15.0, 0.0)
@@ -136,11 +146,16 @@ class TestCorridorHumanAwareness:
     def test_passing_alert_triggered_within_range(self):
         cfg = _human_cfg()
         layer = HumanAwareCostmapLayer(
-            cfg, resolution=0.05, width=700, height=80,
-            origin_x=-1.0, origin_y=-2.0,
+            cfg,
+            resolution=0.05,
+            width=700,
+            height=80,
+            origin_x=-1.0,
+            origin_y=-2.0,
         )
-        layer.update_person("ped_cross", x=15.0, y=0.0, velocity_mps=0.8,
-                             facing_robot=True, age_group="adult")
+        layer.update_person(
+            "ped_cross", x=15.0, y=0.0, velocity_mps=0.8, facing_robot=True, age_group="adult"
+        )
         # Robot at 1.5 m from person → within announce_distance_m=2.0
         alerts = layer.get_passing_alerts(robot_x=13.5, robot_y=0.0)
         assert len(alerts) == 1
@@ -150,29 +165,40 @@ class TestCorridorHumanAwareness:
     def test_passing_alert_not_triggered_far_away(self):
         cfg = _human_cfg()
         layer = HumanAwareCostmapLayer(
-            cfg, resolution=0.05, width=700, height=80,
-            origin_x=-1.0, origin_y=-2.0,
+            cfg,
+            resolution=0.05,
+            width=700,
+            height=80,
+            origin_x=-1.0,
+            origin_y=-2.0,
         )
-        layer.update_person("ped_far", x=15.0, y=0.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "ped_far", x=15.0, y=0.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         alerts = layer.get_passing_alerts(robot_x=5.0, robot_y=0.0)
         assert len(alerts) == 0
 
     def test_child_vulnerable_larger_radius(self):
         cfg = _human_cfg()
         layer = HumanAwareCostmapLayer(
-            cfg, resolution=0.05, width=700, height=80,
-            origin_x=-1.0, origin_y=-2.0,
+            cfg,
+            resolution=0.05,
+            width=700,
+            height=80,
+            origin_x=-1.0,
+            origin_y=-2.0,
         )
         # Child at (10.0, 0.0) — vulnerable
-        layer.update_person("child_1", x=10.0, y=0.0, velocity_mps=0.2,
-                             facing_robot=False, age_group="child")
+        layer.update_person(
+            "child_1", x=10.0, y=0.0, velocity_mps=0.2, facing_robot=False, age_group="child"
+        )
         # At 1.0 m — within vulnerable radius (1.20 m) but outside adult radius (0.80 m)
         cost_child = layer.cost_at(10.0 + 1.0, 0.0)
         # Rebuild with adult at same location
         layer.remove_person("child_1")
-        layer.update_person("adult_1", x=10.0, y=0.0, velocity_mps=0.2,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "adult_1", x=10.0, y=0.0, velocity_mps=0.2, facing_robot=False, age_group="adult"
+        )
         cost_adult = layer.cost_at(10.0 + 1.0, 0.0)
         # Child's cost at 1.0 m should be >= adult's (larger radius)
         assert cost_child >= cost_adult
@@ -180,11 +206,16 @@ class TestCorridorHumanAwareness:
     def test_stale_person_not_inflated(self):
         cfg = _human_cfg()
         layer = HumanAwareCostmapLayer(
-            cfg, resolution=0.05, width=700, height=80,
-            origin_x=-1.0, origin_y=-2.0,
+            cfg,
+            resolution=0.05,
+            width=700,
+            height=80,
+            origin_x=-1.0,
+            origin_y=-2.0,
         )
-        layer.update_person("old_ped", x=15.0, y=0.0, velocity_mps=0.0,
-                             facing_robot=False, age_group="adult")
+        layer.update_person(
+            "old_ped", x=15.0, y=0.0, velocity_mps=0.0, facing_robot=False, age_group="adult"
+        )
         # Manually expire
         layer._persons["old_ped"].last_seen -= 10.0  # type: ignore[union-attr]
         layer.rebuild_grid()
@@ -194,22 +225,26 @@ class TestCorridorHumanAwareness:
 
 # ── Docking at corridor end ───────────────────────────────────────────────────
 
+
 class TestCorridorDocking:
     def _docking_harness(self):
         cfg = _docking_cfg()
         dc = DockingController(cfg)
         vel_cmds = []
         stop_calls = []
-        dc.set_cmd_vel_fn(lambda l, a: vel_cmds.append((l, a)))
+        dc.set_cmd_vel_fn(lambda lin, a: vel_cmds.append((lin, a)))
         dc.set_stop_fn(lambda: stop_calls.append(True))
         dc.set_coarse_nav_fn(lambda pose: None)
         return dc, vel_cmds, stop_calls
 
     def test_docking_starts_approaching(self):
         dc, _, _ = self._docking_harness()
-        dc.start("charger_corridor",
-                 charger_x=CHARGER_POS[0], charger_y=CHARGER_POS[1],
-                 charger_yaw=CHARGER_POS[2])
+        dc.start(
+            "charger_corridor",
+            charger_x=CHARGER_POS[0],
+            charger_y=CHARGER_POS[1],
+            charger_yaw=CHARGER_POS[2],
+        )
         assert dc.phase == DockingPhase.APPROACHING
 
     def test_docking_transitions_aligning_on_proximity(self):

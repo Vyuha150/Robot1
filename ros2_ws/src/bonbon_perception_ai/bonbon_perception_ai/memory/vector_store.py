@@ -11,20 +11,20 @@ Privacy
 Embeddings are computed from SceneSnapshot fields only (counts, distances,
 activity labels) — no face data, no raw audio, no PII is embedded.
 """
+
 from __future__ import annotations
 
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 import numpy as np
 
 from bonbon_perception_ai.config.perception_config import MemoryConfig
 from bonbon_perception_ai.understanding.scene_analyzer import SceneSnapshot
 
-
 # ── Embedding ─────────────────────────────────────────────────────────────────
+
 
 class SceneEmbedding:
     """
@@ -48,10 +48,17 @@ class SceneEmbedding:
     DIM = 32
 
     _ACTIVITY_IDX = {
-        "idle": 0, "interacting": 1, "navigating": 2, "serving": 3, "crowded": 4,
+        "idle": 0,
+        "interacting": 1,
+        "navigating": 2,
+        "serving": 3,
+        "crowded": 4,
     }
     _SPATIAL_IDX = {
-        "open_space": 0, "crowded": 1, "near_person": 2, "at_station": 3,
+        "open_space": 0,
+        "crowded": 1,
+        "near_person": 2,
+        "at_station": 3,
     }
     _UNCERTAINTY = {"LOW": 0.0, "MEDIUM": 0.5, "HIGH": 1.0}
 
@@ -60,11 +67,11 @@ class SceneEmbedding:
         v = np.zeros(cls.DIM, dtype=np.float32)
 
         # Dense features
-        v[0]  = min(len(snap.present_person_ids) / 5.0, 1.0)
-        v[1]  = min(len(snap.present_object_classes) / 10.0, 1.0)
-        prox  = snap.human_proximity_m
-        v[2]  = max(0.0, 1.0 - prox / 5.0) if prox != float("inf") else 0.0
-        v[3]  = 1.0 if snap.is_crowded else 0.0
+        v[0] = min(len(snap.present_person_ids) / 5.0, 1.0)
+        v[1] = min(len(snap.present_object_classes) / 10.0, 1.0)
+        prox = snap.human_proximity_m
+        v[2] = max(0.0, 1.0 - prox / 5.0) if prox != float("inf") else 0.0
+        v[3] = 1.0 if snap.is_crowded else 0.0
 
         # Activity one-hot
         a_idx = cls._ACTIVITY_IDX.get(snap.dominant_activity, 0)
@@ -96,6 +103,7 @@ class SceneEmbedding:
 
 # ── Episode record ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class EpisodeRecord:
     episode_id: str
@@ -110,6 +118,7 @@ class EpisodeRecord:
 
 # ── Vector store ──────────────────────────────────────────────────────────────
 
+
 class FAISSVectorStore:
     """
     Stores scene embeddings and supports k-nearest-neighbour retrieval.
@@ -120,39 +129,41 @@ class FAISSVectorStore:
     """
 
     def __init__(self, cfg: MemoryConfig) -> None:
-        self.cfg         = cfg
-        self._episodes:  List[EpisodeRecord] = []
-        self._index      = None          # faiss.Index or None
-        self._use_faiss  = False
-        self._lock       = threading.Lock()
+        self.cfg = cfg
+        self._episodes: list[EpisodeRecord] = []
+        self._index = None  # faiss.Index or None
+        self._use_faiss = False
+        self._lock = threading.Lock()
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def load(self) -> None:
         try:
             import faiss  # type: ignore
-            self._index     = faiss.IndexFlatIP(SceneEmbedding.DIM)
+
+            self._index = faiss.IndexFlatIP(SceneEmbedding.DIM)
             self._use_faiss = True
         except ImportError:
-            self._use_faiss = False    # NumPy fallback
+            self._use_faiss = False  # NumPy fallback
 
     def clear(self) -> None:
         with self._lock:
             self._episodes.clear()
             if self._use_faiss and self._index is not None:
                 import faiss  # type: ignore
+
                 self._index = faiss.IndexFlatIP(SceneEmbedding.DIM)
 
     # ── Write ─────────────────────────────────────────────────────────────────
 
     def add(self, snap: SceneSnapshot) -> EpisodeRecord:
-        raw  = SceneEmbedding.encode(snap)
+        raw = SceneEmbedding.encode(snap)
         norm = SceneEmbedding.normalise(raw)
-        rec  = EpisodeRecord(
-            episode_id = snap.scene_id,
-            timestamp  = snap.timestamp,
-            snapshot   = snap,
-            embedding  = norm,
+        rec = EpisodeRecord(
+            episode_id=snap.scene_id,
+            timestamp=snap.timestamp,
+            snapshot=snap,
+            embedding=norm,
         )
         with self._lock:
             self._episodes.append(rec)
@@ -169,6 +180,7 @@ class FAISSVectorStore:
         if self._use_faiss:
             # Rebuild index from remaining embeddings (FAISS flat has no delete)
             import faiss  # type: ignore
+
             self._index = faiss.IndexFlatIP(SceneEmbedding.DIM)
             if self._episodes:
                 mat = np.vstack([r.embedding for r in self._episodes])
@@ -176,11 +188,9 @@ class FAISSVectorStore:
 
     # ── Query ─────────────────────────────────────────────────────────────────
 
-    def search(
-        self, query_snap: SceneSnapshot, k: int = 5
-    ) -> List[EpisodeRecord]:
+    def search(self, query_snap: SceneSnapshot, k: int = 5) -> list[EpisodeRecord]:
         """Return up to k most-similar past episodes."""
-        raw  = SceneEmbedding.encode(query_snap)
+        raw = SceneEmbedding.encode(query_snap)
         norm = SceneEmbedding.normalise(raw)
 
         with self._lock:
@@ -188,12 +198,12 @@ class FAISSVectorStore:
                 return []
             k_actual = min(k, len(self._episodes))
             if self._use_faiss:
-                _D, I = self._index.search(norm.reshape(1, -1), k_actual)  # type: ignore
-                return [self._episodes[i] for i in I[0] if 0 <= i < len(self._episodes)]
+                _D, indices = self._index.search(norm.reshape(1, -1), k_actual)  # type: ignore
+                return [self._episodes[i] for i in indices[0] if 0 <= i < len(self._episodes)]
             else:
                 # NumPy cosine similarity
-                mat    = np.vstack([r.embedding for r in self._episodes])
-                scores = mat @ norm                        # dot product of normalised = cosine
+                mat = np.vstack([r.embedding for r in self._episodes])
+                scores = mat @ norm  # dot product of normalised = cosine
                 top_idx = np.argsort(scores)[::-1][:k_actual]
                 return [self._episodes[int(i)] for i in top_idx]
 

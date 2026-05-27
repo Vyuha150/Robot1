@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -24,7 +22,7 @@ class UserInfo(BaseModel):
     username: str
     role: str
     is_active: bool
-    last_login: Optional[float] = None
+    last_login: float | None = None
 
 
 class UserCreate(BaseModel):
@@ -34,14 +32,15 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    role: Optional[str] = Field(default=None, pattern=r"^(viewer|operator|engineer|admin)$")
-    is_active: Optional[bool] = None
-    password: Optional[str] = Field(default=None, min_length=8, max_length=128)
+    role: str | None = Field(default=None, pattern=r"^(viewer|operator|engineer|admin)$")
+    is_active: bool | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=128)
 
 
 class TokenPayload(BaseModel):
     """Decoded JWT payload."""
-    sub: str          # user_id
+
+    sub: str  # user_id
     username: str
     role: str
     exp: int

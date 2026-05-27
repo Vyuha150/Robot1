@@ -11,19 +11,21 @@ Requirements:
 The backend wraps pyannote's ``Pipeline`` in a ThreadPoolExecutor future so
 the inference_timeout_sec cap from DiarizationConfig is honoured.
 """
+
 from __future__ import annotations
 
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
-from io import BytesIO
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 
 import numpy as np
 
 from bonbon_speech.config.speech_config import DiarizationConfig
 from bonbon_speech.diarization.base_diarizer import (
-    BaseDiarizer, DiarizationResult, SpeakerSegment,
+    BaseDiarizer,
+    DiarizationResult,
+    SpeakerSegment,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +54,6 @@ class PyAnnoteDiarizer(BaseDiarizer):
 
         try:
             from pyannote.audio import Pipeline  # type: ignore
-            import torch
 
             if cfg.pipeline_path:
                 logger.info("PyAnnoteDiarizer loading from path=%s", cfg.pipeline_path)
@@ -88,24 +89,24 @@ class PyAnnoteDiarizer(BaseDiarizer):
             return DiarizationResult()
 
         cfg = self._cfg
-        t0  = time.monotonic()
+        t0 = time.monotonic()
 
-        future = self._executor.submit(
-            self._run_pipeline, samples, sample_rate, cfg
-        )
+        future = self._executor.submit(self._run_pipeline, samples, sample_rate, cfg)
         try:
             result = future.result(timeout=cfg.inference_timeout_sec)
             elapsed = (time.monotonic() - t0) * 1000.0
             logger.debug(
                 "PyAnnoteDiarizer done n_speakers=%d ms=%.1f",
-                len(result.all_speaker_ids), elapsed,
+                len(result.all_speaker_ids),
+                elapsed,
             )
             return result
         except FutureTimeout:
             elapsed_ms = (time.monotonic() - t0) * 1000.0
             logger.warning(
                 "PyAnnoteDiarizer timeout after %.0fms (limit=%ds)",
-                elapsed_ms, cfg.inference_timeout_sec,
+                elapsed_ms,
+                cfg.inference_timeout_sec,
             )
             return DiarizationResult(is_timeout=True)
         except Exception as exc:
@@ -135,11 +136,13 @@ class PyAnnoteDiarizer(BaseDiarizer):
 
         segments = []
         for turn, _, speaker in diarization.itertracks(yield_label=True):
-            segments.append(SpeakerSegment(
-                speaker_id=speaker,
-                start_sec=float(turn.start),
-                end_sec=float(turn.end),
-                confidence=1.0,
-            ))
+            segments.append(
+                SpeakerSegment(
+                    speaker_id=speaker,
+                    start_sec=float(turn.start),
+                    end_sec=float(turn.end),
+                    confidence=1.0,
+                )
+            )
 
         return DiarizationResult(segments=segments)

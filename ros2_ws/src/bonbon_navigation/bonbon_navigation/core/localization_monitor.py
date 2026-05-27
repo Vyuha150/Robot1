@@ -11,40 +11,42 @@ Responsibilities
 * Provide the latest robot pose to other navigation components
 * Report localization health for the /health/navigation topic
 """
+
 from __future__ import annotations
 
 import logging
 import math
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import List, Optional, Tuple
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
 # ── Localization quality ──────────────────────────────────────────────────────
 
-class LocalizationQuality(str, Enum):
-    UNKNOWN   = "UNKNOWN"    # no pose received yet
-    GOOD      = "GOOD"       # covariance within limits
-    DEGRADED  = "DEGRADED"   # covariance elevated, but usable
-    LOST      = "LOST"       # covariance too high or pose stale
+
+class LocalizationQuality(StrEnum):
+    UNKNOWN = "UNKNOWN"  # no pose received yet
+    GOOD = "GOOD"  # covariance within limits
+    DEGRADED = "DEGRADED"  # covariance elevated, but usable
+    LOST = "LOST"  # covariance too high or pose stale
 
 
 @dataclass
 class PoseEstimate:
     """The robot's estimated pose in the map frame."""
-    x:   float = 0.0
-    y:   float = 0.0
-    yaw: float = 0.0          # radians
+
+    x: float = 0.0
+    y: float = 0.0
+    yaw: float = 0.0  # radians
 
     # Covariance diagonal elements (xx, yy, yawyaw)
-    cov_xx:    float = 1.0
-    cov_yy:    float = 1.0
-    cov_yawyaw:float = 1.0
+    cov_xx: float = 1.0
+    cov_yy: float = 1.0
+    cov_yawyaw: float = 1.0
 
-    timestamp: float = 0.0    # time.monotonic()
+    timestamp: float = 0.0  # time.monotonic()
 
     @property
     def covariance_trace(self) -> float:
@@ -57,15 +59,17 @@ class PoseEstimate:
 @dataclass
 class LocalizationReport:
     """Localization health snapshot for the node to consume."""
-    quality:          LocalizationQuality
-    pose:             Optional[PoseEstimate]
+
+    quality: LocalizationQuality
+    pose: PoseEstimate | None
     covariance_trace: float
-    pose_age_sec:     float
-    quality_history:  List[LocalizationQuality] = field(default_factory=list)
-    message:          str = ""
+    pose_age_sec: float
+    quality_history: list[LocalizationQuality] = field(default_factory=list)
+    message: str = ""
 
 
 # ── Monitor ───────────────────────────────────────────────────────────────────
+
 
 class LocalizationMonitor:
     """
@@ -86,27 +90,29 @@ class LocalizationMonitor:
         self,
         good_cov_threshold: float = 0.10,
         lost_cov_threshold: float = 1.00,
-        pose_stale_sec: float     = 2.0,
-        history_len: int          = 20,
+        pose_stale_sec: float = 2.0,
+        history_len: int = 20,
     ) -> None:
-        self._good_thresh   = good_cov_threshold
-        self._lost_thresh   = lost_cov_threshold
-        self._stale_sec     = pose_stale_sec
-        self._history_len   = history_len
+        self._good_thresh = good_cov_threshold
+        self._lost_thresh = lost_cov_threshold
+        self._stale_sec = pose_stale_sec
+        self._history_len = history_len
 
-        self._pose          = PoseEstimate()
-        self._quality       = LocalizationQuality.UNKNOWN
-        self._history:      List[LocalizationQuality] = []
-        self._reloc_count   = 0
-        self._loss_events   = 0
-        self._pose_received        = False   # True only after update_pose() with covariance
-        self._simple_pose_received = False   # True after update_pose_simple()
+        self._pose = PoseEstimate()
+        self._quality = LocalizationQuality.UNKNOWN
+        self._history: list[LocalizationQuality] = []
+        self._reloc_count = 0
+        self._loss_events = 0
+        self._pose_received = False  # True only after update_pose() with covariance
+        self._simple_pose_received = False  # True after update_pose_simple()
 
     # ── Pose ingestion ────────────────────────────────────────────────────────
 
     def update_pose(
         self,
-        x: float, y: float, yaw: float,
+        x: float,
+        y: float,
+        yaw: float,
         cov_xx: float = 0.01,
         cov_yy: float = 0.01,
         cov_yawyaw: float = 0.01,
@@ -116,8 +122,12 @@ class LocalizationMonitor:
         (from /amcl_pose or /rtabmap/localization_pose).
         """
         self._pose = PoseEstimate(
-            x=x, y=y, yaw=yaw,
-            cov_xx=cov_xx, cov_yy=cov_yy, cov_yawyaw=cov_yawyaw,
+            x=x,
+            y=y,
+            yaw=yaw,
+            cov_xx=cov_xx,
+            cov_yy=cov_yy,
+            cov_yawyaw=cov_yawyaw,
             timestamp=time.monotonic(),
         )
         self._pose_received = True
@@ -127,8 +137,12 @@ class LocalizationMonitor:
         """Update pose without covariance (e.g. from a TF lookup).
         Quality is not evaluated — only the position is stored."""
         self._pose = PoseEstimate(
-            x=x, y=y, yaw=yaw,
-            cov_xx=0.05, cov_yy=0.05, cov_yawyaw=0.05,
+            x=x,
+            y=y,
+            yaw=yaw,
+            cov_xx=0.05,
+            cov_yy=0.05,
+            cov_yawyaw=0.05,
             timestamp=time.monotonic(),
         )
         self._simple_pose_received = True
@@ -140,9 +154,7 @@ class LocalizationMonitor:
         age = time.monotonic() - self._pose.timestamp
         trace = self._pose.covariance_trace
 
-        if age > self._stale_sec:
-            q = LocalizationQuality.LOST
-        elif trace > self._lost_thresh:
+        if age > self._stale_sec or trace > self._lost_thresh:
             q = LocalizationQuality.LOST
         elif trace > self._good_thresh:
             q = LocalizationQuality.DEGRADED
@@ -160,7 +172,7 @@ class LocalizationMonitor:
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
-    def get_pose(self) -> Optional[PoseEstimate]:
+    def get_pose(self) -> PoseEstimate | None:
         """Return last pose, or None if no pose has been received yet."""
         if not (self._pose_received or self._simple_pose_received):
             return None
@@ -168,8 +180,8 @@ class LocalizationMonitor:
 
     def get_quality(self) -> LocalizationQuality:
         if not self._pose_received:
-            return LocalizationQuality.UNKNOWN   # no covariance pose received
-        self._update_quality()   # refresh staleness check
+            return LocalizationQuality.UNKNOWN  # no covariance pose received
+        self._update_quality()  # refresh staleness check
         return self._quality
 
     def is_localized(self) -> bool:
@@ -177,23 +189,23 @@ class LocalizationMonitor:
         return q in (LocalizationQuality.GOOD, LocalizationQuality.DEGRADED)
 
     def get_report(self) -> LocalizationReport:
-        q    = self.get_quality()
+        q = self.get_quality()
         pose = self.get_pose()
-        age  = (time.monotonic() - self._pose.timestamp) if pose else 0.0
-        cov  = self._pose.covariance_trace if pose else 0.0
-        msg  = {
-            LocalizationQuality.GOOD:     "Localization good",
+        age = (time.monotonic() - self._pose.timestamp) if pose else 0.0
+        cov = self._pose.covariance_trace if pose else 0.0
+        msg = {
+            LocalizationQuality.GOOD: "Localization good",
             LocalizationQuality.DEGRADED: "Localization degraded — high covariance",
-            LocalizationQuality.LOST:     "Localization LOST — pose unreliable",
-            LocalizationQuality.UNKNOWN:  "No pose received yet",
+            LocalizationQuality.LOST: "Localization LOST — pose unreliable",
+            LocalizationQuality.UNKNOWN: "No pose received yet",
         }[q]
         return LocalizationReport(
-            quality          = q,
-            pose             = pose,
-            covariance_trace = cov,
-            pose_age_sec     = age,
-            quality_history  = list(self._history),
-            message          = msg,
+            quality=q,
+            pose=pose,
+            covariance_trace=cov,
+            pose_age_sec=age,
+            quality_history=list(self._history),
+            message=msg,
         )
 
     def record_relocalization(self) -> None:

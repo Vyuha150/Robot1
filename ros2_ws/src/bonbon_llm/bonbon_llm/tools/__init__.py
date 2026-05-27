@@ -7,10 +7,11 @@ Tool / function-calling architecture for the LLM orchestrator.
 emits a BehaviorRecommendation that still passes through the Safety
 Supervisor and Behavior Engine — the LLM never directly controls hardware.
 """
+
 from bonbon_llm.tools.tool_registry import (
     TOOL_SCHEMAS,
-    ToolResult,
     ToolRegistry,
+    ToolResult,
 )
 
 __all__ = [

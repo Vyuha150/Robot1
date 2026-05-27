@@ -20,41 +20,40 @@ Quick import path for the most commonly used types:
         MemoryManager,
     )
 """
-from bonbon_perception_ai.config.perception_config import PerceptionAIConfig
 
+from bonbon_perception_ai.config.perception_config import PerceptionAIConfig
 from bonbon_perception_ai.fusion.multimodal_fusion import MultimodalFusion
 from bonbon_perception_ai.fusion.types import (
     FusionContext,
+    NavStatus,
     ObjectObservation,
     PersonObservation,
-    SpeechInput,
     RobotPose,
-    NavStatus,
+    SpeechInput,
 )
-
-from bonbon_perception_ai.understanding.scene_analyzer import (
-    SceneAnalyzer,
-    SceneSnapshot,
-    ContextEvent,
+from bonbon_perception_ai.memory.memory_manager import MemoryManager
+from bonbon_perception_ai.understanding.behavior_recommender import (
+    PRIORITY_HIGH,
+    PRIORITY_LOW,
+    PRIORITY_NORMAL,
+    PRIORITY_URGENT,
+    BehaviorRecommendation,
+    BehaviorRecommender,
 )
 from bonbon_perception_ai.understanding.intent_engine import (
     IntentEngine,
-    UserIntent,
     IntentSlot,
+    UserIntent,
 )
 from bonbon_perception_ai.understanding.risk_assessor import (
     RiskAssessor,
     RiskEvent,
 )
-from bonbon_perception_ai.understanding.behavior_recommender import (
-    BehaviorRecommender,
-    BehaviorRecommendation,
-    PRIORITY_LOW,
-    PRIORITY_NORMAL,
-    PRIORITY_HIGH,
-    PRIORITY_URGENT,
+from bonbon_perception_ai.understanding.scene_analyzer import (
+    ContextEvent,
+    SceneAnalyzer,
+    SceneSnapshot,
 )
-from bonbon_perception_ai.memory.memory_manager import MemoryManager
 
 __version__ = "1.0.0"
 

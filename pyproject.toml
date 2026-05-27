@@ -13,7 +13,29 @@ exclude = ["build", "install", "log", ".venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+ignore = [
+    "E501",   # line too long — handled by black
+    "E702",   # multiple statements on one line (semicolon) — intentional in hardware/test helpers
+    "E701",   # multiple statements on one line (colon) — intentional in concise guards
+    "B008",   # FastAPI Depends() / require_permission() in argument defaults — standard FastAPI pattern
+    "E402",   # module-level import not at top — required by test setup and ROS2 stub injection
+    "B905",   # zip() without strict= — Python 3.11 compat, not always needed
+    "SIM",    # SIM rules off — too opinionated for embedded / ROS2 style code
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Hardware drivers: optional hardware imports inside try/except blocks
+"ros2_ws/src/bonbon_hal/**" = ["F401"]
+"ros2_ws/src/bonbon_vision/tests/**" = ["F401"]
+"ros2_ws/src/bonbon_perception/**" = ["F401"]
+"ros2_ws/src/bonbon_operator_api/bonbon_operator_api/metrics/**" = ["F401"]
+"ros2_ws/src/bonbon_operator_api/bonbon_operator_api/ros2/**" = ["F401"]
+# Abstract base classes with intentional no-op optional methods (not pure abstract)
+"ros2_ws/src/bonbon_tts/bonbon_tts/backends/base_tts.py" = ["B027"]
+"ros2_ws/src/bonbon_tts/bonbon_tts/speaker/speaker_bridge.py" = ["B027"]
+"ros2_ws/src/bonbon_vision/bonbon_vision/detectors/base_detector.py" = ["B027"]
+# Tests: blind exception catching is acceptable for validation smoke tests
+"ros2_ws/src/bonbon_data_stores/tests/**" = ["B017"]
 
 [tool.mypy]
 python_version = "3.11"

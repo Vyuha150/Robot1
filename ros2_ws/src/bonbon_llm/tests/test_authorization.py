@@ -14,25 +14,25 @@ Tests cover
 * Authorization denied when actuation_permitted flag is False
 * Low-confidence requests handling
 """
-import pytest
 
+import pytest
+from bonbon_llm.config.llm_config import AuthorizationConfig
 from bonbon_llm.safety.authorization import (
+    SAFETY_CAUTION,
+    SAFETY_DANGER,
+    SAFETY_DEGRADED,
+    SAFETY_DOCKING,
+    SAFETY_FAULT,
+    SAFETY_INITIALIZING,
+    SAFETY_NORMAL,
+    SAFETY_SAFE_STOP,
     AuthStatus,
     CommandAuthorizer,
     SafetySnapshot,
-    SAFETY_NORMAL,
-    SAFETY_CAUTION,
-    SAFETY_DANGER,
-    SAFETY_DOCKING,
-    SAFETY_DEGRADED,
-    SAFETY_FAULT,
-    SAFETY_SAFE_STOP,
-    SAFETY_INITIALIZING,
 )
-from bonbon_llm.config.llm_config import AuthorizationConfig
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def auth() -> CommandAuthorizer:
@@ -46,24 +46,25 @@ def _snap(
     max_vel: float = 0.5,
 ) -> SafetySnapshot:
     snap = SafetySnapshot()
-    snap.state_id             = state
-    snap.state_name           = {
-        SAFETY_NORMAL:       "NORMAL",
-        SAFETY_CAUTION:      "CAUTION",
-        SAFETY_DANGER:       "DANGER",
-        SAFETY_DOCKING:      "DOCKING",
-        SAFETY_DEGRADED:     "DEGRADED",
-        SAFETY_FAULT:        "FAULT",
-        SAFETY_SAFE_STOP:    "SAFE_STOP",
+    snap.state_id = state
+    snap.state_name = {
+        SAFETY_NORMAL: "NORMAL",
+        SAFETY_CAUTION: "CAUTION",
+        SAFETY_DANGER: "DANGER",
+        SAFETY_DOCKING: "DOCKING",
+        SAFETY_DEGRADED: "DEGRADED",
+        SAFETY_FAULT: "FAULT",
+        SAFETY_SAFE_STOP: "SAFE_STOP",
         SAFETY_INITIALIZING: "INITIALIZING",
     }.get(state, "UNKNOWN")
     snap.navigation_permitted = nav
-    snap.actuation_permitted  = act
-    snap.max_velocity_mps     = max_vel
+    snap.actuation_permitted = act
+    snap.max_velocity_mps = max_vel
     return snap
 
 
 # ── Navigation authorization ───────────────────────────────────────────────────
+
 
 class TestNavigationAuthorization:
 
@@ -111,6 +112,7 @@ class TestNavigationAuthorization:
 
 # ── Actuation authorization ───────────────────────────────────────────────────
 
+
 class TestActuationAuthorization:
 
     def test_serve_item_granted_in_normal(self, auth):
@@ -137,33 +139,53 @@ class TestActuationAuthorization:
 
 # ── Always-permitted behaviors ────────────────────────────────────────────────
 
+
 class TestAlwaysPermitted:
 
-    @pytest.mark.parametrize("state", [
-        SAFETY_NORMAL, SAFETY_CAUTION, SAFETY_DANGER,
-        SAFETY_FAULT, SAFETY_SAFE_STOP, SAFETY_DEGRADED,
-    ])
+    @pytest.mark.parametrize(
+        "state",
+        [
+            SAFETY_NORMAL,
+            SAFETY_CAUTION,
+            SAFETY_DANGER,
+            SAFETY_FAULT,
+            SAFETY_SAFE_STOP,
+            SAFETY_DEGRADED,
+        ],
+    )
     def test_idle_always_granted(self, auth, state):
         result = auth.authorize("idle", _snap(state), 0.99)
         assert result.granted, f"idle should always be GRANTED (state={state})"
 
-    @pytest.mark.parametrize("state", [
-        SAFETY_NORMAL, SAFETY_FAULT, SAFETY_SAFE_STOP,
-    ])
+    @pytest.mark.parametrize(
+        "state",
+        [
+            SAFETY_NORMAL,
+            SAFETY_FAULT,
+            SAFETY_SAFE_STOP,
+        ],
+    )
     def test_wait_for_input_always_granted(self, auth, state):
         result = auth.authorize("wait_for_input", _snap(state), 0.99)
         assert result.granted
 
-    @pytest.mark.parametrize("state", [
-        SAFETY_NORMAL, SAFETY_CAUTION, SAFETY_DANGER,
-        SAFETY_FAULT, SAFETY_SAFE_STOP,
-    ])
+    @pytest.mark.parametrize(
+        "state",
+        [
+            SAFETY_NORMAL,
+            SAFETY_CAUTION,
+            SAFETY_DANGER,
+            SAFETY_FAULT,
+            SAFETY_SAFE_STOP,
+        ],
+    )
     def test_stop_navigation_always_granted(self, auth, state):
         result = auth.authorize("stop_navigation", _snap(state), 0.99)
         assert result.granted, f"stop_navigation should always be GRANTED (state={state})"
 
 
 # ── Result fields ─────────────────────────────────────────────────────────────
+
 
 class TestResultFields:
 
@@ -189,6 +211,7 @@ class TestResultFields:
 
 
 # ── SafetySnapshot ────────────────────────────────────────────────────────────
+
 
 class TestSafetySnapshot:
 

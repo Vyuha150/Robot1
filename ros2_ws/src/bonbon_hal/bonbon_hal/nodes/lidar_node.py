@@ -7,33 +7,34 @@ Publishes:
 
 The topic /bonbon/lidar/scan matches the safety supervisor subscription.
 """
+
 from __future__ import annotations
 
-import math
-
 import rclpy
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import LaserScan
 
 from bonbon_hal.base.driver_base import DriverBase
-from bonbon_hal.drivers.lidar import LidarDriver, MockLidarDriver, RplidarDriver
-from .hal_node_base import HalNodeBase, RELIABLE_D10
+from bonbon_hal.drivers.lidar import MockLidarDriver, RplidarDriver
+
+from .hal_node_base import HalNodeBase
 
 SENSOR_QOS = QoSProfile(
     reliability=ReliabilityPolicy.BEST_EFFORT,
-    history=HistoryPolicy.KEEP_LAST, depth=5,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=5,
 )
 
 
 class LidarNode(HalNodeBase):
-    NODE_NAME       = "lidar_node"
-    DEVICE_NAME     = "lidar"
-    HEALTH_TOPIC    = "/bonbon/spatial/lidar_node/health"
+    NODE_NAME = "lidar_node"
+    DEVICE_NAME = "lidar"
+    HEALTH_TOPIC = "/bonbon/spatial/lidar_node/health"
     DEFAULT_RATE_HZ = 10.0
 
     def __init__(self) -> None:
         super().__init__()
-        self.declare_parameter("port",     "/dev/ttyUSB0")
+        self.declare_parameter("port", "/dev/ttyUSB0")
         self.declare_parameter("baudrate", 115200)
         self._pub_scan = None
 
@@ -53,20 +54,21 @@ class LidarNode(HalNodeBase):
 
     def _publish_data(self) -> None:
         from bonbon_hal.drivers.lidar.lidar_driver import LidarScan
+
         scan: LidarScan = self._driver.read_scan()
 
         msg = LaserScan()
-        msg.header.stamp    = self.get_clock().now().to_msg()
+        msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = "lidar_link"
-        msg.angle_min       = scan.angle_min_rad
-        msg.angle_max       = scan.angle_max_rad
+        msg.angle_min = scan.angle_min_rad
+        msg.angle_max = scan.angle_max_rad
         msg.angle_increment = scan.angle_increment_rad
-        msg.time_increment  = scan.time_increment_sec
-        msg.scan_time       = scan.scan_time_sec
-        msg.range_min       = scan.range_min_m
-        msg.range_max       = scan.range_max_m
-        msg.ranges          = [float(r) for r in scan.ranges]
-        msg.intensities     = [float(i) for i in scan.intensities]
+        msg.time_increment = scan.time_increment_sec
+        msg.scan_time = scan.scan_time_sec
+        msg.range_min = scan.range_min_m
+        msg.range_max = scan.range_max_m
+        msg.ranges = [float(r) for r in scan.ranges]
+        msg.intensities = [float(i) for i in scan.intensities]
         self._pub_scan.publish(msg)
 
 

@@ -9,13 +9,12 @@ is unavailable or disabled.
 
 API key: same contract as intent_chain — never hardcoded.
 """
+
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from bonbon_perception_ai.understanding.scene_analyzer import SceneSnapshot
-
 
 # ── Prompt ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +34,7 @@ _HUMAN_TEMPLATE = (
 
 def build_scene_chain(
     model_name: str = "gpt-3.5-turbo",
-    api_key: str    = "",
+    api_key: str = "",
     timeout_sec: float = 3.0,
 ):
     """Build the scene-description chain (lazy import)."""
@@ -55,16 +54,18 @@ def build_scene_chain(
     from langchain.schema.output_parser import StrOutputParser  # type: ignore
 
     llm = ChatOpenAI(
-        model           = model_name,
-        openai_api_key  = key,
-        temperature     = 0.3,
-        request_timeout = timeout_sec,
-        max_tokens      = 60,
+        model=model_name,
+        openai_api_key=key,
+        temperature=0.3,
+        request_timeout=timeout_sec,
+        max_tokens=60,
     )
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", _SYSTEM_PROMPT),
-        ("human",  _HUMAN_TEMPLATE),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", _SYSTEM_PROMPT),
+            ("human", _HUMAN_TEMPLATE),
+        ]
+    )
     return prompt | llm | StrOutputParser()
 
 
@@ -75,18 +76,17 @@ def describe_scene(chain, snap: SceneSnapshot) -> str:
     Falls back to snap.description on any error.
     """
     import math
-    prox = (
-        f"{snap.human_proximity_m:.1f}m"
-        if snap.human_proximity_m != math.inf
-        else "none"
-    )
+
+    prox = f"{snap.human_proximity_m:.1f}m" if snap.human_proximity_m != math.inf else "none"
     try:
-        return chain.invoke({
-            "person_count": len(snap.present_person_ids),
-            "proximity":    prox,
-            "objects":      ", ".join(snap.present_object_classes) or "none",
-            "activity":     snap.activity_label,
-            "stale":        ", ".join(snap.stale_modalities) or "none",
-        })
+        return chain.invoke(
+            {
+                "person_count": len(snap.present_person_ids),
+                "proximity": prox,
+                "objects": ", ".join(snap.present_object_classes) or "none",
+                "activity": snap.activity_label,
+                "stale": ", ".join(snap.stale_modalities) or "none",
+            }
+        )
     except Exception:
         return snap.description

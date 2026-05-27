@@ -14,12 +14,13 @@ run fast with `pytest tests/ -v --ignore=tests/integration`.  Only the gating
 logic and helper methods are exercised; ROS2 pub/sub wiring is validated by
 the integration test.
 """
+
 from __future__ import annotations
 
 import math
-import time
 import threading
-from unittest.mock import MagicMock, patch, PropertyMock
+import time
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -34,15 +35,16 @@ from bonbon_safety.nodes.safety_gate_node import (
 # without a ROS2 installation on the CI.  We replicate just the fields that
 # the gate node reads.
 
+
 class _FakeSafetyState:
     INITIALIZING = 0
-    NORMAL       = 1
-    CAUTION      = 2
-    DANGER       = 3
-    DOCKING      = 4
-    DEGRADED     = 5
-    FAULT        = 6
-    SAFE_STOP    = 7
+    NORMAL = 1
+    CAUTION = 2
+    DANGER = 3
+    DOCKING = 4
+    DEGRADED = 5
+    FAULT = 6
+    SAFE_STOP = 7
 
     def __init__(
         self,
@@ -53,38 +55,41 @@ class _FakeSafetyState:
         state_name: str = "NORMAL",
         requires_manual_reset: bool = False,
     ):
-        self.state                 = state
-        self.actuation_permitted   = actuation_permitted
-        self.navigation_permitted  = navigation_permitted
-        self.max_velocity_mps      = max_velocity_mps
-        self.state_name            = state_name
+        self.state = state
+        self.actuation_permitted = actuation_permitted
+        self.navigation_permitted = navigation_permitted
+        self.max_velocity_mps = max_velocity_mps
+        self.state_name = state_name
         self.requires_manual_reset = requires_manual_reset
 
 
 class _FakeTwist:
     """Minimal geometry_msgs/Twist stand-in."""
+
     class _Vec3:
         def __init__(self):
-            self.x = 0.0; self.y = 0.0; self.z = 0.0
+            self.x = 0.0
+            self.y = 0.0
+            self.z = 0.0
 
     def __init__(self, vx: float = 0.0, vy: float = 0.0, wz: float = 0.0):
-        self.linear  = self._Vec3()
+        self.linear = self._Vec3()
         self.angular = self._Vec3()
-        self.linear.x  = vx
-        self.linear.y  = vy
+        self.linear.x = vx
+        self.linear.y = vy
         self.angular.z = wz
 
 
 # ── Pre-built SafetyState fixtures for all 8 states ──────────────────────────
 _STATES = {
     "INITIALIZING": _FakeSafetyState(0, False, False, 0.0, "INITIALIZING"),
-    "NORMAL":       _FakeSafetyState(1, True,  True,  0.8, "NORMAL"),
-    "CAUTION":      _FakeSafetyState(2, True,  True,  0.3, "CAUTION"),
-    "DANGER":       _FakeSafetyState(3, False, False, 0.0, "DANGER"),
-    "DOCKING":      _FakeSafetyState(4, True,  True,  0.2, "DOCKING"),
-    "DEGRADED":     _FakeSafetyState(5, True,  True,  0.3, "DEGRADED"),
-    "FAULT":        _FakeSafetyState(6, False, False, 0.0, "FAULT",  True),
-    "SAFE_STOP":    _FakeSafetyState(7, False, False, 0.0, "SAFE_STOP", True),
+    "NORMAL": _FakeSafetyState(1, True, True, 0.8, "NORMAL"),
+    "CAUTION": _FakeSafetyState(2, True, True, 0.3, "CAUTION"),
+    "DANGER": _FakeSafetyState(3, False, False, 0.0, "DANGER"),
+    "DOCKING": _FakeSafetyState(4, True, True, 0.2, "DOCKING"),
+    "DEGRADED": _FakeSafetyState(5, True, True, 0.3, "DEGRADED"),
+    "FAULT": _FakeSafetyState(6, False, False, 0.0, "FAULT", True),
+    "SAFE_STOP": _FakeSafetyState(7, False, False, 0.0, "SAFE_STOP", True),
 }
 
 
@@ -92,15 +97,16 @@ _STATES = {
 # GateStats
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestGateStats:
     def test_initial_all_zero(self):
         s = GateStats()
         snap = s.snapshot()
-        assert snap["servo_passed"]  == 0
+        assert snap["servo_passed"] == 0
         assert snap["servo_blocked"] == 0
-        assert snap["vel_passed"]    == 0
-        assert snap["vel_scaled"]    == 0
-        assert snap["vel_blocked"]   == 0
+        assert snap["vel_passed"] == 0
+        assert snap["vel_scaled"] == 0
+        assert snap["vel_blocked"] == 0
         assert snap["total_blocked"] == 0
 
     def test_servo_pass_increments(self):
@@ -127,7 +133,7 @@ class TestGateStats:
         s.record_vel_scale()
         snap = s.snapshot()
         assert snap["vel_scaled"] == 1
-        assert snap["vel_passed"] == 1   # scaled = forwarded
+        assert snap["vel_passed"] == 1  # scaled = forwarded
 
     def test_vel_block_increments_total(self):
         s = GateStats()
@@ -146,11 +152,11 @@ class TestGateStats:
         s.record_vel_scale()
         s.record_vel_block()
         snap = s.snapshot()
-        assert snap["servo_passed"]  == 5
+        assert snap["servo_passed"] == 5
         assert snap["servo_blocked"] == 1
-        assert snap["vel_passed"]    == 4    # 3 pass + 1 scale
-        assert snap["vel_scaled"]    == 1
-        assert snap["vel_blocked"]   == 1
+        assert snap["vel_passed"] == 4  # 3 pass + 1 scale
+        assert snap["vel_scaled"] == 1
+        assert snap["vel_blocked"] == 1
         assert snap["total_blocked"] == 2
 
     def test_uptime_increases(self):
@@ -175,6 +181,7 @@ class TestGateStats:
 # ═══════════════════════════════════════════════════════════════════════════════
 # _clamp_twist  (static method — no ROS2 needed)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestClampTwist:
     """Tests for SafetyGateNode._clamp_twist (static)."""
@@ -205,7 +212,7 @@ class TestClampTwist:
 
     def test_diagonal_velocity_clamped(self):
         """2-D diagonal: both x and y scaled proportionally."""
-        twist = _FakeTwist(vx=0.6, vy=0.8)   # speed = 1.0
+        twist = _FakeTwist(vx=0.6, vy=0.8)  # speed = 1.0
         clamped, scaled = SafetyGateNode._clamp_twist(twist, 0.5)
         assert scaled
         speed = math.sqrt(clamped.linear.x**2 + clamped.linear.y**2)
@@ -232,12 +239,13 @@ class TestClampTwist:
         """Avoids division by zero when input speed is negligible."""
         twist = _FakeTwist(vx=1e-9, vy=0.0)
         clamped, scaled = SafetyGateNode._clamp_twist(twist, 0.8)
-        assert not scaled   # speed < 1e-6 threshold
+        assert not scaled  # speed < 1e-6 threshold
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Gating decisions: _can_actuate / _can_navigate
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def _make_gate_with_state(state_name: str, supervisor_ok: bool = True) -> SafetyGateNode:
     """
@@ -245,44 +253,50 @@ def _make_gate_with_state(state_name: str, supervisor_ok: bool = True) -> Safety
     into its internal fields — bypassing ROS2 entirely.
     """
     # Patch LifecycleNode.__init__ to do nothing (no ROS2 context needed)
-    with patch("bonbon_safety.nodes.safety_gate_node.LifecycleNode.__init__",
-               lambda *a, **kw: None), \
-         patch("bonbon_safety.nodes.safety_gate_node.LifecycleNode.get_logger",
-               return_value=MagicMock()), \
-         patch("bonbon_safety.nodes.safety_gate_node.LifecycleNode.declare_parameter"):
+    with (
+        patch("bonbon_safety.nodes.safety_gate_node.LifecycleNode.__init__", lambda *a, **kw: None),
+        patch(
+            "bonbon_safety.nodes.safety_gate_node.LifecycleNode.get_logger",
+            return_value=MagicMock(),
+        ),
+        patch("bonbon_safety.nodes.safety_gate_node.LifecycleNode.declare_parameter"),
+    ):
         gate = SafetyGateNode.__new__(SafetyGateNode)
-        gate._lock              = threading.Lock()
-        gate._safety_state      = _STATES[state_name]
-        gate._state_recv_time   = time.monotonic()
-        gate._supervisor_ok     = supervisor_ok
-        gate._stats             = GateStats()
-        gate._start_time        = time.monotonic()
-        gate._error_count       = 0
-        gate._warning_count     = 0
-        gate._processed_count   = 0
-        gate._pub_neck          = None
-        gate._pub_arm           = None
-        gate._pub_vel           = None
-        gate._pub_health        = None
-        gate._health_timer      = None
-        gate._watchdog_timer    = None
-        gate._caution_vel_cap        = 0.3
+        gate._lock = threading.Lock()
+        gate._safety_state = _STATES[state_name]
+        gate._state_recv_time = time.monotonic()
+        gate._supervisor_ok = supervisor_ok
+        gate._stats = GateStats()
+        gate._start_time = time.monotonic()
+        gate._error_count = 0
+        gate._warning_count = 0
+        gate._processed_count = 0
+        gate._pub_neck = None
+        gate._pub_arm = None
+        gate._pub_vel = None
+        gate._pub_health = None
+        gate._health_timer = None
+        gate._watchdog_timer = None
+        gate._caution_vel_cap = 0.3
         gate._block_servos_in_danger = True
-        gate._health_rate_hz         = 1.0
-        gate._watchdog_timeout_sec   = 2.0
+        gate._health_rate_hz = 1.0
+        gate._watchdog_timeout_sec = 2.0
     return gate
 
 
-@pytest.mark.parametrize("state_name,expected_actuate,expected_nav", [
-    ("INITIALIZING", False, False),
-    ("NORMAL",       True,  True),
-    ("CAUTION",      True,  True),
-    ("DANGER",       False, False),
-    ("DOCKING",      True,  True),
-    ("DEGRADED",     True,  True),
-    ("FAULT",        False, False),
-    ("SAFE_STOP",    False, False),
-])
+@pytest.mark.parametrize(
+    "state_name,expected_actuate,expected_nav",
+    [
+        ("INITIALIZING", False, False),
+        ("NORMAL", True, True),
+        ("CAUTION", True, True),
+        ("DANGER", False, False),
+        ("DOCKING", True, True),
+        ("DEGRADED", True, True),
+        ("FAULT", False, False),
+        ("SAFE_STOP", False, False),
+    ],
+)
 class TestGatingDecisionsAllStates:
     def test_can_actuate(self, state_name, expected_actuate, expected_nav):
         gate = _make_gate_with_state(state_name)
@@ -343,6 +357,7 @@ class TestGatingEdgeCases:
 # Supervisor watchdog
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestSupervisorWatchdog:
     def _make_gate(self, timeout: float = 0.1) -> SafetyGateNode:
         gate = _make_gate_with_state("NORMAL")
@@ -377,8 +392,8 @@ class TestSupervisorWatchdog:
 
     def test_recovery_restores_ok(self):
         gate = self._make_gate(timeout=0.05)
-        gate._supervisor_ok    = False           # simulate prior loss
-        gate._state_recv_time  = time.monotonic()  # fresh message
+        gate._supervisor_ok = False  # simulate prior loss
+        gate._state_recv_time = time.monotonic()  # fresh message
         gate._check_supervisor_watchdog()
         assert gate._supervisor_ok is True
 
@@ -398,6 +413,7 @@ class TestSupervisorWatchdog:
 # Velocity gating via _on_vel_raw
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestVelocityGating:
     """End-to-end velocity gating with mocked publisher."""
 
@@ -416,8 +432,8 @@ class TestVelocityGating:
         assert published.linear.x == pytest.approx(0.5)
 
     def test_caution_caps_velocity(self):
-        gate = self._make_gate("CAUTION")    # max_vel=0.3
-        twist = _FakeTwist(vx=0.8)           # over limit
+        gate = self._make_gate("CAUTION")  # max_vel=0.3
+        twist = _FakeTwist(vx=0.8)  # over limit
         with patch("bonbon_safety.nodes.safety_gate_node.Twist", _FakeTwist):
             gate._on_vel_raw(twist)
         gate._pub_vel.publish.assert_called_once()
@@ -426,7 +442,7 @@ class TestVelocityGating:
         assert speed == pytest.approx(0.3, abs=0.01)
 
     def test_caution_below_cap_not_scaled(self):
-        gate = self._make_gate("CAUTION")    # max_vel=0.3
+        gate = self._make_gate("CAUTION")  # max_vel=0.3
         twist = _FakeTwist(vx=0.1)
         with patch("bonbon_safety.nodes.safety_gate_node.Twist", _FakeTwist):
             gate._on_vel_raw(twist)
@@ -464,7 +480,7 @@ class TestVelocityGating:
         assert gate._stats.snapshot()["vel_blocked"] == 1
 
     def test_docking_caps_to_0_2(self):
-        gate = self._make_gate("DOCKING")    # max_vel=0.2
+        gate = self._make_gate("DOCKING")  # max_vel=0.2
         twist = _FakeTwist(vx=0.5)
         with patch("bonbon_safety.nodes.safety_gate_node.Twist", _FakeTwist):
             gate._on_vel_raw(twist)
@@ -477,11 +493,12 @@ class TestVelocityGating:
 # Servo gating via _on_neck_command_raw / _on_arm_command_raw
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestServoGating:
     def _make_gate(self, state_name: str) -> SafetyGateNode:
         gate = _make_gate_with_state(state_name)
         gate._pub_neck = MagicMock()
-        gate._pub_arm  = MagicMock()
+        gate._pub_arm = MagicMock()
         return gate
 
     def test_normal_passes_neck_command(self):
@@ -551,6 +568,7 @@ class TestServoGating:
 # State transitions
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestStateDynamics:
     """Verify the gate reacts instantly to incoming SafetyState updates."""
 
@@ -567,7 +585,7 @@ class TestStateDynamics:
 
         # Second command in DANGER: blocked
         gate._on_neck_command_raw(MagicMock())
-        assert gate._pub_neck.publish.call_count == 1   # unchanged
+        assert gate._pub_neck.publish.call_count == 1  # unchanged
 
     def test_state_update_updates_recv_time(self):
         gate = _make_gate_with_state("NORMAL")

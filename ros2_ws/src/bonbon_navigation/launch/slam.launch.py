@@ -12,6 +12,7 @@ Usage::
   # Save map when done:
   ros2 service call /rtabmap/trigger_new_map std_srvs/srv/Empty
 """
+
 from __future__ import annotations
 
 from launch import LaunchDescription
@@ -52,9 +53,9 @@ def generate_launch_description() -> LaunchDescription:
         ),
     ]
 
-    use_sim_time   = LaunchConfiguration("use_sim_time")
-    rtabmap_db     = LaunchConfiguration("rtabmap_db")
-    log_level      = LaunchConfiguration("log_level")
+    use_sim_time = LaunchConfiguration("use_sim_time")
+    rtabmap_db = LaunchConfiguration("rtabmap_db")
+    log_level = LaunchConfiguration("log_level")
     rtabmap_params = LaunchConfiguration("rtabmap_params_file")
 
     # RTAB-Map odometry (scan-based)
@@ -122,7 +123,7 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     # Map saver — publishes occupancy grid to /map for Nav2
-    map_server_node = Node(
+    Node(
         package="nav2_map_server",
         executable="map_server",
         name="map_server",

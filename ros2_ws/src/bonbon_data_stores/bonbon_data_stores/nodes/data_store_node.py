@@ -38,9 +38,6 @@ from __future__ import annotations
 import json
 import logging
 import threading
-import time
-from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -49,25 +46,17 @@ logger = logging.getLogger(__name__)
 # tests without a ROS2 installation.
 # ---------------------------------------------------------------------------
 try:
-    import rclpy                                                     # type: ignore
+    import rclpy  # type: ignore
     from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn  # type: ignore
-    from std_msgs.msg import String                                  # type: ignore
-    from std_srvs.srv import Trigger                                 # type: ignore
+    from std_msgs.msg import String  # type: ignore
+    from std_srvs.srv import Trigger  # type: ignore
+
     _HAS_ROS2 = True
 except ImportError:
     _HAS_ROS2 = False
     LifecycleNode = object  # type: ignore
 
-from bonbon_data_stores.config.store_config import DataStoreConfig, SQLiteConfig, FAISSConfig, ChromaConfig, EmbeddingConfig, PrivacyConfig
-from bonbon_data_stores.schema.models import (
-    AuditLogEntry,
-    InteractionEvent,
-    NavigationEvent,
-    RobotState,
-    SafetyEvent,
-    SafetyEventType,
-    UserRecord,
-)
+from bonbon_data_stores.config.store_config import DataStoreConfig
 from bonbon_data_stores.store import SQLiteMemoryStore
 
 
@@ -77,9 +66,9 @@ class DataStoreNode(LifecycleNode):
     def __init__(self, node_name: str = "data_store_node") -> None:
         if _HAS_ROS2:
             super().__init__(node_name)
-        self._store: Optional[SQLiteMemoryStore] = None
+        self._store: SQLiteMemoryStore | None = None
         self._sweep_timer = None
-        self._sweep_thread: Optional[threading.Thread] = None
+        self._sweep_thread: threading.Thread | None = None
         self._sweep_stop = threading.Event()
 
     # ------------------------------------------------------------------
@@ -167,39 +156,30 @@ class DataStoreNode(LifecycleNode):
     def _build_config(self) -> DataStoreConfig:
         """Build DataStoreConfig from ROS2 parameters (or defaults)."""
         if _HAS_ROS2:
-            self.declare_parameter("data_dir",           "/tmp/bonbon/data")
-            self.declare_parameter("store_audio",        False)
-            self.declare_parameter("store_face_data",    False)
-            self.declare_parameter("embedding_model",    "all-MiniLM-L6-v2")
-            self.declare_parameter("faiss_enabled",      True)
-            self.declare_parameter("chroma_enabled",     True)
+            self.declare_parameter("data_dir", "/tmp/bonbon/data")
+            self.declare_parameter("store_audio", False)
+            self.declare_parameter("store_face_data", False)
+            self.declare_parameter("embedding_model", "all-MiniLM-L6-v2")
+            self.declare_parameter("faiss_enabled", True)
+            self.declare_parameter("chroma_enabled", True)
             self.declare_parameter("retention_sweep_interval_sec", 3600)
 
-            data_dir      = self.get_parameter("data_dir").value
-            store_audio   = self.get_parameter("store_audio").value
-            store_face    = self.get_parameter("store_face_data").value
-            emb_model     = self.get_parameter("embedding_model").value
-            faiss_on      = self.get_parameter("faiss_enabled").value
-            chroma_on     = self.get_parameter("chroma_enabled").value
+            data_dir = self.get_parameter("data_dir").value
+            _ = self.get_parameter("store_audio").value
+            _ = self.get_parameter("store_face_data").value
+            _ = self.get_parameter("embedding_model").value
+            _ = self.get_parameter("faiss_enabled").value
+            _ = self.get_parameter("chroma_enabled").value
         else:
-            data_dir    = "/tmp/bonbon/data"
-            store_audio = False
-            store_face  = False
-            emb_model   = "all-MiniLM-L6-v2"
-            faiss_on    = True
-            chroma_on   = True
+            data_dir = "/tmp/bonbon/data"
 
         return DataStoreConfig.from_env(base_dir=data_dir)
 
     def _register_services(self) -> None:
         if not _HAS_ROS2:
             return
-        self.create_service(
-            Trigger, "/bonbon/data_store/health_check", self._handle_health_check
-        )
-        self.create_service(
-            Trigger, "/bonbon/data_store/create_backup", self._handle_create_backup
-        )
+        self.create_service(Trigger, "/bonbon/data_store/health_check", self._handle_health_check)
+        self.create_service(Trigger, "/bonbon/data_store/create_backup", self._handle_create_backup)
 
     def _start_sweep_thread(self) -> None:
         self._sweep_stop.clear()

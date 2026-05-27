@@ -6,6 +6,7 @@ Abstract base class for all TTS synthesis backends.
 Every backend converts text → WAV bytes and reports its own availability.
 Backends MUST be thread-safe when called from the synthesis worker thread.
 """
+
 from __future__ import annotations
 
 import logging
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # ── Exception ──────────────────────────────────────────────────────────────────
 
+
 class TTSError(Exception):
     """Raised when a synthesis backend fails to produce audio."""
 
@@ -26,6 +28,7 @@ class TTSError(Exception):
 
 
 # ── Output dataclass ──────────────────────────────────────────────────────────
+
 
 @dataclass
 class SynthesisOutput:
@@ -52,6 +55,7 @@ class SynthesisOutput:
 
 
 # ── Abstract backend ─────────────────────────────────────────────────────────
+
 
 class BaseTTS(ABC):
     """

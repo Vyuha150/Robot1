@@ -13,13 +13,14 @@ Tests cover
 * LogEntry fields are populated correctly
 * No ROS2 publisher injected → works standalone
 """
+
 import time
+
 import pytest
-
-from bonbon_llm.core.response_logger import ResponseLogger, LogEntry
-
+from bonbon_llm.core.response_logger import LogEntry, ResponseLogger
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def logger() -> ResponseLogger:
@@ -41,21 +42,22 @@ def _record(
     hallucination_flagged: bool = False,
 ) -> str:
     return log.record(
-        intent_id           = intent_id,
-        speaker_id          = speaker_id,
-        raw_prompt          = raw_prompt,
-        raw_llm_output      = raw_llm_output,
-        final_response      = final_response,
-        status              = status,
-        confidence          = confidence,
-        llm_latency_ms      = llm_latency_ms,
-        rag_latency_ms      = rag_latency_ms,
-        tools_called        = tools_called or [],
-        hallucination_flagged = hallucination_flagged,
+        intent_id=intent_id,
+        speaker_id=speaker_id,
+        raw_prompt=raw_prompt,
+        raw_llm_output=raw_llm_output,
+        final_response=final_response,
+        status=status,
+        confidence=confidence,
+        llm_latency_ms=llm_latency_ms,
+        rag_latency_ms=rag_latency_ms,
+        tools_called=tools_called or [],
+        hallucination_flagged=hallucination_flagged,
     )
 
 
 # ── Basic record/retrieve ──────────────────────────────────────────────────────
+
 
 class TestRecordAndRetrieve:
 
@@ -72,7 +74,7 @@ class TestRecordAndRetrieve:
         assert len(logger.get_recent(100)) == 2
 
     def test_get_recent_returns_most_recent_first(self, logger):
-        ids = [_record(logger, intent_id=f"intent_{i}") for i in range(5)]
+        [_record(logger, intent_id=f"intent_{i}") for i in range(5)]
         recent = logger.get_recent(3)
         # Most recent should be last-recorded
         assert len(recent) == 3
@@ -100,6 +102,7 @@ class TestRecordAndRetrieve:
 
 
 # ── LogEntry field population ─────────────────────────────────────────────────
+
 
 class TestLogEntryFields:
 
@@ -154,11 +157,12 @@ class TestLogEntryFields:
 
 # ── Bounded deque ─────────────────────────────────────────────────────────────
 
+
 class TestBoundedDeque:
 
     def test_max_entries_enforced(self):
         log = ResponseLogger(max_entries=5)
-        ids = [_record(log, intent_id=f"intent_{i}") for i in range(10)]
+        [_record(log, intent_id=f"intent_{i}") for i in range(10)]
         # Only 5 most recent should be retained
         assert len(log.get_recent(100)) == 5
 
@@ -167,7 +171,7 @@ class TestBoundedDeque:
         _record(log, intent_id="old_one", final_response="Response 1")
         _record(log, intent_id="old_two", final_response="Response 2")
         _record(log, intent_id="old_three", final_response="Response 3")
-        rid_new = _record(log, intent_id="new_one", final_response="Response 4")
+        _record(log, intent_id="new_one", final_response="Response 4")
         # old_one should be gone
         all_entries = log.get_recent(100)
         intents = [e.intent_id for e in all_entries]
@@ -176,6 +180,7 @@ class TestBoundedDeque:
 
 
 # ── clear_log ─────────────────────────────────────────────────────────────────
+
 
 class TestClearLog:
 
@@ -196,6 +201,7 @@ class TestClearLog:
 
 # ── No ROS2 publisher ─────────────────────────────────────────────────────────
 
+
 class TestNoPublisher:
 
     def test_works_without_publisher(self):
@@ -211,6 +217,7 @@ class TestNoPublisher:
 
 
 # ── LogEntry dataclass ────────────────────────────────────────────────────────
+
 
 class TestLogEntryDataclass:
 

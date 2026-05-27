@@ -21,13 +21,13 @@ Rules
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import (
+    AuditLogEntry,
     InteractionEvent,
     PrivacyLevel,
     UserRecord,
-    AuditLogEntry,
 )
 
 logger = logging.getLogger(__name__)
@@ -144,8 +144,8 @@ class MemoryPrivacyManager:
 
     def update_config(
         self,
-        store_audio: Optional[bool] = None,
-        store_face_data: Optional[bool] = None,
+        store_audio: bool | None = None,
+        store_face_data: bool | None = None,
     ) -> None:
         """Runtime config update (e.g. from ROS2 param change)."""
         if store_audio is not None:

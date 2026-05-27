@@ -12,13 +12,13 @@ Strategy
 
 Jitter: ±10% of computed delay so multiple devices don't all retry at once.
 """
+
 from __future__ import annotations
 
 import logging
 import random
 import time
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +26,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ReconnectConfig:
     """All knobs for the reconnect policy — maps directly to ROS2 parameters."""
-    max_attempts:     int   = 5       # 0 = unlimited
-    base_delay_sec:   float = 1.0     # first retry delay
-    max_delay_sec:    float = 30.0    # cap on any single delay
-    backoff_factor:   float = 2.0     # multiply delay each attempt
-    jitter_fraction:  float = 0.10    # ± this fraction of computed delay
-    cooldown_sec:     float = 60.0    # after give-up, wait before allowing a reset
+
+    max_attempts: int = 5  # 0 = unlimited
+    base_delay_sec: float = 1.0  # first retry delay
+    max_delay_sec: float = 30.0  # cap on any single delay
+    backoff_factor: float = 2.0  # multiply delay each attempt
+    jitter_fraction: float = 0.10  # ± this fraction of computed delay
+    cooldown_sec: float = 60.0  # after give-up, wait before allowing a reset
     grace_after_connect_sec: float = 2.0  # ignore faults for N sec after connect
 
 
@@ -56,11 +57,11 @@ class ReconnectPolicy:
                 ...
     """
 
-    def __init__(self, device_name: str, config: Optional[ReconnectConfig] = None) -> None:
-        self._device  = device_name
-        self._cfg     = config or ReconnectConfig()
+    def __init__(self, device_name: str, config: ReconnectConfig | None = None) -> None:
+        self._device = device_name
+        self._cfg = config or ReconnectConfig()
         self._attempt = 0
-        self._gave_up_at: Optional[float] = None
+        self._gave_up_at: float | None = None
         self._last_connect_ts: float = 0.0
 
     # ── Query ──────────────────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ class ReconnectPolicy:
                 return False
 
         if self._cfg.max_attempts <= 0:
-            return True   # unlimited
+            return True  # unlimited
 
         return self._attempt < self._cfg.max_attempts
 
@@ -96,7 +97,7 @@ class ReconnectPolicy:
         Does NOT block — caller decides whether to sleep.
         """
         raw = min(
-            self._cfg.base_delay_sec * (self._cfg.backoff_factor ** self._attempt),
+            self._cfg.base_delay_sec * (self._cfg.backoff_factor**self._attempt),
             self._cfg.max_delay_sec,
         )
         jitter = raw * self._cfg.jitter_fraction * (2 * random.random() - 1)
@@ -117,12 +118,14 @@ class ReconnectPolicy:
             self._gave_up_at = time.monotonic()
             logger.error(
                 "[%s] Reconnect EXHAUSTED after %d attempts — giving up",
-                self._device, self._attempt,
+                self._device,
+                self._attempt,
             )
         else:
             logger.warning(
                 "[%s] Reconnect attempt %d/%s failed",
-                self._device, self._attempt,
+                self._device,
+                self._attempt,
                 self._cfg.max_attempts if self._cfg.max_attempts > 0 else "∞",
             )
 
@@ -130,7 +133,8 @@ class ReconnectPolicy:
         """Call after a successful reconnect."""
         logger.info(
             "[%s] Reconnected successfully after %d attempt(s)",
-            self._device, self._attempt + 1,
+            self._device,
+            self._attempt + 1,
         )
         self._last_connect_ts = time.monotonic()
         self.reset()

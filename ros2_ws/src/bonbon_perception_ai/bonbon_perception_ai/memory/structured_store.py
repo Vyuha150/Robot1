@@ -17,19 +17,18 @@ Privacy
 * face_id is stored only when cfg.privacy_store_faces is True.
 * db_path = "" (default) → in-memory database; useful for tests.
 """
+
 from __future__ import annotations
 
 import json
 import sqlite3
 import threading
 import time
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_perception_ai.config.perception_config import MemoryConfig
 from bonbon_perception_ai.understanding.intent_engine import UserIntent
 from bonbon_perception_ai.understanding.scene_analyzer import SceneSnapshot
-
 
 _SCHEMA = """
 PRAGMA journal_mode = WAL;
@@ -90,8 +89,8 @@ class StructuredStore:
     """
 
     def __init__(self, cfg: MemoryConfig) -> None:
-        self.cfg   = cfg
-        self._conn: Optional[sqlite3.Connection] = None
+        self.cfg = cfg
+        self._conn: sqlite3.Connection | None = None
         self._lock = threading.Lock()
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -99,9 +98,7 @@ class StructuredStore:
     def open(self) -> None:
         db_path = self.cfg.db_path or ":memory:"
         # check_same_thread=False because we serialize with self._lock
-        self._conn = sqlite3.connect(
-            db_path, check_same_thread=False, isolation_level=None
-        )
+        self._conn = sqlite3.connect(db_path, check_same_thread=False, isolation_level=None)
         self._conn.executescript(_SCHEMA)
 
     def close(self) -> None:
@@ -115,13 +112,13 @@ class StructuredStore:
     def upsert_person(
         self,
         person_id: str,
-        face_id: str      = "",
+        face_id: str = "",
         is_anonymous: bool = True,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
-        now   = time.time()
-        f_id  = face_id if self.cfg.privacy_store_faces else ""
-        meta  = json.dumps(metadata or {})
+        now = time.time()
+        f_id = face_id if self.cfg.privacy_store_faces else ""
+        meta = json.dumps(metadata or {})
         with self._lock:
             self._conn.execute(  # type: ignore[union-attr]
                 """
@@ -136,7 +133,7 @@ class StructuredStore:
                 (person_id, now, now, int(is_anonymous), f_id, meta),
             )
 
-    def get_person(self, person_id: str) -> Optional[Dict[str, Any]]:
+    def get_person(self, person_id: str) -> dict[str, Any] | None:
         with self._lock:
             row = self._conn.execute(  # type: ignore[union-attr]
                 "SELECT * FROM persons WHERE id = ?", (person_id,)
@@ -144,8 +141,13 @@ class StructuredStore:
         if row is None:
             return None
         cols = [
-            "id", "first_seen_at", "last_seen_at",
-            "interaction_count", "is_anonymous", "face_id", "metadata_json",
+            "id",
+            "first_seen_at",
+            "last_seen_at",
+            "interaction_count",
+            "is_anonymous",
+            "face_id",
+            "metadata_json",
         ]
         return dict(zip(cols, row))
 
@@ -155,18 +157,15 @@ class StructuredStore:
             self._conn.execute(  # type: ignore[union-attr]
                 "DELETE FROM interactions WHERE person_id = ?", (person_id,)
             )
-            self._conn.execute(
-                "DELETE FROM persons WHERE id = ?", (person_id,)
-            )
+            self._conn.execute("DELETE FROM persons WHERE id = ?", (person_id,))
 
-    def list_persons(self) -> List[Dict[str, Any]]:
+    def list_persons(self) -> list[dict[str, Any]]:
         with self._lock:
             rows = self._conn.execute(  # type: ignore[union-attr]
                 "SELECT id, first_seen_at, last_seen_at, interaction_count FROM persons"
             ).fetchall()
         return [
-            {"id": r[0], "first_seen_at": r[1],
-             "last_seen_at": r[2], "interaction_count": r[3]}
+            {"id": r[0], "first_seen_at": r[1], "last_seen_at": r[2], "interaction_count": r[3]}
             for r in rows
         ]
 
@@ -190,9 +189,7 @@ class StructuredStore:
                 ),
             )
 
-    def get_recent_interactions(
-        self, person_id: str, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    def get_recent_interactions(self, person_id: str, limit: int = 10) -> list[dict[str, Any]]:
         with self._lock:
             rows = self._conn.execute(  # type: ignore[union-attr]
                 """
@@ -203,8 +200,13 @@ class StructuredStore:
                 (person_id, limit),
             ).fetchall()
         return [
-            {"id": r[0], "timestamp": r[1],
-             "intent_class": r[2], "intent_text": r[3], "outcome": r[4]}
+            {
+                "id": r[0],
+                "timestamp": r[1],
+                "intent_class": r[2],
+                "intent_text": r[3],
+                "outcome": r[4],
+            }
             for r in rows
         ]
 
@@ -254,8 +256,8 @@ class StructuredStore:
         location_x: float = 0.0,
         location_y: float = 0.0,
     ) -> None:
-        now     = time.time()
-        obj_id  = f"obj_{class_name}_{hash(class_name) & 0xFFFF:04x}"
+        now = time.time()
+        obj_id = f"obj_{class_name}_{hash(class_name) & 0xFFFF:04x}"
         with self._lock:
             self._conn.execute(  # type: ignore[union-attr]
                 """
@@ -271,12 +273,9 @@ class StructuredStore:
                 (obj_id, class_name, now, now, location_x, location_y, confidence),
             )
 
-    def get_known_objects(self) -> List[Dict[str, Any]]:
+    def get_known_objects(self) -> list[dict[str, Any]]:
         with self._lock:
             rows = self._conn.execute(  # type: ignore[union-attr]
                 "SELECT class_name, last_seen_at, confidence FROM known_objects"
             ).fetchall()
-        return [
-            {"class_name": r[0], "last_seen_at": r[1], "confidence": r[2]}
-            for r in rows
-        ]
+        return [{"class_name": r[0], "last_seen_at": r[1], "confidence": r[2]} for r in rows]

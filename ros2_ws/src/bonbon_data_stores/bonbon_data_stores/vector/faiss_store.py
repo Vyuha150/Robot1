@@ -17,11 +17,10 @@ from __future__ import annotations
 import json
 import logging
 import threading
-import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -32,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Optional FAISS import
 try:
     import faiss  # type: ignore
+
     _HAS_FAISS = True
 except ImportError:
     faiss = None  # type: ignore
@@ -45,13 +45,14 @@ INDEX_NAMES = ("interactions", "knowledge", "navigation", "ai_context")
 # Internal index state
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class _IndexState:
     name: str
     dim: int
-    index: Any = None                            # faiss.Index | None
-    id_map: Dict[int, str] = field(default_factory=dict)   # int faiss id → str vector_id
-    payload_map: Dict[str, Dict] = field(default_factory=dict)  # vector_id → payload
+    index: Any = None  # faiss.Index | None
+    id_map: dict[int, str] = field(default_factory=dict)  # int faiss id → str vector_id
+    payload_map: dict[str, dict] = field(default_factory=dict)  # vector_id → payload
     _next_id: int = 0
 
     def next_int_id(self) -> int:
@@ -66,6 +67,7 @@ class _IndexState:
 # ---------------------------------------------------------------------------
 # FAISSVectorStore
 # ---------------------------------------------------------------------------
+
 
 class FAISSVectorStore:
     """Manage four FAISS indexes for BonBon.
@@ -95,7 +97,7 @@ class FAISSVectorStore:
         self._auto_save = auto_save
         self._enabled = enabled and _HAS_FAISS
         self._lock = threading.RLock()
-        self._indexes: Dict[str, _IndexState] = {}
+        self._indexes: dict[str, _IndexState] = {}
 
         if not _HAS_FAISS:
             logger.warning(
@@ -127,8 +129,8 @@ class FAISSVectorStore:
         self,
         index_name: str,
         vector: np.ndarray,
-        payload: Optional[Dict[str, Any]] = None,
-        vector_id: Optional[str] = None,
+        payload: dict[str, Any] | None = None,
+        vector_id: str | None = None,
     ) -> str:
         """Add a vector to *index_name*.
 
@@ -160,7 +162,7 @@ class FAISSVectorStore:
         index_name: str,
         query_vector: np.ndarray,
         top_k: int = 5,
-    ) -> List[VectorSearchResult]:
+    ) -> list[VectorSearchResult]:
         """Return the *top_k* nearest neighbours from *index_name*."""
         self._validate_index_name(index_name)
         if not self._enabled:
@@ -181,12 +183,14 @@ class FAISSVectorStore:
             vid = state.id_map.get(int(idx))
             if vid is None:
                 continue
-            results.append(VectorSearchResult(
-                vector_id=vid,
-                score=float(dist),
-                payload=state.payload_map.get(vid, {}),
-                source_index=index_name,
-            ))
+            results.append(
+                VectorSearchResult(
+                    vector_id=vid,
+                    score=float(dist),
+                    payload=state.payload_map.get(vid, {}),
+                    source_index=index_name,
+                )
+            )
         return results
 
     def delete(self, index_name: str, vector_id: str) -> bool:
@@ -212,9 +216,7 @@ class FAISSVectorStore:
                 return False
 
             # Collect all remaining vectors
-            remaining_ids = [
-                i for i, v in state.id_map.items() if v != vector_id
-            ]
+            remaining_ids = [i for i, v in state.id_map.items() if v != vector_id]
             if remaining_ids:
                 remaining_vecs = np.zeros((len(remaining_ids), self._dim), dtype=np.float32)
                 state.index.reconstruct_batch(
@@ -226,9 +228,7 @@ class FAISSVectorStore:
             # Rebuild
             new_index = self._make_flat_index()
             if len(remaining_ids) > 0:
-                new_index.add_with_ids(
-                    remaining_vecs, np.array(remaining_ids, dtype=np.int64)
-                )
+                new_index.add_with_ids(remaining_vecs, np.array(remaining_ids, dtype=np.int64))
             state.index = new_index
             del state.id_map[int_id_to_remove]
             state.payload_map.pop(vector_id, None)
@@ -295,11 +295,15 @@ class FAISSVectorStore:
             idx_path = self._dir / f"{name}.index"
             faiss.write_index(state.index, str(idx_path))
             sidecar = self._dir / f"{name}.json"
-            sidecar.write_text(json.dumps({
-                "id_map": {str(k): v for k, v in state.id_map.items()},
-                "payload_map": state.payload_map,
-                "next_id": state._next_id,
-            }))
+            sidecar.write_text(
+                json.dumps(
+                    {
+                        "id_map": {str(k): v for k, v in state.id_map.items()},
+                        "payload_map": state.payload_map,
+                        "next_id": state._next_id,
+                    }
+                )
+            )
         except Exception as exc:
             logger.error("Failed to save FAISS index %r: %s", name, exc)
 
@@ -321,6 +325,4 @@ class FAISSVectorStore:
     @staticmethod
     def _validate_index_name(name: str) -> None:
         if name not in INDEX_NAMES:
-            raise ValueError(
-                f"Unknown FAISS index {name!r}. Valid indexes: {INDEX_NAMES}"
-            )
+            raise ValueError(f"Unknown FAISS index {name!r}. Valid indexes: {INDEX_NAMES}")

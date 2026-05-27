@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
-from pathlib import Path
-
 import pytest
-
 from bonbon_data_stores.config.store_config import DataStoreConfig
 from bonbon_data_stores.schema.models import (
     InteractionEvent,
     NavigationEvent,
     NavigationOutcome,
-    PrivacyLevel,
-    RetentionPolicy,
     RobotMode,
     RobotState,
     SafetyEvent,
@@ -32,10 +25,10 @@ from bonbon_data_stores.sqlite.repositories.safety_event_repo import SafetyEvent
 from bonbon_data_stores.sqlite.repositories.user_repo import UserProfileRepository
 from bonbon_data_stores.store import SQLiteMemoryStore
 
-
 # ---------------------------------------------------------------------------
 # Core fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def tmp_dir(tmp_path):
@@ -70,6 +63,7 @@ def store(db_config):
 # ---------------------------------------------------------------------------
 # Repository fixtures (all share the same migrated connection)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def user_repo(db_conn):
@@ -109,6 +103,7 @@ def map_repo(db_conn):
 # ---------------------------------------------------------------------------
 # Sample domain objects
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def sample_user():

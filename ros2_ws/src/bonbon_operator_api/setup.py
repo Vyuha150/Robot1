@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 package_name = "bonbon_operator_api"
 
@@ -7,11 +7,10 @@ setup(
     version="0.1.0",
     packages=find_packages(exclude=["tests", "tests.*", "frontend", "frontend.*"]),
     data_files=[
-        ("share/ament_index/resource_index/packages",
-         [f"resource/{package_name}"]),
-        (f"share/{package_name}",            ["package.xml"]),
-        (f"share/{package_name}/config",     ["config/operator_api_params.yaml"]),
-        (f"share/{package_name}/launch",     ["launch/operator_api.launch.py"]),
+        ("share/ament_index/resource_index/packages", [f"resource/{package_name}"]),
+        (f"share/{package_name}", ["package.xml"]),
+        (f"share/{package_name}/config", ["config/operator_api_params.yaml"]),
+        (f"share/{package_name}/launch", ["launch/operator_api.launch.py"]),
     ],
     install_requires=[
         "setuptools",

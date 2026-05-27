@@ -21,18 +21,19 @@ fall back to ``MockSpeakerBridge``.
 ``MockSpeakerBridge`` is completely self-contained with no extra deps,
 making TTS unit tests possible on any machine.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 # ── Abstract interface ────────────────────────────────────────────────────────
+
 
 class AbstractSpeakerBridge(ABC):
     """
@@ -72,6 +73,7 @@ class AbstractSpeakerBridge(ABC):
 
 # ── Production bridge (HAL) ───────────────────────────────────────────────────
 
+
 class SpeakerBridge(AbstractSpeakerBridge):
     """
     Production speaker bridge backed by ``bonbon_hal.SpeakerDriver``.
@@ -95,15 +97,15 @@ class SpeakerBridge(AbstractSpeakerBridge):
 
     def __init__(
         self,
-        device:      str   = "default",
-        volume_pct:  float = 80.0,
-        sample_rate: int   = 22050,
-        channels:    int   = 1,
+        device: str = "default",
+        volume_pct: float = 80.0,
+        sample_rate: int = 22050,
+        channels: int = 1,
     ) -> None:
         # Hard import — fail fast if HAL not available
         from bonbon_hal.drivers.speaker_driver import SpeakerDriver  # type: ignore[import]
 
-        self._driver     = SpeakerDriver(
+        self._driver = SpeakerDriver(
             device=device,
             sample_rate=sample_rate,
             channels=channels,
@@ -140,6 +142,7 @@ class SpeakerBridge(AbstractSpeakerBridge):
 
 # ── Mock bridge (tests) ───────────────────────────────────────────────────────
 
+
 class MockSpeakerBridge(AbstractSpeakerBridge):
     """
     Test-double speaker bridge — records calls but plays no audio.
@@ -166,18 +169,18 @@ class MockSpeakerBridge(AbstractSpeakerBridge):
 
     def __init__(
         self,
-        simulate_play_blocking: bool  = False,
-        available:              bool  = True,
+        simulate_play_blocking: bool = False,
+        available: bool = True,
     ) -> None:
         self._simulate_blocking = simulate_play_blocking
-        self._available         = available
-        self._lock              = threading.Lock()
+        self._available = available
+        self._lock = threading.Lock()
 
         # Inspection state
-        self.play_calls:          List[bytes] = []
-        self.stop_count:          int         = 0
-        self.playing_duration_sec: float      = 0.0
-        self.fail_next_play:      bool        = False
+        self.play_calls: list[bytes] = []
+        self.stop_count: int = 0
+        self.playing_duration_sec: float = 0.0
+        self.fail_next_play: bool = False
 
         # Internal "playing" flag
         self._playing = False
@@ -204,7 +207,7 @@ class MockSpeakerBridge(AbstractSpeakerBridge):
     def stop(self) -> None:
         with self._lock:
             self.stop_count += 1
-            self._playing   = False
+            self._playing = False
 
     def is_playing(self) -> bool:
         with self._lock:
@@ -222,10 +225,10 @@ class MockSpeakerBridge(AbstractSpeakerBridge):
         """Clear all recorded state for a fresh test."""
         with self._lock:
             self.play_calls.clear()
-            self.stop_count           = 0
+            self.stop_count = 0
             self.playing_duration_sec = 0.0
-            self.fail_next_play       = False
-            self._playing             = False
+            self.fail_next_play = False
+            self._playing = False
 
     @property
     def play_count(self) -> int:
@@ -243,7 +246,9 @@ class MockSpeakerBridge(AbstractSpeakerBridge):
         Returns 0.0 on any parse error.
         """
         try:
-            import io, wave
+            import io
+            import wave
+
             with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
                 return wf.getnframes() / wf.getframerate()
         except Exception:

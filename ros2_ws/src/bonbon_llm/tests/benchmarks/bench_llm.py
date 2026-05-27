@@ -22,6 +22,7 @@ or via pytest:
 Results are printed to stdout only (no assertions by default).
 Set STRICT=1 env var to turn budget violations into assertion errors.
 """
+
 from __future__ import annotations
 
 import os
@@ -29,22 +30,39 @@ import statistics
 import sys
 import time
 import types
-from typing import Callable, List
-
+from collections.abc import Callable
 
 # ── Stub ROS2 for standalone execution ────────────────────────────────────────
 
+
 def _stub():
     for name in (
-        "rclpy", "rclpy.node", "rclpy.lifecycle", "rclpy.lifecycle.node",
-        "bonbon_msgs", "bonbon_msgs.msg", "bonbon_srvs", "bonbon_srvs.srv",
-        "std_msgs", "std_msgs.msg", "lifecycle_msgs", "lifecycle_msgs.msg",
+        "rclpy",
+        "rclpy.node",
+        "rclpy.lifecycle",
+        "rclpy.lifecycle.node",
+        "bonbon_msgs",
+        "bonbon_msgs.msg",
+        "bonbon_srvs",
+        "bonbon_srvs.srv",
+        "std_msgs",
+        "std_msgs.msg",
+        "lifecycle_msgs",
+        "lifecycle_msgs.msg",
     ):
         if name not in sys.modules:
             sys.modules[name] = types.ModuleType(name)
     from unittest.mock import MagicMock
-    for attr in ("LLMResponse", "LLMLog", "BehaviorRecommendation",
-                 "TTSRequest", "IntentResult", "RiskAssessment", "SceneSummary"):
+
+    for attr in (
+        "LLMResponse",
+        "LLMLog",
+        "BehaviorRecommendation",
+        "TTSRequest",
+        "IntentResult",
+        "RiskAssessment",
+        "SceneSummary",
+    ):
         setattr(sys.modules["bonbon_msgs.msg"], attr, MagicMock)
     for attr in ("LLMQuery",):
         setattr(sys.modules["bonbon_srvs.srv"], attr, MagicMock)
@@ -56,25 +74,28 @@ def _stub():
 
 _stub()
 
+from bonbon_llm.config.llm_config import (
+    HallucinationConfig,
+    PersonalityConfig,
+    RAGConfig,
+    SafetyFilterConfig,
+)
+from bonbon_llm.core.rag_retriever import RAGRetriever
+from bonbon_llm.personality.personality_layer import PersonalityLayer
+from bonbon_llm.safety.authorization import SAFETY_NORMAL, SafetySnapshot
 from bonbon_llm.safety.command_filter import SafetyCommandFilter
 from bonbon_llm.safety.hallucination_guard import HallucinationGuard
-from bonbon_llm.personality.personality_layer import PersonalityLayer
-from bonbon_llm.core.rag_retriever import RAGRetriever
 from bonbon_llm.tools.tool_registry import ToolRegistry
-from bonbon_llm.config.llm_config import (
-    SafetyFilterConfig, HallucinationConfig, PersonalityConfig,
-    RAGConfig, LLMConfig,
-)
-from bonbon_llm.safety.authorization import SafetySnapshot, SAFETY_NORMAL
 
 STRICT = os.getenv("STRICT", "0") == "1"
 
 
 # ── Benchmark harness ─────────────────────────────────────────────────────────
 
+
 def _bench(fn: Callable, n: int = 1000, label: str = "") -> dict:
     """Run fn n times and compute latency statistics."""
-    samples: List[float] = []
+    samples: list[float] = []
     for _ in range(n):
         t0 = time.perf_counter()
         fn()
@@ -86,14 +107,17 @@ def _bench(fn: Callable, n: int = 1000, label: str = "") -> dict:
     p99 = samples[int(0.99 * len(samples))]
     mean = statistics.mean(samples)
 
-    print(f"  {label:40s}  "
-          f"p50={p50:6.2f}ms  p95={p95:6.2f}ms  p99={p99:6.2f}ms  "
-          f"mean={mean:6.2f}ms  (n={n})")
+    print(
+        f"  {label:40s}  "
+        f"p50={p50:6.2f}ms  p95={p95:6.2f}ms  p99={p99:6.2f}ms  "
+        f"mean={mean:6.2f}ms  (n={n})"
+    )
 
     return {"p50": p50, "p95": p95, "p99": p99, "mean": mean}
 
 
 # ── Component benchmarks ───────────────────────────────────────────────────────
+
 
 def bench_safety_filter() -> dict:
     filt = SafetyCommandFilter(SafetyFilterConfig())
@@ -105,9 +129,11 @@ def bench_safety_filter() -> dict:
         "publish cmd_vel twist message directly",  # blocked
     ]
     idx = [0]
+
     def fn():
         filt.filter_text(texts[idx[0] % len(texts)])
         idx[0] += 1
+
     return _bench(fn, n=10_000, label="SafetyCommandFilter.filter_text")
 
 
@@ -121,9 +147,11 @@ def bench_hallucination_guard() -> dict:
         "Our espresso is freshly brewed.",
     ]
     idx = [0]
+
     def fn():
         guard.check(texts[idx[0] % len(texts)])
         idx[0] += 1
+
     return _bench(fn, n=10_000, label="HallucinationGuard.check")
 
 
@@ -137,9 +165,11 @@ def bench_personality_layer() -> dict:
         "Hello! Welcome to the café. What can I get you today?",
     ]
     idx = [0]
+
     def fn():
         layer.apply(texts[idx[0] % len(texts)])
         idx[0] += 1
+
     return _bench(fn, n=10_000, label="PersonalityLayer.apply")
 
 
@@ -154,36 +184,39 @@ def bench_rag_retriever() -> dict:
         "operating hours tuesday",
     ]
     idx = [0]
+
     def fn():
         rag.retrieve(queries[idx[0] % len(queries)])
         idx[0] += 1
+
     return _bench(fn, n=1_000, label="RAGRetriever.retrieve (NumPy, k=5)")
 
 
 def bench_tool_registry_readonly() -> dict:
-    from unittest.mock import MagicMock
     snap = SafetySnapshot.safe_default()
-    snap.state_id   = SAFETY_NORMAL
+    snap.state_id = SAFETY_NORMAL
     snap.state_name = "NORMAL"
 
     reg = ToolRegistry(
-        safety_filter       = SafetyCommandFilter(SafetyFilterConfig()),
-        scene_provider      = lambda: "2 persons near counter.",
-        safety_provider     = lambda: snap,
-        memory_provider     = lambda q, k: ["Memory result"],
-        tts_dispatcher      = lambda t, p: None,
-        behavior_dispatcher = lambda bc, ps, c: None,
+        safety_filter=SafetyCommandFilter(SafetyFilterConfig()),
+        scene_provider=lambda: "2 persons near counter.",
+        safety_provider=lambda: snap,
+        memory_provider=lambda q, k: ["Memory result"],
+        tts_dispatcher=lambda t, p: None,
+        behavior_dispatcher=lambda bc, ps, c: None,
     )
     calls = [
-        ("get_scene_context",  {}),
-        ("get_safety_state",   {}),
-        ("query_memory",       {"query": "previous order", "k": 3}),
+        ("get_scene_context", {}),
+        ("get_safety_state", {}),
+        ("query_memory", {"query": "previous order", "k": 3}),
     ]
     idx = [0]
+
     def fn():
         name, args = calls[idx[0] % len(calls)]
         reg.dispatch(name, args)
         idx[0] += 1
+
     return _bench(fn, n=5_000, label="ToolRegistry.dispatch (read-only)")
 
 
@@ -193,12 +226,13 @@ def bench_full_pipeline_no_llm() -> dict:
     RAG retrieve → safety filter → hallucination guard → personality apply
     """
     from bonbon_llm.core.rag_retriever import RAGRetriever
+
     rag = RAGRetriever(RAGConfig(backend="numpy", top_k=3, similarity_threshold=0.0))
     rag.load()
 
-    filt  = SafetyCommandFilter(SafetyFilterConfig())
+    filt = SafetyCommandFilter(SafetyFilterConfig())
     guard = HallucinationGuard(HallucinationConfig(enabled=True))
-    pers  = PersonalityLayer(PersonalityConfig(name="BonBon", max_response_words=40))
+    pers = PersonalityLayer(PersonalityConfig(name="BonBon", max_response_words=40))
 
     llm_responses = [
         "The latte is S$5.00. Would you like one?",
@@ -228,12 +262,12 @@ def bench_full_pipeline_no_llm() -> dict:
 # ── Budget checks ─────────────────────────────────────────────────────────────
 
 BUDGETS = {
-    "filter":       1.0,    # ms p99
-    "guard":        1.0,
-    "personality":  2.0,
-    "rag":         50.0,
-    "tools":        5.0,
-    "pipeline":    75.0,
+    "filter": 1.0,  # ms p99
+    "guard": 1.0,
+    "personality": 2.0,
+    "rag": 50.0,
+    "tools": 5.0,
+    "pipeline": 75.0,
 }
 
 
@@ -243,12 +277,12 @@ def run_all():
     print("=" * 80)
 
     results = {
-        "filter":     bench_safety_filter(),
-        "guard":      bench_hallucination_guard(),
-        "personality":bench_personality_layer(),
-        "rag":        bench_rag_retriever(),
-        "tools":      bench_tool_registry_readonly(),
-        "pipeline":   bench_full_pipeline_no_llm(),
+        "filter": bench_safety_filter(),
+        "guard": bench_hallucination_guard(),
+        "personality": bench_personality_layer(),
+        "rag": bench_rag_retriever(),
+        "tools": bench_tool_registry_readonly(),
+        "pipeline": bench_full_pipeline_no_llm(),
     }
 
     print("\n" + "=" * 80)
@@ -276,11 +310,12 @@ def run_all():
 
 # ── pytest entry points ───────────────────────────────────────────────────────
 
+
 def test_safety_filter_p99():
     result = bench_safety_filter()
-    assert result["p99"] < BUDGETS["filter"] * 10, (
-        f"SafetyCommandFilter p99 {result['p99']:.2f}ms > {BUDGETS['filter']*10}ms"
-    )
+    assert (
+        result["p99"] < BUDGETS["filter"] * 10
+    ), f"SafetyCommandFilter p99 {result['p99']:.2f}ms > {BUDGETS['filter']*10}ms"
 
 
 def test_hallucination_guard_p99():

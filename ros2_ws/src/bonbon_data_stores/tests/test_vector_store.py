@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from bonbon_data_stores.vector.embedding_manager import EmbeddingManager, _hash_embed
-from bonbon_data_stores.vector.faiss_store import FAISSVectorStore, INDEX_NAMES
-
+from bonbon_data_stores.vector.faiss_store import INDEX_NAMES, FAISSVectorStore
 
 # ---------------------------------------------------------------------------
 # Scenario 13: EmbeddingManager
 # ---------------------------------------------------------------------------
+
 
 class TestEmbeddingManager:
     def test_hash_fallback_produces_vector(self):
@@ -71,6 +70,7 @@ class TestEmbeddingManager:
 # Scenario 14: FAISSVectorStore
 # ---------------------------------------------------------------------------
 
+
 class TestFAISSVectorStoreDegraded:
     """Tests that run even without faiss-cpu installed (degraded mode)."""
 
@@ -100,7 +100,7 @@ class TestFAISSVectorStoreLive:
     """Tests that require faiss-cpu to be installed."""
 
     def test_add_and_search(self, tmp_path):
-        faiss = pytest.importorskip("faiss")
+        pytest.importorskip("faiss")
         store = FAISSVectorStore(index_dir=tmp_path, dim=64, enabled=True, auto_save=False)
         if store.is_degraded:
             pytest.skip("faiss not available")

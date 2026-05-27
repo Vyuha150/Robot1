@@ -22,19 +22,19 @@ When confidence < intent_confidence_threshold:
   - ambiguity_policy = "best_guess" → publish best-guess with is_ambiguous=True
   - ambiguity_policy = "ignore"     → return None (caller must handle)
 """
+
 from __future__ import annotations
 
 import re
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 from bonbon_perception_ai.config.perception_config import IntentConfig
 from bonbon_perception_ai.fusion.types import FusionContext, SpeechInput
 
-
 # ── Output types ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class IntentSlot:
@@ -49,15 +49,15 @@ class UserIntent:
     confidence: float
     speaker_id: str
     raw_text: str
-    slots: List[IntentSlot]          = field(default_factory=list)
-    is_ambiguous: bool               = False
-    fallback_response: str           = ""
-    speech_confidence: float         = 1.0
-    intent_id: str                   = field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: float                 = field(default_factory=time.monotonic)
+    slots: list[IntentSlot] = field(default_factory=list)
+    is_ambiguous: bool = False
+    fallback_response: str = ""
+    speech_confidence: float = 1.0
+    intent_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: float = field(default_factory=time.monotonic)
 
     @property
-    def slot_dict(self) -> Dict[str, str]:
+    def slot_dict(self) -> dict[str, str]:
         return {s.name: s.value for s in self.slots}
 
 
@@ -65,7 +65,7 @@ class UserIntent:
 
 # Each value is a list of regex patterns; any match scores that intent.
 # Patterns use case-insensitive matching via re.IGNORECASE.
-INTENT_PATTERNS: Dict[str, List[str]] = {
+INTENT_PATTERNS: dict[str, list[str]] = {
     "order_item": [
         r"\b(order|bring|get|want|give\s+me|i['\s]?d\s+like|can\s+i\s+have|may\s+i\s+have)\b",
         r"\b(coffee|tea|water|juice|food|drink|snack|meal|item|menu)\b",
@@ -94,17 +94,17 @@ INTENT_PATTERNS: Dict[str, List[str]] = {
     ],
 }
 
-SLOT_PATTERNS: Dict[str, str] = {
-    "item":        r"\b(coffee|tea|water|juice|food|sandwich|cake|cookie|meal|drink|snack)\b",
+SLOT_PATTERNS: dict[str, str] = {
+    "item": r"\b(coffee|tea|water|juice|food|sandwich|cake|cookie|meal|drink|snack)\b",
     "destination": r"\b(table\s*\d+|room\s*\w+|entrance|exit|kitchen|reception|lobby|hallway|door|counter)\b",
-    "quantity":    r"\b(\d+|one|two|three|four|five|six|a\s+couple|a\s+few)\b",
-    "person_ref":  r"\b(me|us|them|him|her|the\s+person|customer|guest|man|woman|child)\b",
+    "quantity": r"\b(\d+|one|two|three|four|five|six|a\s+couple|a\s+few)\b",
+    "person_ref": r"\b(me|us|them|him|her|the\s+person|customer|guest|man|woman|child)\b",
 }
 
 _CLARIFY_RESPONSES = {
-    "order_item":  "What item would you like to order?",
+    "order_item": "What item would you like to order?",
     "navigate_to": "Where would you like me to go?",
-    "unknown":     "I'm not sure I understood that. Could you please repeat or rephrase?",
+    "unknown": "I'm not sure I understood that. Could you please repeat or rephrase?",
 }
 
 _DEFAULT_CLARIFY = "I'm sorry, I didn't quite catch that. Could you say that again?"
@@ -122,14 +122,13 @@ class IntentEngine:
 
     def __init__(self, cfg: IntentConfig) -> None:
         self.cfg = cfg
-        self._lc_chain = None      # lazy-loaded if backend == "langchain"
-        self._compiled: Dict[str, List[re.Pattern]] = {
+        self._lc_chain = None  # lazy-loaded if backend == "langchain"
+        self._compiled: dict[str, list[re.Pattern]] = {
             intent: [re.compile(p, re.IGNORECASE) for p in patterns]
             for intent, patterns in INTENT_PATTERNS.items()
         }
-        self._slot_compiled: Dict[str, re.Pattern] = {
-            name: re.compile(p, re.IGNORECASE)
-            for name, p in SLOT_PATTERNS.items()
+        self._slot_compiled: dict[str, re.Pattern] = {
+            name: re.compile(p, re.IGNORECASE) for name, p in SLOT_PATTERNS.items()
         }
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -138,7 +137,7 @@ class IntentEngine:
         self,
         speech: SpeechInput,
         ctx: FusionContext,
-    ) -> Optional[UserIntent]:
+    ) -> UserIntent | None:
         """
         Classify speech into a UserIntent.
 
@@ -148,11 +147,11 @@ class IntentEngine:
         # Empty / silence / timeout → silence intent
         if not speech.is_valid:
             return UserIntent(
-                intent_class     = "silence",
-                confidence       = 1.0,
-                speaker_id       = speech.speaker_id,
-                raw_text         = speech.text,
-                speech_confidence = speech.confidence,
+                intent_class="silence",
+                confidence=1.0,
+                speaker_id=speech.speaker_id,
+                raw_text=speech.text,
+                speech_confidence=speech.confidence,
             )
 
         # Apply privacy: optionally suppress speaker ID
@@ -162,18 +161,15 @@ class IntentEngine:
         intent_class, confidence = self._rule_based(speech.text)
 
         # Step 2: optional LangChain refinement on low-confidence results
-        if (
-            confidence < self.cfg.intent_confidence_threshold
-            and self.cfg.backend == "langchain"
-        ):
+        if confidence < self.cfg.intent_confidence_threshold and self.cfg.backend == "langchain":
             try:
                 lc_class, lc_conf = self._langchain_classify(speech.text, ctx)
                 if lc_conf > confidence:
                     intent_class, confidence = lc_class, lc_conf
             except Exception:
-                pass   # LangChain failed → stick with rule-based result
+                pass  # LangChain failed → stick with rule-based result
 
-        slots     = self._extract_slots(speech.text)
+        slots = self._extract_slots(speech.text)
         ambiguous = confidence < self.cfg.intent_confidence_threshold
 
         if ambiguous:
@@ -181,27 +177,27 @@ class IntentEngine:
                 return None
             fallback = _CLARIFY_RESPONSES.get(intent_class, _DEFAULT_CLARIFY)
             if self.cfg.ambiguity_policy == "best_guess":
-                pass   # keep intent_class as best guess
-            else:      # "clarify"
+                pass  # keep intent_class as best guess
+            else:  # "clarify"
                 intent_class = "unknown"
         else:
             fallback = ""
 
         return UserIntent(
-            intent_class      = intent_class,
-            confidence        = confidence,
-            speaker_id        = speaker_id,
-            raw_text          = speech.text,
-            slots             = slots,
-            is_ambiguous      = ambiguous,
-            fallback_response = fallback,
-            speech_confidence = speech.confidence,
+            intent_class=intent_class,
+            confidence=confidence,
+            speaker_id=speaker_id,
+            raw_text=speech.text,
+            slots=slots,
+            is_ambiguous=ambiguous,
+            fallback_response=fallback,
+            speech_confidence=speech.confidence,
         )
 
     # ── Rule-based classification ─────────────────────────────────────────────
 
-    def _rule_based(self, text: str) -> Tuple[str, float]:
-        scores: Dict[str, float] = {}
+    def _rule_based(self, text: str) -> tuple[str, float]:
+        scores: dict[str, float] = {}
         for intent_class, patterns in self._compiled.items():
             hits = sum(1 for p in patterns if p.search(text))
             if hits > 0:
@@ -216,29 +212,29 @@ class IntentEngine:
         # Conflict: two intents within 0.05 of each other → ambiguous
         sorted_scores = sorted(scores.values(), reverse=True)
         if len(sorted_scores) >= 2 and (sorted_scores[0] - sorted_scores[1]) < 0.05:
-            return best, sorted_scores[0] * 0.80   # penalise for ambiguity
+            return best, sorted_scores[0] * 0.80  # penalise for ambiguity
 
         return best, scores[best]
 
     # ── Slot extraction ───────────────────────────────────────────────────────
 
-    def _extract_slots(self, text: str) -> List[IntentSlot]:
-        slots: List[IntentSlot] = []
+    def _extract_slots(self, text: str) -> list[IntentSlot]:
+        slots: list[IntentSlot] = []
         for slot_name, pattern in self._slot_compiled.items():
             m = pattern.search(text)
             if m:
-                slots.append(IntentSlot(
-                    name       = slot_name,
-                    value      = m.group(0).strip().lower(),
-                    confidence = 0.85,
-                ))
+                slots.append(
+                    IntentSlot(
+                        name=slot_name,
+                        value=m.group(0).strip().lower(),
+                        confidence=0.85,
+                    )
+                )
         return slots
 
     # ── LangChain backend (optional) ──────────────────────────────────────────
 
-    def _langchain_classify(
-        self, text: str, ctx: FusionContext
-    ) -> Tuple[str, float]:
+    def _langchain_classify(self, text: str, ctx: FusionContext) -> tuple[str, float]:
         """
         Use a LangChain chain to classify intent.
 
@@ -250,23 +246,26 @@ class IntentEngine:
             self._lc_chain = self._build_lc_chain()
 
         scene_ctx = (
-            f"persons={ctx.person_count} "
-            f"speech_stale={'speech' in ctx.stale_modalities}"
+            f"persons={ctx.person_count} " f"speech_stale={'speech' in ctx.stale_modalities}"
         )
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            fut = ex.submit(self._lc_chain.invoke, {
-                "text": text,
-                "context": scene_ctx,
-                "valid_classes": ", ".join(INTENT_PATTERNS.keys()),
-            })
+            fut = ex.submit(
+                self._lc_chain.invoke,
+                {
+                    "text": text,
+                    "context": scene_ctx,
+                    "valid_classes": ", ".join(INTENT_PATTERNS.keys()),
+                },
+            )
             result = fut.result(timeout=self.cfg.langchain_timeout_sec)
 
         # Parse "intent_class|confidence" response
         parts = str(result).strip().split("|")
         if len(parts) == 2:
-            cls   = parts[0].strip().lower()
-            conf  = float(parts[1].strip())
+            cls = parts[0].strip().lower()
+            conf = float(parts[1].strip())
             if cls in INTENT_PATTERNS:
                 return cls, min(1.0, max(0.0, conf))
 
@@ -274,11 +273,12 @@ class IntentEngine:
 
     def _build_lc_chain(self):
         import os
+
+        from langchain.chains import LLMChain  # type: ignore
         from langchain.prompts import PromptTemplate  # type: ignore
-        from langchain.chains import LLMChain         # type: ignore
 
         try:
-            from langchain_openai import ChatOpenAI   # type: ignore
+            from langchain_openai import ChatOpenAI  # type: ignore
         except ImportError:
             from langchain.chat_models import ChatOpenAI  # type: ignore
 
@@ -301,7 +301,7 @@ class IntentEngine:
                 "You are an intent classifier for a service robot.\n"
                 "Scene context: {context}\n"
                 "Valid intent classes: {valid_classes}\n"
-                "User said: \"{text}\"\n"
+                'User said: "{text}"\n'
                 "Respond with exactly: <intent_class>|<confidence 0.0-1.0>\n"
                 "Example: order_item|0.92"
             ),

@@ -22,14 +22,15 @@ The controller is driven by the navigation node's timer; it does NOT
 create its own ROS2 timers or subscribers.  Sensor data is injected via
 update_* methods.  Motion commands are issued via the injected cmd_vel callback.
 """
+
 from __future__ import annotations
 
 import logging
 import math
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Callable, Optional, Tuple
+from enum import StrEnum
 
 from bonbon_navigation.config.nav_config import DockingConfig
 
@@ -38,35 +39,37 @@ logger = logging.getLogger(__name__)
 
 # ── Phases ────────────────────────────────────────────────────────────────────
 
-class DockingPhase(str, Enum):
-    IDLE           = "IDLE"
-    APPROACHING    = "APPROACHING"
-    ALIGNING       = "ALIGNING"
+
+class DockingPhase(StrEnum):
+    IDLE = "IDLE"
+    APPROACHING = "APPROACHING"
+    ALIGNING = "ALIGNING"
     FINAL_APPROACH = "FINAL_APPROACH"
-    CONTACT        = "CONTACT"
-    FAILED         = "FAILED"
-    UNDOCKING      = "UNDOCKING"
+    CONTACT = "CONTACT"
+    FAILED = "FAILED"
+    UNDOCKING = "UNDOCKING"
 
 
 # ── State ─────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class DockingState:
-    charger_id:          str   = ""
-    phase:               DockingPhase = DockingPhase.IDLE
-    retry_count:         int   = 0
-    distance_to_dock_m:  float = -1.0
-    alignment_error_m:   float = 0.0
+    charger_id: str = ""
+    phase: DockingPhase = DockingPhase.IDLE
+    retry_count: int = 0
+    distance_to_dock_m: float = -1.0
+    alignment_error_m: float = 0.0
     alignment_error_rad: float = 0.0
-    contact_detected:    bool  = False
-    charging_current_a:  float = 0.0
-    failure_reason:      str   = ""
-    phase_started_at:    float = field(default_factory=time.monotonic)
+    contact_detected: bool = False
+    charging_current_a: float = 0.0
+    failure_reason: str = ""
+    phase_started_at: float = field(default_factory=time.monotonic)
 
 
 # ── Controller ────────────────────────────────────────────────────────────────
 
-CmdVelFn = Callable[[float, float], None]   # (linear_mps, angular_rps)
+CmdVelFn = Callable[[float, float], None]  # (linear_mps, angular_rps)
 
 
 class DockingController:
@@ -89,26 +92,26 @@ class DockingController:
     """
 
     def __init__(self, cfg: DockingConfig) -> None:
-        self._cfg   = cfg
+        self._cfg = cfg
         self._state = DockingState()
 
         # Callbacks — default to no-ops
-        self._cmd_vel_fn:    CmdVelFn            = lambda l, a: None
-        self._stop_fn:       Callable[[], None]  = lambda: None
-        self._coarse_nav_fn: Callable            = lambda pose: None
+        self._cmd_vel_fn: CmdVelFn = lambda lin, a: None
+        self._stop_fn: Callable[[], None] = lambda: None
+        self._coarse_nav_fn: Callable = lambda pose: None
 
         # Latest sensor readings
-        self._ir_distance:   float = -1.0
-        self._ir_lateral:    float = 0.0
-        self._ir_heading:    float = 0.0
+        self._ir_distance: float = -1.0
+        self._ir_lateral: float = 0.0
+        self._ir_heading: float = 0.0
         self._aruco_detected: bool = False
         self._aruco_distance: float = -1.0
-        self._aruco_lateral:  float = 0.0
-        self._aruco_heading:  float = 0.0
+        self._aruco_lateral: float = 0.0
+        self._aruco_heading: float = 0.0
 
         # Charger pose
-        self._charger_x:   float = 0.0
-        self._charger_y:   float = 0.0
+        self._charger_x: float = 0.0
+        self._charger_y: float = 0.0
         self._charger_yaw: float = 0.0
 
     # ── Callback injection ────────────────────────────────────────────────────
@@ -126,53 +129,55 @@ class DockingController:
 
     def update_ir_beacon(
         self,
-        distance_m:   float,
-        lateral_err:  float = 0.0,
-        heading_err:  float = 0.0,
+        distance_m: float,
+        lateral_err: float = 0.0,
+        heading_err: float = 0.0,
     ) -> None:
         self._ir_distance = distance_m
-        self._ir_lateral  = lateral_err
-        self._ir_heading  = heading_err
+        self._ir_lateral = lateral_err
+        self._ir_heading = heading_err
 
     def update_aruco(
         self,
-        detected:    bool,
-        distance_m:  float = -1.0,
+        detected: bool,
+        distance_m: float = -1.0,
         lateral_err: float = 0.0,
         heading_err: float = 0.0,
     ) -> None:
         self._aruco_detected = detected
         self._aruco_distance = distance_m
-        self._aruco_lateral  = lateral_err
-        self._aruco_heading  = heading_err
+        self._aruco_lateral = lateral_err
+        self._aruco_heading = heading_err
 
     def update_contact(
         self,
-        contact_detected:   bool,
+        contact_detected: bool,
         charging_current_a: float = 0.0,
     ) -> None:
-        self._state.contact_detected    = contact_detected
-        self._state.charging_current_a  = charging_current_a
+        self._state.contact_detected = contact_detected
+        self._state.charging_current_a = charging_current_a
 
     # ── Control ───────────────────────────────────────────────────────────────
 
     def start(
         self,
-        charger_id:  str,
-        charger_x:   float,
-        charger_y:   float,
+        charger_id: str,
+        charger_x: float,
+        charger_y: float,
         charger_yaw: float,
     ) -> None:
         """Begin docking sequence for a charger."""
-        self._charger_x   = charger_x
-        self._charger_y   = charger_y
+        self._charger_x = charger_x
+        self._charger_y = charger_y
         self._charger_yaw = charger_yaw
         self._state = DockingState(
-            charger_id       = charger_id,
-            phase            = DockingPhase.APPROACHING,
-            phase_started_at = time.monotonic(),
+            charger_id=charger_id,
+            phase=DockingPhase.APPROACHING,
+            phase_started_at=time.monotonic(),
         )
-        logger.info("Docking started: charger=%s  pos=(%.2f,%.2f)", charger_id, charger_x, charger_y)
+        logger.info(
+            "Docking started: charger=%s  pos=(%.2f,%.2f)", charger_id, charger_x, charger_y
+        )
 
         # Request coarse navigation to pre-dock waypoint
         pre_x, pre_y = self._pre_dock_pose()
@@ -189,7 +194,7 @@ class DockingController:
         if not self._cfg.enabled:
             return DockingPhase.IDLE
 
-        s   = self._state
+        s = self._state
         now = time.monotonic()
         elapsed = now - s.phase_started_at
 
@@ -208,7 +213,7 @@ class DockingController:
 
         elif s.phase == DockingPhase.ALIGNING:
             lat, hdg = self._best_alignment()
-            s.alignment_error_m   = lat
+            s.alignment_error_m = lat
             s.alignment_error_rad = hdg
             # Correct heading
             if abs(hdg) > self._cfg.max_heading_error_rad:
@@ -237,8 +242,9 @@ class DockingController:
             if s.contact_detected or (0.0 < d <= 0.05):
                 self._stop_fn()
                 self._transition(DockingPhase.CONTACT)
-                logger.info("Docking CONTACT: charger=%s  current=%.2fA",
-                            s.charger_id, s.charging_current_a)
+                logger.info(
+                    "Docking CONTACT: charger=%s  current=%.2fA", s.charger_id, s.charging_current_a
+                )
             else:
                 # Slow forward advance with minor heading correction
                 lat, hdg = self._best_alignment()
@@ -259,8 +265,9 @@ class DockingController:
             pass  # terminal failure state
 
         elif s.phase == DockingPhase.UNDOCKING:
-            if elapsed >= (self._cfg.undock_reverse_distance_m
-                           / max(self._cfg.undock_speed_mps, 0.01)):
+            if elapsed >= (
+                self._cfg.undock_reverse_distance_m / max(self._cfg.undock_speed_mps, 0.01)
+            ):
                 self._stop_fn()
                 self._state = DockingState()  # reset to IDLE
 
@@ -268,7 +275,7 @@ class DockingController:
 
     def start_undocking(self) -> None:
         """Reverse off the charger."""
-        self._state.phase            = DockingPhase.UNDOCKING
+        self._state.phase = DockingPhase.UNDOCKING
         self._state.phase_started_at = time.monotonic()
         self._cmd_vel_fn(-self._cfg.undock_speed_mps, 0.0)
         logger.info("Undocking: reversing %.2fm", self._cfg.undock_reverse_distance_m)
@@ -279,7 +286,7 @@ class DockingController:
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
-    def _pre_dock_pose(self) -> Tuple[float, float]:
+    def _pre_dock_pose(self) -> tuple[float, float]:
         """Compute pre-dock waypoint (pre_dock_distance_m in front of charger)."""
         # "In front of" means opposite to the charger's approach direction
         dx = -math.cos(self._charger_yaw) * self._cfg.pre_dock_distance_m
@@ -294,7 +301,7 @@ class DockingController:
             return self._ir_distance
         return -1.0
 
-    def _best_alignment(self) -> Tuple[float, float]:
+    def _best_alignment(self) -> tuple[float, float]:
         """Return (lateral_err_m, heading_err_rad)."""
         if self._cfg.use_aruco_marker and self._aruco_detected:
             return (self._aruco_lateral, self._aruco_heading)
@@ -302,13 +309,13 @@ class DockingController:
 
     def _transition(self, phase: DockingPhase) -> None:
         logger.info("Docking transition: %s → %s", self._state.phase.value, phase.value)
-        self._state.phase            = phase
+        self._state.phase = phase
         self._state.phase_started_at = time.monotonic()
 
     def _fail(self, reason: str) -> None:
         self._stop_fn()
         self._state.failure_reason = reason
-        self._state.phase          = DockingPhase.FAILED
+        self._state.phase = DockingPhase.FAILED
         logger.error("Docking FAILED: %s (charger=%s)", reason, self._state.charger_id)
 
     @property

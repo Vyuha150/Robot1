@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -27,6 +26,7 @@ auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 # ---------------------------------------------------------------------------
 # Login
 # ---------------------------------------------------------------------------
+
 
 @auth_router.post("/login", response_model=APIResponse)
 async def login(request: Request, body: LoginRequest) -> APIResponse:
@@ -68,17 +68,20 @@ async def login(request: Request, body: LoginRequest) -> APIResponse:
         duration_ms=(time.monotonic() - t0) * 1000,
     )
     metrics.record_audit_event()
-    return APIResponse.ok(TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        expires_in=expires_in,
-        role=user["role"],
-    ))
+    return APIResponse.ok(
+        TokenResponse(
+            access_token=token,
+            token_type="bearer",
+            expires_in=expires_in,
+            role=user["role"],
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Current user info
 # ---------------------------------------------------------------------------
+
 
 @auth_router.get("/me", response_model=APIResponse)
 async def get_me(
@@ -90,18 +93,21 @@ async def get_me(
     user = auth_mgr.get_user_by_id(current_user.sub)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return APIResponse.ok(UserInfo(
-        user_id=user["user_id"],
-        username=user["username"],
-        role=user["role"],
-        is_active=bool(user["is_active"]),
-        last_login=user.get("last_login"),
-    ))
+    return APIResponse.ok(
+        UserInfo(
+            user_id=user["user_id"],
+            username=user["username"],
+            role=user["role"],
+            is_active=bool(user["is_active"]),
+            last_login=user.get("last_login"),
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # User management (admin only)
 # ---------------------------------------------------------------------------
+
 
 @auth_router.get("/users", response_model=APIResponse)
 async def list_users(
@@ -111,16 +117,18 @@ async def list_users(
     """List all users (admin only)."""
     auth_mgr = request.app.state.auth_manager
     users = auth_mgr.list_users()
-    return APIResponse.ok([
-        UserInfo(
-            user_id=u["user_id"],
-            username=u["username"],
-            role=u["role"],
-            is_active=bool(u["is_active"]),
-            last_login=u.get("last_login"),
-        )
-        for u in users
-    ])
+    return APIResponse.ok(
+        [
+            UserInfo(
+                user_id=u["user_id"],
+                username=u["username"],
+                role=u["role"],
+                is_active=bool(u["is_active"]),
+                last_login=u.get("last_login"),
+            )
+            for u in users
+        ]
+    )
 
 
 @auth_router.post("/users", response_model=APIResponse, status_code=201)
@@ -136,7 +144,7 @@ async def create_user(
     try:
         user = auth_mgr.create_user(body)
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     audit.log(
         actor_id=current_user.sub,
         actor_name=current_user.username,
@@ -165,7 +173,7 @@ async def update_user(
     try:
         updated = auth_mgr.update_user(user_id, body)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
     audit.log(

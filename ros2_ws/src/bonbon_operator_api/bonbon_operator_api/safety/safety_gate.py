@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from bonbon_operator_api.safety.command_validator import CommandValidator, ValidationError
 
@@ -27,11 +26,13 @@ logger = logging.getLogger(__name__)
 _ALWAYS_PERMITTED = frozenset({"emergency_stop"})
 
 # Commands blocked while robot is in a halted state
-_BLOCKED_DURING_HALT = frozenset({
-    "navigate",
-    "dock",
-    "resume",
-})
+_BLOCKED_DURING_HALT = frozenset(
+    {
+        "navigate",
+        "dock",
+        "resume",
+    }
+)
 
 # Safety states considered "halted"
 _HALTED_STATES = frozenset({"emergency_stop", "safety_stop"})
@@ -130,9 +131,7 @@ class SafetyCommandGate:
                 ip_address=ip_address,
                 duration_ms=(time.monotonic() - t0) * 1000,
             )
-            logger.warning(
-                "EMERGENCY STOP accepted from user=%s role=%s", actor_name, actor_role
-            )
+            logger.warning("EMERGENCY STOP accepted from user=%s role=%s", actor_name, actor_role)
             return
 
         if safety_state in _HALTED_STATES and command_type in _BLOCKED_DURING_HALT:

@@ -4,19 +4,32 @@ import re
 
 from conftest import ROOT
 
-
 REQUIRED_PLATFORM_DOCS = {
     "README.md": ["overview", "architecture", "setup", "configuration", "ros2 interfaces"],
     "overview.md": ["package families", "safety principle"],
     "architecture.md": ["runtime layers", "safety-critical flow", "deployment flow"],
     "setup.md": ["prerequisites", "build ros2 workspace", "run simulation smoke"],
     "configuration.md": ["ros2 package configs", "runtime secrets", "simulation config"],
-    "modules.md": ["bonbon_safety", "bonbon_navigation", "bonbon_operator_api", "bonbon_simulation"],
+    "modules.md": [
+        "bonbon_safety",
+        "bonbon_navigation",
+        "bonbon_operator_api",
+        "bonbon_simulation",
+    ],
     "api.md": ["command api", "robot status api", "memory and rag api", "websocket api"],
     "ros2_interfaces.md": ["core sensor topics", "safety topics and services", "navigation topics"],
     "examples.md": ["launch safety stack", "send navigation goal", "deployment dry run"],
-    "tests.md": ["unit tests", "integration tests", "failure injection tests", "latency benchmarks"],
-    "troubleshooting.md": ["safety state does not publish", "robot will not move", "deployment fails"],
+    "tests.md": [
+        "unit tests",
+        "integration tests",
+        "failure injection tests",
+        "latency benchmarks",
+    ],
+    "troubleshooting.md": [
+        "safety state does not publish",
+        "robot will not move",
+        "deployment fails",
+    ],
     "deployment.md": ["pre-deployment checks", "post-deployment checks", "rollback"],
     "performance_tuning.md": ["ros2", "navigation", "deployment"],
     "security.md": ["secrets", "operator api", "data privacy"],

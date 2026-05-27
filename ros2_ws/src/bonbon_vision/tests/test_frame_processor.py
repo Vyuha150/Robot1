@@ -17,6 +17,7 @@ Covers
 * Config hot-reload — update_config() picks up new settings
 * is_usable property — OK and LOW_LIGHT are usable; others are not
 """
+
 import math
 import sys
 import types
@@ -32,6 +33,7 @@ import numpy as np
 _real_cv2_available = False
 try:
     import cv2 as _cv2
+
     _real_cv2_available = True
 except ImportError:
     pass
@@ -39,10 +41,10 @@ except ImportError:
 # Build a lightweight stub only when real cv2 is absent
 if not _real_cv2_available:
     _cv2_stub = types.ModuleType("cv2")
-    _cv2_stub.INTER_LINEAR  = 1
+    _cv2_stub.INTER_LINEAR = 1
     _cv2_stub.INTER_NEAREST = 0
-    _cv2_stub.COLOR_BGR2YCrCb  = 36
-    _cv2_stub.COLOR_YCrCb2BGR  = 38
+    _cv2_stub.COLOR_BGR2YCrCb = 36
+    _cv2_stub.COLOR_YCrCb2BGR = 38
 
     def _resize(src, dsize, interpolation=1):
         h, w = dsize[1], dsize[0]
@@ -52,31 +54,32 @@ if not _real_cv2_available:
         return src[ri[:, None], ci[None, :]]
 
     _cv2_stub.resize = _resize
-    _cv2_stub.GaussianBlur = lambda src, ksize, sig: src   # identity
+    _cv2_stub.GaussianBlur = lambda src, ksize, sig: src  # identity
 
     class _CLAHE:
-        def apply(self, ch): return ch
+        def apply(self, ch):
+            return ch
 
     _cv2_stub.createCLAHE = lambda clipLimit=2.0, tileGridSize=(8, 8): _CLAHE()
 
     def _cvt(src, code):
-        return src   # identity — enough for non-CLAHE tests
+        return src  # identity — enough for non-CLAHE tests
 
     _cv2_stub.cvtColor = _cvt
-    _cv2_stub.split    = lambda src: (src[:, :, 0], src[:, :, 1], src[:, :, 2])
-    _cv2_stub.merge    = lambda chs: np.stack(chs, axis=2)
+    _cv2_stub.split = lambda src: (src[:, :, 0], src[:, :, 1], src[:, :, 2])
+    _cv2_stub.merge = lambda chs: np.stack(chs, axis=2)
     sys.modules.setdefault("cv2", _cv2_stub)
 
 # Import under test AFTER cv2 stub is in place
-from bonbon_vision.preprocessing.frame_processor import (   # noqa: E402
+from bonbon_vision.config.vision_config import PreprocessConfig  # noqa: E402
+from bonbon_vision.preprocessing.frame_processor import (  # noqa: E402
     FrameProcessor,
     FrameQuality,
     ProcessedFrame,
 )
-from bonbon_vision.config.vision_config import PreprocessConfig  # noqa: E402
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 def _cfg(**overrides) -> PreprocessConfig:
     """Return a PreprocessConfig with test-friendly defaults."""
@@ -128,6 +131,7 @@ def _nan_depth(h=120, w=160) -> np.ndarray:
 
 # ── Test Classes ──────────────────────────────────────────────────────────────
 
+
 class TestOKFrame(unittest.TestCase):
     def setUp(self):
         self.proc = FrameProcessor(_cfg())
@@ -168,34 +172,34 @@ class TestLowLight(unittest.TestCase):
 
     def test_quality_is_low_light(self):
         proc = FrameProcessor(_cfg(brightness_threshold=50.0))
-        pf   = proc.process(_dark_frame(brightness=20))
+        pf = proc.process(_dark_frame(brightness=20))
         self.assertEqual(pf.quality, FrameQuality.LOW_LIGHT)
 
     def test_low_light_is_usable(self):
         proc = FrameProcessor(_cfg(brightness_threshold=50.0))
-        pf   = proc.process(_dark_frame(brightness=20))
+        pf = proc.process(_dark_frame(brightness=20))
         self.assertTrue(pf.is_usable)
 
     def test_is_low_light_flag(self):
         proc = FrameProcessor(_cfg(brightness_threshold=50.0))
-        pf   = proc.process(_dark_frame(brightness=20))
+        pf = proc.process(_dark_frame(brightness=20))
         self.assertTrue(pf.is_low_light)
 
     def test_mean_brightness_recorded(self):
         proc = FrameProcessor(_cfg(brightness_threshold=50.0))
-        pf   = proc.process(_dark_frame(brightness=20))
+        pf = proc.process(_dark_frame(brightness=20))
         # Mean of 20 in all channels ≈ 20
         self.assertAlmostEqual(pf.mean_brightness, 20.0, delta=1.0)
 
     @unittest.skipUnless(_real_cv2_available, "requires real cv2 for CLAHE")
     def test_clahe_applied_when_low_light(self):
         proc = FrameProcessor(_cfg(brightness_threshold=50.0, enable_clahe=True))
-        pf   = proc.process(_dark_frame(brightness=20))
+        pf = proc.process(_dark_frame(brightness=20))
         self.assertTrue(pf.clahe_applied)
 
     def test_clahe_not_applied_when_disabled(self):
         proc = FrameProcessor(_cfg(brightness_threshold=50.0, enable_clahe=False))
-        pf   = proc.process(_dark_frame(brightness=20))
+        pf = proc.process(_dark_frame(brightness=20))
         self.assertFalse(pf.clahe_applied)
 
 
@@ -230,7 +234,7 @@ class TestEmptyFrame(unittest.TestCase):
 
     def test_exactly_at_min_brightness_not_empty(self):
         """Frame whose mean is exactly equal to min_mean_brightness should NOT be EMPTY."""
-        cfg  = _cfg(min_mean_brightness=5.0)
+        cfg = _cfg(min_mean_brightness=5.0)
         proc = FrameProcessor(cfg)
         # mean = 5 → not empty (strictly less than threshold is empty)
         frame = np.full((120, 160, 3), 5, dtype=np.uint8)
@@ -260,7 +264,7 @@ class TestCorruptedFrame(unittest.TestCase):
 
     def test_inf_frame_corrupted(self):
         arr = np.ones((60, 80, 3), dtype=np.float32) * np.inf
-        pf  = self.proc.process(arr)
+        pf = self.proc.process(arr)
         self.assertEqual(pf.quality, FrameQuality.CORRUPTED)
 
     def test_mixed_nan_inf_corrupted(self):
@@ -273,7 +277,7 @@ class TestCorruptedFrame(unittest.TestCase):
     def test_valid_float_frame_normalised(self):
         """A clean float32 frame in [0,1] should be normalised to uint8 OK."""
         arr = np.full((120, 160, 3), 0.5, dtype=np.float32)
-        pf  = self.proc.process(arr)
+        pf = self.proc.process(arr)
         self.assertEqual(pf.bgr.dtype, np.uint8)
         self.assertIn(pf.quality, (FrameQuality.OK, FrameQuality.LOW_LIGHT))
 
@@ -288,12 +292,12 @@ class TestWrongShape(unittest.TestCase):
 
     def test_4d_array_wrong_shape(self):
         arr = np.zeros((4, 60, 80, 3), dtype=np.uint8)
-        pf  = self.proc.process(arr)
+        pf = self.proc.process(arr)
         self.assertEqual(pf.quality, FrameQuality.WRONG_SHAPE)
 
     def test_wrong_channels_wrong_shape(self):
         arr = np.zeros((60, 80, 2), dtype=np.uint8)
-        pf  = self.proc.process(arr)
+        pf = self.proc.process(arr)
         self.assertEqual(pf.quality, FrameQuality.WRONG_SHAPE)
 
     def test_wrong_shape_not_usable(self):
@@ -324,7 +328,7 @@ class TestDepthHandling(unittest.TestCase):
     def test_partial_nan_depth_above_threshold(self):
         """60% valid → kept (max_nan_fraction=0.50 means require >50% valid)."""
         depth = np.full((120, 160), 1.5, dtype=np.float32)
-        depth[:48, :] = math.nan   # 40% NaN → 60% valid
+        depth[:48, :] = math.nan  # 40% NaN → 60% valid
         pf = self.proc.process(_bright_frame(), depth)
         self.assertIsNotNone(pf.depth_m)
 
@@ -342,21 +346,21 @@ class TestDepthHandling(unittest.TestCase):
 
 class TestResize(unittest.TestCase):
     def test_frame_smaller_than_target_upscaled(self):
-        cfg  = _cfg(resize_width=128, resize_height=96)
+        cfg = _cfg(resize_width=128, resize_height=96)
         proc = FrameProcessor(cfg)
-        pf   = proc.process(_bright_frame(h=48, w=64))
+        pf = proc.process(_bright_frame(h=48, w=64))
         self.assertEqual(pf.bgr.shape[:2], (96, 128))
 
     def test_frame_already_target_size_unchanged(self):
-        cfg  = _cfg(resize_width=64, resize_height=48)
+        cfg = _cfg(resize_width=64, resize_height=48)
         proc = FrameProcessor(cfg)
-        pf   = proc.process(_bright_frame(h=48, w=64))
+        pf = proc.process(_bright_frame(h=48, w=64))
         self.assertEqual(pf.bgr.shape[:2], (48, 64))
 
     def test_original_shape_reflects_input(self):
-        cfg  = _cfg(resize_width=64, resize_height=48)
+        cfg = _cfg(resize_width=64, resize_height=48)
         proc = FrameProcessor(cfg)
-        pf   = proc.process(_bright_frame(h=480, w=640))
+        pf = proc.process(_bright_frame(h=480, w=640))
         self.assertEqual(pf.original_shape, (480, 640))
 
 
@@ -382,37 +386,61 @@ class TestConfigHotReload(unittest.TestCase):
 class TestIsUsableProperty(unittest.TestCase):
     def test_ok_is_usable(self):
         pf = ProcessedFrame(
-            bgr=np.zeros((10, 10, 3), dtype=np.uint8), depth_m=None,
-            quality=FrameQuality.OK, original_shape=(10, 10),
-            mean_brightness=100.0, is_low_light=False, clahe_applied=False,
-            denoise_applied=False, preprocess_ms=0.5, depth_valid_frac=0.0,
+            bgr=np.zeros((10, 10, 3), dtype=np.uint8),
+            depth_m=None,
+            quality=FrameQuality.OK,
+            original_shape=(10, 10),
+            mean_brightness=100.0,
+            is_low_light=False,
+            clahe_applied=False,
+            denoise_applied=False,
+            preprocess_ms=0.5,
+            depth_valid_frac=0.0,
         )
         self.assertTrue(pf.is_usable)
 
     def test_low_light_is_usable(self):
         pf = ProcessedFrame(
-            bgr=np.zeros((10, 10, 3), dtype=np.uint8), depth_m=None,
-            quality=FrameQuality.LOW_LIGHT, original_shape=(10, 10),
-            mean_brightness=20.0, is_low_light=True, clahe_applied=True,
-            denoise_applied=False, preprocess_ms=0.5, depth_valid_frac=0.0,
+            bgr=np.zeros((10, 10, 3), dtype=np.uint8),
+            depth_m=None,
+            quality=FrameQuality.LOW_LIGHT,
+            original_shape=(10, 10),
+            mean_brightness=20.0,
+            is_low_light=True,
+            clahe_applied=True,
+            denoise_applied=False,
+            preprocess_ms=0.5,
+            depth_valid_frac=0.0,
         )
         self.assertTrue(pf.is_usable)
 
     def test_empty_not_usable(self):
         pf = ProcessedFrame(
-            bgr=np.zeros((10, 10, 3), dtype=np.uint8), depth_m=None,
-            quality=FrameQuality.EMPTY, original_shape=(10, 10),
-            mean_brightness=0.0, is_low_light=False, clahe_applied=False,
-            denoise_applied=False, preprocess_ms=0.1, depth_valid_frac=0.0,
+            bgr=np.zeros((10, 10, 3), dtype=np.uint8),
+            depth_m=None,
+            quality=FrameQuality.EMPTY,
+            original_shape=(10, 10),
+            mean_brightness=0.0,
+            is_low_light=False,
+            clahe_applied=False,
+            denoise_applied=False,
+            preprocess_ms=0.1,
+            depth_valid_frac=0.0,
         )
         self.assertFalse(pf.is_usable)
 
     def test_corrupted_not_usable(self):
         pf = ProcessedFrame(
-            bgr=np.zeros((10, 10, 3), dtype=np.uint8), depth_m=None,
-            quality=FrameQuality.CORRUPTED, original_shape=(10, 10),
-            mean_brightness=0.0, is_low_light=False, clahe_applied=False,
-            denoise_applied=False, preprocess_ms=0.1, depth_valid_frac=0.0,
+            bgr=np.zeros((10, 10, 3), dtype=np.uint8),
+            depth_m=None,
+            quality=FrameQuality.CORRUPTED,
+            original_shape=(10, 10),
+            mean_brightness=0.0,
+            is_low_light=False,
+            clahe_applied=False,
+            denoise_applied=False,
+            preprocess_ms=0.1,
+            depth_valid_frac=0.0,
         )
         self.assertFalse(pf.is_usable)
 

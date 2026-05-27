@@ -16,10 +16,10 @@ Usage::
 
     seg = vad.process_chunk(chunk)   # returns AudioSegment or None
 """
+
 from __future__ import annotations
 
 import time
-from typing import List, Optional
 
 import numpy as np
 
@@ -41,16 +41,16 @@ class MockVAD(BaseVAD):
     def __init__(
         self,
         sample_rate: int = 16000,
-        speech_pattern: Optional[List[bool]] = None,
-        emit_after: Optional[int] = None,
+        speech_pattern: list[bool] | None = None,
+        emit_after: int | None = None,
     ) -> None:
         super().__init__(sample_rate)
-        self._pattern    = list(speech_pattern) if speech_pattern else []
+        self._pattern = list(speech_pattern) if speech_pattern else []
         self._emit_after = emit_after
-        self._idx        = 0
+        self._idx = 0
         self._speech_chunks = 0
-        self._forced_emit: Optional[AudioSegment] = None
-        self._accumulated: List[float] = []
+        self._forced_emit: AudioSegment | None = None
+        self._accumulated: list[float] = []
         self._onset_time: float = 0.0
         self.loaded = False
         # Introspection counters
@@ -75,14 +75,14 @@ class MockVAD(BaseVAD):
 
     # ── Control API (for tests) ───────────────────────────────────────────────
 
-    def set_speech_pattern(self, pattern: List[bool]) -> None:
+    def set_speech_pattern(self, pattern: list[bool]) -> None:
         """Set the sequence of speech/silence booleans."""
         self._pattern = list(pattern)
         self._idx = 0
 
     def force_next_emit(
         self,
-        samples: Optional[np.ndarray] = None,
+        samples: np.ndarray | None = None,
         force_cut: bool = False,
     ) -> None:
         """Force the next process_chunk call to emit a segment."""
@@ -101,7 +101,7 @@ class MockVAD(BaseVAD):
         self,
         samples: np.ndarray,
         doa_angle_deg: float = 0.0,
-    ) -> Optional[AudioSegment]:
+    ) -> AudioSegment | None:
         self.call_count += 1
 
         # Honour explicit forced emit first

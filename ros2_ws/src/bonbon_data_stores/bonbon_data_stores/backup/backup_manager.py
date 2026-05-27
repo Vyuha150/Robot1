@@ -18,16 +18,13 @@ Restore
 
 from __future__ import annotations
 
-import gzip
 import logging
-import os
 import shutil
 import sqlite3
 import tarfile
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +116,7 @@ class BackupRestoreManager:
     # Restore
     # ------------------------------------------------------------------
 
-    def restore_backup(self, archive_path: Path) -> Dict[str, bool]:
+    def restore_backup(self, archive_path: Path) -> dict[str, bool]:
         """Restore from a backup archive.
 
         Returns a dict ``{ 'sqlite': bool, 'faiss': bool, 'chroma': bool }``
@@ -177,7 +174,7 @@ class BackupRestoreManager:
     # Inventory
     # ------------------------------------------------------------------
 
-    def list_backups(self) -> List[Tuple[Path, float, int]]:
+    def list_backups(self) -> list[tuple[Path, float, int]]:
         """Return ``[(path, mtime, size_bytes), ...]`` sorted newest first."""
         archives = sorted(
             [
@@ -190,7 +187,7 @@ class BackupRestoreManager:
         )
         return [(p, p.stat().st_mtime, p.stat().st_size) for p in archives]
 
-    def latest_backup(self) -> Optional[Path]:
+    def latest_backup(self) -> Path | None:
         backups = self.list_backups()
         return backups[0][0] if backups else None
 
@@ -221,7 +218,7 @@ class BackupRestoreManager:
 
     def _prune_old_backups(self) -> None:
         backups = self.list_backups()
-        for path, _, _ in backups[self._max_backups:]:
+        for path, _, _ in backups[self._max_backups :]:
             try:
                 path.unlink()
                 logger.debug("Pruned old backup: %s", path)

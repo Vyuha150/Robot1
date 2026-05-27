@@ -3,10 +3,11 @@ tests/test_tts_config.py
 ========================
 Unit tests for bonbon_tts.config.tts_config.
 """
+
 import pytest
 from bonbon_tts.config.tts_config import (
-    PiperConfig,
     FillerConfig,
+    PiperConfig,
     QueueConfig,
     SpeakerConfig,
     TTSConfig,
@@ -66,10 +67,10 @@ class TestSpeakerConfig:
 class TestTTSConfig:
     def _cfg(self, **kwargs) -> TTSConfig:
         return TTSConfig(
-            piper   = PiperConfig(**kwargs.get("piper", {})),
-            filler  = FillerConfig(**kwargs.get("filler", {})),
-            queue   = QueueConfig(**kwargs.get("queue", {})),
-            speaker = SpeakerConfig(**kwargs.get("speaker", {})),
+            piper=PiperConfig(**kwargs.get("piper", {})),
+            filler=FillerConfig(**kwargs.get("filler", {})),
+            queue=QueueConfig(**kwargs.get("queue", {})),
+            speaker=SpeakerConfig(**kwargs.get("speaker", {})),
         )
 
     def test_default_construction(self):
@@ -79,7 +80,7 @@ class TestTTSConfig:
 
     def test_from_dict_roundtrip(self):
         cfg = self._cfg()
-        d   = cfg.to_dict()
+        d = cfg.to_dict()
         cfg2 = TTSConfig.from_dict(d)
         assert cfg2.piper.voice == cfg.piper.voice
         assert cfg2.queue.max_depth == cfg.queue.max_depth
@@ -94,7 +95,7 @@ class TestTTSConfig:
 
     def test_validate_ok(self):
         cfg = self._cfg()
-        cfg.validate()   # must not raise
+        cfg.validate()  # must not raise
 
     def test_validate_bad_volume(self):
         cfg = self._cfg(speaker={"volume_pct": 150.0})
@@ -103,10 +104,10 @@ class TestTTSConfig:
 
     def test_validate_bad_max_depth(self):
         cfg = TTSConfig(
-            piper   = PiperConfig(),
-            filler  = FillerConfig(),
-            queue   = QueueConfig(max_depth=0),
-            speaker = SpeakerConfig(),
+            piper=PiperConfig(),
+            filler=FillerConfig(),
+            queue=QueueConfig(max_depth=0),
+            speaker=SpeakerConfig(),
         )
         with pytest.raises(ValueError, match="max_depth"):
             cfg.validate()

@@ -7,14 +7,12 @@ which we stub lightly here.
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-
 from bonbon_operator_api.websocket.ws_manager import (
-    WebSocketConnectionManager,
     VALID_CHANNELS,
+    WebSocketConnectionManager,
 )
 
 
@@ -105,7 +103,7 @@ async def test_connection_counts():
 async def test_per_user_connection_limit():
     mgr = WebSocketConnectionManager()
     wss = [_mock_ws() for _ in range(5)]
-    for i, ws in enumerate(wss):
+    for _i, ws in enumerate(wss):
         await mgr.connect(ws, "robot-status", "heavy-user")
     # 6th connection should fail
     ws_extra = _mock_ws()

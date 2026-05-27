@@ -10,15 +10,11 @@ import logging
 import re
 import time
 from collections import deque
-from typing import Any, Deque, Dict, Optional, Tuple
+from typing import Any
 
 from bonbon_operator_api.models.command_models import (
-    CancelTaskCommand,
-    DockCommand,
     EmergencyStopCommand,
     NavigateCommand,
-    PauseCommand,
-    ResumeCommand,
     SpeakCommand,
 )
 
@@ -30,9 +26,9 @@ _BLOCKED_TTS_PATTERNS = re.compile(
 )
 
 # Navigation hard limits
-_NAV_MAX_COORD = 200.0   # metres
-_NAV_MIN_SPEED = 0.05    # m/s
-_NAV_MAX_SPEED = 1.5     # m/s
+_NAV_MAX_COORD = 200.0  # metres
+_NAV_MIN_SPEED = 0.05  # m/s
+_NAV_MAX_SPEED = 1.5  # m/s
 
 
 class ValidationError(Exception):
@@ -59,7 +55,7 @@ class CommandValidator:
     ) -> None:
         self._dedup_window = dedup_window_sec
         # (command_id, timestamp) pairs — ring buffer
-        self._recent: Deque[Tuple[str, float]] = deque(maxlen=dedup_capacity)
+        self._recent: deque[tuple[str, float]] = deque(maxlen=dedup_capacity)
 
     # ------------------------------------------------------------------
     # Per-command validators
@@ -69,9 +65,7 @@ class CommandValidator:
         if not cmd.text.strip():
             raise ValidationError("Speak text must not be empty or whitespace")
         if _BLOCKED_TTS_PATTERNS.search(cmd.text):
-            raise ValidationError(
-                "Speak text contains disallowed content", "BLOCKED_CONTENT"
-            )
+            raise ValidationError("Speak text contains disallowed content", "BLOCKED_CONTENT")
         if len(cmd.text) > 500:
             raise ValidationError("Speak text exceeds 500 character limit")
 

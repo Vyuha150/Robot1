@@ -13,7 +13,7 @@ import sqlite3
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +66,11 @@ class AuditLogger:
         actor_role: str,
         action: str,
         target: str = "",
-        request_data: Optional[Dict[str, Any]] = None,
+        request_data: dict[str, Any] | None = None,
         outcome: str = "success",
         detail: str = "",
         ip_address: str = "",
-        duration_ms: Optional[float] = None,
+        duration_ms: float | None = None,
     ) -> str:
         """Append one audit entry.  Returns event_id (never raises)."""
         event_id = str(uuid.uuid4())
@@ -107,12 +107,12 @@ class AuditLogger:
 
     def query(
         self,
-        actor_id: Optional[str] = None,
-        action: Optional[str] = None,
-        since_ts: Optional[float] = None,
+        actor_id: str | None = None,
+        action: str | None = None,
+        since_ts: float | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Query audit events with optional filters."""
         conditions = []
         params: list = []

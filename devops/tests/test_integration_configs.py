@@ -4,8 +4,7 @@ import json
 import re
 from pathlib import Path
 
-from conftest import ROOT, run_py
-
+from conftest import run_py
 
 REQUIRED_ROBOT_SERVICES = {
     "core",
@@ -22,13 +21,21 @@ REQUIRED_ROBOT_SERVICES = {
 
 def test_all_environment_configs_validate_with_required_host_overrides():
     overrides = {"BONBON_ROBOT_HOST": "robot.local", "BONBON_ROBOT_USER": "bonbon"}
-    for environment in ["local_dev", "simulation", "lab_robot", "staging_robot", "production_robot"]:
+    for environment in [
+        "local_dev",
+        "simulation",
+        "lab_robot",
+        "staging_robot",
+        "production_robot",
+    ]:
         result = run_py("devops/scripts/validate_config.py", "--env", environment, env=overrides)
         assert result.returncode == 0, f"{environment}: {result.stderr}"
 
 
 def test_robot_compose_contains_all_required_services(root: Path):
-    text = (root / "deployment" / "compose" / "docker-compose.robot.yml").read_text(encoding="utf-8")
+    text = (root / "deployment" / "compose" / "docker-compose.robot.yml").read_text(
+        encoding="utf-8"
+    )
     for service in REQUIRED_ROBOT_SERVICES:
         assert re.search(rf"^  {re.escape(service)}:", text, re.MULTILINE), service
 
@@ -52,15 +59,23 @@ def test_systemd_units_map_to_robot_compose_services(root: Path):
 
 
 def test_safety_related_units_order_after_safety(root: Path):
-    navigation = (root / "deployment" / "systemd" / "bonbon-navigation.service").read_text(encoding="utf-8")
+    navigation = (root / "deployment" / "systemd" / "bonbon-navigation.service").read_text(
+        encoding="utf-8"
+    )
     tts = (root / "deployment" / "systemd" / "bonbon-tts.service").read_text(encoding="utf-8")
     assert "Requires=bonbon-safety.service" in navigation
     assert "After=bonbon-core.service bonbon-safety.service" in tts
 
 
 def test_robot_compose_uses_read_only_sensitive_mounts(root: Path):
-    compose = (root / "deployment" / "compose" / "docker-compose.robot.yml").read_text(encoding="utf-8")
-    for mount in ["/etc/bonbon:/config:ro", "/opt/bonbon/maps:/maps:ro", "/opt/bonbon/models:/models:ro"]:
+    compose = (root / "deployment" / "compose" / "docker-compose.robot.yml").read_text(
+        encoding="utf-8"
+    )
+    for mount in [
+        "/etc/bonbon:/config:ro",
+        "/opt/bonbon/maps:/maps:ro",
+        "/opt/bonbon/models:/models:ro",
+    ]:
         assert mount in compose
     assert "no-new-privileges:true" in compose
 
@@ -110,7 +125,13 @@ def test_prometheus_scrapes_required_metric_domains(root: Path):
     prometheus = (root / "deployment" / "monitoring" / "prometheus" / "prometheus.yml").read_text(
         encoding="utf-8"
     )
-    for job in ["bonbon-dashboard", "bonbon-ros2-health", "node-exporter", "bonbon-safety", "bonbon-ai"]:
+    for job in [
+        "bonbon-dashboard",
+        "bonbon-ros2-health",
+        "node-exporter",
+        "bonbon-safety",
+        "bonbon-ai",
+    ]:
         assert job in prometheus
 
 
@@ -118,7 +139,13 @@ def test_grafana_dashboards_cover_required_views(root: Path):
     titles = []
     for path in (root / "deployment" / "monitoring" / "grafana" / "dashboards").glob("*.json"):
         titles.append(json.loads(path.read_text(encoding="utf-8"))["title"])
-    expected_fragments = ["Robot Health", "Safety Status", "Navigation Performance", "AI Inference", "Logs"]
+    expected_fragments = [
+        "Robot Health",
+        "Safety Status",
+        "Navigation Performance",
+        "AI Inference",
+        "Logs",
+    ]
     for fragment in expected_fragments:
         assert any(fragment in title for title in titles), fragment
 

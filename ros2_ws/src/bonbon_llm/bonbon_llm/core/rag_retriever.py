@@ -19,16 +19,15 @@ Seeded with BonBon robot facts, menu items, location names and
 safety rules so the LLM has grounded facts even before operator
 documents are added.
 """
+
 from __future__ import annotations
 
 import hashlib
 import logging
-import math
 import re
 import threading
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -38,83 +37,94 @@ logger = logging.getLogger(__name__)
 
 # ── Document type ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class RAGDocument:
-    doc_id:   str
-    text:     str
-    metadata: Dict[str, str] = field(default_factory=dict)
-    embedding: Optional[np.ndarray] = field(default=None, repr=False)
+    doc_id: str
+    text: str
+    metadata: dict[str, str] = field(default_factory=dict)
+    embedding: np.ndarray | None = field(default=None, repr=False)
 
 
 @dataclass
 class RetrievalResult:
     document: RAGDocument
-    score: float        # cosine similarity 0–1
+    score: float  # cosine similarity 0–1
     rank: int
 
 
 # ── Default knowledge base ────────────────────────────────────────────────────
 
-_DEFAULT_KNOWLEDGE: List[Tuple[str, Dict[str, str]]] = [
+_DEFAULT_KNOWLEDGE: list[tuple[str, dict[str, str]]] = [
     # Robot capabilities
-    ("BonBon is a service robot at a café. "
-     "BonBon can speak, navigate the café, and serve food and drinks. "
-     "BonBon cannot carry objects weighing more than 2 kg. "
-     "BonBon moves at up to 0.8 m/s in normal mode and 0.3 m/s in caution mode.",
-     {"category": "robot_capabilities"}),
-
-    ("BonBon's safety rules: "
-     "BonBon will always stop when a person is within 0.4 m. "
-     "BonBon will not navigate when the safety state is DANGER or FAULT. "
-     "All navigation commands are reviewed by the Safety Supervisor. "
-     "BonBon will never directly control motors or servos.",
-     {"category": "safety_rules"}),
-
-    ("BonBon serves the following menu items: "
-     "Espresso (S$3.50), Americano (S$4.00), Latte (S$5.00), "
-     "Cappuccino (S$5.00), Green Tea (S$4.50), "
-     "Orange Juice (S$4.00), Still Water (S$1.50), "
-     "Croissant (S$3.50), Blueberry Muffin (S$4.00), "
-     "Banana Cake (S$4.50). All prices in SGD.",
-     {"category": "menu"}),
-
-    ("Café layout: "
-     "Table 1 to 6 are in the main seating area. "
-     "Tables 7 to 10 are in the quiet zone near the window. "
-     "The counter is at the north end of the café. "
-     "The kitchen is behind the counter. "
-     "The entrance is at the south end.",
-     {"category": "locations"}),
-
-    ("BonBon's conversation rules: "
-     "Always be polite and concise. "
-     "Responses should be under 40 words for spoken TTS. "
-     "If unsure, say so and ask for clarification rather than guessing. "
-     "Never make up menu prices, distances, or names. "
-     "Always acknowledge the customer by their preferred address.",
-     {"category": "conversation_rules"}),
-
-    ("BonBon cannot: fly, lift heavy objects, open doors, work outdoors, "
-     "access the internet, make phone calls, process payments independently, "
-     "remember conversations from previous days (only the current session), "
-     "or give medical/legal/financial advice.",
-     {"category": "robot_limitations"}),
-
-    ("Emergency procedures: "
-     "If a customer reports an emergency, BonBon will call for human staff "
-     "immediately and announce via TTS. "
-     "BonBon will not attempt to provide medical assistance itself. "
-     "Emergency contact: dial 995 (Singapore) for ambulance.",
-     {"category": "emergency"}),
-
-    ("Operating hours: Monday to Friday 7:30am to 9:00pm. "
-     "Saturday and Sunday 8:00am to 8:00pm. "
-     "BonBon is offline for maintenance every Tuesday 2:00pm to 3:00pm.",
-     {"category": "operations"}),
+    (
+        "BonBon is a service robot at a café. "
+        "BonBon can speak, navigate the café, and serve food and drinks. "
+        "BonBon cannot carry objects weighing more than 2 kg. "
+        "BonBon moves at up to 0.8 m/s in normal mode and 0.3 m/s in caution mode.",
+        {"category": "robot_capabilities"},
+    ),
+    (
+        "BonBon's safety rules: "
+        "BonBon will always stop when a person is within 0.4 m. "
+        "BonBon will not navigate when the safety state is DANGER or FAULT. "
+        "All navigation commands are reviewed by the Safety Supervisor. "
+        "BonBon will never directly control motors or servos.",
+        {"category": "safety_rules"},
+    ),
+    (
+        "BonBon serves the following menu items: "
+        "Espresso (S$3.50), Americano (S$4.00), Latte (S$5.00), "
+        "Cappuccino (S$5.00), Green Tea (S$4.50), "
+        "Orange Juice (S$4.00), Still Water (S$1.50), "
+        "Croissant (S$3.50), Blueberry Muffin (S$4.00), "
+        "Banana Cake (S$4.50). All prices in SGD.",
+        {"category": "menu"},
+    ),
+    (
+        "Café layout: "
+        "Table 1 to 6 are in the main seating area. "
+        "Tables 7 to 10 are in the quiet zone near the window. "
+        "The counter is at the north end of the café. "
+        "The kitchen is behind the counter. "
+        "The entrance is at the south end.",
+        {"category": "locations"},
+    ),
+    (
+        "BonBon's conversation rules: "
+        "Always be polite and concise. "
+        "Responses should be under 40 words for spoken TTS. "
+        "If unsure, say so and ask for clarification rather than guessing. "
+        "Never make up menu prices, distances, or names. "
+        "Always acknowledge the customer by their preferred address.",
+        {"category": "conversation_rules"},
+    ),
+    (
+        "BonBon cannot: fly, lift heavy objects, open doors, work outdoors, "
+        "access the internet, make phone calls, process payments independently, "
+        "remember conversations from previous days (only the current session), "
+        "or give medical/legal/financial advice.",
+        {"category": "robot_limitations"},
+    ),
+    (
+        "Emergency procedures: "
+        "If a customer reports an emergency, BonBon will call for human staff "
+        "immediately and announce via TTS. "
+        "BonBon will not attempt to provide medical assistance itself. "
+        "Emergency contact: dial 995 (Singapore) for ambulance.",
+        {"category": "emergency"},
+    ),
+    (
+        "Operating hours: Monday to Friday 7:30am to 9:00pm. "
+        "Saturday and Sunday 8:00am to 8:00pm. "
+        "BonBon is offline for maintenance every Tuesday 2:00pm to 3:00pm.",
+        {"category": "operations"},
+    ),
 ]
 
 
 # ── Embedding fallback (TF-IDF hash, no external deps) ────────────────────────
+
 
 def _hash_embed(text: str, dim: int = 384) -> np.ndarray:
     """
@@ -144,6 +154,7 @@ def _cosine(a: np.ndarray, b: np.ndarray) -> float:
 
 # ── Retriever ─────────────────────────────────────────────────────────────────
 
+
 class RAGRetriever:
     """
     Vector-store backed knowledge retriever.
@@ -153,13 +164,13 @@ class RAGRetriever:
     """
 
     def __init__(self, cfg: RAGConfig) -> None:
-        self._cfg      = cfg
-        self._lock     = threading.Lock()
-        self._docs: List[RAGDocument] = []
+        self._cfg = cfg
+        self._lock = threading.Lock()
+        self._docs: list[RAGDocument] = []
         self._embedder = None
-        self._store    = None          # ChromaDB collection or FAISS index
-        self._backend  = "numpy"       # resolved at load time
-        self._loaded   = False
+        self._store = None  # ChromaDB collection or FAISS index
+        self._backend = "numpy"  # resolved at load time
+        self._loaded = False
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -172,8 +183,7 @@ class RAGRetriever:
             self._init_store()
             self._seed_defaults()
             self._loaded = True
-            logger.info("RAGRetriever loaded (backend=%s, docs=%d)",
-                        self._backend, len(self._docs))
+            logger.info("RAGRetriever loaded (backend=%s, docs=%d)", self._backend, len(self._docs))
 
     def close(self) -> None:
         with self._lock:
@@ -185,16 +195,16 @@ class RAGRetriever:
     def add_document(
         self,
         text: str,
-        metadata: Optional[Dict[str, str]] = None,
-        doc_id: Optional[str] = None,
+        metadata: dict[str, str] | None = None,
+        doc_id: str | None = None,
     ) -> RAGDocument:
         """Add a document to the knowledge base."""
         self._ensure_loaded()
         doc = RAGDocument(
-            doc_id   = doc_id or str(uuid.uuid4()),
-            text     = text,
-            metadata = metadata or {},
-            embedding= self._embed(text),
+            doc_id=doc_id or str(uuid.uuid4()),
+            text=text,
+            metadata=metadata or {},
+            embedding=self._embed(text),
         )
         with self._lock:
             self._docs.append(doc)
@@ -204,21 +214,21 @@ class RAGRetriever:
     def retrieve(
         self,
         query: str,
-        k: Optional[int]     = None,
-        threshold: Optional[float] = None,
-    ) -> List["RetrievalResult"]:
+        k: int | None = None,
+        threshold: float | None = None,
+    ) -> list[RetrievalResult]:
         """Return up to k RetrievalResult objects above similarity threshold."""
         return self.retrieve_with_scores(query, k=k, threshold=threshold)
 
     def retrieve_with_scores(
         self,
         query: str,
-        k: Optional[int]     = None,
-        threshold: Optional[float] = None,
-    ) -> List[RetrievalResult]:
+        k: int | None = None,
+        threshold: float | None = None,
+    ) -> list[RetrievalResult]:
         """Return (document, score) pairs sorted by descending similarity."""
         self._ensure_loaded()
-        top_k     = k         if k         is not None else self._cfg.top_k
+        top_k = k if k is not None else self._cfg.top_k
         min_score = threshold if threshold is not None else self._cfg.similarity_threshold
 
         q_emb = self._embed(query)
@@ -244,7 +254,7 @@ class RAGRetriever:
 
     def build_context_string(
         self,
-        query_or_results,   # str | List[RetrievalResult]
+        query_or_results,  # str | List[RetrievalResult]
     ) -> str:
         """
         Format retrieved documents into a prompt-injectable string.
@@ -287,9 +297,12 @@ class RAGRetriever:
             return
         try:
             from sentence_transformers import SentenceTransformer
+
             _model = SentenceTransformer(self._cfg.embedding_model)
+
             def _st_embed(text: str) -> np.ndarray:
                 return _model.encode(text, normalize_embeddings=True).astype(np.float32)
+
             self._embedder = _st_embed
             logger.info("Using sentence-transformers: %s", self._cfg.embedding_model)
         except ImportError:
@@ -301,19 +314,20 @@ class RAGRetriever:
 
         if requested == "none":
             self._backend = "numpy"
-            self._store   = None
+            self._store = None
             return
 
         if requested in ("chroma", "faiss"):
             if requested == "chroma":
                 try:
                     import chromadb
+
                     client = (
                         chromadb.PersistentClient(path=self._cfg.persist_dir)
-                        if self._cfg.persist_dir else
-                        chromadb.EphemeralClient()
+                        if self._cfg.persist_dir
+                        else chromadb.EphemeralClient()
                     )
-                    self._store   = client.get_or_create_collection(self._cfg.collection_name)
+                    self._store = client.get_or_create_collection(self._cfg.collection_name)
                     self._backend = "chroma"
                     logger.info("RAG backend: ChromaDB")
                     return
@@ -322,24 +336,25 @@ class RAGRetriever:
 
             try:
                 import faiss  # noqa: F401
+
                 self._backend = "faiss"
-                self._store   = None   # built lazily after first batch
+                self._store = None  # built lazily after first batch
                 logger.info("RAG backend: FAISS")
                 return
             except ImportError:
                 logger.info("faiss not installed; using NumPy fallback")
 
         self._backend = "numpy"
-        self._store   = None
+        self._store = None
         logger.info("RAG backend: NumPy (brute force cosine)")
 
     def _seed_defaults(self) -> None:
         for text, metadata in _DEFAULT_KNOWLEDGE:
             doc = RAGDocument(
-                doc_id    = str(uuid.uuid4()),
-                text      = text,
-                metadata  = metadata,
-                embedding = self._embed(text),
+                doc_id=str(uuid.uuid4()),
+                text=text,
+                metadata=metadata,
+                embedding=self._embed(text),
             )
             self._docs.append(doc)
 

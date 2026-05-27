@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 from conftest import ROOT
-
 
 REQUIRED_DOCS = {
     "README.md": ["overview", "architecture", "setup", "configuration", "testing", "deployment"],

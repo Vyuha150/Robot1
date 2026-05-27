@@ -16,13 +16,13 @@ TrackState enum drives downstream behaviour:
   LOST       — not matched this frame; still retained for re-identification
   DELETED    — removed from active set; final cleanup
 """
+
 from __future__ import annotations
 
 import math
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import List, Optional, Tuple
 
 from ..detectors.person_detector import Detection
 
@@ -30,8 +30,8 @@ from ..detectors.person_detector import Detection
 class TrackState(IntEnum):
     TENTATIVE = 0
     CONFIRMED = 1
-    LOST      = 2
-    DELETED   = 3
+    LOST = 2
+    DELETED = 3
 
 
 @dataclass
@@ -42,39 +42,40 @@ class Track:
     Positions are stored in image pixel space (cx, cy) and in robot-relative
     polar space (distance_m, bearing_deg) for direct feed to PersonState.
     """
-    track_id:     str
-    state:        TrackState = TrackState.TENTATIVE
+
+    track_id: str
+    state: TrackState = TrackState.TENTATIVE
 
     # Image-space smoothed centre (exponential moving average)
-    cx:           float = 0.0
-    cy:           float = 0.0
+    cx: float = 0.0
+    cy: float = 0.0
 
     # Last matched bounding box
-    bbox:         Tuple[int, int, int, int] = (0, 0, 0, 0)
+    bbox: tuple[int, int, int, int] = (0, 0, 0, 0)
 
     # Robot-relative measurements
-    distance_m:   float = float("nan")
-    bearing_deg:  float = 0.0
+    distance_m: float = float("nan")
+    bearing_deg: float = 0.0
 
     # Velocity estimate (m/s) — smoothed over track lifetime
     velocity_mps: float = 0.0
 
     # Identity
-    face_id:      str   = ""
-    age_group:    str   = "unknown"
-    facing_robot: bool  = False
+    face_id: str = ""
+    age_group: str = "unknown"
+    facing_robot: bool = False
 
     # Track lifecycle
-    age_frames:   int   = 0   # total frames since creation
-    lost_count:   int   = 0   # consecutive unmatched frames
-    hit_streak:   int   = 0   # consecutive matched frames
+    age_frames: int = 0  # total frames since creation
+    lost_count: int = 0  # consecutive unmatched frames
+    hit_streak: int = 0  # consecutive matched frames
 
     # Timing
-    first_seen:   float = field(default_factory=time.monotonic)
-    last_seen:    float = field(default_factory=time.monotonic)
+    first_seen: float = field(default_factory=time.monotonic)
+    last_seen: float = field(default_factory=time.monotonic)
 
     # Exponential smoothing alpha (lower = smoother, higher = more responsive)
-    alpha:        float = 0.4
+    alpha: float = 0.4
 
     def update(self, det: Detection) -> None:
         """
@@ -99,12 +100,12 @@ class Track:
                 self.velocity_mps = self.alpha * raw_vel + (1 - self.alpha) * self.velocity_mps
             self.distance_m = self.alpha * det.depth_m + (1 - self.alpha) * old_dist
 
-        self.bearing_deg  = self.alpha * det.bearing_deg + (1 - self.alpha) * self.bearing_deg
-        self.bbox         = det.bbox
-        self.hit_streak  += 1
-        self.lost_count   = 0
-        self.age_frames  += 1
-        self.last_seen    = time.monotonic()
+        self.bearing_deg = self.alpha * det.bearing_deg + (1 - self.alpha) * self.bearing_deg
+        self.bbox = det.bbox
+        self.hit_streak += 1
+        self.lost_count = 0
+        self.age_frames += 1
+        self.last_seen = time.monotonic()
 
         # TENTATIVE → CONFIRMED after 2 consecutive hits
         if self.state == TrackState.TENTATIVE and self.hit_streak >= 2:
@@ -113,7 +114,7 @@ class Track:
     def mark_lost(self) -> None:
         """Called when no detection matched this track this frame."""
         self.lost_count += 1
-        self.hit_streak  = 0
+        self.hit_streak = 0
         self.age_frames += 1
         if self.state == TrackState.CONFIRMED:
             self.state = TrackState.LOST

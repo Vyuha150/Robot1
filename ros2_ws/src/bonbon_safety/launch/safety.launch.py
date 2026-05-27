@@ -39,15 +39,13 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    GroupAction,
     LogInfo,
     OpaqueFunction,
     SetEnvironmentVariable,
 )
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import LifecycleNode, Node
-from launch_ros.substitutions import FindPackageShare
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import LifecycleNode
 
 
 def _safety_nodes(context, *args, **kwargs) -> list:
@@ -58,18 +56,14 @@ def _safety_nodes(context, *args, **kwargs) -> list:
     pkg_share = get_package_share_directory("bonbon_safety")
     base_params = os.path.join(pkg_share, "config", "safety_params.yaml")
 
-    robot_id         = context.launch_configurations.get("robot_id", "bonbon-01")
-    policy_file      = context.launch_configurations.get("policy_file", "")
-    override_file    = context.launch_configurations.get("override_params_file", "")
-    incident_db      = context.launch_configurations.get(
+    robot_id = context.launch_configurations.get("robot_id", "bonbon-01")
+    policy_file = context.launch_configurations.get("policy_file", "")
+    override_file = context.launch_configurations.get("override_params_file", "")
+    incident_db = context.launch_configurations.get(
         "incident_db_path", "/var/lib/bonbon/safety_incidents.db"
     )
-    caution_vel_cap  = float(context.launch_configurations.get(
-        "caution_velocity_cap_mps", "0.3"
-    ))
-    gate_watchdog    = float(context.launch_configurations.get(
-        "gate_watchdog_timeout_sec", "2.0"
-    ))
+    caution_vel_cap = float(context.launch_configurations.get("caution_velocity_cap_mps", "0.3"))
+    gate_watchdog = float(context.launch_configurations.get("gate_watchdog_timeout_sec", "2.0"))
 
     # Build parameter list: base YAML first, then inline overrides,
     # then optional site override file.
@@ -78,8 +72,8 @@ def _safety_nodes(context, *args, **kwargs) -> list:
         {
             "safety_supervisor_node": {
                 "ros__parameters": {
-                    "robot_id":         robot_id,
-                    "policy_file":      policy_file,
+                    "robot_id": robot_id,
+                    "policy_file": policy_file,
                     "incident_db_path": incident_db,
                 }
             }
@@ -103,8 +97,8 @@ def _safety_nodes(context, *args, **kwargs) -> list:
             "safety_gate_node": {
                 "ros__parameters": {
                     "caution_velocity_cap_mps": caution_vel_cap,
-                    "block_servos_in_danger":   True,
-                    "watchdog_timeout_sec":     gate_watchdog,
+                    "block_servos_in_danger": True,
+                    "watchdog_timeout_sec": gate_watchdog,
                 }
             }
         },
@@ -125,7 +119,6 @@ def _safety_nodes(context, *args, **kwargs) -> list:
             respawn=True,
             respawn_delay=2.0,
         ),
-
         # ── Safety Gate (CLASS-A CRITICAL — must start before HAL nodes) ──────
         LifecycleNode(
             package="bonbon_safety",
@@ -138,7 +131,6 @@ def _safety_nodes(context, *args, **kwargs) -> list:
             respawn=True,
             respawn_delay=0.5,  # fastest restart: gate must never be absent
         ),
-
         # ── Watchdog ──────────────────────────────────────────────────────────
         LifecycleNode(
             package="bonbon_safety",
@@ -151,7 +143,6 @@ def _safety_nodes(context, *args, **kwargs) -> list:
             respawn=True,
             respawn_delay=2.0,
         ),
-
         # ── E-Stop ────────────────────────────────────────────────────────────
         LifecycleNode(
             package="bonbon_safety",
@@ -162,73 +153,70 @@ def _safety_nodes(context, *args, **kwargs) -> list:
             output="screen",
             emulate_tty=True,
             respawn=True,
-            respawn_delay=1.0,   # shorter: faster relay re-assertion on crash
+            respawn_delay=1.0,  # shorter: faster relay re-assertion on crash
         ),
     ]
     return nodes
 
 
 def generate_launch_description() -> LaunchDescription:
-    return LaunchDescription([
-
-        # ── Launch arguments ──────────────────────────────────────────────────
-
-        DeclareLaunchArgument(
-            "simulation",
-            default_value="false",
-            description="Set true to enable MockGPIO (no physical GPIO access)",
-        ),
-        DeclareLaunchArgument(
-            "robot_id",
-            default_value="bonbon-01",
-            description="Unique identifier for this physical unit (used in incident log)",
-        ),
-        DeclareLaunchArgument(
-            "policy_file",
-            default_value="",
-            description="Absolute path to a custom safety_policy.yaml; "
-                        "leave empty to use the built-in default",
-        ),
-        DeclareLaunchArgument(
-            "override_params_file",
-            default_value="",
-            description="Optional site-specific parameter override YAML "
-                        "(merged on top of safety_params.yaml)",
-        ),
-        DeclareLaunchArgument(
-            "incident_db_path",
-            default_value="/var/lib/bonbon/safety_incidents.db",
-            description="Absolute path to the SQLite incident log database",
-        ),
-        DeclareLaunchArgument(
-            "log_level",
-            default_value="info",
-            description="ROS2 log level: debug|info|warn|error|fatal",
-        ),
-        DeclareLaunchArgument(
-            "caution_velocity_cap_mps",
-            default_value="0.3",
-            description="Max linear speed (m/s) when safety state is CAUTION "
-                        "(applied by safety_gate_node)",
-        ),
-        DeclareLaunchArgument(
-            "gate_watchdog_timeout_sec",
-            default_value="2.0",
-            description="Seconds without a SafetyState heartbeat before the gate "
-                        "enters defensive mode (blocks all actuation)",
-        ),
-
-        # ── Simulation environment variable ───────────────────────────────────
-        # Sets BONBON_SIMULATION=1 so estop_node uses MockGPIO.
-        SetEnvironmentVariable(
-            name="BONBON_SIMULATION",
-            value="1",
-            condition=IfCondition(LaunchConfiguration("simulation")),
-        ),
-
-        # ── Startup banner ────────────────────────────────────────────────────
-        LogInfo(msg="[BonBon Safety] Launching safety subsystem…"),
-
-        # ── Nodes (resolved via OpaqueFunction for runtime arg access) ────────
-        OpaqueFunction(function=_safety_nodes),
-    ])
+    return LaunchDescription(
+        [
+            # ── Launch arguments ──────────────────────────────────────────────────
+            DeclareLaunchArgument(
+                "simulation",
+                default_value="false",
+                description="Set true to enable MockGPIO (no physical GPIO access)",
+            ),
+            DeclareLaunchArgument(
+                "robot_id",
+                default_value="bonbon-01",
+                description="Unique identifier for this physical unit (used in incident log)",
+            ),
+            DeclareLaunchArgument(
+                "policy_file",
+                default_value="",
+                description="Absolute path to a custom safety_policy.yaml; "
+                "leave empty to use the built-in default",
+            ),
+            DeclareLaunchArgument(
+                "override_params_file",
+                default_value="",
+                description="Optional site-specific parameter override YAML "
+                "(merged on top of safety_params.yaml)",
+            ),
+            DeclareLaunchArgument(
+                "incident_db_path",
+                default_value="/var/lib/bonbon/safety_incidents.db",
+                description="Absolute path to the SQLite incident log database",
+            ),
+            DeclareLaunchArgument(
+                "log_level",
+                default_value="info",
+                description="ROS2 log level: debug|info|warn|error|fatal",
+            ),
+            DeclareLaunchArgument(
+                "caution_velocity_cap_mps",
+                default_value="0.3",
+                description="Max linear speed (m/s) when safety state is CAUTION "
+                "(applied by safety_gate_node)",
+            ),
+            DeclareLaunchArgument(
+                "gate_watchdog_timeout_sec",
+                default_value="2.0",
+                description="Seconds without a SafetyState heartbeat before the gate "
+                "enters defensive mode (blocks all actuation)",
+            ),
+            # ── Simulation environment variable ───────────────────────────────────
+            # Sets BONBON_SIMULATION=1 so estop_node uses MockGPIO.
+            SetEnvironmentVariable(
+                name="BONBON_SIMULATION",
+                value="1",
+                condition=IfCondition(LaunchConfiguration("simulation")),
+            ),
+            # ── Startup banner ────────────────────────────────────────────────────
+            LogInfo(msg="[BonBon Safety] Launching safety subsystem…"),
+            # ── Nodes (resolved via OpaqueFunction for runtime arg access) ────────
+            OpaqueFunction(function=_safety_nodes),
+        ]
+    )

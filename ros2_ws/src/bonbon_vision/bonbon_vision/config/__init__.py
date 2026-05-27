@@ -1,12 +1,17 @@
 from .vision_config import (
-    VisionConfig,
     DetectorConfig,
     FaceConfig,
     PreprocessConfig,
     PrivacyConfig,
     TrackingConfig,
+    VisionConfig,
 )
+
 __all__ = [
-    "VisionConfig", "DetectorConfig", "FaceConfig",
-    "PreprocessConfig", "PrivacyConfig", "TrackingConfig",
+    "VisionConfig",
+    "DetectorConfig",
+    "FaceConfig",
+    "PreprocessConfig",
+    "PrivacyConfig",
+    "TrackingConfig",
 ]

@@ -55,9 +55,11 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
-    return LaunchDescription([
-        params_arg,
-        data_store_node,
-        configure_event,
-        activate_on_configured,
-    ])
+    return LaunchDescription(
+        [
+            params_arg,
+            data_store_node,
+            configure_event,
+            activate_on_configured,
+        ]
+    )

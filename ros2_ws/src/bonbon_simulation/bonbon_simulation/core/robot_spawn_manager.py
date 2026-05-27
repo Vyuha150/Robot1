@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Tuple
 
 from bonbon_simulation.core.config import RobotDimensions
 
@@ -10,9 +9,9 @@ from bonbon_simulation.core.config import RobotDimensions
 @dataclass(frozen=True)
 class SpawnRequest:
     robot_name: str
-    pose: Tuple[float, float, float]
+    pose: tuple[float, float, float]
     urdf_path: Path
-    parameters: Dict[str, float]
+    parameters: dict[str, float]
 
 
 class RobotSpawnManager:

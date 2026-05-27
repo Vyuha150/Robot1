@@ -37,9 +37,9 @@ import json
 import logging
 import sqlite3
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from bonbon_safety.core.safety_state_machine import StateTransition
 
@@ -93,17 +93,17 @@ class IncidentLogger:
     def __init__(self, db_path: Path | str, robot_id: str = "bonbon-01") -> None:
         self._db_path = str(db_path)
         self._robot_id = robot_id
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._connect()
         logger.info("IncidentLogger initialised: %s", self._db_path)
 
     def _connect(self) -> None:
         self._conn = sqlite3.connect(
             self._db_path,
-            check_same_thread=False,   # supervisor uses a single thread
+            check_same_thread=False,  # supervisor uses a single thread
             timeout=5.0,
         )
-        self._conn.execute("PRAGMA journal_mode=WAL;")   # writes don't block reads
+        self._conn.execute("PRAGMA journal_mode=WAL;")  # writes don't block reads
         self._conn.execute(_CREATE_TABLE)
         self._conn.execute(_CREATE_INDEX)
         self._conn.commit()
@@ -115,7 +115,7 @@ class IncidentLogger:
         trigger: str = "state_machine",
         operator_notified: bool = False,
         auto_recovery: bool = False,
-        extra: Optional[Dict[str, Any]] = None,
+        extra: dict[str, Any] | None = None,
     ) -> int:
         """
         Write a state transition to the incident log.
@@ -123,10 +123,10 @@ class IncidentLogger:
         Returns the row id of the inserted record.
         """
         now = time.time()
-        iso = datetime.fromtimestamp(now, tz=timezone.utc).isoformat()
+        iso = datetime.fromtimestamp(now, tz=UTC).isoformat()
 
         snap = transition.snapshot
-        extra_dict: Dict[str, Any] = extra or {}
+        extra_dict: dict[str, Any] = extra or {}
         extra_dict["robot_id"] = self._robot_id
 
         try:
@@ -141,9 +141,9 @@ class IncidentLogger:
                     trigger,
                     transition.reason,
                     snap.nearest_obstacle_m if snap else None,
-                    snap.nearest_human_m    if snap else None,
-                    snap.battery_percent    if snap else None,
-                    snap.cpu_temp_c         if snap else None,
+                    snap.nearest_human_m if snap else None,
+                    snap.battery_percent if snap else None,
+                    snap.cpu_temp_c if snap else None,
                     int(operator_notified),
                     int(auto_recovery),
                     json.dumps(extra_dict),

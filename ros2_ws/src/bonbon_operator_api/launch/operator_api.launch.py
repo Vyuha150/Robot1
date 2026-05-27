@@ -1,12 +1,13 @@
 """Launch file for the BonBon Operator API node."""
 
 from pathlib import Path
+
 from launch import LaunchDescription
-from launch_ros.actions import LifecycleNode
 from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
 from launch.substitutions import LaunchConfiguration
-from launch_ros.events.lifecycle import ChangeState
+from launch_ros.actions import LifecycleNode
 from launch_ros.event_handlers import OnStateTransition
+from launch_ros.events.lifecycle import ChangeState
 from lifecycle_msgs.msg import Transition
 
 
@@ -61,11 +62,13 @@ def generate_launch_description():
         )
     )
 
-    return LaunchDescription([
-        declare_host,
-        declare_port,
-        declare_ros2_enabled,
-        operator_api_node,
-        configure_event,
-        activate_on_configure,
-    ])
+    return LaunchDescription(
+        [
+            declare_host,
+            declare_port,
+            declare_ros2_enabled,
+            operator_api_node,
+            configure_event,
+            activate_on_configure,
+        ]
+    )

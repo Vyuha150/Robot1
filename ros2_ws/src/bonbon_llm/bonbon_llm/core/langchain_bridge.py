@@ -15,10 +15,11 @@ Pipeline
        ↓
   StrOutputParser / structured tool output
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_llm.config.llm_config import LLMConfig
 
@@ -29,21 +30,18 @@ class LangChainUnavailableError(RuntimeError):
     pass
 
 
-_INSTALL_HINT = (
-    "pip install langchain langchain-community langchain-ollama"
-)
+_INSTALL_HINT = "pip install langchain langchain-community langchain-ollama"
 
 
 def _require_langchain():
     try:
         import langchain  # noqa: F401
     except ImportError as exc:
-        raise LangChainUnavailableError(
-            f"LangChain is not installed. {_INSTALL_HINT}"
-        ) from exc
+        raise LangChainUnavailableError(f"LangChain is not installed. {_INSTALL_HINT}") from exc
 
 
 # ── Chain builders ────────────────────────────────────────────────────────────
+
 
 def build_chat_chain(cfg: LLMConfig, system_prompt: str):
     """
@@ -58,21 +56,23 @@ def build_chat_chain(cfg: LLMConfig, system_prompt: str):
     except ImportError:
         from langchain_community.chat_models import ChatOllama  # type: ignore
 
-    from langchain_core.prompts import ChatPromptTemplate
     from langchain_core.output_parsers import StrOutputParser
+    from langchain_core.prompts import ChatPromptTemplate
 
     llm = ChatOllama(
-        base_url    = cfg.ollama.base_url,
-        model       = cfg.ollama.model,
-        temperature = cfg.ollama.temperature,
-        num_predict = cfg.ollama.max_tokens,
-        num_ctx     = cfg.ollama.num_ctx,
+        base_url=cfg.ollama.base_url,
+        model=cfg.ollama.model,
+        temperature=cfg.ollama.temperature,
+        num_predict=cfg.ollama.max_tokens,
+        num_ctx=cfg.ollama.num_ctx,
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human",  "{input}"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_prompt),
+            ("human", "{input}"),
+        ]
+    )
 
     chain = prompt | llm | StrOutputParser()
     return chain
@@ -92,32 +92,33 @@ def build_rag_chain(cfg: LLMConfig, system_prompt: str):
     except ImportError:
         from langchain_community.chat_models import ChatOllama  # type: ignore
 
-    from langchain_core.prompts import ChatPromptTemplate
     from langchain_core.output_parsers import StrOutputParser
+    from langchain_core.prompts import ChatPromptTemplate
 
     llm = ChatOllama(
-        base_url    = cfg.ollama.base_url,
-        model       = cfg.ollama.model,
-        temperature = cfg.ollama.temperature,
-        num_predict = cfg.ollama.max_tokens,
-        num_ctx     = cfg.ollama.num_ctx,
+        base_url=cfg.ollama.base_url,
+        model=cfg.ollama.model,
+        temperature=cfg.ollama.temperature,
+        num_predict=cfg.ollama.max_tokens,
+        num_ctx=cfg.ollama.num_ctx,
     )
 
     system_with_ctx = (
-        system_prompt
-        + "\n\n--- KNOWLEDGE BASE ---\n{context}\n--- END KNOWLEDGE BASE ---"
+        system_prompt + "\n\n--- KNOWLEDGE BASE ---\n{context}\n--- END KNOWLEDGE BASE ---"
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_with_ctx),
-        ("human",  "{input}"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_with_ctx),
+            ("human", "{input}"),
+        ]
+    )
 
     chain = prompt | llm | StrOutputParser()
     return chain
 
 
-def build_tool_chain(cfg: LLMConfig, system_prompt: str, tools: List[Dict[str, Any]]):
+def build_tool_chain(cfg: LLMConfig, system_prompt: str, tools: list[dict[str, Any]]):
     """
     Build a chain with tool/function-calling bindings.
 
@@ -136,11 +137,11 @@ def build_tool_chain(cfg: LLMConfig, system_prompt: str, tools: List[Dict[str, A
     from langchain_core.prompts import ChatPromptTemplate
 
     llm = ChatOllama(
-        base_url    = cfg.ollama.base_url,
-        model       = cfg.ollama.model,
-        temperature = cfg.ollama.temperature,
-        num_predict = cfg.ollama.max_tokens,
-        num_ctx     = cfg.ollama.num_ctx,
+        base_url=cfg.ollama.base_url,
+        model=cfg.ollama.model,
+        temperature=cfg.ollama.temperature,
+        num_predict=cfg.ollama.max_tokens,
+        num_ctx=cfg.ollama.num_ctx,
     )
 
     # bind_tools is available in newer langchain-ollama builds
@@ -151,14 +152,15 @@ def build_tool_chain(cfg: LLMConfig, system_prompt: str, tools: List[Dict[str, A
         llm_with_tools = llm
 
     system_with_ctx = (
-        system_prompt
-        + "\n\n--- KNOWLEDGE BASE ---\n{context}\n--- END KNOWLEDGE BASE ---"
+        system_prompt + "\n\n--- KNOWLEDGE BASE ---\n{context}\n--- END KNOWLEDGE BASE ---"
     )
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_with_ctx),
-        ("human",  "{input}"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", system_with_ctx),
+            ("human", "{input}"),
+        ]
+    )
 
     chain = prompt | llm_with_tools
     return chain
@@ -186,7 +188,7 @@ def invoke_chain(chain, input_text: str, context: str = "") -> str:
     return str(result)
 
 
-def extract_tool_calls(chain_result: Any) -> List[Dict[str, Any]]:
+def extract_tool_calls(chain_result: Any) -> list[dict[str, Any]]:
     """
     Extract tool call list from a chain result (AIMessage with tool_calls).
     Returns empty list if no tool calls or if result is plain text.

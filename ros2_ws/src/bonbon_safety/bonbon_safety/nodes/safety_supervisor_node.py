@@ -27,48 +27,48 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from pathlib import Path
-from typing import Optional
 
 import rclpy
 import rclpy.logging
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import (
-    QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
+from bonbon_msgs.msg import (
+    BumperState,
+    ModuleHealth,
+    PersonStateArray,
+    ServoStateArray,
+    ThermalReadings,
 )
-from rclpy.action import ActionClient
-from rclpy.timer import Timer
-
-# ROS2 message types
-from std_msgs.msg import Bool, Header, String
-from geometry_msgs.msg import Twist
-from sensor_msgs.msg import BatteryState, Imu, LaserScan
-from nav2_msgs.action import NavigateToPose
-from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
+from bonbon_msgs.msg import (
+    SafetyEvent as SafetyEventMsg,
+)
 
 # Custom messages
 from bonbon_msgs.msg import (
     SafetyState as SafetyStateMsg,
-    SafetyEvent as SafetyEventMsg,
-    ModuleHealth,
-    BumperState,
-    ThermalReadings,
-    ServoStateArray,
-    PersonStateArray,
 )
 from bonbon_srvs.srv import SafetyReset
+from geometry_msgs.msg import Twist
+from nav2_msgs.action import NavigateToPose
+from rclpy.action import ActionClient
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.timer import Timer
+from sensor_msgs.msg import BatteryState, Imu, LaserScan
+
+# ROS2 message types
+from std_msgs.msg import Bool
+
+from bonbon_safety.core.incident_logger import IncidentLogger
+from bonbon_safety.core.safety_policy import PolicyAction, SafetyPolicy
 
 # Core logic (no ROS2 dependency)
 from bonbon_safety.core.safety_state_machine import (
+    STATE_PROPERTIES,
     SafetyLevel,
     SafetyStateMachine,
-    STATE_PROPERTIES,
     StateTransition,
 )
-from bonbon_safety.core.safety_policy import SafetyPolicy, PolicyAction
 from bonbon_safety.core.threat_assessor import ThreatAssessor, ThreatAssessorConfig
-from bonbon_safety.core.incident_logger import IncidentLogger
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +98,7 @@ BEST_EFFORT_D1 = QoSProfile(
 
 # ── Node ─────────────────────────────────────────────────────────────────────
 
+
 class SafetySupervisorNode(LifecycleNode):
     """
     BonBon safety supervisor lifecycle node.
@@ -117,13 +118,13 @@ class SafetySupervisorNode(LifecycleNode):
         self._lock = threading.Lock()
 
         # Declared lazily in on_configure — keeping __init__ minimal
-        self._fsm: Optional[SafetyStateMachine] = None
-        self._assessor: Optional[ThreatAssessor] = None
-        self._policy: Optional[SafetyPolicy] = None
-        self._incident_logger: Optional[IncidentLogger] = None
+        self._fsm: SafetyStateMachine | None = None
+        self._assessor: ThreatAssessor | None = None
+        self._policy: SafetyPolicy | None = None
+        self._incident_logger: IncidentLogger | None = None
 
-        self._supervisor_timer: Optional[Timer] = None
-        self._heartbeat_timer: Optional[Timer] = None
+        self._supervisor_timer: Timer | None = None
+        self._heartbeat_timer: Timer | None = None
 
         # Publishers (created in on_activate)
         self._pub_safety_state = None
@@ -209,9 +210,7 @@ class SafetySupervisorNode(LifecycleNode):
                 self._policy = SafetyPolicy.from_yaml(Path(policy_file))
             else:
                 self._policy = SafetyPolicy.default()
-                self.get_logger().warn(
-                    "No policy_file set — using built-in default policy"
-                )
+                self.get_logger().warn("No policy_file set — using built-in default policy")
 
             # Open incident log
             db_path = p("incident_db_path").value
@@ -296,9 +295,19 @@ class SafetySupervisorNode(LifecycleNode):
         sub(ServoStateArray, "/bonbon/servo/arm/state", self._cb_servo, RELIABLE_D5)
         sub(PersonStateArray, "/bonbon/perception/persons", self._cb_persons, RELIABLE_D5)
         sub(Bool, "/bonbon/estop/state", self._cb_estop, RELIABLE_TL)
-        sub(ModuleHealth, "/bonbon/vision/detection_node/health", self._cb_module_health, RELIABLE_D5)
+        sub(
+            ModuleHealth,
+            "/bonbon/vision/detection_node/health",
+            self._cb_module_health,
+            RELIABLE_D5,
+        )
         sub(ModuleHealth, "/bonbon/speech/asr_node/health", self._cb_module_health, RELIABLE_D5)
-        sub(ModuleHealth, "/bonbon/navigation/planner_node/health", self._cb_module_health, RELIABLE_D5)
+        sub(
+            ModuleHealth,
+            "/bonbon/navigation/planner_node/health",
+            self._cb_module_health,
+            RELIABLE_D5,
+        )
         sub(Bool, "/bonbon/safety/unsafe_command", self._cb_unsafe_command, RELIABLE_D5)
         sub(Bool, "/bonbon/nav/timeout", self._cb_nav_timeout, RELIABLE_D5)
 
@@ -308,9 +317,7 @@ class SafetySupervisorNode(LifecycleNode):
         )
 
     def _create_action_clients(self) -> None:
-        self._nav_cancel_client = ActionClient(
-            self, NavigateToPose, "/bonbon/navigate_to_pose"
-        )
+        self._nav_cancel_client = ActionClient(self, NavigateToPose, "/bonbon/navigate_to_pose")
 
     def _start_timers(self) -> None:
         rate_hz = self.get_parameter("supervisor_rate_hz").value
@@ -379,10 +386,7 @@ class SafetySupervisorNode(LifecycleNode):
             return
 
         snap = self._assessor.build_snapshot()
-        all_critical_up = (
-            not snap.lidar_stale
-            and not snap.imu_stale
-        )
+        all_critical_up = not snap.lidar_stale and not snap.imu_stale
         if all_critical_up:
             tx = self._fsm.mark_startup_complete()
             if tx:
@@ -405,9 +409,6 @@ class SafetySupervisorNode(LifecycleNode):
             self._dispatch_action(action, transition)
 
         # Log + notify
-        is_critical = transition.to_state in (
-            SafetyLevel.DANGER, SafetyLevel.FAULT, SafetyLevel.SAFE_STOP
-        )
         self._log_and_notify(
             transition,
             trigger=f"TRIGGER_{transition.to_state.name}",
@@ -419,9 +420,7 @@ class SafetySupervisorNode(LifecycleNode):
 
     # ── Policy action dispatcher ──────────────────────────────────────────────
 
-    def _dispatch_action(
-        self, action: PolicyAction, transition: StateTransition
-    ) -> None:
+    def _dispatch_action(self, action: PolicyAction, transition: StateTransition) -> None:
         try:
             if action == PolicyAction.ZERO_VELOCITY:
                 self._action_zero_velocity()
@@ -491,9 +490,7 @@ class SafetySupervisorNode(LifecycleNode):
         We signal it by publishing on /bonbon/estop/trigger.
         The estop_node then asserts the relay pin.
         """
-        self.get_logger().critical(
-            "Action: TRIGGER_ESTOP — requesting hardware e-stop"
-        )
+        self.get_logger().critical("Action: TRIGGER_ESTOP — requesting hardware e-stop")
         # estop_node monitors /bonbon/safety/state and asserts GPIO on SAFE_STOP
 
     def _action_release_estop(self) -> None:
@@ -508,10 +505,11 @@ class SafetySupervisorNode(LifecycleNode):
             self.get_logger().info("Action: announce '%s'", announce_text)
             # Publish TTS request (bonbon_tts listens on /bonbon/tts/request)
             from bonbon_msgs.msg import TTSRequest
+
             if hasattr(self, "_pub_tts"):
                 req = TTSRequest()
                 req.text = announce_text
-                req.priority = 10   # safety announcements have highest priority
+                req.priority = 10  # safety announcements have highest priority
                 self._pub_tts.publish(req)
 
     def _action_update_led(self, state_name: str) -> None:
@@ -565,9 +563,7 @@ class SafetySupervisorNode(LifecycleNode):
 
         self._pub_safety_state.publish(msg)
 
-    def _publish_safety_event(
-        self, transition: StateTransition, actions: list
-    ) -> None:
+    def _publish_safety_event(self, transition: StateTransition, actions: list) -> None:
         if self._pub_safety_event is None:
             return
 
@@ -716,18 +712,14 @@ class SafetySupervisorNode(LifecycleNode):
             tx = self._fsm.reset(operator_id=request.operator_id)
             if tx is None:
                 response.success = False
-                response.message = (
-                    f"Reset not allowed from state {self._fsm.state.name}"
-                )
+                response.message = f"Reset not allowed from state {self._fsm.state.name}"
                 return response
 
             self.get_logger().warn(
                 "Manual reset by operator '%s' — entering INITIALIZING",
                 request.operator_id,
             )
-            self._log_and_notify(
-                tx, trigger="TRIGGER_MANUAL_RESET", operator_notified=True
-            )
+            self._log_and_notify(tx, trigger="TRIGGER_MANUAL_RESET", operator_notified=True)
             self._publish_safety_state()
             response.success = True
             response.message = "Reset accepted — running startup checks"
@@ -735,6 +727,7 @@ class SafetySupervisorNode(LifecycleNode):
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

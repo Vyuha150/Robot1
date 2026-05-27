@@ -20,19 +20,20 @@ Tests cover
 * All calls logged in call_log
 * Unsafe command tests: LLM cannot dispatch cmd_vel, nav2, GPIO directly
 """
-import pytest
-from unittest.mock import MagicMock, patch
 
-from bonbon_llm.tools.tool_registry import ToolRegistry, ToolResult, TOOL_SCHEMAS
-from bonbon_llm.safety.command_filter import SafetyCommandFilter, FilterStatus, FilterResult
+from unittest.mock import MagicMock
+
+from bonbon_llm.config.llm_config import SafetyFilterConfig
 from bonbon_llm.safety.authorization import (
-    SafetySnapshot, CommandAuthorizer,
-    SAFETY_NORMAL, SAFETY_FAULT, SAFETY_DANGER,
+    SAFETY_FAULT,
+    SAFETY_NORMAL,
+    SafetySnapshot,
 )
-from bonbon_llm.config.llm_config import SafetyFilterConfig, AuthorizationConfig
-
+from bonbon_llm.safety.command_filter import SafetyCommandFilter
+from bonbon_llm.tools.tool_registry import TOOL_SCHEMAS, ToolRegistry, ToolResult
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_filter(block_all: bool = False) -> SafetyCommandFilter:
     return SafetyCommandFilter(SafetyFilterConfig())
@@ -40,18 +41,18 @@ def _make_filter(block_all: bool = False) -> SafetyCommandFilter:
 
 def _normal_snap() -> SafetySnapshot:
     snap = SafetySnapshot.safe_default()
-    snap.state_id   = SAFETY_NORMAL
+    snap.state_id = SAFETY_NORMAL
     snap.state_name = "NORMAL"
     return snap
 
 
 def _fault_snap() -> SafetySnapshot:
     snap = SafetySnapshot()
-    snap.state_id             = SAFETY_FAULT
-    snap.state_name           = "FAULT"
+    snap.state_id = SAFETY_FAULT
+    snap.state_name = "FAULT"
     snap.navigation_permitted = False
-    snap.actuation_permitted  = False
-    snap.max_velocity_mps     = 0.0
+    snap.actuation_permitted = False
+    snap.max_velocity_mps = 0.0
     return snap
 
 
@@ -61,10 +62,11 @@ def _registry(
     behavior_spy=None,
 ) -> ToolRegistry:
     snap = safety_snap or _normal_snap()
-    tts  = tts_spy or MagicMock()
-    beh  = behavior_spy or MagicMock()
+    tts = tts_spy or MagicMock()
+    beh = behavior_spy or MagicMock()
 
-    from bonbon_llm.core.rag_retriever import RAGRetriever, RAGDocument, RetrievalResult
+    from bonbon_llm.core.rag_retriever import RAGDocument, RetrievalResult
+
     mock_rag = MagicMock()
     mock_rag.retrieve.return_value = [
         RetrievalResult(
@@ -79,17 +81,18 @@ def _registry(
     ]
 
     return ToolRegistry(
-        safety_filter       = _make_filter(),
-        rag_retriever       = mock_rag,
-        scene_provider      = lambda: "2 persons present. Robot near counter.",
-        safety_provider     = lambda: snap,
-        memory_provider     = lambda q, k: [f"Memory result for: {q}"],
-        tts_dispatcher      = tts,
-        behavior_dispatcher = beh,
+        safety_filter=_make_filter(),
+        rag_retriever=mock_rag,
+        scene_provider=lambda: "2 persons present. Robot near counter.",
+        safety_provider=lambda: snap,
+        memory_provider=lambda q, k: [f"Memory result for: {q}"],
+        tts_dispatcher=tts,
+        behavior_dispatcher=beh,
     )
 
 
 # ── Schema tests ──────────────────────────────────────────────────────────────
+
 
 class TestSchemas:
 
@@ -105,9 +108,12 @@ class TestSchemas:
     def test_all_tool_names_present(self):
         names = {s["function"]["name"] for s in TOOL_SCHEMAS}
         expected = {
-            "speak_to_user", "request_behavior",
-            "get_menu_info", "get_scene_context",
-            "get_safety_state", "query_memory",
+            "speak_to_user",
+            "request_behavior",
+            "get_menu_info",
+            "get_scene_context",
+            "get_safety_state",
+            "query_memory",
         }
         assert names == expected
 
@@ -118,9 +124,9 @@ class TestSchemas:
     def test_each_schema_has_description(self):
         for schema in TOOL_SCHEMAS:
             fn = schema.get("function", {})
-            assert len(fn.get("description", "")) > 20, (
-                f"Short description for tool {fn.get('name')}"
-            )
+            assert (
+                len(fn.get("description", "")) > 20
+            ), f"Short description for tool {fn.get('name')}"
 
     def test_request_behavior_has_enum(self):
         rb = next(s for s in TOOL_SCHEMAS if s["function"]["name"] == "request_behavior")
@@ -131,6 +137,7 @@ class TestSchemas:
 
 
 # ── speak_to_user ─────────────────────────────────────────────────────────────
+
 
 class TestSpeakToUser:
 
@@ -176,6 +183,7 @@ class TestSpeakToUser:
 
 # ── request_behavior ──────────────────────────────────────────────────────────
 
+
 class TestRequestBehavior:
 
     def test_idle_behavior_dispatched(self):
@@ -189,8 +197,7 @@ class TestRequestBehavior:
         beh = MagicMock()
         reg = _registry(safety_snap=_normal_snap(), behavior_spy=beh)
         result = reg.dispatch(
-            "request_behavior",
-            {"behavior_class": "navigate_to_goal", "confidence": 0.90}
+            "request_behavior", {"behavior_class": "navigate_to_goal", "confidence": 0.90}
         )
         assert result.success or not result.success  # depends on auth
         # At minimum: no crash
@@ -199,8 +206,7 @@ class TestRequestBehavior:
         beh = MagicMock()
         reg = _registry(safety_snap=_fault_snap(), behavior_spy=beh)
         result = reg.dispatch(
-            "request_behavior",
-            {"behavior_class": "navigate_to_goal", "confidence": 0.90}
+            "request_behavior", {"behavior_class": "navigate_to_goal", "confidence": 0.90}
         )
         assert not result.success
         beh.assert_not_called()
@@ -209,8 +215,7 @@ class TestRequestBehavior:
         beh = MagicMock()
         reg = _registry(safety_snap=_fault_snap(), behavior_spy=beh)
         result = reg.dispatch(
-            "request_behavior",
-            {"behavior_class": "serve_item", "confidence": 0.90}
+            "request_behavior", {"behavior_class": "serve_item", "confidence": 0.90}
         )
         assert not result.success
         beh.assert_not_called()
@@ -218,8 +223,12 @@ class TestRequestBehavior:
     def test_behavior_side_effect_on_success(self):
         reg = _registry()
         result = reg.dispatch("request_behavior", {"behavior_class": "idle"})
-        assert result.side_effect in ("behavior_requested", "blocked",
-                                      "authorization_denied", "authorization_deferred")
+        assert result.side_effect in (
+            "behavior_requested",
+            "blocked",
+            "authorization_denied",
+            "authorization_deferred",
+        )
 
     def test_behavior_output_contains_class(self):
         reg = _registry()
@@ -235,16 +244,17 @@ class TestRequestBehavior:
             {
                 "behavior_class": "idle",
                 "params": {"destination": "table 3", "item": "latte"},
-            }
+            },
         )
         if result.success:
             _, params, _ = beh.call_args[0]
             # All param values should be strings
-            for k, v in params.items():
+            for _k, v in params.items():
                 assert isinstance(v, str)
 
 
 # ── Unsafe command tests ───────────────────────────────────────────────────────
+
 
 class TestUnsafeCommandsBlocked:
     """
@@ -255,9 +265,9 @@ class TestUnsafeCommandsBlocked:
     def test_cmd_vel_text_blocked_by_speak(self):
         tts = MagicMock()
         reg = _registry(tts_spy=tts)
-        result = reg.dispatch("speak_to_user", {
-            "text": "I will publish /cmd_vel with linear.x=0.5"
-        })
+        result = reg.dispatch(
+            "speak_to_user", {"text": "I will publish /cmd_vel with linear.x=0.5"}
+        )
         # If the filter works, either the dispatch fails or tts never called
         if result.success:
             # Filter may have sanitized the text, but no raw cmd_vel should reach TTS
@@ -270,24 +280,26 @@ class TestUnsafeCommandsBlocked:
     def test_gpio_text_blocked_by_speak(self):
         tts = MagicMock()
         reg = _registry(tts_spy=tts)
-        result = reg.dispatch("speak_to_user", {
-            "text": "GPIO pin 17 set high now"
-        })
+        result = reg.dispatch("speak_to_user", {"text": "GPIO pin 17 set high now"})
         assert not result.success or tts.call_count == 0 or result.side_effect == "blocked"
 
     def test_behavior_class_not_in_enum_handled(self):
         beh = MagicMock()
         reg = _registry(behavior_spy=beh)
         # Unknown behavior class not in the allowed enum
-        result = reg.dispatch("request_behavior", {
-            "behavior_class": "directly_control_motor",
-            "confidence": 0.99,
-        })
+        reg.dispatch(
+            "request_behavior",
+            {
+                "behavior_class": "directly_control_motor",
+                "confidence": 0.99,
+            },
+        )
         # Should be blocked (not in enum, safety filter should catch it)
         beh.assert_not_called()
 
 
 # ── Read-only tools ───────────────────────────────────────────────────────────
+
 
 class TestReadOnlyTools:
 
@@ -327,6 +339,7 @@ class TestReadOnlyTools:
 
 # ── Unknown tool ──────────────────────────────────────────────────────────────
 
+
 class TestUnknownTool:
 
     def test_unknown_tool_returns_error(self):
@@ -344,13 +357,14 @@ class TestUnknownTool:
 
 # ── dispatch_list ─────────────────────────────────────────────────────────────
 
+
 class TestDispatchList:
 
     def test_dispatch_list_processes_all(self):
         reg = _registry()
         calls = [
             {"name": "get_scene_context", "args": {}},
-            {"name": "get_safety_state",  "args": {}},
+            {"name": "get_safety_state", "args": {}},
         ]
         results = reg.dispatch_list(calls)
         assert len(results) == 2
@@ -363,6 +377,7 @@ class TestDispatchList:
 
 
 # ── Call log ──────────────────────────────────────────────────────────────────
+
 
 class TestCallLog:
 
@@ -393,6 +408,7 @@ class TestCallLog:
 
 
 # ── ToolResult fields ─────────────────────────────────────────────────────────
+
 
 class TestToolResultFields:
 

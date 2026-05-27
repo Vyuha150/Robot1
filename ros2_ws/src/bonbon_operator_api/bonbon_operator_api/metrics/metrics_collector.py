@@ -18,22 +18,21 @@ bonbon_api_audit_events_total            — counter (total events logged)
 from __future__ import annotations
 
 import logging
-import time
 from contextlib import contextmanager
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 try:
     from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        REGISTRY,
+        CollectorRegistry,
         Counter,
         Gauge,
         Histogram,
-        CollectorRegistry,
         generate_latest,
-        CONTENT_TYPE_LATEST,
-        REGISTRY,
     )
+
     _PROMETHEUS_AVAILABLE = True
 except (ImportError, AttributeError, Exception):
     # prometheus_client may fail on Windows (resource.getpagesize) or

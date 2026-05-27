@@ -17,7 +17,7 @@ import platform
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -41,13 +41,13 @@ ProviderName = Literal[
 class ClientOutputRequest(BaseModel):
     module: Literal["speech", "vision", "llm", "tts", "system", "safety"]
     status: Literal["idle", "ok", "warn", "error"] = "ok"
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 class ProviderCheckRequest(BaseModel):
     provider: ProviderName
     base_url: str = Field(default="", max_length=300)
-    api_key: Optional[SecretStr] = None
+    api_key: SecretStr | None = None
     model: str = Field(default="", max_length=120)
     timeout_sec: float = Field(default=8.0, ge=1.0, le=30.0)
 
@@ -70,8 +70,8 @@ class SessionEventRequest(BaseModel):
     event_type: str = Field(..., min_length=1, max_length=80)
     status: Literal["pass", "fail", "warn", "info"] = "info"
     summary: str = Field(..., min_length=1, max_length=500)
-    metrics: Dict[str, Any] = Field(default_factory=dict)
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
     failure_label: str = Field(default="", max_length=120)
 
 
@@ -79,11 +79,13 @@ class _TestbenchStore:
     def __init__(self, path: Path) -> None:
         self._path = path
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._client_outputs: Dict[str, Dict[str, Any]] = {}
-        self._sessions: Dict[str, Dict[str, Any]] = {}
+        self._client_outputs: dict[str, dict[str, Any]] = {}
+        self._sessions: dict[str, dict[str, Any]] = {}
         self._load()
 
-    def set_client_output(self, module: str, status: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def set_client_output(
+        self, module: str, status: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         safe_payload = _strip_secrets(payload)
         record = {
             "module": module,
@@ -94,10 +96,12 @@ class _TestbenchStore:
         self._client_outputs[module] = record
         return record
 
-    def client_outputs(self) -> Dict[str, Dict[str, Any]]:
+    def client_outputs(self) -> dict[str, dict[str, Any]]:
         return dict(self._client_outputs)
 
-    def start_session(self, title: str, scenario: str, notes: str, actor: TokenPayload) -> Dict[str, Any]:
+    def start_session(
+        self, title: str, scenario: str, notes: str, actor: TokenPayload
+    ) -> dict[str, Any]:
         session_id = str(uuid.uuid4())
         session = {
             "session_id": session_id,
@@ -114,7 +118,7 @@ class _TestbenchStore:
         self._save()
         return session
 
-    def append_event(self, session_id: str, body: SessionEventRequest) -> Dict[str, Any]:
+    def append_event(self, session_id: str, body: SessionEventRequest) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if session is None:
             raise KeyError(session_id)
@@ -135,13 +139,13 @@ class _TestbenchStore:
         self._save()
         return event
 
-    def get_session(self, session_id: str) -> Dict[str, Any]:
+    def get_session(self, session_id: str) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if session is None:
             raise KeyError(session_id)
         return session
 
-    def list_sessions(self) -> List[Dict[str, Any]]:
+    def list_sessions(self) -> list[dict[str, Any]]:
         return [
             {
                 "session_id": item["session_id"],
@@ -152,10 +156,12 @@ class _TestbenchStore:
                 "event_count": len(item["events"]),
                 "analysis": item.get("analysis", {}),
             }
-            for item in sorted(self._sessions.values(), key=lambda row: row["updated_at"], reverse=True)
+            for item in sorted(
+                self._sessions.values(), key=lambda row: row["updated_at"], reverse=True
+            )
         ]
 
-    def analyse(self, session_id: str) -> Dict[str, Any]:
+    def analyse(self, session_id: str) -> dict[str, Any]:
         session = self.get_session(session_id)
         session["analysis"] = _analyse_session(session)
         self._save()
@@ -183,7 +189,9 @@ class _TestbenchStore:
 def get_testbench_store(request: Request) -> _TestbenchStore:
     store = getattr(request.app.state, "testbench_store", None)
     if store is None:
-        root = Path(os.getenv("BONBON_TESTBENCH_STORE", "/tmp/bonbon/operator_api/testbench_sessions.json"))
+        root = Path(
+            os.getenv("BONBON_TESTBENCH_STORE", "/tmp/bonbon/operator_api/testbench_sessions.json")
+        )
         store = _TestbenchStore(root)
         request.app.state.testbench_store = store
     return store
@@ -216,51 +224,53 @@ async def update_client_output(
 async def get_provider_catalog(
     current_user: TokenPayload = Depends(require_permission("diagnostics:read")),
 ) -> APIResponse:
-    return APIResponse.ok({
-        "providers": [
-            {
-                "id": "ollama",
-                "label": "Local Ollama",
-                "required_secret": False,
-                "default_base_url": "http://127.0.0.1:11434",
-                "default_model": "llama3.2:3b",
-                "tests": ["models endpoint", "generation endpoint via LLM panel"],
-            },
-            {
-                "id": "openai_compatible",
-                "label": "OpenAI-compatible LLM",
-                "required_secret": True,
-                "default_base_url": "https://api.openai.com/v1",
-                "default_model": "gpt-4o-mini",
-                "tests": ["model list", "chat completions via LLM panel"],
-            },
-            {
-                "id": "deepgram",
-                "label": "Deepgram STT",
-                "required_secret": True,
-                "default_base_url": "https://api.deepgram.com/v1",
-                "default_model": "nova-3",
-                "tests": ["account/projects endpoint"],
-            },
-            {
-                "id": "elevenlabs",
-                "label": "ElevenLabs TTS",
-                "required_secret": True,
-                "default_base_url": "https://api.elevenlabs.io/v1",
-                "default_model": "eleven_multilingual_v2",
-                "tests": ["voices endpoint"],
-            },
-            {
-                "id": "roboflow",
-                "label": "Roboflow Vision",
-                "required_secret": True,
-                "default_base_url": "https://api.roboflow.com",
-                "default_model": "workspace/project/version",
-                "tests": ["account endpoint"],
-            },
-        ],
-        "secret_policy": "Secrets are accepted per request only and never stored in sessions.",
-    })
+    return APIResponse.ok(
+        {
+            "providers": [
+                {
+                    "id": "ollama",
+                    "label": "Local Ollama",
+                    "required_secret": False,
+                    "default_base_url": "http://127.0.0.1:11434",
+                    "default_model": "llama3.2:3b",
+                    "tests": ["models endpoint", "generation endpoint via LLM panel"],
+                },
+                {
+                    "id": "openai_compatible",
+                    "label": "OpenAI-compatible LLM",
+                    "required_secret": True,
+                    "default_base_url": "https://api.openai.com/v1",
+                    "default_model": "gpt-4o-mini",
+                    "tests": ["model list", "chat completions via LLM panel"],
+                },
+                {
+                    "id": "deepgram",
+                    "label": "Deepgram STT",
+                    "required_secret": True,
+                    "default_base_url": "https://api.deepgram.com/v1",
+                    "default_model": "nova-3",
+                    "tests": ["account/projects endpoint"],
+                },
+                {
+                    "id": "elevenlabs",
+                    "label": "ElevenLabs TTS",
+                    "required_secret": True,
+                    "default_base_url": "https://api.elevenlabs.io/v1",
+                    "default_model": "eleven_multilingual_v2",
+                    "tests": ["voices endpoint"],
+                },
+                {
+                    "id": "roboflow",
+                    "label": "Roboflow Vision",
+                    "required_secret": True,
+                    "default_base_url": "https://api.roboflow.com",
+                    "default_model": "workspace/project/version",
+                    "tests": ["account endpoint"],
+                },
+            ],
+            "secret_policy": "Secrets are accepted per request only and never stored in sessions.",
+        }
+    )
 
 
 @testbench_router.post("/providers/check", response_model=APIResponse)
@@ -337,7 +347,9 @@ async def analyse_session(
     return APIResponse.ok(analysis)
 
 
-def _build_status_snapshot(robot: Dict[str, Any], client: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+def _build_status_snapshot(
+    robot: dict[str, Any], client: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     speech = client.get("speech", {})
     vision = client.get("vision", {})
     llm = client.get("llm", {})
@@ -412,7 +424,7 @@ def _build_status_snapshot(robot: Dict[str, Any], client: Dict[str, Dict[str, An
     }
 
 
-async def _check_provider(body: ProviderCheckRequest) -> Dict[str, Any]:
+async def _check_provider(body: ProviderCheckRequest) -> dict[str, Any]:
     if body.provider == "ollama":
         base_url = body.base_url or "http://127.0.0.1:11434"
         async with httpx.AsyncClient(timeout=body.timeout_sec) as client:
@@ -463,28 +475,28 @@ async def _check_provider(body: ProviderCheckRequest) -> Dict[str, Any]:
     raise HTTPException(status_code=400, detail="Unsupported provider")
 
 
-def _bearer_headers(secret: Optional[SecretStr]) -> Dict[str, str]:
+def _bearer_headers(secret: SecretStr | None) -> dict[str, str]:
     value = _secret_value(secret)
     if not value:
         raise HTTPException(status_code=400, detail="api_key is required for this provider")
     return {"Authorization": f"Bearer {value}"}
 
 
-def _token_headers(secret: Optional[SecretStr]) -> Dict[str, str]:
+def _token_headers(secret: SecretStr | None) -> dict[str, str]:
     value = _secret_value(secret)
     if not value:
         raise HTTPException(status_code=400, detail="api_key is required for this provider")
     return {"Authorization": f"Token {value}"}
 
 
-def _xi_headers(secret: Optional[SecretStr]) -> Dict[str, str]:
+def _xi_headers(secret: SecretStr | None) -> dict[str, str]:
     value = _secret_value(secret)
     if not value:
         raise HTTPException(status_code=400, detail="api_key is required for this provider")
     return {"xi-api-key": value}
 
 
-def _secret_value(secret: Optional[SecretStr]) -> str:
+def _secret_value(secret: SecretStr | None) -> str:
     return secret.get_secret_value() if secret else ""
 
 
@@ -493,7 +505,10 @@ def _strip_secrets(value: Any) -> Any:
         cleaned = {}
         for key, item in value.items():
             lowered = str(key).lower()
-            if any(marker in lowered for marker in ("api_key", "secret", "token", "password", "authorization")):
+            if any(
+                marker in lowered
+                for marker in ("api_key", "secret", "token", "password", "authorization")
+            ):
                 cleaned[key] = "[redacted]"
             else:
                 cleaned[key] = _strip_secrets(item)
@@ -503,23 +518,31 @@ def _strip_secrets(value: Any) -> Any:
     return value
 
 
-def _analyse_session(session: Dict[str, Any]) -> Dict[str, Any]:
+def _analyse_session(session: dict[str, Any]) -> dict[str, Any]:
     events = session.get("events", [])
     total = len(events)
     failures = [event for event in events if event.get("status") == "fail"]
     warnings = [event for event in events if event.get("status") == "warn"]
     modules = sorted({event.get("module", "unknown") for event in events})
-    failure_labels = sorted({event.get("failure_label") for event in failures if event.get("failure_label")})
+    failure_labels = sorted(
+        {event.get("failure_label") for event in failures if event.get("failure_label")}
+    )
 
     recommendations = []
     if not events:
-        recommendations.append("Run at least one speech, vision, LLM, TTS, safety, or integration test.")
+        recommendations.append(
+            "Run at least one speech, vision, LLM, TTS, safety, or integration test."
+        )
     if failures:
-        recommendations.append("Convert each failed event into a regression scenario before deploying.")
+        recommendations.append(
+            "Convert each failed event into a regression scenario before deploying."
+        )
     if "speech" not in modules:
         recommendations.append("Add a speech test with noisy and clean utterances.")
     if "vision" not in modules:
-        recommendations.append("Add a vision test covering low light, motion, and obstacle detection.")
+        recommendations.append(
+            "Add a vision test covering low light, motion, and obstacle detection."
+        )
     if "llm" not in modules:
         recommendations.append("Add an LLM answer-quality test with safety and grounding checks.")
     if "safety" not in modules:

@@ -16,13 +16,12 @@ Tests cover
 * Language detection does not crash (ZH, MS, EN)
 * Empty input handled gracefully
 """
-import pytest
 
-from bonbon_llm.personality.personality_layer import PersonalityLayer
 from bonbon_llm.config.llm_config import PersonalityConfig
-
+from bonbon_llm.personality.personality_layer import PersonalityLayer
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 def _layer(
     name: str = "BonBon",
@@ -38,6 +37,7 @@ def _layer(
 
 
 # ── Markdown stripping ─────────────────────────────────────────────────────────
+
 
 class TestMarkdownStripping:
 
@@ -91,6 +91,7 @@ class TestMarkdownStripping:
 
 # ── Word-limit enforcement ────────────────────────────────────────────────────
 
+
 class TestWordLimitEnforcement:
 
     def test_short_text_unchanged(self):
@@ -129,6 +130,7 @@ class TestWordLimitEnforcement:
 
 # ── Affirmation prepend ───────────────────────────────────────────────────────
 
+
 class TestAffirmationPrepend:
 
     def test_affirmation_prepended_when_requested(self):
@@ -151,6 +153,7 @@ class TestAffirmationPrepend:
 
 # ── Name replacement ──────────────────────────────────────────────────────────
 
+
 class TestNameReplacement:
 
     def test_the_robot_replaced_with_name(self):
@@ -171,6 +174,7 @@ class TestNameReplacement:
 
 
 # ── TTS formatting ─────────────────────────────────────────────────────────────
+
 
 class TestTTSFormatting:
 
@@ -206,6 +210,7 @@ class TestTTSFormatting:
 
 # ── Language adaptation ────────────────────────────────────────────────────────
 
+
 class TestLanguageAdaptation:
 
     def test_chinese_text_no_crash(self):
@@ -226,6 +231,7 @@ class TestLanguageAdaptation:
 
 
 # ── Edge cases ────────────────────────────────────────────────────────────────
+
 
 class TestEdgeCases:
 

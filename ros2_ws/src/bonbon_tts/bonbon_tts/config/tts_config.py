@@ -14,18 +14,19 @@ Sections
 * SpeakerConfig — HAL speaker driver settings
 * TTSConfig     — top-level aggregate with ROS2 factory
 """
+
 from __future__ import annotations
 
 import copy
 import logging
-import os
-from dataclasses import dataclass, field, fields, asdict
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass, field, fields
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 # ── Piper TTS settings ────────────────────────────────────────────────────────
+
 
 @dataclass
 class PiperConfig:
@@ -77,6 +78,7 @@ class PiperConfig:
 
 # ── Filler audio settings ─────────────────────────────────────────────────────
 
+
 @dataclass
 class FillerConfig:
     """Filler audio clip configuration.
@@ -103,12 +105,14 @@ class FillerConfig:
 
     # Ordered list of clip filenames (relative to filler_dir).
     # The player cycles through them round-robin.
-    clips: List[str] = field(default_factory=lambda: [
-        "one_moment.wav",
-        "let_me_think.wav",
-        "sure.wav",
-        "hmm.wav",
-    ])
+    clips: list[str] = field(
+        default_factory=lambda: [
+            "one_moment.wav",
+            "let_me_think.wav",
+            "sure.wav",
+            "hmm.wav",
+        ]
+    )
 
     def validate(self) -> None:
         if self.cooldown_sec < 0:
@@ -118,6 +122,7 @@ class FillerConfig:
 
 
 # ── Queue settings ────────────────────────────────────────────────────────────
+
 
 @dataclass
 class QueueConfig:
@@ -143,6 +148,7 @@ class QueueConfig:
 
 
 # ── Speaker settings ──────────────────────────────────────────────────────────
+
 
 @dataclass
 class SpeakerConfig:
@@ -175,13 +181,14 @@ class SpeakerConfig:
 
 # ── Top-level config ──────────────────────────────────────────────────────────
 
+
 @dataclass
 class TTSConfig:
     """Complete typed configuration for the BonBon TTS pipeline."""
 
-    piper:   PiperConfig   = field(default_factory=PiperConfig)
-    filler:  FillerConfig  = field(default_factory=FillerConfig)
-    queue:   QueueConfig   = field(default_factory=QueueConfig)
+    piper: PiperConfig = field(default_factory=PiperConfig)
+    filler: FillerConfig = field(default_factory=FillerConfig)
+    queue: QueueConfig = field(default_factory=QueueConfig)
     speaker: SpeakerConfig = field(default_factory=SpeakerConfig)
 
     # Health-report publication rate (Hz).
@@ -194,12 +201,12 @@ class TTSConfig:
     # ── Factories ─────────────────────────────────────────────────────────────
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "TTSConfig":
+    def from_dict(cls, d: dict[str, Any]) -> TTSConfig:
         d = copy.deepcopy(d)
         cfg = cls()
-        cfg.piper   = _fill(PiperConfig,   d.pop("piper",   {}))
-        cfg.filler  = _fill(FillerConfig,  d.pop("filler",  {}))
-        cfg.queue   = _fill(QueueConfig,   d.pop("queue",   {}))
+        cfg.piper = _fill(PiperConfig, d.pop("piper", {}))
+        cfg.filler = _fill(FillerConfig, d.pop("filler", {}))
+        cfg.queue = _fill(QueueConfig, d.pop("queue", {}))
         cfg.speaker = _fill(SpeakerConfig, d.pop("speaker", {}))
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -207,14 +214,15 @@ class TTSConfig:
         return cfg
 
     @classmethod
-    def from_yaml(cls, path: str) -> "TTSConfig":
+    def from_yaml(cls, path: str) -> TTSConfig:
         import yaml
+
         with open(path) as fh:
             raw = yaml.safe_load(fh) or {}
         return cls.from_dict(raw)
 
     @classmethod
-    def from_ros_params(cls, node) -> "TTSConfig":
+    def from_ros_params(cls, node) -> TTSConfig:
         def _p(name: str, default=None):
             try:
                 return node.get_parameter(name).value
@@ -223,33 +231,33 @@ class TTSConfig:
 
         cfg = cls()
         # Piper
-        cfg.piper.model_path            = _p("tts_piper_model_path",    "")
-        cfg.piper.config_path           = _p("tts_piper_config_path",   "")
-        cfg.piper.executable            = _p("tts_piper_executable",    "piper")
-        cfg.piper.use_subprocess        = bool(_p("tts_piper_subprocess", True))
-        cfg.piper.voice                 = _p("tts_piper_voice",         "en_US-lessac-medium")
-        cfg.piper.length_scale          = float(_p("tts_piper_length_scale", 1.0))
+        cfg.piper.model_path = _p("tts_piper_model_path", "")
+        cfg.piper.config_path = _p("tts_piper_config_path", "")
+        cfg.piper.executable = _p("tts_piper_executable", "piper")
+        cfg.piper.use_subprocess = bool(_p("tts_piper_subprocess", True))
+        cfg.piper.voice = _p("tts_piper_voice", "en_US-lessac-medium")
+        cfg.piper.length_scale = float(_p("tts_piper_length_scale", 1.0))
         cfg.piper.synthesis_timeout_sec = float(_p("tts_piper_timeout_sec", 10.0))
-        cfg.piper.cuda                  = bool(_p("tts_piper_cuda",     False))
+        cfg.piper.cuda = bool(_p("tts_piper_cuda", False))
         # Filler
-        cfg.filler.enabled              = bool(_p("tts_filler_enabled",       True))
-        cfg.filler.filler_dir           = _p("tts_filler_dir",                "")
-        cfg.filler.trigger_queue_depth  = int(_p("tts_filler_queue_depth",    2))
-        cfg.filler.trigger_latency_ms   = float(_p("tts_filler_latency_ms",   400.0))
-        cfg.filler.cooldown_sec         = float(_p("tts_filler_cooldown_sec", 3.0))
+        cfg.filler.enabled = bool(_p("tts_filler_enabled", True))
+        cfg.filler.filler_dir = _p("tts_filler_dir", "")
+        cfg.filler.trigger_queue_depth = int(_p("tts_filler_queue_depth", 2))
+        cfg.filler.trigger_latency_ms = float(_p("tts_filler_latency_ms", 400.0))
+        cfg.filler.cooldown_sec = float(_p("tts_filler_cooldown_sec", 3.0))
         # Queue
-        cfg.queue.max_depth             = int(_p("tts_queue_max_depth",          32))
-        cfg.queue.default_max_age_sec   = float(_p("tts_queue_max_age_sec",      30.0))
+        cfg.queue.max_depth = int(_p("tts_queue_max_depth", 32))
+        cfg.queue.default_max_age_sec = float(_p("tts_queue_max_age_sec", 30.0))
         cfg.queue.emergency_max_age_sec = float(_p("tts_queue_emergency_age_sec", 120.0))
-        cfg.queue.dedup_enabled         = bool(_p("tts_queue_dedup",             True))
+        cfg.queue.dedup_enabled = bool(_p("tts_queue_dedup", True))
         # Speaker
-        cfg.speaker.driver              = _p("tts_speaker_driver",      "mock")
-        cfg.speaker.device              = _p("tts_speaker_device",      "default")
-        cfg.speaker.volume_pct          = float(_p("tts_speaker_volume", 80.0))
-        cfg.speaker.sample_rate         = int(_p("tts_speaker_sample_rate", 22050))
+        cfg.speaker.driver = _p("tts_speaker_driver", "mock")
+        cfg.speaker.device = _p("tts_speaker_device", "default")
+        cfg.speaker.volume_pct = float(_p("tts_speaker_volume", 80.0))
+        cfg.speaker.sample_rate = int(_p("tts_speaker_sample_rate", 22050))
         # Top-level
-        cfg.health_rate_hz              = float(_p("tts_health_rate_hz", 1.0))
-        cfg.allow_degraded_startup      = bool(_p("tts_allow_degraded",  True))
+        cfg.health_rate_hz = float(_p("tts_health_rate_hz", 1.0))
+        cfg.allow_degraded_startup = bool(_p("tts_allow_degraded", True))
         return cfg
 
     # ── Validation ─────────────────────────────────────────────────────────────
@@ -260,7 +268,7 @@ class TTSConfig:
         self.queue.validate()
         self.speaker.validate()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def summary(self) -> str:
@@ -276,7 +284,8 @@ class TTSConfig:
 
 # ── Internal helper ───────────────────────────────────────────────────────────
 
-def _fill(cls, d: Dict[str, Any]):
+
+def _fill(cls, d: dict[str, Any]):
     """Populate a dataclass from a dict, ignoring unknown keys."""
     valid = {f.name for f in fields(cls)}
     return cls(**{k: v for k, v in d.items() if k in valid})

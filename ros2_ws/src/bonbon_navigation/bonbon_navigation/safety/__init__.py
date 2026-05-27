@@ -1,15 +1,16 @@
 """bonbon_navigation.safety — Velocity safety gating."""
+
 from bonbon_navigation.safety.safety_stop_bridge import (
-    GatedVelocity,
-    SafetyStopBridge,
-    SAFETY_INITIALIZING,
-    SAFETY_NORMAL,
     SAFETY_CAUTION,
     SAFETY_DANGER,
-    SAFETY_DOCKING,
     SAFETY_DEGRADED,
+    SAFETY_DOCKING,
     SAFETY_FAULT,
+    SAFETY_INITIALIZING,
+    SAFETY_NORMAL,
     SAFETY_SAFE_STOP,
+    GatedVelocity,
+    SafetyStopBridge,
 )
 
 __all__ = [

@@ -14,16 +14,16 @@ Usage
         result = client.chat([{"role": "user", "content": "Hello"}])
         print(result.text)
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import threading
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from bonbon_llm.config.llm_config import OllamaConfig
 
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 # ── Response type ─────────────────────────────────────────────────────────────
+
 
 @dataclass
 class OllamaResponse:
@@ -40,7 +41,7 @@ class OllamaResponse:
     completion_tokens: int
     latency_ms: float
     done: bool = True
-    error: Optional[str] = None
+    error: str | None = None
 
     @property
     def is_error(self) -> bool:
@@ -48,6 +49,7 @@ class OllamaResponse:
 
 
 # ── Client ────────────────────────────────────────────────────────────────────
+
 
 class OllamaClient:
     """
@@ -58,9 +60,9 @@ class OllamaClient:
     """
 
     def __init__(self, cfg: OllamaConfig) -> None:
-        self._cfg   = cfg
-        self._lock  = threading.Lock()
-        self._sdk   = None           # lazily loaded
+        self._cfg = cfg
+        self._lock = threading.Lock()
+        self._sdk = None  # lazily loaded
         self._sdk_checked = False
 
     # ── Availability ──────────────────────────────────────────────────────────
@@ -79,10 +81,10 @@ class OllamaClient:
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int]    = None,
-        system: Optional[str]        = None,
+        messages: list[dict[str, str]],
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        system: str | None = None,
     ) -> OllamaResponse:
         """
         Send a chat completion request.
@@ -108,22 +110,25 @@ class OllamaClient:
             latency = (time.perf_counter() - t_start) * 1000.0
             logger.error("Ollama chat error: %s", exc)
             return OllamaResponse(
-                text="", model=self._cfg.model,
-                prompt_tokens=0, completion_tokens=0,
-                latency_ms=latency, done=False, error=str(exc),
+                text="",
+                model=self._cfg.model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                latency_ms=latency,
+                done=False,
+                error=str(exc),
             )
 
     def generate(
         self,
         prompt: str,
-        system: Optional[str]        = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int]    = None,
+        system: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
     ) -> OllamaResponse:
         """Single-turn generate (wraps chat with a user message)."""
         messages = [{"role": "user", "content": prompt}]
-        return self.chat(messages, temperature=temperature,
-                         max_tokens=max_tokens, system=system)
+        return self.chat(messages, temperature=temperature, max_tokens=max_tokens, system=system)
 
     # ── SDK path ──────────────────────────────────────────────────────────────
 
@@ -132,6 +137,7 @@ class OllamaClient:
             self._sdk_checked = True
             try:
                 import ollama as _sdk
+
                 self._sdk = _sdk
             except ImportError:
                 logger.info("ollama SDK not installed; using urllib fallback")
@@ -140,7 +146,7 @@ class OllamaClient:
 
     def _chat_sdk(self, sdk, messages, temperature, max_tokens, t_start):
         temp = temperature if temperature is not None else self._cfg.temperature
-        toks = max_tokens  if max_tokens  is not None else self._cfg.max_tokens
+        toks = max_tokens if max_tokens is not None else self._cfg.max_tokens
 
         with self._lock:
             resp = sdk.chat(
@@ -149,7 +155,7 @@ class OllamaClient:
                 options={
                     "temperature": temp,
                     "num_predict": toks,
-                    "num_ctx":     self._cfg.num_ctx,
+                    "num_ctx": self._cfg.num_ctx,
                 },
             )
 
@@ -171,28 +177,31 @@ class OllamaClient:
     def _chat_http(self, messages, temperature, max_tokens, t_start):
         """POST to /api/chat using stdlib urllib (no SDK dependency)."""
         temp = temperature if temperature is not None else self._cfg.temperature
-        toks = max_tokens  if max_tokens  is not None else self._cfg.max_tokens
+        toks = max_tokens if max_tokens is not None else self._cfg.max_tokens
 
-        payload = json.dumps({
-            "model":   self._cfg.model,
-            "messages": messages,
-            "stream":  False,
-            "options": {
-                "temperature": temp,
-                "num_predict": toks,
-                "num_ctx":     self._cfg.num_ctx,
-            },
-        }).encode()
+        payload = json.dumps(
+            {
+                "model": self._cfg.model,
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "temperature": temp,
+                    "num_predict": toks,
+                    "num_ctx": self._cfg.num_ctx,
+                },
+            }
+        ).encode()
 
         url = f"{self._cfg.base_url}/api/chat"
         req = urllib.request.Request(
-            url, data=payload,
-            headers={"Content-Type": "application/json"}, method="POST",
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
 
-        with self._lock:
-            with urllib.request.urlopen(req, timeout=self._cfg.timeout_sec) as resp:
-                body = json.loads(resp.read().decode())
+        with self._lock, urllib.request.urlopen(req, timeout=self._cfg.timeout_sec) as resp:
+            body = json.loads(resp.read().decode())
 
         latency = (time.perf_counter() - t_start) * 1000.0
         content = body.get("message", {}).get("content", "") or ""

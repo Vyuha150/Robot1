@@ -18,14 +18,14 @@ Responsibilities
 All operations are pure (no I/O, no threading) and raise
 :class:`TextValidationError` on hard failures.
 """
+
 from __future__ import annotations
 
 import re
 import unicodedata
-from typing import List, Tuple
-
 
 # ── Exception ──────────────────────────────────────────────────────────────────
+
 
 class TextValidationError(Exception):
     """Raised when input text cannot be processed."""
@@ -36,6 +36,7 @@ class TextValidationError(Exception):
 
 
 # ── Processor ─────────────────────────────────────────────────────────────────
+
 
 class TextProcessor:
     """
@@ -67,19 +68,19 @@ class TextProcessor:
 
     def __init__(
         self,
-        max_chars:  int = 2_000,
+        max_chars: int = 2_000,
         chunk_size: int = 500,
     ) -> None:
         if max_chars < 10:
             raise ValueError("max_chars must be >= 10")
         if chunk_size < 10:
             raise ValueError("chunk_size must be >= 10")
-        self._max_chars  = max_chars
+        self._max_chars = max_chars
         self._chunk_size = chunk_size
 
     # ── Public interface ───────────────────────────────────────────────────────
 
-    def validate(self, text: object) -> Tuple[bool, str]:
+    def validate(self, text: object) -> tuple[bool, str]:
         """
         Validate *text* without processing it.
 
@@ -118,7 +119,7 @@ class TextProcessor:
         text = re.sub(r"\n+", " ", text)
         return text.strip()
 
-    def truncate_if_needed(self, text: str) -> Tuple[str, bool]:
+    def truncate_if_needed(self, text: str) -> tuple[str, bool]:
         """
         Truncate *text* at a word boundary if it exceeds ``max_chars``.
 
@@ -131,14 +132,14 @@ class TextProcessor:
             return text, False
 
         # Truncate at word boundary
-        cut   = text[: self._max_chars]
+        cut = text[: self._max_chars]
         space = cut.rfind(" ")
         if space > self._max_chars * 0.7:
             cut = cut[:space]
 
         return cut.rstrip() + "…", True
 
-    def chunk(self, text: str, chunk_size: Optional[int] = None) -> List[str]:  # noqa: F821
+    def chunk(self, text: str, chunk_size: int | None = None) -> list[str]:  # noqa: F821
         """
         Split *text* into clause-sized pieces for incremental playback.
 
@@ -160,7 +161,7 @@ class TextProcessor:
         sentences = re.split(r"(?<=[.!?])\s+", text)
         return self._pack_items(sentences, size)
 
-    def process(self, text: object) -> Tuple[List[str], bool]:
+    def process(self, text: object) -> tuple[list[str], bool]:
         """
         Full pipeline: validate → sanitise → truncate → chunk.
 
@@ -184,24 +185,24 @@ class TextProcessor:
         if not ok:
             raise TextValidationError(reason)
 
-        cleaned    = self.sanitize(str(text))
+        cleaned = self.sanitize(str(text))
         if not cleaned:
             raise TextValidationError("text is empty after sanitisation")
 
         truncated, was_truncated = self.truncate_if_needed(cleaned)
-        chunks     = self.chunk(truncated)
+        chunks = self.chunk(truncated)
 
         return chunks, was_truncated
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
-    def _pack_items(self, items: List[str], size: int) -> List[str]:
+    def _pack_items(self, items: list[str], size: int) -> list[str]:
         """
         Greedily pack *items* into chunks of at most *size* chars,
         splitting oversized items at commas or hard boundaries.
         """
-        chunks: List[str] = []
-        current           = ""
+        chunks: list[str] = []
+        current = ""
 
         for item in items:
             if not item:
@@ -224,14 +225,14 @@ class TextProcessor:
 
         return [c for c in chunks if c]
 
-    def _split_at_commas(self, text: str, size: int) -> List[str]:
+    def _split_at_commas(self, text: str, size: int) -> list[str]:
         """Split *text* at commas, then hard-truncate if still too long."""
         parts = re.split(r"(?<=,)\s+", text)
         packed = self._pack_items(parts, size)
         if not packed:
             return []
         # Hard-split anything still over size
-        result: List[str] = []
+        result: list[str] = []
         for chunk in packed:
             if len(chunk) <= size:
                 result.append(chunk)
@@ -241,4 +242,3 @@ class TextProcessor:
 
 
 # Fix missing import for Optional (Python < 3.10 compat)
-from typing import Optional  # noqa: E402

@@ -21,12 +21,11 @@ Factory usage::
     detector.load()
     detected, score = detector.process_chunk(samples)
 """
+
 from __future__ import annotations
 
 import logging
-import time
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
 
 import numpy as np
 
@@ -55,7 +54,7 @@ class BaseWakeWordDetector(ABC):
     def process_chunk(
         self,
         samples: np.ndarray,
-    ) -> Tuple[bool, float]:
+    ) -> tuple[bool, float]:
         """
         Feed one audio chunk.
 
@@ -128,7 +127,7 @@ class OpenWakeWordDetector(BaseWakeWordDetector):
             except Exception:
                 pass
 
-    def process_chunk(self, samples: np.ndarray) -> Tuple[bool, float]:
+    def process_chunk(self, samples: np.ndarray) -> tuple[bool, float]:
         if self._model is None:
             return False, 0.0
 
@@ -142,7 +141,8 @@ class OpenWakeWordDetector(BaseWakeWordDetector):
             if detected:
                 logger.info(
                     "Wake word detected keyword=%r score=%.3f",
-                    self._cfg.keyword, score,
+                    self._cfg.keyword,
+                    score,
                 )
             return detected, score
         except Exception as exc:
@@ -152,12 +152,14 @@ class OpenWakeWordDetector(BaseWakeWordDetector):
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
+
 def make_wake_word_detector(cfg: WakeWordConfig) -> BaseWakeWordDetector:
     """Instantiate the configured wake-word backend."""
     if cfg.backend == "openwakeword":
         return OpenWakeWordDetector(cfg)
     elif cfg.backend == "mock":
         from bonbon_speech.wake_word.mock_wake_word import MockWakeWordDetector
+
         return MockWakeWordDetector(cfg)
     else:
         raise ValueError(f"Unknown wake_word backend: {cfg.backend!r}")

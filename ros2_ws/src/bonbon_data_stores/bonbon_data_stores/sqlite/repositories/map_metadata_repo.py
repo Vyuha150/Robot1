@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import EnvironmentZone, MapMetadata
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
@@ -40,21 +38,33 @@ class MapMetadataRepository(BaseRepository):
             last_updated_at = excluded.last_updated_at,
             is_active       = excluded.is_active;
         """
-        self._execute(sql, (
-            meta.map_id, meta.map_name, meta.file_path, meta.pgm_path, meta.yaml_path,
-            meta.resolution_m, meta.origin_x, meta.origin_y,
-            meta.width_cells, meta.height_cells,
-            meta.created_at, meta.last_updated_at, int(meta.is_active),
-        ))
+        self._execute(
+            sql,
+            (
+                meta.map_id,
+                meta.map_name,
+                meta.file_path,
+                meta.pgm_path,
+                meta.yaml_path,
+                meta.resolution_m,
+                meta.origin_x,
+                meta.origin_y,
+                meta.width_cells,
+                meta.height_cells,
+                meta.created_at,
+                meta.last_updated_at,
+                int(meta.is_active),
+            ),
+        )
         for zone in meta.zones:
             self.save_zone(zone)
         return meta.map_id
 
-    def get_by_id(self, map_id: str) -> Optional[MapMetadata]:
+    def get_by_id(self, map_id: str) -> MapMetadata | None:
         row = self._fetchone("SELECT * FROM map_metadata WHERE map_id = ?;", (map_id,))
         return self._row_to_model(row) if row else None
 
-    def get_active(self) -> Optional[MapMetadata]:
+    def get_active(self) -> MapMetadata | None:
         row = self._fetchone("SELECT * FROM map_metadata WHERE is_active = 1 LIMIT 1;")
         return self._row_to_model(row) if row else None
 
@@ -62,7 +72,7 @@ class MapMetadataRepository(BaseRepository):
         self._execute("UPDATE map_metadata SET is_active = 0;")
         self._execute("UPDATE map_metadata SET is_active = 1 WHERE map_id = ?;", (map_id,))
 
-    def list_all(self) -> List[MapMetadata]:
+    def list_all(self) -> list[MapMetadata]:
         rows = self._fetchall("SELECT * FROM map_metadata ORDER BY last_updated_at DESC;")
         return [self._row_to_model(r) for r in rows]
 
@@ -87,13 +97,20 @@ class MapMetadataRepository(BaseRepository):
             polygon_json = excluded.polygon_json,
             description  = excluded.description;
         """
-        self._execute(sql, (
-            zone.zone_id, zone.map_id, zone.zone_name,
-            zone.zone_type, zone.polygon_json, zone.description,
-        ))
+        self._execute(
+            sql,
+            (
+                zone.zone_id,
+                zone.map_id,
+                zone.zone_name,
+                zone.zone_type,
+                zone.polygon_json,
+                zone.description,
+            ),
+        )
         return zone.zone_id
 
-    def get_zones(self, map_id: str) -> List[EnvironmentZone]:
+    def get_zones(self, map_id: str) -> list[EnvironmentZone]:
         rows = self._fetchall(
             "SELECT * FROM environment_zones WHERE map_id = ? ORDER BY zone_name;",
             (map_id,),
@@ -101,13 +118,11 @@ class MapMetadataRepository(BaseRepository):
         return [EnvironmentZone(**r) for r in rows]
 
     def delete_zone(self, zone_id: str) -> bool:
-        return (
-            self._execute("DELETE FROM environment_zones WHERE zone_id = ?;", (zone_id,)) > 0
-        )
+        return self._execute("DELETE FROM environment_zones WHERE zone_id = ?;", (zone_id,)) > 0
 
     # ------------------------------------------------------------------
 
-    def _row_to_model(self, row: Dict[str, Any]) -> MapMetadata:
+    def _row_to_model(self, row: dict[str, Any]) -> MapMetadata:
         zones = self.get_zones(row["map_id"])
         return MapMetadata(
             map_id=row["map_id"],

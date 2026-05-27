@@ -3,11 +3,14 @@ test_imu_driver.py
 ==================
 Tests for MockImuDriver: normal, disconnection, spikes, drift, timeout, recovery.
 """
+
 from __future__ import annotations
+
 import time
+
 import pytest
 from bonbon_hal.base.driver_base import DriverFault
-from bonbon_hal.drivers.imu import MockImuDriver, ImuReading
+from bonbon_hal.drivers.imu import ImuReading, MockImuDriver
 
 
 @pytest.fixture
@@ -42,7 +45,7 @@ class TestMockImuNormal:
     def test_covariance_populated(self, drv):
         r = drv.read()
         assert r.accel_covariance >= 0
-        assert r.gyro_covariance  >= 0
+        assert r.gyro_covariance >= 0
 
 
 class TestMockImuFaults:
@@ -70,7 +73,7 @@ class TestMockImuFaults:
         drv = MockImuDriver(spike_every_n_reads=5)
         drv.connect()
         spikes_seen = 0
-        for i in range(20):
+        for _i in range(20):
             r = drv.read()
             if abs(r.gyro_x) > 2.0 or abs(r.gyro_y) > 2.0:
                 spikes_seen += 1
@@ -90,8 +93,8 @@ class TestMockImuDrift:
         drv = MockImuDriver(drift_rate_rad_s=1.0)  # large drift for test
         drv.connect()
         readings = [drv.read() for _ in range(50)]
-        first_gz  = readings[0].gyro_z
-        last_gz   = readings[-1].gyro_z
+        first_gz = readings[0].gyro_z
+        last_gz = readings[-1].gyro_z
         # Drift should have shifted gz meaningfully
         assert abs(last_gz - first_gz) > 0.1
 

@@ -25,6 +25,7 @@ ros2 launch bonbon_speech speech.launch.py \
 """
 
 import os
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
@@ -35,7 +36,7 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessStart
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
 from launch_ros.event_handlers import OnStateTransition
 from launch_ros.events.lifecycle import ChangeState
@@ -151,22 +152,21 @@ def generate_launch_description():
         parameters=[
             LaunchConfiguration("params_file"),
             {
-                "vad_backend":          LaunchConfiguration("vad_backend"),
-                "vad_model_path":       LaunchConfiguration("vad_model_path"),
-                "stt_backend":          LaunchConfiguration("stt_backend"),
-                "stt_model_size":       LaunchConfiguration("stt_model_size"),
-                "stt_model_dir":        LaunchConfiguration("stt_model_dir"),
-                "stt_language":         LaunchConfiguration("stt_language"),
-                "diarization_enabled":  LaunchConfiguration("diarization_enabled"),
+                "vad_backend": LaunchConfiguration("vad_backend"),
+                "vad_model_path": LaunchConfiguration("vad_model_path"),
+                "stt_backend": LaunchConfiguration("stt_backend"),
+                "stt_model_size": LaunchConfiguration("stt_model_size"),
+                "stt_model_dir": LaunchConfiguration("stt_model_dir"),
+                "stt_language": LaunchConfiguration("stt_language"),
+                "diarization_enabled": LaunchConfiguration("diarization_enabled"),
                 "diarization_hf_token": LaunchConfiguration("diarization_hf_token"),
-                "wake_word_enabled":    LaunchConfiguration("wake_word_enabled"),
-                "wake_word_backend":    LaunchConfiguration("wake_word_backend"),
+                "wake_word_enabled": LaunchConfiguration("wake_word_enabled"),
+                "wake_word_backend": LaunchConfiguration("wake_word_backend"),
                 "wake_word_model_path": LaunchConfiguration("wake_word_model_path"),
-                "allow_degraded":       LaunchConfiguration("allow_degraded"),
+                "allow_degraded": LaunchConfiguration("allow_degraded"),
             },
         ],
-        arguments=["--ros-args", "--log-level",
-                   LaunchConfiguration("log_level")],
+        arguments=["--ros-args", "--log-level", LaunchConfiguration("log_level")],
         respawn=True,
         respawn_delay=2.0,
     )
@@ -211,7 +211,8 @@ def generate_launch_description():
     )
 
     return LaunchDescription(
-        args + [
+        args
+        + [
             speech_node,
             on_start_configure,
             on_configured_activate,

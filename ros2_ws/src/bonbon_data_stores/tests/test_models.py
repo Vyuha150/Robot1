@@ -3,34 +3,28 @@
 from __future__ import annotations
 
 import pytest
-
 from bonbon_data_stores.schema.models import (
-    AuditLogEntry,
     BaseEvent,
     InteractionEvent,
     MapMetadata,
-    NavigationEvent,
-    NavigationOutcome,
     PrivacyLevel,
+    RAGSearchResult,
     RetentionPolicy,
-    RobotMode,
     RobotState,
     SafetyEvent,
     SafetyEventType,
-    UserPreference,
     UserRecord,
     VectorSearchResult,
-    RAGSearchResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test scenario 2: Privacy level enforcement
 # ---------------------------------------------------------------------------
 
+
 class TestPrivacyLevelEnum:
     def test_all_values_present(self):
-        levels = {l.value for l in PrivacyLevel}
+        levels = {lvl.value for lvl in PrivacyLevel}
         assert "public" in levels
         assert "internal" in levels
         assert "sensitive" in levels
@@ -60,6 +54,7 @@ class TestPrivacyLevelEnum:
 # Test scenario 3: Retention policy defaults
 # ---------------------------------------------------------------------------
 
+
 class TestRetentionPolicy:
     def test_all_policies_present(self):
         policies = {p.value for p in RetentionPolicy}
@@ -86,6 +81,7 @@ class TestRetentionPolicy:
 # Test scenario 4: Domain model construction and defaults
 # ---------------------------------------------------------------------------
 
+
 class TestUserRecord:
     def test_constructs_with_display_name(self):
         u = UserRecord(display_name="Bob")
@@ -109,7 +105,7 @@ class TestInteractionEvent:
         e = InteractionEvent()
         assert e.event_id
         assert e.timestamp > 0
-        assert e.audio_ref is None          # raw audio never stored by default
+        assert e.audio_ref is None  # raw audio never stored by default
 
     def test_audio_ref_default_none(self):
         """Raw audio must never be stored unless explicitly set."""

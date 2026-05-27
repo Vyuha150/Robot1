@@ -12,19 +12,17 @@ Design rule
 The thresholds are intentionally generous: a robot should still be able to act
 on fresh vision data even if the nav-state topic is momentarily quiet.
 """
-from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from __future__ import annotations
 
 from bonbon_perception_ai.fusion.modality_buffer import ModalityBuffer
 
-
 # ── Uncertainty constants (match SemanticScene.msg) ──────────────────────────
-UNCERTAINTY_LOW    = "LOW"
+UNCERTAINTY_LOW = "LOW"
 UNCERTAINTY_MEDIUM = "MEDIUM"
-UNCERTAINTY_HIGH   = "HIGH"
+UNCERTAINTY_HIGH = "HIGH"
 
-_STALE_TO_UNCERTAINTY: Dict[int, str] = {
+_STALE_TO_UNCERTAINTY: dict[int, str] = {
     0: UNCERTAINTY_LOW,
     1: UNCERTAINTY_MEDIUM,
     2: UNCERTAINTY_MEDIUM,
@@ -37,9 +35,7 @@ class StaleDetector:
     (stale_names, uncertainty_level).
     """
 
-    def assess(
-        self, buffers: Dict[str, ModalityBuffer]
-    ) -> Tuple[List[str], str]:
+    def assess(self, buffers: dict[str, ModalityBuffer]) -> tuple[list[str], str]:
         """
         Parameters
         ----------
@@ -57,9 +53,7 @@ class StaleDetector:
         uncertainty = _STALE_TO_UNCERTAINTY.get(len(stale), UNCERTAINTY_HIGH)
         return stale, uncertainty
 
-    def detail_report(
-        self, buffers: Dict[str, ModalityBuffer]
-    ) -> Dict[str, float]:
+    def detail_report(self, buffers: dict[str, ModalityBuffer]) -> dict[str, float]:
         """
         Return per-modality age in seconds.
         Useful for health reporting and debug logs.

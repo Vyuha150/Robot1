@@ -9,10 +9,10 @@ Thread model
 * fuse() is called from the perception timer callback (single thread).
 * ModalityBuffer handles per-field locking.
 """
+
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional
 
 from bonbon_perception_ai.config.perception_config import FusionConfig
 from bonbon_perception_ai.fusion.modality_buffer import ModalityBuffer
@@ -39,10 +39,10 @@ class MultimodalFusion:
 
     def __init__(self, cfg: FusionConfig) -> None:
         self.cfg = cfg
-        self._buffers: Dict[str, ModalityBuffer] = {
-            "objects":    ModalityBuffer("objects",    cfg.objects_stale_sec),
-            "persons":    ModalityBuffer("persons",    cfg.persons_stale_sec),
-            "speech":     ModalityBuffer("speech",     cfg.speech_stale_sec),
+        self._buffers: dict[str, ModalityBuffer] = {
+            "objects": ModalityBuffer("objects", cfg.objects_stale_sec),
+            "persons": ModalityBuffer("persons", cfg.persons_stale_sec),
+            "speech": ModalityBuffer("speech", cfg.speech_stale_sec),
             "robot_pose": ModalityBuffer("robot_pose", cfg.pose_stale_sec),
             "nav_status": ModalityBuffer("nav_status", cfg.nav_stale_sec),
         }
@@ -50,18 +50,12 @@ class MultimodalFusion:
 
     # ── Update methods (called by ROS2 callbacks) ─────────────────────────────
 
-    def update_objects(self, objects: List[ObjectObservation]) -> None:
-        filtered = [
-            o for o in objects
-            if o.confidence >= self.cfg.min_object_confidence
-        ]
+    def update_objects(self, objects: list[ObjectObservation]) -> None:
+        filtered = [o for o in objects if o.confidence >= self.cfg.min_object_confidence]
         self._buffers["objects"].update(filtered)
 
-    def update_persons(self, persons: List[PersonObservation]) -> None:
-        filtered = [
-            p for p in persons
-            if p.confidence >= self.cfg.min_person_confidence
-        ]
+    def update_persons(self, persons: list[PersonObservation]) -> None:
+        filtered = [p for p in persons if p.confidence >= self.cfg.min_person_confidence]
         self._buffers["persons"].update(filtered)
 
     def update_speech(self, speech: SpeechInput) -> None:
@@ -86,21 +80,21 @@ class MultimodalFusion:
         """
         stale, uncertainty = self._stale_detector.assess(self._buffers)
 
-        objects_raw, _   = self._buffers["objects"].get()
-        persons_raw, _   = self._buffers["persons"].get()
-        speech_raw, _    = self._buffers["speech"].get()
-        pose_raw, _      = self._buffers["robot_pose"].get()
-        nav_raw, _       = self._buffers["nav_status"].get()
+        objects_raw, _ = self._buffers["objects"].get()
+        persons_raw, _ = self._buffers["persons"].get()
+        speech_raw, _ = self._buffers["speech"].get()
+        pose_raw, _ = self._buffers["robot_pose"].get()
+        nav_raw, _ = self._buffers["nav_status"].get()
 
         return FusionContext(
-            timestamp         = time.monotonic(),
-            objects           = list(objects_raw) if objects_raw is not None else [],
-            persons           = list(persons_raw) if persons_raw is not None else [],
-            speech            = speech_raw,
-            robot_pose        = pose_raw,
-            nav_status        = nav_raw,
-            stale_modalities  = stale,
-            uncertainty_level = uncertainty,
+            timestamp=time.monotonic(),
+            objects=list(objects_raw) if objects_raw is not None else [],
+            persons=list(persons_raw) if persons_raw is not None else [],
+            speech=speech_raw,
+            robot_pose=pose_raw,
+            nav_status=nav_raw,
+            stale_modalities=stale,
+            uncertainty_level=uncertainty,
         )
 
     # ── Housekeeping ──────────────────────────────────────────────────────────
@@ -110,9 +104,9 @@ class MultimodalFusion:
         for buf in self._buffers.values():
             buf.clear()
 
-    def modality_ages(self) -> Dict[str, float]:
+    def modality_ages(self) -> dict[str, float]:
         """Return age-in-seconds for each modality (for health reporting)."""
         return self._stale_detector.detail_report(self._buffers)
 
-    def buffers(self) -> Dict[str, ModalityBuffer]:
+    def buffers(self) -> dict[str, ModalityBuffer]:
         return dict(self._buffers)

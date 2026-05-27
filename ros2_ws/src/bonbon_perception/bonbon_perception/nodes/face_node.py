@@ -42,25 +42,27 @@ Parameters
   health_rate_hz     float  default 1.0
   crop_scale         float  scale bbox for face crop (default 1.3)
 """
+
 from __future__ import annotations
 
-import math
 import sqlite3
 import threading
 import time
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import rclpy
-from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
-
-from sensor_msgs.msg import Image
 from bonbon_msgs.msg import (
     ModuleHealth,
+)
+from bonbon_msgs.msg import (
     PersonState as PersonStateMsg,
+)
+from bonbon_msgs.msg import (
     PersonStateArray as PersonStateArrayMsg,
 )
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Image
 
 # ── QoS profiles ──────────────────────────────────────────────────────────────
 
@@ -81,12 +83,12 @@ BEST_EFFORT_D2 = QoSProfile(
     depth=2,
 )
 
-NODE_NAME    = "face_node"
+NODE_NAME = "face_node"
 HEALTH_TOPIC = "/bonbon/vision/face_node/health"
 
 # ── Fake face database (mock mode) ───────────────────────────────────────────
 
-_MOCK_FACES: Dict[str, str] = {
+_MOCK_FACES: dict[str, str] = {
     "person_0": "Alice",
     "person_1": "Bob",
     "person_2": "Carol",
@@ -94,6 +96,7 @@ _MOCK_FACES: Dict[str, str] = {
 
 
 # ── Node ──────────────────────────────────────────────────────────────────────
+
 
 class FaceNode(LifecycleNode):
     """
@@ -104,18 +107,18 @@ class FaceNode(LifecycleNode):
         super().__init__(NODE_NAME)
         self._lock = threading.Lock()
 
-        self._latest_color: Optional[np.ndarray] = None
+        self._latest_color: np.ndarray | None = None
         self._face_engine = None
-        self._db_conn: Optional[sqlite3.Connection] = None
+        self._db_conn: sqlite3.Connection | None = None
 
         self._pub_identified = None
-        self._pub_health     = None
-        self._health_timer   = None
+        self._pub_health = None
+        self._health_timer = None
 
-        self._start_time      = time.monotonic()
+        self._start_time = time.monotonic()
         self._processed_count: int = 0
-        self._error_count:     int = 0
-        self._warning_count:   int = 0
+        self._error_count: int = 0
+        self._warning_count: int = 0
         self._last_latency_ms: float = 0.0
 
         self._declare_parameters()
@@ -124,11 +127,11 @@ class FaceNode(LifecycleNode):
     # ── Parameters ────────────────────────────────────────────────────────────
 
     def _declare_parameters(self) -> None:
-        self.declare_parameter("face_mode",              "mock")
-        self.declare_parameter("face_db_path",           "/var/lib/bonbon/face_db.sqlite")
-        self.declare_parameter("recognition_threshold",  0.4)
-        self.declare_parameter("health_rate_hz",         1.0)
-        self.declare_parameter("crop_scale",             1.3)
+        self.declare_parameter("face_mode", "mock")
+        self.declare_parameter("face_db_path", "/var/lib/bonbon/face_db.sqlite")
+        self.declare_parameter("recognition_threshold", 0.4)
+        self.declare_parameter("health_rate_hz", 1.0)
+        self.declare_parameter("crop_scale", 1.3)
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -136,9 +139,7 @@ class FaceNode(LifecycleNode):
         self.get_logger().info(f"[{NODE_NAME}] Configuring…")
         try:
             mode = self.get_parameter("face_mode").value
-            self._recognition_threshold = self.get_parameter(
-                "recognition_threshold"
-            ).value
+            self._recognition_threshold = self.get_parameter("recognition_threshold").value
             self._crop_scale = float(self.get_parameter("crop_scale").value)
             self._face_engine = self._make_face_engine(mode)
         except Exception as exc:
@@ -158,9 +159,7 @@ class FaceNode(LifecycleNode):
             "/bonbon/vision/persons_identified",
             RELIABLE_D5,
         )
-        self._pub_health = self.create_lifecycle_publisher(
-            ModuleHealth, HEALTH_TOPIC, RELIABLE_TL
-        )
+        self._pub_health = self.create_lifecycle_publisher(ModuleHealth, HEALTH_TOPIC, RELIABLE_TL)
 
         self._sub_persons = self.create_subscription(
             PersonStateArrayMsg,
@@ -192,7 +191,7 @@ class FaceNode(LifecycleNode):
             self._db_conn.close()
             self._db_conn = None
         self._pub_identified = None
-        self._pub_health     = None
+        self._pub_health = None
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
@@ -242,27 +241,25 @@ class FaceNode(LifecycleNode):
     def _run_recognition(
         self,
         msg: PersonStateArrayMsg,
-        color: Optional[np.ndarray],
+        color: np.ndarray | None,
     ) -> PersonStateArrayMsg:
         """Run face recognition on each person in the array."""
         out = PersonStateArrayMsg()
-        out.header      = msg.header
+        out.header = msg.header
         out.total_count = msg.total_count
 
         for person in msg.persons:
             augmented = PersonStateMsg()
-            augmented.track_id     = person.track_id
-            augmented.face_id      = person.face_id
-            augmented.distance_m   = person.distance_m
-            augmented.bearing_deg  = person.bearing_deg
+            augmented.track_id = person.track_id
+            augmented.face_id = person.face_id
+            augmented.distance_m = person.distance_m
+            augmented.bearing_deg = person.bearing_deg
             augmented.velocity_mps = person.velocity_mps
             augmented.facing_robot = person.facing_robot
-            augmented.age_group    = person.age_group
-            augmented.position     = person.position
+            augmented.age_group = person.age_group
+            augmented.position = person.position
 
-            face_id = self._face_engine.identify(
-                person, color, self._recognition_threshold
-            )
+            face_id = self._face_engine.identify(person, color, self._recognition_threshold)
             if face_id:
                 augmented.face_id = face_id
             out.persons.append(augmented)
@@ -276,9 +273,7 @@ class FaceNode(LifecycleNode):
             return _MockFaceEngine()
         elif mode == "opencv_lbp":
             try:
-                return _OpenCVLBPFaceEngine(
-                    db_path=self.get_parameter("face_db_path").value
-                )
+                return _OpenCVLBPFaceEngine(db_path=self.get_parameter("face_db_path").value)
             except Exception as exc:
                 self.get_logger().warn(
                     f"[{NODE_NAME}] OpenCV LBP face engine failed: {exc} — using mock"
@@ -286,18 +281,12 @@ class FaceNode(LifecycleNode):
                 return _MockFaceEngine()
         elif mode == "deepface":
             try:
-                return _DeepFaceEngine(
-                    db_path=self.get_parameter("face_db_path").value
-                )
+                return _DeepFaceEngine(db_path=self.get_parameter("face_db_path").value)
             except Exception as exc:
-                self.get_logger().warn(
-                    f"[{NODE_NAME}] DeepFace engine failed: {exc} — using mock"
-                )
+                self.get_logger().warn(f"[{NODE_NAME}] DeepFace engine failed: {exc} — using mock")
                 return _MockFaceEngine()
         else:
-            self.get_logger().warn(
-                f"[{NODE_NAME}] Unknown face_mode '{mode}' — using mock"
-            )
+            self.get_logger().warn(f"[{NODE_NAME}] Unknown face_mode '{mode}' — using mock")
             return _MockFaceEngine()
 
     # ── Health ────────────────────────────────────────────────────────────────
@@ -307,27 +296,28 @@ class FaceNode(LifecycleNode):
             return
         uptime = time.monotonic() - self._start_time
 
-        status     = ModuleHealth.ERROR if self._error_count > 5 else ModuleHealth.OK
+        status = ModuleHealth.ERROR if self._error_count > 5 else ModuleHealth.OK
         status_txt = (
             f"Face recognition active. Processed {self._processed_count} frames. "
             f"Latency {self._last_latency_ms:.1f} ms"
         )
 
         msg = ModuleHealth()
-        msg.header.stamp              = self.get_clock().now().to_msg()
-        msg.module_name               = NODE_NAME
-        msg.status                    = status
-        msg.status_text               = status_txt
-        msg.uptime_sec                = uptime
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.module_name = NODE_NAME
+        msg.status = status
+        msg.status_text = status_txt
+        msg.uptime_sec = uptime
         msg.last_successful_cycle_sec = 0.0
-        msg.latency_ms                = self._last_latency_ms
-        msg.error_count               = self._error_count
-        msg.warning_count             = self._warning_count
-        msg.processed_count           = self._processed_count
+        msg.latency_ms = self._last_latency_ms
+        msg.error_count = self._error_count
+        msg.warning_count = self._warning_count
+        msg.processed_count = self._processed_count
         self._pub_health.publish(msg)
 
 
 # ── Face engine implementations ───────────────────────────────────────────────
+
 
 class _MockFaceEngine:
     """Deterministic face engine for CI and simulation."""
@@ -342,25 +332,26 @@ class _OpenCVLBPFaceEngine:
     def __init__(self, db_path: str) -> None:
         try:
             import cv2
+
             self._cv2 = cv2
             self._detector = cv2.CascadeClassifier(
                 cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
             )
             self._recognizer = cv2.face.LBPHFaceRecognizer_create()
             self._db_path = db_path
-            self._label_map: Dict[int, str] = {}
+            self._label_map: dict[int, str] = {}
             self._trained = False
             self._load_db()
         except ImportError:
-            raise ImportError("OpenCV with face module required: pip install opencv-contrib-python")
+            raise ImportError(
+                "OpenCV with face module required: pip install opencv-contrib-python"
+            ) from None
 
     def _load_db(self) -> None:
         try:
             conn = sqlite3.connect(self._db_path)
             c = conn.cursor()
-            c.execute(
-                "SELECT name, embedding FROM face_embeddings"
-            )
+            c.execute("SELECT name, embedding FROM face_embeddings")
             rows = c.fetchall()
             conn.close()
             if rows:
@@ -385,7 +376,7 @@ class _OpenCVLBPFaceEngine:
             if len(faces) == 0:
                 return ""
             x, y, w, h = faces[0]
-            face_roi = self._cv2.resize(gray[y:y+h, x:x+w], (64, 64))
+            face_roi = self._cv2.resize(gray[y : y + h, x : x + w], (64, 64))
             label, confidence = self._recognizer.predict(face_roi)
             if confidence < threshold * 100:
                 return self._label_map.get(label, "")
@@ -400,18 +391,18 @@ class _DeepFaceEngine:
     def __init__(self, db_path: str) -> None:
         try:
             from deepface import DeepFace as _DF
+
             self._DF = _DF
             self._db_path = db_path
         except ImportError:
-            raise ImportError(
-                "DeepFace not installed. Run: pip install deepface"
-            )
+            raise ImportError("DeepFace not installed. Run: pip install deepface") from None
 
     def identify(self, person, color, threshold: float) -> str:
         if color is None:
             return ""
         try:
             import cv2
+
             rgb = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
             result = self._DF.find(
                 img_path=rgb,
@@ -424,6 +415,7 @@ class _DeepFaceEngine:
                 row = result[0].iloc[0]
                 if row["Facenet512_cosine"] < threshold:
                     import os
+
                     return os.path.splitext(os.path.basename(str(row["identity"])))[0]
         except Exception:
             pass
@@ -431,6 +423,7 @@ class _DeepFaceEngine:
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

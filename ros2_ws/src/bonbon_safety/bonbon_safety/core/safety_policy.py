@@ -15,41 +15,41 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import yaml
 
 logger = logging.getLogger(__name__)
 
 
-class PolicyAction(str, Enum):
+class PolicyAction(StrEnum):
     """All possible actions the supervisor can take on a state transition."""
+
     # Locomotion
-    zero_velocity          = "zero_velocity"          # publish zero cmd_vel
-    cap_velocity           = "cap_velocity"            # cap cmd_vel at limit
-    cancel_navigation      = "cancel_navigation"       # cancel active nav2 goal
+    zero_velocity = "zero_velocity"  # publish zero cmd_vel
+    cap_velocity = "cap_velocity"  # cap cmd_vel at limit
+    cancel_navigation = "cancel_navigation"  # cancel active nav2 goal
     # Actuation
-    disable_actuation      = "disable_actuation"       # block servo commands
-    enable_actuation       = "enable_actuation"
+    disable_actuation = "disable_actuation"  # block servo commands
+    enable_actuation = "enable_actuation"
     # Docking
-    initiate_docking       = "initiate_docking"        # send dock action goal
+    initiate_docking = "initiate_docking"  # send dock action goal
     # Audio / UI
-    announce_audio         = "announce_audio"          # play named audio file
-    update_led_eyes        = "update_led_eyes"         # change eye expression
-    update_display         = "update_display"          # show message on screen
+    announce_audio = "announce_audio"  # play named audio file
+    update_led_eyes = "update_led_eyes"  # change eye expression
+    update_display = "update_display"  # show message on screen
     # Operator
-    notify_operator        = "notify_operator"         # push alert to dashboard
-    request_human_help     = "request_human_help"      # announce + dashboard flag
+    notify_operator = "notify_operator"  # push alert to dashboard
+    request_human_help = "request_human_help"  # announce + dashboard flag
     # Hardware
-    trigger_estop          = "trigger_estop"           # assert GPIO e-stop relay
-    release_estop          = "release_estop"
+    trigger_estop = "trigger_estop"  # assert GPIO e-stop relay
+    release_estop = "release_estop"
     # Logging
-    log_incident           = "log_incident"            # write to safety incident log
+    log_incident = "log_incident"  # write to safety incident log
     # Node management
-    restart_failed_node    = "restart_failed_node"
-    enter_degraded_mode    = "enter_degraded_mode"
+    restart_failed_node = "restart_failed_node"
+    enter_degraded_mode = "enter_degraded_mode"
 
 
 @dataclass
@@ -64,14 +64,15 @@ class PolicyRule:
     led_state:  eye expression name for UPDATE_LED_EYES.
     display_text: message for UPDATE_DISPLAY.
     """
+
     state_name: str
-    on_enter: List[PolicyAction] = field(default_factory=list)
-    on_exit: List[PolicyAction] = field(default_factory=list)
-    recurring: List[PolicyAction] = field(default_factory=list)
-    audio_file: Optional[str] = None
-    led_state: Optional[str] = None
-    display_text: Optional[str] = None
-    announce_text: Optional[str] = None
+    on_enter: list[PolicyAction] = field(default_factory=list)
+    on_exit: list[PolicyAction] = field(default_factory=list)
+    recurring: list[PolicyAction] = field(default_factory=list)
+    audio_file: str | None = None
+    led_state: str | None = None
+    display_text: str | None = None
+    announce_text: str | None = None
 
 
 class SafetyPolicy:
@@ -111,7 +112,7 @@ class SafetyPolicy:
         display_text: "🔋 Returning to dock..."
     """
 
-    def __init__(self, rules: Dict[str, PolicyRule]) -> None:
+    def __init__(self, rules: dict[str, PolicyRule]) -> None:
         self._rules = rules
 
     # ── Helpers ───────────────────────────────────────────────────────────────
@@ -119,12 +120,12 @@ class SafetyPolicy:
     @staticmethod
     def _to_level_name(level) -> str:
         """Convert a SafetyLevel enum or plain string to an uppercase state name."""
-        if hasattr(level, "name"):   # SafetyLevel enum (or any named enum)
+        if hasattr(level, "name"):  # SafetyLevel enum (or any named enum)
             return level.name
         return str(level).upper()
 
     @classmethod
-    def from_yaml(cls, path) -> "SafetyPolicy":
+    def from_yaml(cls, path) -> SafetyPolicy:
         """Load and validate policy from a YAML file (accepts str or Path)."""
         path = Path(path)
         if not path.exists():
@@ -136,17 +137,11 @@ class SafetyPolicy:
         if "rules" not in raw:
             raise ValueError("safety_policy.yaml must have a top-level 'rules' key")
 
-        rules: Dict[str, PolicyRule] = {}
+        rules: dict[str, PolicyRule] = {}
         for state_name, rule_dict in raw["rules"].items():
-            on_enter = [
-                PolicyAction(a) for a in rule_dict.get("on_enter", [])
-            ]
-            on_exit = [
-                PolicyAction(a) for a in rule_dict.get("on_exit", [])
-            ]
-            recurring = [
-                PolicyAction(a) for a in rule_dict.get("recurring", [])
-            ]
+            on_enter = [PolicyAction(a) for a in rule_dict.get("on_enter", [])]
+            on_exit = [PolicyAction(a) for a in rule_dict.get("on_exit", [])]
+            recurring = [PolicyAction(a) for a in rule_dict.get("recurring", [])]
             rules[state_name] = PolicyRule(
                 state_name=state_name,
                 on_enter=on_enter,
@@ -158,18 +153,17 @@ class SafetyPolicy:
                 announce_text=rule_dict.get("announce_text"),
             )
 
-        logger.info(
-            "Safety policy loaded from %s — %d rules", path, len(rules)
-        )
+        logger.info("Safety policy loaded from %s — %d rules", path, len(rules))
         return cls(rules)
 
     @classmethod
-    def default(cls) -> "SafetyPolicy":
+    def default(cls) -> SafetyPolicy:
         """Factory: returns the built-in conservative default policy."""
         from bonbon_safety.core.default_policy import DEFAULT_POLICY_RULES
+
         return cls(DEFAULT_POLICY_RULES)
 
-    def rule_for(self, level) -> Optional[PolicyRule]:
+    def rule_for(self, level) -> PolicyRule | None:
         """Return the rule for the given state, or None if not defined.
 
         Accepts a SafetyLevel enum, an uppercase state name string, or any
@@ -181,35 +175,35 @@ class SafetyPolicy:
         """Return True if the policy contains a rule for *level*."""
         return self.rule_for(level) is not None
 
-    def on_enter_actions(self, level) -> List[PolicyAction]:
+    def on_enter_actions(self, level) -> list[PolicyAction]:
         rule = self.rule_for(level)
         return rule.on_enter if rule else []
 
-    def on_exit_actions(self, level) -> List[PolicyAction]:
+    def on_exit_actions(self, level) -> list[PolicyAction]:
         rule = self.rule_for(level)
         return rule.on_exit if rule else []
 
-    def recurring_actions(self, level) -> List[PolicyAction]:
+    def recurring_actions(self, level) -> list[PolicyAction]:
         rule = self.rule_for(level)
         return rule.recurring if rule else []
 
-    def audio_file(self, level) -> Optional[str]:
+    def audio_file(self, level) -> str | None:
         rule = self.rule_for(level)
         return rule.audio_file if rule else None
 
-    def led_state(self, level) -> Optional[str]:
+    def led_state(self, level) -> str | None:
         rule = self.rule_for(level)
         return rule.led_state if rule else None
 
-    def display_text(self, level) -> Optional[str]:
+    def display_text(self, level) -> str | None:
         rule = self.rule_for(level)
         return rule.display_text if rule else None
 
-    def announce_text(self, level) -> Optional[str]:
+    def announce_text(self, level) -> str | None:
         rule = self.rule_for(level)
         return rule.announce_text if rule else None
 
-    def metadata(self, level) -> Dict[str, Optional[str]]:
+    def metadata(self, level) -> dict[str, str | None]:
         """Return a dict of audio/LED/display/announce metadata for *level*.
 
         Returns an empty dict if no rule is defined.
@@ -218,8 +212,8 @@ class SafetyPolicy:
         if rule is None:
             return {}
         return {
-            "audio_file":    rule.audio_file,
-            "led_state":     rule.led_state,
-            "display_text":  rule.display_text,
+            "audio_file": rule.audio_file,
+            "led_state": rule.led_state,
+            "display_text": rule.display_text,
             "announce_text": rule.announce_text,
         }

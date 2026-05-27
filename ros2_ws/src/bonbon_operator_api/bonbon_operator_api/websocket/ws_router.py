@@ -17,29 +17,27 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Optional
 
 import jwt
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from bonbon_operator_api.auth.dependencies import _get_auth_manager, _get_role_manager
-from bonbon_operator_api.websocket.ws_manager import WebSocketConnectionManager, VALID_CHANNELS
+from bonbon_operator_api.websocket.ws_manager import VALID_CHANNELS, WebSocketConnectionManager
 
 logger = logging.getLogger(__name__)
 
 # Roles required per channel
 _CHANNEL_MIN_PERMISSION = {
-    "robot-status":      "robot:read",
-    "safety-events":     "robot:read",
+    "robot-status": "robot:read",
+    "safety-events": "robot:read",
     "navigation-events": "robot:read",
-    "diagnostics":       "diagnostics:read",
-    "live-logs":         "diagnostics:read",
+    "diagnostics": "diagnostics:read",
+    "live-logs": "diagnostics:read",
 }
 
 ws_router = APIRouter(prefix="/ws", tags=["websocket"])
 
 
-def _authenticate_ws(request_scope, token: Optional[str]) -> Optional[dict]:
+def _authenticate_ws(request_scope, token: str | None) -> dict | None:
     """Validate WS token; return decoded payload dict or None."""
     if not token:
         return None
@@ -71,7 +69,7 @@ def _check_channel_permission(role: str, channel: str, role_mgr) -> bool:
 async def websocket_channel(
     websocket: WebSocket,
     channel: str,
-    token: Optional[str] = Query(default=None),
+    token: str | None = Query(default=None),
 ) -> None:
     """Connect to a named event channel."""
     app = websocket.app
@@ -104,12 +102,16 @@ async def websocket_channel(
 
     # 5. Send initial welcome
     try:
-        await ws_mgr.send_to_websocket(websocket, "connected", {
-            "channel": channel,
-            "user": user["username"],
-            "role": user["role"],
-            "server_time": time.time(),
-        })
+        await ws_mgr.send_to_websocket(
+            websocket,
+            "connected",
+            {
+                "channel": channel,
+                "user": user["username"],
+                "role": user["role"],
+                "server_time": time.time(),
+            },
+        )
     except Exception:
         ws_mgr.disconnect(websocket)
         return
@@ -121,12 +123,10 @@ async def websocket_channel(
                 data = await asyncio.wait_for(websocket.receive_json(), timeout=30.0)
                 # Handle ping
                 if isinstance(data, dict) and data.get("type") == "ping":
-                    await ws_mgr.send_to_websocket(websocket, "pong",
-                                                   {"ts": time.time()})
-            except asyncio.TimeoutError:
+                    await ws_mgr.send_to_websocket(websocket, "pong", {"ts": time.time()})
+            except TimeoutError:
                 # Send server-side keepalive ping
-                await ws_mgr.send_to_websocket(websocket, "ping",
-                                               {"ts": time.time()})
+                await ws_mgr.send_to_websocket(websocket, "ping", {"ts": time.time()})
             except WebSocketDisconnect:
                 break
     except WebSocketDisconnect:

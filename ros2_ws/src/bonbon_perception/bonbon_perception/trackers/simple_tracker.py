@@ -20,10 +20,8 @@ with scipy linear_sum_assignment + Kalman filter (SORT algorithm).
 
 The tracker is entirely pure-Python / NumPy — no ROS2 dependency.
 """
-from __future__ import annotations
 
-import time
-from typing import Dict, List, Optional, Tuple
+from __future__ import annotations
 
 import numpy as np
 
@@ -48,15 +46,15 @@ class SimpleTracker:
         max_lost_frames: int = 15,
         max_tracks: int = 20,
     ) -> None:
-        self._iou_threshold   = iou_threshold
+        self._iou_threshold = iou_threshold
         self._max_lost_frames = max_lost_frames
-        self._max_tracks      = max_tracks
-        self._tracks: Dict[str, Track] = {}
+        self._max_tracks = max_tracks
+        self._tracks: dict[str, Track] = {}
         self._next_id: int = 0
 
     # ── Public interface ──────────────────────────────────────────────────────
 
-    def update(self, detections: List[Detection]) -> List[Track]:
+    def update(self, detections: list[Detection]) -> list[Track]:
         """
         Associate detections with existing tracks and return the updated
         list of CONFIRMED tracks.
@@ -72,9 +70,7 @@ class SimpleTracker:
         if not active and not detections:
             return []
 
-        matched_track_ids, matched_det_indices = self._associate(
-            active, detections
-        )
+        matched_track_ids, matched_det_indices = self._associate(active, detections)
 
         # Update matched tracks
         for t_id, d_idx in zip(matched_track_ids, matched_det_indices):
@@ -94,7 +90,8 @@ class SimpleTracker:
 
         # Purge deleted and over-age-lost tracks
         to_delete = [
-            tid for tid, t in self._tracks.items()
+            tid
+            for tid, t in self._tracks.items()
             if t.state == TrackState.DELETED
             or (t.state == TrackState.LOST and t.lost_count > self._max_lost_frames)
         ]
@@ -104,11 +101,11 @@ class SimpleTracker:
         return [t for t in self._tracks.values() if t.should_publish]
 
     @property
-    def active_tracks(self) -> List[Track]:
+    def active_tracks(self) -> list[Track]:
         return [t for t in self._tracks.values() if t.is_active]
 
     @property
-    def confirmed_tracks(self) -> List[Track]:
+    def confirmed_tracks(self) -> list[Track]:
         return [t for t in self._tracks.values() if t.should_publish]
 
     def reset(self) -> None:
@@ -120,9 +117,9 @@ class SimpleTracker:
 
     def _associate(
         self,
-        tracks: List[Track],
-        detections: List[Detection],
-    ) -> Tuple[List[str], List[int]]:
+        tracks: list[Track],
+        detections: list[Detection],
+    ) -> tuple[list[str], list[int]]:
         """
         Greedy IoU matching.
 
@@ -139,14 +136,14 @@ class SimpleTracker:
         cost = np.ones((n_t, n_d), dtype=np.float32)
 
         for i, track in enumerate(tracks):
-            det_t = Detection(bbox=track.bbox)   # surrogate Detection for IoU
+            det_t = Detection(bbox=track.bbox)  # surrogate Detection for IoU
             for j, det in enumerate(detections):
                 iou = Detection.iou(det_t, det)
                 cost[i, j] = 1.0 - iou
 
         # Greedy assignment: repeatedly pick the minimum-cost pair
-        matched_t: List[str] = []
-        matched_d: List[int] = []
+        matched_t: list[str] = []
+        matched_d: list[int] = []
         used_t = set()
         used_d = set()
 
@@ -169,7 +166,7 @@ class SimpleTracker:
 
     # ── Track creation ────────────────────────────────────────────────────────
 
-    def _create_track(self, det: Detection) -> Optional[Track]:
+    def _create_track(self, det: Detection) -> Track | None:
         if len(self._tracks) >= self._max_tracks:
             return None
 
@@ -185,6 +182,6 @@ class SimpleTracker:
             distance_m=det.depth_m,
             bearing_deg=det.bearing_deg,
         )
-        track.update(det)   # first update sets state machinery
+        track.update(det)  # first update sets state machinery
         self._tracks[track_id] = track
         return track

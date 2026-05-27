@@ -13,14 +13,13 @@ Tests cover
 * Safe response generation for flagged output
 * Low-confidence scenarios
 """
-import pytest
 
-from bonbon_llm.safety.hallucination_guard import HallucinationGuard, GuardResult
 from bonbon_llm.config.llm_config import HallucinationConfig
 from bonbon_llm.core.rag_retriever import RAGDocument, RetrievalResult
-
+from bonbon_llm.safety.hallucination_guard import GuardResult, HallucinationGuard
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _guard(enabled: bool = True, min_grounding: float = 0.30) -> HallucinationGuard:
     cfg = HallucinationConfig(
@@ -36,6 +35,7 @@ def _rag(text: str, score: float = 0.80) -> RetrievalResult:
 
 
 # ── Impossible capability detection ───────────────────────────────────────────
+
 
 class TestImpossibleCapabilities:
 
@@ -102,6 +102,7 @@ class TestImpossibleCapabilities:
 
 # ── Fabricated price detection ────────────────────────────────────────────────
 
+
 class TestFabricatedPrices:
 
     def test_fabricated_price_flagged(self):
@@ -141,6 +142,7 @@ class TestFabricatedPrices:
 
 # ── Velocity claim detection ──────────────────────────────────────────────────
 
+
 class TestVelocityClaims:
 
     def test_implausible_speed_flagged(self):
@@ -166,6 +168,7 @@ class TestVelocityClaims:
 
 # ── Guard disabled ────────────────────────────────────────────────────────────
 
+
 class TestGuardDisabled:
 
     def test_disabled_always_grounded(self):
@@ -182,6 +185,7 @@ class TestGuardDisabled:
 
 
 # ── Safe response generation ──────────────────────────────────────────────────
+
 
 class TestSafeResponseGeneration:
 
@@ -208,6 +212,7 @@ class TestSafeResponseGeneration:
 
 # ── GuardResult fields ────────────────────────────────────────────────────────
 
+
 class TestGuardResultFields:
 
     def test_confidence_between_0_and_1(self):
@@ -217,9 +222,9 @@ class TestGuardResultFields:
             "I can fly and I am human and I can access the internet.",
         ]:
             result = guard.check(text)
-            assert 0.0 <= result.confidence <= 1.0, (
-                f"Confidence out of range: {result.confidence} for: {text!r}"
-            )
+            assert (
+                0.0 <= result.confidence <= 1.0
+            ), f"Confidence out of range: {result.confidence} for: {text!r}"
 
     def test_reason_set_on_failure(self):
         guard = _guard()
@@ -235,6 +240,7 @@ class TestGuardResultFields:
 
 
 # ── Low-confidence scenario ───────────────────────────────────────────────────
+
 
 class TestLowConfidence:
 

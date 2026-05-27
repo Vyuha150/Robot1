@@ -5,12 +5,14 @@ Covers: standard intents, slot extraction, ambiguous commands,
 conflicting inputs, silence/timeout, privacy, multi-language,
 wrong/missing speech data.
 """
+
 import time
+
 import pytest
 from bonbon_perception_ai.config.perception_config import IntentConfig
 from bonbon_perception_ai.fusion.types import FusionContext, SpeechInput
 from bonbon_perception_ai.understanding.intent_engine import (
-    IntentEngine, UserIntent, IntentSlot,
+    IntentEngine,
 )
 
 
@@ -26,35 +28,46 @@ def _cfg(**kw) -> IntentConfig:
 
 def _ctx() -> FusionContext:
     return FusionContext(
-        timestamp=time.monotonic(), objects=[], persons=[],
-        speech=None, robot_pose=None, nav_status=None,
-        stale_modalities=[], uncertainty_level="LOW",
+        timestamp=time.monotonic(),
+        objects=[],
+        persons=[],
+        speech=None,
+        robot_pose=None,
+        nav_status=None,
+        stale_modalities=[],
+        uncertainty_level="LOW",
     )
 
 
 def _speech(text, confidence=0.9, silence=False, timeout=False, speaker="spk1") -> SpeechInput:
     return SpeechInput(
-        text=text, confidence=confidence,
-        is_silence=silence, is_timeout=timeout,
+        text=text,
+        confidence=confidence,
+        is_silence=silence,
+        is_timeout=timeout,
         speaker_id=speaker,
     )
 
 
 # ── Standard intents ──────────────────────────────────────────────────────────
 
+
 class TestStandardIntents:
-    @pytest.mark.parametrize("text,expected", [
-        ("I'd like to order a coffee please", "order_item"),
-        ("Can you bring me some water",       "order_item"),
-        ("Go to table 5",                     "navigate_to"),
-        ("Follow me",                         "navigate_to"),
-        ("What time is it",                   "ask_question"),
-        ("Stop navigation",                   "cancel"),
-        ("Yes, that's correct",               "confirm"),
-        ("No, not that one",                  "deny"),
-        ("I need help",                       "help_request"),
-        ("Hello there",                       "greeting"),
-    ])
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("I'd like to order a coffee please", "order_item"),
+            ("Can you bring me some water", "order_item"),
+            ("Go to table 5", "navigate_to"),
+            ("Follow me", "navigate_to"),
+            ("What time is it", "ask_question"),
+            ("Stop navigation", "cancel"),
+            ("Yes, that's correct", "confirm"),
+            ("No, not that one", "deny"),
+            ("I need help", "help_request"),
+            ("Hello there", "greeting"),
+        ],
+    )
     def test_intent_class(self, text, expected):
         engine = IntentEngine(_cfg())
         intent = engine.classify(_speech(text), _ctx())
@@ -88,6 +101,7 @@ class TestStandardIntents:
 
 # ── Slot extraction ───────────────────────────────────────────────────────────
 
+
 class TestSlotExtraction:
     def test_item_slot_extracted(self):
         engine = IntentEngine(_cfg())
@@ -119,6 +133,7 @@ class TestSlotExtraction:
 
 # ── Ambiguous commands ────────────────────────────────────────────────────────
 
+
 class TestAmbiguousCommands:
     def test_gibberish_is_ambiguous(self):
         engine = IntentEngine(_cfg())
@@ -136,7 +151,7 @@ class TestAmbiguousCommands:
         engine = IntentEngine(_cfg(ambiguity_policy="best_guess"))
         intent = engine.classify(_speech("blah blah"), _ctx())
         assert intent is not None
-        assert intent.is_ambiguous    # still marked ambiguous
+        assert intent.is_ambiguous  # still marked ambiguous
         # intent_class is NOT "unknown" — best guess is kept
 
     def test_ignore_policy_returns_none(self):
@@ -148,10 +163,11 @@ class TestAmbiguousCommands:
         engine = IntentEngine(_cfg())
         # low speech confidence doesn't block intent but may lower it
         intent = engine.classify(_speech("order coffee", confidence=0.1), _ctx())
-        assert intent is not None   # intent engine uses text, not speech confidence
+        assert intent is not None  # intent engine uses text, not speech confidence
 
 
 # ── Silence and timeout ───────────────────────────────────────────────────────
+
 
 class TestSilenceAndTimeout:
     def test_silence_returns_silence_intent(self):
@@ -176,6 +192,7 @@ class TestSilenceAndTimeout:
 
 # ── Conflicting / contradictory commands ─────────────────────────────────────
 
+
 class TestConflictingCommands:
     def test_confirm_after_deny_both_classified(self):
         engine = IntentEngine(_cfg())
@@ -194,10 +211,11 @@ class TestConflictingCommands:
 
 # ── Raw text preserved ────────────────────────────────────────────────────────
 
+
 class TestRawText:
     def test_raw_text_preserved(self):
         engine = IntentEngine(_cfg())
-        text   = "Please bring me a cup of coffee for table 3"
+        text = "Please bring me a cup of coffee for table 3"
         intent = engine.classify(_speech(text), _ctx())
         assert intent is not None
         assert intent.raw_text == text

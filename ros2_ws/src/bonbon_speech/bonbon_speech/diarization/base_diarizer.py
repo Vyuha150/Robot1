@@ -3,11 +3,11 @@ bonbon_speech.diarization.base_diarizer
 ========================================
 Abstract base class for speaker diarization backends + SpeakerSegment.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 import numpy as np
 
@@ -24,9 +24,10 @@ class SpeakerSegment:
     end_sec:      end offset
     confidence:   backend-specific score in [0, 1]
     """
-    speaker_id: str   = "SPEAKER_00"
-    start_sec:  float = 0.0
-    end_sec:    float = 0.0
+
+    speaker_id: str = "SPEAKER_00"
+    start_sec: float = 0.0
+    end_sec: float = 0.0
     confidence: float = 1.0
 
     @property
@@ -44,10 +45,11 @@ class DiarizationResult:
     all_speaker_ids:  de-duplicated list of speaker IDs present
     is_timeout:       True when the backend hit its inference deadline
     """
-    segments:         List[SpeakerSegment] = field(default_factory=list)
-    dominant_speaker: str                  = "SPEAKER_00"
-    all_speaker_ids:  List[str]            = field(default_factory=list)
-    is_timeout:       bool                 = False
+
+    segments: list[SpeakerSegment] = field(default_factory=list)
+    dominant_speaker: str = "SPEAKER_00"
+    all_speaker_ids: list[str] = field(default_factory=list)
+    is_timeout: bool = False
 
     def __post_init__(self):
         if not self.all_speaker_ids and self.segments:
@@ -78,12 +80,10 @@ class BaseDiarizer(ABC):
         self._cfg = cfg
 
     @abstractmethod
-    def load(self) -> None:
-        ...
+    def load(self) -> None: ...
 
     @abstractmethod
-    def unload(self) -> None:
-        ...
+    def unload(self) -> None: ...
 
     @abstractmethod
     def diarize(

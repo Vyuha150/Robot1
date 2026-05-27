@@ -22,11 +22,13 @@ from __future__ import annotations
 
 # Each entry is (version: int, description: str, sql: str)
 MIGRATIONS: list[tuple[int, str, str]] = [
-
     # ------------------------------------------------------------------
     # V1 — initial schema
     # ------------------------------------------------------------------
-    (1, "initial schema", """
+    (
+        1,
+        "initial schema",
+        """
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version     INTEGER PRIMARY KEY,
     description TEXT    NOT NULL,
@@ -231,7 +233,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_actor        ON audit_log(actor);
 CREATE INDEX IF NOT EXISTS idx_audit_log_ts           ON audit_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_ai_context_session     ON ai_context(session_id);
 CREATE INDEX IF NOT EXISTS idx_ai_context_hash        ON ai_context(content_hash);
-"""),
+""",
+    ),
 ]
 
 # Flat DDL used by tests / tooling that just wants the raw SQL

@@ -3,10 +3,12 @@ test_servo_driver.py
 ====================
 Tests for MockServoDriver: reads, commands, torque, thermal, faults, recovery.
 """
+
 from __future__ import annotations
+
 import pytest
 from bonbon_hal.base.driver_base import DriverFault
-from bonbon_hal.drivers.servo import MockServoDriver, ServoReading, ServoCommand
+from bonbon_hal.drivers.servo import MockServoDriver, ServoCommand, ServoReading
 
 
 @pytest.fixture
@@ -41,7 +43,7 @@ class TestMockServoNormal:
         drv.read_servo(1)
         r = drv.read_servo(1)
         # After a few reads the servo should be approaching target
-        assert abs(r.position_rad) >= 0   # just check it's a float
+        assert abs(r.position_rad) >= 0  # just check it's a float
 
     def test_write_commands_bulk(self, drv):
         cmds = [ServoCommand(servo_id=i, target_position_rad=0.5) for i in [1, 2, 3]]
@@ -63,7 +65,6 @@ class TestMockServoNormal:
             assert r.torque_enabled is False
 
     def test_temperature_rises_with_load(self, drv):
-        import time
         drv.write_command(ServoCommand(1, target_position_rad=3.14))
         t0 = drv.read_servo(1).temperature_c
         for _ in range(50):
@@ -101,6 +102,7 @@ class TestMockServoFaults:
 
     def test_latency_simulation(self):
         import time
+
         drv = MockServoDriver(servo_ids=[1], simulate_latency_sec=0.05)
         drv.connect()
         t0 = time.monotonic()
@@ -112,7 +114,8 @@ class TestMockServoRecovery:
     def test_reconnect_restores_reads(self):
         drv = MockServoDriver(servo_ids=[1], disconnect_after_n=2)
         drv.connect()
-        drv.read_all(); drv.read_all()
+        drv.read_all()
+        drv.read_all()
         try:
             drv.read_all()
         except DriverFault:

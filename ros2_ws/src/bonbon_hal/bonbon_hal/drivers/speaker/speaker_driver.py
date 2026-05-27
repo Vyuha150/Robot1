@@ -1,7 +1,9 @@
 """Abstract speaker driver."""
+
 from __future__ import annotations
 
 from abc import abstractmethod
+
 from bonbon_hal.base.driver_base import DriverBase
 from bonbon_hal.drivers.microphone.mic_driver import AudioChunk
 

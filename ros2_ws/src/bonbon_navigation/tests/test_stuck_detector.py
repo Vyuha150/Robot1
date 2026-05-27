@@ -1,12 +1,11 @@
 """
 Tests for bonbon_navigation.core.stuck_detector
 """
+
 import time
 
-import pytest
-
 from bonbon_navigation.config.nav_config import StuckDetectorConfig
-from bonbon_navigation.core.stuck_detector import StuckDetector, StuckResult
+from bonbon_navigation.core.stuck_detector import StuckDetector
 
 
 def _cfg(**kw) -> StuckDetectorConfig:
@@ -21,6 +20,7 @@ def _cfg(**kw) -> StuckDetectorConfig:
 
 
 # ── Not stuck — normal movement ───────────────────────────────────────────────
+
 
 class TestNotStuck:
     def test_moving_robot_not_stuck(self):
@@ -53,13 +53,13 @@ class TestNotStuck:
 
 # ── Stuck detection ───────────────────────────────────────────────────────────
 
+
 class TestStuckDetection:
     def test_no_progress_stuck(self):
         """Robot hasn't moved for window_sec → stuck."""
         # window_sec=0.12, sleep=0.08: actual_window(0.08) >= window*0.5(0.06)
         # and sleep(0.08) < window(0.12) so first sample is not trimmed.
-        sd = StuckDetector(_cfg(window_sec=0.12, min_progress_m=0.10,
-                                stuck_threshold_count=1))
+        sd = StuckDetector(_cfg(window_sec=0.12, min_progress_m=0.10, stuck_threshold_count=1))
         sd.reset()
         sd.update(1.0, 1.0, 0.0)
         time.sleep(0.08)
@@ -69,19 +69,17 @@ class TestStuckDetection:
 
     def test_tiny_movement_stuck(self):
         """Movement below min_progress_m → still stuck."""
-        sd = StuckDetector(_cfg(window_sec=0.12, min_progress_m=0.10,
-                                stuck_threshold_count=1))
+        sd = StuckDetector(_cfg(window_sec=0.12, min_progress_m=0.10, stuck_threshold_count=1))
         sd.reset()
         sd.update(0.0, 0.0, 0.05)
         time.sleep(0.08)
-        sd.update(0.02, 0.01, 0.05)   # 0.022 m < 0.10 m threshold
+        sd.update(0.02, 0.01, 0.05)  # 0.022 m < 0.10 m threshold
         result = sd.check()
         assert result.is_stuck is True
 
     def test_threshold_count_delays_declaration(self):
         """stuck_threshold_count=2 means 2 consecutive failures needed."""
-        sd = StuckDetector(_cfg(window_sec=0.05, min_progress_m=0.10,
-                                stuck_threshold_count=3))
+        sd = StuckDetector(_cfg(window_sec=0.05, min_progress_m=0.10, stuck_threshold_count=3))
         sd.update(0.0, 0.0, 0.0)
         time.sleep(0.06)
         sd.update(0.0, 0.0, 0.0)
@@ -95,14 +93,21 @@ class TestStuckDetection:
 
 # ── Zero-velocity window ──────────────────────────────────────────────────────
 
+
 class TestZeroVelocityWindow:
     def test_zero_vel_while_moving_not_stuck(self):
         """Velocity=0 reported but robot DID make progress → not stuck."""
-        sd = StuckDetector(_cfg(window_sec=1.0, min_progress_m=0.05,
-                                stuck_threshold_count=1, zero_velocity_window_sec=0.2))
+        sd = StuckDetector(
+            _cfg(
+                window_sec=1.0,
+                min_progress_m=0.05,
+                stuck_threshold_count=1,
+                zero_velocity_window_sec=0.2,
+            )
+        )
         sd.update(0.0, 0.0, 0.5)
-        sd.update(0.5, 0.0, 0.5)   # large progress
-        sd.update(0.5, 0.0, 0.0)   # velocity dropped to 0 but already moved
+        sd.update(0.5, 0.0, 0.5)  # large progress
+        sd.update(0.5, 0.0, 0.0)  # velocity dropped to 0 but already moved
         result = sd.check()
         assert result.is_stuck is False
 
@@ -110,8 +115,14 @@ class TestZeroVelocityWindow:
         """Zero velocity AND no progress → stuck."""
         # window_sec=0.12 keeps first sample alive during sleep(0.08)
         # zero_velocity_window_sec=0.06 < sleep(0.08) so zero-vel check triggers
-        sd = StuckDetector(_cfg(window_sec=0.12, min_progress_m=0.10,
-                                stuck_threshold_count=1, zero_velocity_window_sec=0.06))
+        sd = StuckDetector(
+            _cfg(
+                window_sec=0.12,
+                min_progress_m=0.10,
+                stuck_threshold_count=1,
+                zero_velocity_window_sec=0.06,
+            )
+        )
         sd.reset()
         sd.update(5.0, 5.0, 0.0)
         time.sleep(0.08)
@@ -122,10 +133,10 @@ class TestZeroVelocityWindow:
 
 # ── Result fields ─────────────────────────────────────────────────────────────
 
+
 class TestResultFields:
     def test_stuck_result_has_progress_m(self):
-        sd = StuckDetector(_cfg(window_sec=0.05, min_progress_m=0.10,
-                                stuck_threshold_count=1))
+        sd = StuckDetector(_cfg(window_sec=0.05, min_progress_m=0.10, stuck_threshold_count=1))
         sd.update(0.0, 0.0, 0.0)
         time.sleep(0.06)
         sd.update(0.02, 0.0, 0.0)
@@ -144,10 +155,10 @@ class TestResultFields:
 
 # ── Consecutive count reset on progress ──────────────────────────────────────
 
+
 class TestConsecutiveReset:
     def test_progress_resets_consecutive_count(self):
-        sd = StuckDetector(_cfg(window_sec=0.05, min_progress_m=0.10,
-                                stuck_threshold_count=3))
+        sd = StuckDetector(_cfg(window_sec=0.05, min_progress_m=0.10, stuck_threshold_count=3))
         # Trigger 2 failures
         sd.update(0.0, 0.0, 0.0)
         time.sleep(0.06)

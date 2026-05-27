@@ -6,9 +6,9 @@ Tests for the wake-word layer:
   - Pattern cycling
   - force_detect / force_no_detect helpers
 """
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from bonbon_speech.config.speech_config import WakeWordConfig
 from bonbon_speech.wake_word.mock_wake_word import MockWakeWordDetector
 
@@ -31,6 +31,7 @@ def chunk(n: int = 512) -> np.ndarray:
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 
+
 class TestLifecycle:
     def test_load_unload(self):
         d = MockWakeWordDetector(cfg=make_cfg())
@@ -50,6 +51,7 @@ class TestLifecycle:
 
 
 # ── No-detection (wrong/absent wake word) ────────────────────────────────────
+
 
 class TestNoDetection:
     def test_all_false_pattern_no_detection(self):
@@ -79,6 +81,7 @@ class TestNoDetection:
 
 
 # ── Detection ─────────────────────────────────────────────────────────────────
+
 
 class TestDetection:
     def test_true_pattern_triggers(self):
@@ -113,6 +116,7 @@ class TestDetection:
 
 
 # ── Force helpers ─────────────────────────────────────────────────────────────
+
 
 class TestForceHelpers:
     def test_force_detect(self):
@@ -150,6 +154,7 @@ class TestForceHelpers:
 
 # ── Set pattern ───────────────────────────────────────────────────────────────
 
+
 class TestSetPattern:
     def test_set_pattern_resets_index(self):
         d = make_detector()
@@ -170,15 +175,18 @@ class TestSetPattern:
 
 # ── make_wake_word_detector factory ──────────────────────────────────────────
 
+
 class TestFactory:
     def test_mock_backend_created(self):
         from bonbon_speech.wake_word.wake_word_detector import make_wake_word_detector
+
         cfg = make_cfg(backend="mock")
         det = make_wake_word_detector(cfg)
         assert isinstance(det, MockWakeWordDetector)
 
     def test_unknown_backend_raises(self):
         from bonbon_speech.wake_word.wake_word_detector import make_wake_word_detector
+
         cfg = make_cfg(backend="unknown_backend")
         with pytest.raises(ValueError, match="unknown_backend"):
             make_wake_word_detector(cfg)

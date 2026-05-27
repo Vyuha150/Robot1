@@ -15,36 +15,23 @@ Usage::
       use_sim_time:=false \\
       rtabmap_db:=/var/lib/bonbon/rtabmap.db
 """
-from __future__ import annotations
 
-import os
-from pathlib import Path
+from __future__ import annotations
 
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
-    GroupAction,
-    IncludeLaunchDescription,
-    OpaqueFunction,
-    SetEnvironmentVariable,
 )
-from launch.conditions import IfCondition, UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.conditions import IfCondition
 from launch.substitutions import (
-    EqualsSubstitution,
     LaunchConfiguration,
     PathJoinSubstitution,
-    PythonExpression,
 )
 from launch_ros.actions import (
     LifecycleNode,
-    LoadComposableNodes,
     Node,
-    PushRosNamespace,
-    SetRemap,
 )
 from launch_ros.substitutions import FindPackageShare
-from launch_ros.descriptions import ParameterFile
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -104,14 +91,14 @@ def generate_launch_description() -> LaunchDescription:
         ),
     ]
 
-    use_sim_time   = LaunchConfiguration("use_sim_time")
-    namespace      = LaunchConfiguration("namespace")
-    log_level      = LaunchConfiguration("log_level")
-    autostart      = LaunchConfiguration("autostart")
-    map_yaml       = LaunchConfiguration("map")
-    rtabmap_db     = LaunchConfiguration("rtabmap_db")
-    nav2_params    = LaunchConfiguration("nav2_params_file")
-    bonbon_params  = LaunchConfiguration("bonbon_nav_params_file")
+    use_sim_time = LaunchConfiguration("use_sim_time")
+    namespace = LaunchConfiguration("namespace")
+    log_level = LaunchConfiguration("log_level")
+    autostart = LaunchConfiguration("autostart")
+    map_yaml = LaunchConfiguration("map")
+    rtabmap_db = LaunchConfiguration("rtabmap_db")
+    nav2_params = LaunchConfiguration("nav2_params_file")
+    bonbon_params = LaunchConfiguration("bonbon_nav_params_file")
     rtabmap_params = LaunchConfiguration("rtabmap_params_file")
 
     # ── Map Server + AMCL lifecycle nodes ────────────────────────────────────
@@ -262,7 +249,7 @@ def generate_launch_description() -> LaunchDescription:
             {
                 "use_sim_time": use_sim_time,
                 "database_path": rtabmap_db,
-                "Mem/IncrementalMemory": "false",   # localization mode
+                "Mem/IncrementalMemory": "false",  # localization mode
                 "Mem/InitWMWithAllNodes": "true",
             },
         ],

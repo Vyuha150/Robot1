@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict
+from dataclasses import dataclass
 
 
 @dataclass
@@ -18,7 +17,7 @@ class SensorFaultInjector:
 
     def __init__(self, detection_timeout_sec: float = 1.0) -> None:
         self.detection_timeout_sec = detection_timeout_sec
-        self._health: Dict[str, SensorHealth] = {
+        self._health: dict[str, SensorHealth] = {
             "lidar": SensorHealth(),
             "imu": SensorHealth(),
             "camera": SensorHealth(),
@@ -56,5 +55,5 @@ class SensorFaultInjector:
             return None
         return (health.detected_at_sec - health.failed_at_sec) * 1000.0
 
-    def snapshot(self) -> Dict[str, SensorHealth]:
+    def snapshot(self) -> dict[str, SensorHealth]:
         return dict(self._health)

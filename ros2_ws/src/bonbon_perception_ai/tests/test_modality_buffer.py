@@ -1,6 +1,8 @@
 """Tests for ModalityBuffer."""
-import time
+
 import threading
+import time
+
 import pytest
 from bonbon_perception_ai.fusion.modality_buffer import ModalityBuffer
 
@@ -89,8 +91,8 @@ class TestClear:
 
 class TestThreadSafety:
     def test_concurrent_updates(self):
-        buf     = ModalityBuffer("shared", stale_timeout_sec=10.0)
-        errors  = []
+        buf = ModalityBuffer("shared", stale_timeout_sec=10.0)
+        errors = []
 
         def writer(val):
             for _ in range(200):
@@ -109,7 +111,7 @@ class TestThreadSafety:
         assert buf.update_count == 1000
 
     def test_concurrent_read_write(self):
-        buf    = ModalityBuffer("shared", stale_timeout_sec=10.0)
+        buf = ModalityBuffer("shared", stale_timeout_sec=10.0)
         errors = []
 
         def writer():
@@ -123,8 +125,9 @@ class TestThreadSafety:
                 except Exception as exc:
                     errors.append(exc)
 
-        threads = [threading.Thread(target=writer)] + \
-                  [threading.Thread(target=reader) for _ in range(3)]
+        threads = [threading.Thread(target=writer)] + [
+            threading.Thread(target=reader) for _ in range(3)
+        ]
         for t in threads:
             t.start()
         for t in threads:

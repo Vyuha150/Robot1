@@ -10,26 +10,20 @@ from __future__ import annotations
 import time
 
 import pytest
-
 from bonbon_data_stores.health.health_monitor import DataStoreHealthMonitor, HealthLevel
 from bonbon_data_stores.privacy.privacy_manager import MemoryPrivacyManager
 from bonbon_data_stores.privacy.retention_manager import RetentionPolicyManager
 from bonbon_data_stores.schema.models import (
     InteractionEvent,
-    NavigationEvent,
-    NavigationOutcome,
     PrivacyLevel,
     RetentionPolicy,
-    RobotState,
-    SafetyEvent,
-    SafetyEventType,
     UserRecord,
 )
-
 
 # ---------------------------------------------------------------------------
 # Scenario 17: MemoryPrivacyManager
 # ---------------------------------------------------------------------------
+
 
 class TestMemoryPrivacyManager:
     def test_do_not_store_interaction_raises(self):
@@ -56,7 +50,7 @@ class TestMemoryPrivacyManager:
         pm = MemoryPrivacyManager(store_audio=False)
         event = InteractionEvent(
             input_text="voice",
-            audio_ref="ref_abc123",   # populated (e.g. from sensor node)
+            audio_ref="ref_abc123",  # populated (e.g. from sensor node)
         )
         screened = pm.screen_interaction(event)
         assert screened.audio_ref is None
@@ -97,9 +91,7 @@ class TestMemoryPrivacyManager:
 
     def test_build_forget_audit_entry(self):
         pm = MemoryPrivacyManager()
-        entry = pm.build_forget_audit_entry(
-            user_id="u123", actor="admin_node"
-        )
+        entry = pm.build_forget_audit_entry(user_id="u123", actor="admin_node")
         assert entry.action == "forget_user"
         assert entry.target_id == "u123"
         assert entry.actor == "admin_node"
@@ -108,6 +100,7 @@ class TestMemoryPrivacyManager:
 # ---------------------------------------------------------------------------
 # Scenario 18: RetentionPolicyManager
 # ---------------------------------------------------------------------------
+
 
 class TestRetentionPolicyManager:
     def test_sweep_purges_7day_old_interactions(
@@ -157,9 +150,7 @@ class TestRetentionPolicyManager:
         assert pm.ttl_for_policy("7_days") == 7 * 86400
         assert pm.ttl_for_policy("permanent_until_deleted") is None
 
-    def test_purge_session_data(
-        self, interaction_repo, robot_state_repo, nav_repo, safety_repo
-    ):
+    def test_purge_session_data(self, interaction_repo, robot_state_repo, nav_repo, safety_repo):
         pm = RetentionPolicyManager(interaction_repo, robot_state_repo, nav_repo, safety_repo)
         session_id = "sess_test_123"
         event = InteractionEvent(
@@ -168,7 +159,7 @@ class TestRetentionPolicyManager:
             retention_policy=RetentionPolicy.EPHEMERAL,
         )
         interaction_repo.save(event)
-        results = pm.purge_session_data(session_id)
+        pm.purge_session_data(session_id)
         fetched = interaction_repo.get_by_id(event.event_id)
         assert fetched is None
 
@@ -177,11 +168,12 @@ class TestRetentionPolicyManager:
 # Scenario 19: DataStoreHealthMonitor
 # ---------------------------------------------------------------------------
 
+
 class TestDataStoreHealthMonitor:
     def test_healthy_with_good_sqlite(self, db_conn):
         monitor = DataStoreHealthMonitor(
             conn=db_conn,
-            faiss_store=None,    # not using vector store
+            faiss_store=None,  # not using vector store
             chroma_store=None,
         )
         health = monitor.check()
@@ -190,9 +182,11 @@ class TestDataStoreHealthMonitor:
         assert health.level in (HealthLevel.HEALTHY, HealthLevel.DEGRADED)
 
     def test_degraded_when_faiss_missing(self, db_conn):
-        from bonbon_data_stores.vector.faiss_store import FAISSVectorStore
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
+
+        from bonbon_data_stores.vector.faiss_store import FAISSVectorStore
+
         with tempfile.TemporaryDirectory() as td:
             faiss = FAISSVectorStore(index_dir=Path(td), dim=64, enabled=False)
             monitor = DataStoreHealthMonitor(conn=db_conn, faiss_store=faiss, chroma_store=None)
@@ -207,7 +201,7 @@ class TestDataStoreHealthMonitor:
         assert "level" in d
         assert "stores" in d
         assert "sqlite" in d["stores"]
-        assert "faiss"  in d["stores"]
+        assert "faiss" in d["stores"]
         assert "chroma" in d["stores"]
 
     def test_last_health_cached(self, db_conn):

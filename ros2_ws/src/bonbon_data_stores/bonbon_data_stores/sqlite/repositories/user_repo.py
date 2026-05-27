@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from bonbon_data_stores.schema.models import PrivacyLevel, UserPreference, UserRecord
 from bonbon_data_stores.sqlite.connection import SQLiteConnection
@@ -72,20 +72,20 @@ class UserProfileRepository(BaseRepository):
 
         return record.user_id
 
-    def get_by_id(self, user_id: str) -> Optional[UserRecord]:
+    def get_by_id(self, user_id: str) -> UserRecord | None:
         row = self._fetchone("SELECT * FROM users WHERE user_id = ?;", (user_id,))
         if row is None:
             return None
         return self._row_to_model(row)
 
-    def find_by_name(self, display_name: str) -> List[UserRecord]:
+    def find_by_name(self, display_name: str) -> list[UserRecord]:
         rows = self._fetchall(
             "SELECT * FROM users WHERE display_name LIKE ? ORDER BY last_seen_at DESC;",
             (f"%{display_name}%",),
         )
         return [self._row_to_model(r) for r in rows]
 
-    def list_all(self, limit: int = 100, offset: int = 0) -> List[UserRecord]:
+    def list_all(self, limit: int = 100, offset: int = 0) -> list[UserRecord]:
         rows = self._fetchall(
             "SELECT * FROM users ORDER BY last_seen_at DESC LIMIT ? OFFSET ?;",
             (limit, offset),
@@ -126,12 +126,14 @@ class UserProfileRepository(BaseRepository):
         self._execute(sql, (pref_id, user_id, pref.category, pref.key, pref.value, self._now()))
         return pref_id
 
-    def get_preferences(self, user_id: str) -> List[UserPreference]:
+    def get_preferences(self, user_id: str) -> list[UserPreference]:
         rows = self._fetchall(
             "SELECT * FROM user_preferences WHERE user_id = ? ORDER BY category, key;",
             (user_id,),
         )
-        return [UserPreference(key=r["key"], value=r["value"], category=r["category"]) for r in rows]
+        return [
+            UserPreference(key=r["key"], value=r["value"], category=r["category"]) for r in rows
+        ]
 
     def delete_preference(self, user_id: str, category: str, key: str) -> bool:
         count = self._execute(
@@ -144,12 +146,12 @@ class UserProfileRepository(BaseRepository):
     # Right-to-be-forgotten (GDPR-style deletion)
     # ------------------------------------------------------------------
 
-    def forget_user(self, user_id: str) -> Dict[str, int]:
+    def forget_user(self, user_id: str) -> dict[str, int]:
         """Cascade-delete the user and all directly associated records.
 
         Returns a dict of table → deleted row count for the audit log.
         """
-        results: Dict[str, int] = {}
+        results: dict[str, int] = {}
         results["user_preferences"] = self._execute(
             "DELETE FROM user_preferences WHERE user_id = ?;", (user_id,)
         )
@@ -165,7 +167,7 @@ class UserProfileRepository(BaseRepository):
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _row_to_model(self, row: Dict[str, Any]) -> UserRecord:
+    def _row_to_model(self, row: dict[str, Any]) -> UserRecord:
         prefs = self.get_preferences(row["user_id"])
         return UserRecord(
             user_id=row["user_id"],

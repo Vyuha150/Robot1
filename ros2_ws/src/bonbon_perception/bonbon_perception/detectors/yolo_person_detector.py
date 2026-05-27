@@ -21,22 +21,22 @@ Usage
 
 Requires: pip install ultralytics  (or pip install torch torchvision yolov5)
 """
-from __future__ import annotations
 
-from pathlib import Path
-from typing import List, Optional
+from __future__ import annotations
 
 import numpy as np
 
 # Soft import — allows the module to load even without ultralytics
 try:
     from ultralytics import YOLO as _YOLO
+
     _HAS_ULTRALYTICS = True
 except ImportError:
     _HAS_ULTRALYTICS = False
 
 try:
     import torch as _torch
+
     _HAS_TORCH = True
 except ImportError:
     _HAS_TORCH = False
@@ -76,11 +76,11 @@ class YoloPersonDetector(PersonDetector):
             hfov_deg=hfov_deg,
         )
         self._model_path = str(model_path)
-        self._device     = device
-        self._img_size   = img_size
-        self._half       = half
-        self._backend    = backend
-        self._model      = None
+        self._device = device
+        self._img_size = img_size
+        self._half = half
+        self._backend = backend
+        self._model = None
 
         self._load_model()
 
@@ -100,9 +100,7 @@ class YoloPersonDetector(PersonDetector):
 
         if self._backend == "ultralytics":
             if not _HAS_ULTRALYTICS:
-                raise ImportError(
-                    "ultralytics not installed. Run: pip install ultralytics"
-                )
+                raise ImportError("ultralytics not installed. Run: pip install ultralytics")
             self._model = _YOLO(self._model_path)
             # Warm up
             dummy = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -110,12 +108,12 @@ class YoloPersonDetector(PersonDetector):
 
         elif self._backend == "torchhub":
             if not _HAS_TORCH:
-                raise ImportError(
-                    "torch not installed. Run: pip install torch torchvision"
-                )
+                raise ImportError("torch not installed. Run: pip install torch torchvision")
             self._model = _torch.hub.load(
-                "ultralytics/yolov5", "custom",
-                path=self._model_path, verbose=False,
+                "ultralytics/yolov5",
+                "custom",
+                path=self._model_path,
+                verbose=False,
             )
             self._model.conf = self.confidence_threshold
             if self._device:
@@ -125,7 +123,7 @@ class YoloPersonDetector(PersonDetector):
 
     # ── Core implementation ───────────────────────────────────────────────────
 
-    def _detect_impl(self, color_bgr: np.ndarray) -> List[Detection]:
+    def _detect_impl(self, color_bgr: np.ndarray) -> list[Detection]:
         if self._model is None:
             return []
 
@@ -134,7 +132,7 @@ class YoloPersonDetector(PersonDetector):
         else:
             return self._detect_torchhub(color_bgr)
 
-    def _detect_ultralytics(self, color_bgr: np.ndarray) -> List[Detection]:
+    def _detect_ultralytics(self, color_bgr: np.ndarray) -> list[Detection]:
         results = self._model(
             color_bgr,
             classes=[_COCO_PERSON],
@@ -143,17 +141,17 @@ class YoloPersonDetector(PersonDetector):
             verbose=False,
             half=self._half,
         )
-        detections: List[Detection] = []
+        detections: list[Detection] = []
         for result in results:
             boxes = result.boxes
             if boxes is None:
                 continue
             for box in boxes:
-                cls   = int(box.cls[0])
+                cls = int(box.cls[0])
                 if cls != _COCO_PERSON:
                     continue
-                conf  = float(box.conf[0])
-                xyxy  = box.xyxy[0].cpu().numpy()
+                conf = float(box.conf[0])
+                xyxy = box.xyxy[0].cpu().numpy()
                 x1, y1, x2, y2 = xyxy
                 det = Detection(
                     bbox=(int(x1), int(y1), int(x2 - x1), int(y2 - y1)),
@@ -162,11 +160,12 @@ class YoloPersonDetector(PersonDetector):
                 detections.append(det)
         return sorted(detections, key=lambda d: d.confidence, reverse=True)
 
-    def _detect_torchhub(self, color_bgr: np.ndarray) -> List[Detection]:
+    def _detect_torchhub(self, color_bgr: np.ndarray) -> list[Detection]:
         import cv2
+
         rgb = cv2.cvtColor(color_bgr, cv2.COLOR_BGR2RGB)
         results = self._model(rgb)
-        detections: List[Detection] = []
+        detections: list[Detection] = []
         for *xyxy, conf, cls in results.xyxy[0].cpu().numpy():
             if int(cls) != _COCO_PERSON:
                 continue

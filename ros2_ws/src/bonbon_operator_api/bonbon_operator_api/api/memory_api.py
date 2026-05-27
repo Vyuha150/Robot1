@@ -7,12 +7,11 @@ Write access: admin only
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from bonbon_operator_api.auth.dependencies import get_current_user, require_permission
+from bonbon_operator_api.auth.dependencies import require_permission
 from bonbon_operator_api.models.auth_models import TokenPayload
 from bonbon_operator_api.models.response_models import APIResponse
 

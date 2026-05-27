@@ -4,15 +4,16 @@ Mock speaker driver — records play() calls for test assertion.
 No audio hardware is accessed.  Tests can inspect played_chunks and
 played_files to verify audio was sent.
 """
+
 from __future__ import annotations
 
 import os
 import time
-from typing import List
 
 from bonbon_hal.base.driver_base import DriverFault
-from .speaker_driver import SpeakerDriver
 from bonbon_hal.drivers.microphone.mic_driver import AudioChunk
+
+from .speaker_driver import SpeakerDriver
 
 
 class MockSpeakerDriver(SpeakerDriver):
@@ -20,20 +21,20 @@ class MockSpeakerDriver(SpeakerDriver):
     def __init__(
         self,
         simulate_play_duration: bool = False,
-        fail_on_play:           bool = False,
-        start_disconnected:     bool = False,
+        fail_on_play: bool = False,
+        start_disconnected: bool = False,
     ) -> None:
         super().__init__(driver_mode="mock")
-        self._sim_duration   = simulate_play_duration
-        self._fail_on_play   = fail_on_play
-        self._start_disc     = start_disconnected
-        self._volume         = 80.0
-        self._stopped        = False
+        self._sim_duration = simulate_play_duration
+        self._fail_on_play = fail_on_play
+        self._start_disc = start_disconnected
+        self._volume = 80.0
+        self._stopped = False
 
         # Inspection state (read in tests)
-        self.played_chunks: List[AudioChunk] = []
-        self.played_files:  List[str]        = []
-        self.volume_log:    List[float]       = []
+        self.played_chunks: list[AudioChunk] = []
+        self.played_files: list[str] = []
+        self.volume_log: list[float] = []
 
     def _do_connect(self) -> bool:
         return not self._start_disc

@@ -13,66 +13,68 @@ Responsibilities
 
 Thread-safe: all mutating operations hold the internal lock.
 """
+
 from __future__ import annotations
 
 import logging
 import math
 import time
 import uuid
-from dataclasses import dataclass, field
-from enum import Enum
-from threading import Lock
-from typing import Deque, List, Optional, Tuple
 from collections import deque
+from dataclasses import dataclass, field
+from enum import StrEnum
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 
 # Result codes mirror NavigationStatus.msg constants
-RESULT_NONE         = 0
-RESULT_SUCCESS      = 1
-RESULT_TIMEOUT      = 2
-RESULT_UNREACHABLE  = 3
-RESULT_STUCK        = 4
-RESULT_SAFETY_STOP  = 5
-RESULT_CANCELLED    = 6
-RESULT_PLAN_FAILED  = 7
+RESULT_NONE = 0
+RESULT_SUCCESS = 1
+RESULT_TIMEOUT = 2
+RESULT_UNREACHABLE = 3
+RESULT_STUCK = 4
+RESULT_SAFETY_STOP = 5
+RESULT_CANCELLED = 6
+RESULT_PLAN_FAILED = 7
 
 
 # ── Goal state ────────────────────────────────────────────────────────────────
 
-class GoalState(str, Enum):
-    PENDING   = "PENDING"
-    ACTIVE    = "ACTIVE"
+
+class GoalState(StrEnum):
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
     SUCCEEDED = "SUCCEEDED"
-    FAILED    = "FAILED"
+    FAILED = "FAILED"
     CANCELLED = "CANCELLED"
 
 
 # ── Goal object ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class NavigationGoalEntry:
-    goal_id:         str
-    goal_type:       int       # 0=waypoint, 1=named, 2=charger, 3=person
-    priority:        int       # 0=low, 1=normal, 2=high, 3=urgent
-    target_x:        float
-    target_y:        float
-    target_yaw:      float
-    named_location:  str       = ""
-    timeout_sec:     float     = 120.0
-    arrival_tol_m:   float     = 0.30
-    require_precise: bool      = False
-    requester_id:    str       = ""
-    recommendation_id: str     = ""
+    goal_id: str
+    goal_type: int  # 0=waypoint, 1=named, 2=charger, 3=person
+    priority: int  # 0=low, 1=normal, 2=high, 3=urgent
+    target_x: float
+    target_y: float
+    target_yaw: float
+    named_location: str = ""
+    timeout_sec: float = 120.0
+    arrival_tol_m: float = 0.30
+    require_precise: bool = False
+    requester_id: str = ""
+    recommendation_id: str = ""
 
     # State (mutable)
-    state:           GoalState = GoalState.PENDING
-    result_code:     int       = RESULT_NONE
-    result_message:  str       = ""
-    plan_fail_count: int       = 0
-    enqueue_time:    float     = field(default_factory=time.monotonic)
-    start_time:      Optional[float] = None
-    end_time:        Optional[float] = None
+    state: GoalState = GoalState.PENDING
+    result_code: int = RESULT_NONE
+    result_message: str = ""
+    plan_fail_count: int = 0
+    enqueue_time: float = field(default_factory=time.monotonic)
+    start_time: float | None = None
+    end_time: float | None = None
 
     @property
     def elapsed_sec(self) -> float:
@@ -95,6 +97,7 @@ class NavigationGoalEntry:
 
 # ── Goal manager ──────────────────────────────────────────────────────────────
 
+
 class GoalManager:
     """
     Priority-ordered navigation goal queue with timeout enforcement.
@@ -111,17 +114,17 @@ class GoalManager:
 
     def __init__(
         self,
-        max_queue_size: int    = 10,
+        max_queue_size: int = 10,
         default_timeout_sec: float = 120.0,
         max_plan_failures: int = 3,
     ) -> None:
-        self._max_queue       = max_queue_size
+        self._max_queue = max_queue_size
         self._default_timeout = default_timeout_sec
-        self._max_plan_fail   = max_plan_failures
-        self._lock            = Lock()
-        self._queue:   Deque[NavigationGoalEntry] = deque()
-        self._active:  Optional[NavigationGoalEntry] = None
-        self._history: List[NavigationGoalEntry] = []   # last 50 completed goals
+        self._max_plan_fail = max_plan_failures
+        self._lock = Lock()
+        self._queue: deque[NavigationGoalEntry] = deque()
+        self._active: NavigationGoalEntry | None = None
+        self._history: list[NavigationGoalEntry] = []  # last 50 completed goals
 
     # ── Enqueueing ────────────────────────────────────────────────────────────
 
@@ -130,16 +133,16 @@ class GoalManager:
         target_x: float,
         target_y: float,
         target_yaw: float,
-        goal_type: int       = 1,
-        priority: int        = 1,
-        named_location: str  = "",
-        timeout_sec: float   = 0.0,
+        goal_type: int = 1,
+        priority: int = 1,
+        named_location: str = "",
+        timeout_sec: float = 0.0,
         arrival_tol_m: float = 0.30,
-        require_precise: bool= False,
-        requester_id: str    = "",
+        require_precise: bool = False,
+        requester_id: str = "",
         recommendation_id: str = "",
-        preempt: bool        = False,
-        goal_id: str         = "",
+        preempt: bool = False,
+        goal_id: str = "",
     ) -> str:
         """
         Add a goal to the queue.  Returns the goal_id.
@@ -150,18 +153,18 @@ class GoalManager:
         """
         gid = goal_id or str(uuid.uuid4())
         entry = NavigationGoalEntry(
-            goal_id          = gid,
-            goal_type        = goal_type,
-            priority         = priority,
-            target_x         = target_x,
-            target_y         = target_y,
-            target_yaw       = target_yaw,
-            named_location   = named_location,
-            timeout_sec      = timeout_sec if timeout_sec > 0 else self._default_timeout,
-            arrival_tol_m    = arrival_tol_m,
-            require_precise  = require_precise,
-            requester_id     = requester_id,
-            recommendation_id= recommendation_id,
+            goal_id=gid,
+            goal_type=goal_type,
+            priority=priority,
+            target_x=target_x,
+            target_y=target_y,
+            target_yaw=target_yaw,
+            named_location=named_location,
+            timeout_sec=timeout_sec if timeout_sec > 0 else self._default_timeout,
+            arrival_tol_m=arrival_tol_m,
+            require_precise=require_precise,
+            requester_id=requester_id,
+            recommendation_id=recommendation_id,
         )
 
         with self._lock:
@@ -176,7 +179,12 @@ class GoalManager:
             self._insert_by_priority(entry)
             logger.info(
                 "Goal enqueued: %s  type=%d  priority=%d  named=%r  pos=(%.2f,%.2f)",
-                gid[:8], goal_type, priority, named_location, target_x, target_y,
+                gid[:8],
+                goal_type,
+                priority,
+                named_location,
+                target_x,
+                target_y,
             )
         return gid
 
@@ -201,7 +209,7 @@ class GoalManager:
 
     # ── Activation / completion ────────────────────────────────────────────────
 
-    def activate_next(self) -> Optional[NavigationGoalEntry]:
+    def activate_next(self) -> NavigationGoalEntry | None:
         """
         Dequeue and activate the next pending goal.
         Returns None if queue is empty or a goal is already active.
@@ -212,12 +220,17 @@ class GoalManager:
             if not self._queue:
                 return None
             goal = self._queue.popleft()
-            goal.state      = GoalState.ACTIVE
+            goal.state = GoalState.ACTIVE
             goal.start_time = time.monotonic()
-            self._active    = goal
-            logger.info("Goal activated: %s  named=%r  pos=(%.2f,%.2f)  timeout=%.0fs",
-                        goal.goal_id[:8], goal.named_location,
-                        goal.target_x, goal.target_y, goal.timeout_sec)
+            self._active = goal
+            logger.info(
+                "Goal activated: %s  named=%r  pos=(%.2f,%.2f)  timeout=%.0fs",
+                goal.goal_id[:8],
+                goal.named_location,
+                goal.target_x,
+                goal.target_y,
+                goal.timeout_sec,
+            )
             return goal
 
     def mark_succeeded(self, goal_id: str) -> bool:
@@ -225,10 +238,10 @@ class GoalManager:
             goal = self._find_active(goal_id)
             if goal is None:
                 return False
-            goal.state       = GoalState.SUCCEEDED
+            goal.state = GoalState.SUCCEEDED
             goal.result_code = RESULT_SUCCESS
-            goal.end_time    = time.monotonic()
-            self._active     = None
+            goal.end_time = time.monotonic()
+            self._active = None
             self._history.append(goal)
             self._trim_history()
             logger.info("Goal SUCCEEDED: %s  elapsed=%.1fs", goal_id[:8], goal.elapsed_sec)
@@ -238,29 +251,32 @@ class GoalManager:
         self,
         goal_id: str,
         result_code: int = RESULT_PLAN_FAILED,
-        message: str     = "",
+        message: str = "",
     ) -> bool:
         with self._lock:
             goal = self._find_active(goal_id)
             if goal is None:
                 return False
-            goal.state          = GoalState.FAILED
-            goal.result_code    = result_code
+            goal.state = GoalState.FAILED
+            goal.result_code = result_code
             goal.result_message = message
-            goal.end_time       = time.monotonic()
-            self._active        = None
+            goal.end_time = time.monotonic()
+            self._active = None
             self._history.append(goal)
             self._trim_history()
             logger.warning(
                 "Goal FAILED: %s  code=%d  msg=%r  elapsed=%.1fs",
-                goal_id[:8], result_code, message, goal.elapsed_sec,
+                goal_id[:8],
+                result_code,
+                message,
+                goal.elapsed_sec,
             )
             return True
 
     def cancel_goal(
         self,
         goal_id: str = "",
-        reason: str  = "",
+        reason: str = "",
     ) -> int:
         """Cancel a specific goal (or all if goal_id is empty). Returns count cancelled."""
         count = 0
@@ -295,28 +311,29 @@ class GoalManager:
 
     def _cancel_active(self, reason: str) -> None:
         if self._active:
-            self._active.state          = GoalState.CANCELLED
-            self._active.result_code    = RESULT_CANCELLED
+            self._active.state = GoalState.CANCELLED
+            self._active.result_code = RESULT_CANCELLED
             self._active.result_message = reason
-            self._active.end_time       = time.monotonic()
+            self._active.end_time = time.monotonic()
             self._history.append(self._active)
-            logger.info("Active goal cancelled: %s  reason=%r",
-                        self._active.goal_id[:8], reason)
+            logger.info("Active goal cancelled: %s  reason=%r", self._active.goal_id[:8], reason)
             self._active = None
 
     # ── Timeout + plan failure ────────────────────────────────────────────────
 
-    def check_timeout(self) -> Optional[NavigationGoalEntry]:
+    def check_timeout(self) -> NavigationGoalEntry | None:
         """
         Check if the active goal has timed out.
         Returns the timed-out goal (still active — caller must call mark_failed).
         """
         with self._lock:
             if self._active and self._active.timed_out:
-                logger.warning("Goal TIMEOUT: %s  elapsed=%.1fs > %.1fs",
-                               self._active.goal_id[:8],
-                               self._active.elapsed_sec,
-                               self._active.timeout_sec)
+                logger.warning(
+                    "Goal TIMEOUT: %s  elapsed=%.1fs > %.1fs",
+                    self._active.goal_id[:8],
+                    self._active.elapsed_sec,
+                    self._active.timeout_sec,
+                )
                 return self._active
         return None
 
@@ -333,26 +350,27 @@ class GoalManager:
             if goal.plan_fail_count >= self._max_plan_fail:
                 logger.warning(
                     "Goal UNREACHABLE: %s  plan_failures=%d",
-                    goal_id[:8], goal.plan_fail_count,
+                    goal_id[:8],
+                    goal.plan_fail_count,
                 )
                 return True
             return False
 
     # ── Accessors ─────────────────────────────────────────────────────────────
 
-    def get_active(self) -> Optional[NavigationGoalEntry]:
+    def get_active(self) -> NavigationGoalEntry | None:
         return self._active
 
     def queue_size(self) -> int:
         with self._lock:
             return len(self._queue)
 
-    def get_history(self, n: int = 10) -> List[NavigationGoalEntry]:
+    def get_history(self, n: int = 10) -> list[NavigationGoalEntry]:
         return self._history[-n:]
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
-    def _find_active(self, goal_id: str) -> Optional[NavigationGoalEntry]:
+    def _find_active(self, goal_id: str) -> NavigationGoalEntry | None:
         if self._active and self._active.goal_id == goal_id:
             return self._active
         return None

@@ -11,36 +11,38 @@ Fault injection:
   disconnect_after_n     : simulate USB pull after N reads
   simulate_latency_sec   : artificial read latency
 """
+
 from __future__ import annotations
 
 import math
-import time
 import random
-from typing import Dict, List
+import time
 
 from bonbon_hal.base.driver_base import DriverFault
-from .servo_driver import ServoDriver, ServoReading, ServoCommand
+
+from .servo_driver import ServoCommand, ServoDriver, ServoReading
 
 
 class _SimServo:
     """Simulates one Dynamixel's internal state."""
+
     def __init__(self, servo_id: int) -> None:
-        self.id            = servo_id
-        self.target_rad    = 0.0
-        self.current_rad   = 0.0
+        self.id = servo_id
+        self.target_rad = 0.0
+        self.current_rad = 0.0
         self.velocity_rads = 0.0
-        self.load_pct      = 0.0
-        self.temp_c        = 28.0
-        self.voltage_v     = 12.0
-        self.error_code    = 0
-        self.torque_on     = True
-        self._last_t       = time.monotonic()
-        self._vel_limit    = 1.0  # rad/s
-        self._tau          = 0.2  # time constant s
+        self.load_pct = 0.0
+        self.temp_c = 28.0
+        self.voltage_v = 12.0
+        self.error_code = 0
+        self.torque_on = True
+        self._last_t = time.monotonic()
+        self._vel_limit = 1.0  # rad/s
+        self._tau = 0.2  # time constant s
 
     def step(self) -> None:
         now = time.monotonic()
-        dt  = now - self._last_t
+        dt = now - self._last_t
         self._last_t = now
         if not self.torque_on:
             return
@@ -49,11 +51,11 @@ class _SimServo:
         alpha = 1.0 - math.exp(-dt / self._tau)
         self.velocity_rads = min(abs(err) / max(dt, 1e-6), self._vel_limit)
         self.velocity_rads = math.copysign(self.velocity_rads, err)
-        self.current_rad  += alpha * err
-        self.load_pct      = min(100.0, abs(err) * 50)
+        self.current_rad += alpha * err
+        self.load_pct = min(100.0, abs(err) * 50)
         # Thermal: rise with load, fall toward ambient
         self.temp_c += dt * (self.load_pct * 0.05 - (self.temp_c - 28.0) * 0.01)
-        self.temp_c  = max(28.0, self.temp_c)
+        self.temp_c = max(28.0, self.temp_c)
 
     def reading(self) -> ServoReading:
         return ServoReading(
@@ -72,20 +74,20 @@ class MockServoDriver(ServoDriver):
 
     def __init__(
         self,
-        servo_ids:          List[int] = None,
-        servo_fault_id:     int   = -1,
-        disconnect_after_n: int   = 0,
+        servo_ids: list[int] = None,
+        servo_fault_id: int = -1,
+        disconnect_after_n: int = 0,
         simulate_latency_sec: float = 0.0,
-        start_disconnected: bool  = False,
+        start_disconnected: bool = False,
     ) -> None:
         ids = servo_ids or [1, 2, 3, 4]
         super().__init__(servo_ids=ids, driver_mode="mock")
-        self._fault_id     = servo_fault_id
-        self._disc_after   = disconnect_after_n
-        self._latency      = simulate_latency_sec
-        self._start_disc   = start_disconnected
-        self._read_count   = 0
-        self._servos: Dict[int, _SimServo] = {sid: _SimServo(sid) for sid in ids}
+        self._fault_id = servo_fault_id
+        self._disc_after = disconnect_after_n
+        self._latency = simulate_latency_sec
+        self._start_disc = start_disconnected
+        self._read_count = 0
+        self._servos: dict[int, _SimServo] = {sid: _SimServo(sid) for sid in ids}
 
     def _do_connect(self) -> bool:
         if self._start_disc:
@@ -106,14 +108,14 @@ class MockServoDriver(ServoDriver):
             self._record_fault("USB_DISCONNECTED", "Simulated USB disconnect")
             raise DriverFault("USB disconnect", "USB_DISCONNECTED")
 
-    def read_all(self) -> List[ServoReading]:
+    def read_all(self) -> list[ServoReading]:
         self._check()
         readings = []
         for servo in self._servos.values():
             servo.step()
             r = servo.reading()
             if servo.id == self._fault_id:
-                r.error_code = 0x04   # Dynamixel overheating error
+                r.error_code = 0x04  # Dynamixel overheating error
                 r.temperature_c = 85.0
             readings.append(r)
         self._record_success()
@@ -132,10 +134,10 @@ class MockServoDriver(ServoDriver):
         if cmd.servo_id not in self._servos:
             raise DriverFault(f"Unknown servo {cmd.servo_id}", "INVALID_ID")
         s = self._servos[cmd.servo_id]
-        s.target_rad   = cmd.target_position_rad
-        s._vel_limit   = cmd.velocity_limit_rads if cmd.velocity_limit_rads > 0 else 1.0
+        s.target_rad = cmd.target_position_rad
+        s._vel_limit = cmd.velocity_limit_rads if cmd.velocity_limit_rads > 0 else 1.0
 
-    def write_commands(self, cmds: List[ServoCommand]) -> None:
+    def write_commands(self, cmds: list[ServoCommand]) -> None:
         self._check()
         for cmd in cmds:
             if cmd.servo_id in self._servos:
