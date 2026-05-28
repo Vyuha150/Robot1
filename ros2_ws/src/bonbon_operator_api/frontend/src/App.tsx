@@ -786,30 +786,44 @@ function IntentTab(p: TabProps) {
     <div className="tab-body">
       <div className="section-hero"><h2>🧠 Intent & Scene Understanding</h2><p>Client-side intent classifier (mirrors robot backend regex engine) + scene analysis from camera. On the robot, LangChain + Ollama can replace the regex backend.</p></div>
       <div className="grid two">
-        <section className="panel">
-          <div className="section-title"><span>Intent Classification</span><small>live from speech tab</small></div>
-          <label>Test text (or uses live transcript)
+        <section className="panel intent-panel">
+          <div className="section-title"><span>Intent Classification</span><small>auto-classifies as you type</small></div>
+
+          {/* ── Result always at top ──────────────────────────────── */}
+          <div className={`intent-output-box ${ir ? (ir.confidence > 0.7 ? "has-result high" : ir.confidence > 0.4 ? "has-result mid" : "has-result low") : "empty"}`}>
+            {ir ? (
+              <>
+                <div className="intent-output-label">📊 Classification Result</div>
+                <div className="intent-header">
+                  <div className="intent-badge">{ir.intent}</div>
+                  <div className={`conf-pill ${ir.confidence > 0.7 ? "high" : ir.confidence > 0.4 ? "mid" : "low"}`}>{Math.round(ir.confidence * 100)}% confidence</div>
+                  {ir.is_ambiguous && <div className="ambig-tag">⚠ ambiguous</div>}
+                </div>
+                {ir.slots.length > 0 && (
+                  <div className="slots-grid">
+                    {ir.slots.map((s) => <div key={s.name} className="slot-chip"><span>{s.name}</span><b>{s.value}</b></div>)}
+                  </div>
+                )}
+                <div className="fallback-response">💬 "{ir.fallback_response}"</div>
+                {p.transcript && <div className="kv-row" style={{ marginTop: 6 }}><span>From transcript</span><b style={{ fontSize: "0.82rem", opacity: 0.75 }}>{p.transcript.slice(0, 60)}</b></div>}
+              </>
+            ) : (
+              <p className="intent-output-placeholder">Type text below, press <strong>Classify</strong>, or click a <strong>Try</strong> example — result appears here</p>
+            )}
+          </div>
+
+          {/* ── Input ─────────────────────────────────────────────── */}
+          <label style={{ marginTop: 12 }}>Test text (or uses live transcript)
             <textarea value={manualText} onChange={(e) => setManualText(e.target.value)} placeholder='e.g. "Hey, can I get a coffee please?"' style={{ minHeight: 70 }} />
           </label>
-          <div className="btn-row"><button className="primary" onClick={classify}>Classify Intent</button><button onClick={() => { setManualText(""); setManualResult(null); }}>Clear</button></div>
-          {ir && (
-            <div className="intent-result">
-              <div className="intent-header">
-                <div className="intent-badge">{ir.intent}</div>
-                <div className={`conf-pill ${ir.confidence > 0.7 ? "high" : ir.confidence > 0.4 ? "mid" : "low"}`}>{Math.round(ir.confidence * 100)}% confidence</div>
-                {ir.is_ambiguous && <div className="ambig-tag">⚠ ambiguous</div>}
-              </div>
-              {ir.slots.length > 0 && (
-                <div className="slots-grid">
-                  {ir.slots.map((s) => <div key={s.name} className="slot-chip"><span>{s.name}</span><b>{s.value}</b></div>)}
-                </div>
-              )}
-              <div className="fallback-response">💬 "{ir.fallback_response}"</div>
-              <div className="kv-row" style={{ marginTop: 8 }}><span>Live transcript</span><b style={{ fontSize: "0.85rem", opacity: 0.8 }}>{p.transcript.slice(0, 60) || "none"}</b></div>
-            </div>
-          )}
+          <div className="btn-row">
+            <button className="primary" onClick={classify}>🔍 Classify Intent</button>
+            <button onClick={() => { setManualText(""); setManualResult(null); }}>Clear</button>
+          </div>
+
+          {/* ── Supported intents with Try examples ───────────────── */}
           <div className="intent-pattern-grid">
-            <div className="section-title" style={{ marginBottom: 8 }}><span>Supported Intents</span></div>
+            <div className="section-title" style={{ marginBottom: 8 }}><span>Quick Examples</span><small>click Try to auto-fill & classify</small></div>
             {Object.keys(INTENT_PATTERNS).map((intent) => (
               <div key={intent} className={`pattern-row ${ir?.intent === intent ? "active" : ""}`}>
                 <span>{intent}</span>
@@ -900,10 +914,25 @@ function IntentTab(p: TabProps) {
 // ══════════════════════════════════════════════════════════════════════════════
 // TAB 5 — LANGUAGE & RESPONSE
 // ══════════════════════════════════════════════════════════════════════════════
+type ProviderPresetId = "ollama" | "deepseek" | "openai" | "gemini" | "groq" | "mistral" | "together" | "anthropic" | "custom";
+interface ProviderPresetDef { label: string; icon: string; provider: LlmProvider; baseUrl: string; model: string; needsKey: boolean; note?: string }
+const PROVIDER_PRESETS: Record<ProviderPresetId, ProviderPresetDef> = {
+  ollama:    { label: "Local Ollama",   icon: "🖥",  provider: "ollama",            baseUrl: "http://127.0.0.1:11434",                                    model: "llama3.2:3b",                         needsKey: false, note: "Run: ollama serve && ollama pull llama3.2:3b" },
+  deepseek:  { label: "DeepSeek",       icon: "🔷",  provider: "openai_compatible", baseUrl: "https://api.deepseek.com",                                   model: "deepseek-chat",                       needsKey: true,  note: "Free tier at platform.deepseek.com" },
+  openai:    { label: "OpenAI",         icon: "🟢",  provider: "openai_compatible", baseUrl: "https://api.openai.com/v1",                                  model: "gpt-4o-mini",                         needsKey: true,  note: "Get key at platform.openai.com" },
+  gemini:    { label: "Google Gemini",  icon: "💎",  provider: "openai_compatible", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",    model: "gemini-2.0-flash",                    needsKey: true,  note: "Get key at aistudio.google.com" },
+  groq:      { label: "Groq",           icon: "⚡",  provider: "openai_compatible", baseUrl: "https://api.groq.com/openai/v1",                             model: "llama-3.3-70b-versatile",             needsKey: true,  note: "Free tier at console.groq.com" },
+  mistral:   { label: "Mistral",        icon: "🌊",  provider: "openai_compatible", baseUrl: "https://api.mistral.ai/v1",                                  model: "mistral-small-latest",                needsKey: true,  note: "Get key at console.mistral.ai" },
+  together:  { label: "Together AI",    icon: "🤝",  provider: "openai_compatible", baseUrl: "https://api.together.xyz/v1",                                model: "meta-llama/Llama-3-8b-chat-hf",       needsKey: true,  note: "Get key at api.together.ai" },
+  anthropic: { label: "Anthropic",      icon: "🧠",  provider: "openai_compatible", baseUrl: "https://api.anthropic.com/v1",                               model: "claude-3-5-haiku-20241022",           needsKey: true,  note: "Use anthropic-to-openai proxy or AWS Bedrock" },
+  custom:    { label: "Custom",         icon: "⚙",   provider: "openai_compatible", baseUrl: "",                                                           model: "",                                    needsKey: true },
+};
+
 function LanguageTab(p: TabProps) {
+  const [preset, setPreset] = useState<ProviderPresetId>("deepseek");
   const [provider, setProvider] = useState<LlmProvider>("openai_compatible");
   const [baseUrl, setBaseUrl] = useState("https://api.deepseek.com");
-  const [model, setModel] = useState("deepseek-v4-flash");
+  const [model, setModel] = useState("deepseek-chat");
   const [apiKey, setApiKey] = useState("");
   const [prompt, setPrompt] = useState("Greet a hospital visitor who just arrived and explain how BonBon can help them.");
   const [response, setResponse] = useState("");
@@ -945,7 +974,13 @@ function LanguageTab(p: TabProps) {
 
   useEffect(() => { if (!p.disabled) { api.providerCatalog().then((d) => setCatalog(d.providers)).catch(() => {}); } }, [p.disabled, api]);
 
-  const switchProvider = (next: LlmProvider) => { setProvider(next); if (next === "ollama") { setBaseUrl("http://127.0.0.1:11434"); setModel("llama3.2:3b"); } else { setBaseUrl("https://api.deepseek.com"); setModel("deepseek-v4-flash"); } };
+  const switchPreset = (id: ProviderPresetId) => {
+    setPreset(id);
+    const p = PROVIDER_PRESETS[id];
+    setProvider(p.provider);
+    if (p.baseUrl) setBaseUrl(p.baseUrl);
+    if (p.model) setModel(p.model);
+  };
 
   const runPrompt = async () => {
     setBusy(true); setResponse(""); setSafetyFlag(""); setLatency(null);
@@ -987,16 +1022,27 @@ function LanguageTab(p: TabProps) {
       <div className="section-hero"><h2>💬 Language & Response</h2><p>LLM inference (Ollama local / DeepSeek / OpenAI-compatible) with RAG context injection, safety filtering, hallucination guard, and personality layer.</p></div>
       <div className="grid two">
         <section className="panel">
-          <div className="section-title"><span>LLM Test</span><small>Ollama · DeepSeek · OpenAI-compatible</small></div>
-          <div className="two-col">
-            <label>Provider<select value={provider} onChange={(e) => switchProvider(e.target.value as LlmProvider)}>
-              <option value="ollama">Local Ollama</option>
-              <option value="openai_compatible">DeepSeek / OpenAI-compatible</option>
-            </select></label>
-            <label>Model<input value={model} onChange={(e) => setModel(e.target.value)} /></label>
+          <div className="section-title"><span>LLM Test</span><small>Ollama · OpenAI · Gemini · DeepSeek · Groq · Mistral · more</small></div>
+
+          {/* ── Provider preset grid ──────────────────────────────── */}
+          <div className="provider-preset-grid">
+            {(Object.entries(PROVIDER_PRESETS) as [ProviderPresetId, ProviderPresetDef][]).map(([id, def]) => (
+              <button key={id} className={`provider-chip ${preset === id ? "selected" : ""}`} onClick={() => switchPreset(id)}>
+                <span>{def.icon}</span>
+                <strong>{def.label}</strong>
+              </button>
+            ))}
           </div>
-          <label>Base URL<input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></label>
-          <label>API key<input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={provider === "ollama" ? "not required" : "paste runtime key (never saved)"} /></label>
+          {PROVIDER_PRESETS[preset].note && (
+            <p className="provider-note">ℹ {PROVIDER_PRESETS[preset].note}</p>
+          )}
+
+          {/* ── Editable fields (auto-filled by preset) ─────────── */}
+          <div className="two-col" style={{ marginTop: 10 }}>
+            <label>Model<input value={model} onChange={(e) => setModel(e.target.value)} placeholder="model name" /></label>
+            <label>API key<input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={provider === "ollama" ? "not required" : "paste key (never saved)"} /></label>
+          </div>
+          <label>Base URL<input value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); setPreset("custom"); }} placeholder="https://api.example.com/v1" /></label>
           <label style={{ marginTop: 10 }}>Prompt
             <textarea value={prompt} onChange={(e) => { setPrompt(e.target.value); computeRagDocs(e.target.value); }} style={{ minHeight: 100 }} />
           </label>
@@ -1007,12 +1053,14 @@ function LanguageTab(p: TabProps) {
           </div>
           {safetyFlag.startsWith("⚠ LLM offline") && (
             <div className="llm-offline-guide">
-              <strong>💡 To use a live LLM:</strong>
+              <strong>💡 Select a provider above and add an API key to get live responses:</strong>
               <ul>
-                <li><b>Ollama (local):</b> run <code>ollama serve</code> + <code>ollama pull llama3.2:3b</code>, set provider → Local Ollama</li>
-                <li><b>DeepSeek:</b> get a free key at deepseek.com, paste in API key field, set Base URL → https://api.deepseek.com</li>
+                <li><b>Groq</b> — fastest, free tier, select ⚡ Groq above</li>
+                <li><b>Gemini</b> — free tier at aistudio.google.com, select 💎 Google Gemini</li>
+                <li><b>Ollama</b> — fully local/offline, run <code>ollama serve</code> + <code>ollama pull llama3.2:3b</code></li>
+                <li><b>DeepSeek / OpenAI / Mistral / Together</b> — paste API key in the field above</li>
               </ul>
-              <span>Demo responses are rule-based and safe — they show how the personality layer would respond.</span>
+              <span>Demo responses are rule-based and safe — they show how the personality layer works without any LLM.</span>
             </div>
           )}
         </section>
