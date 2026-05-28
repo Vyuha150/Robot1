@@ -1105,6 +1105,45 @@ p.muted { margin: 8px 0 0; }
 .output-card.good { border-color: rgba(68, 242, 161, 0.34); }
 .output-card.warn { border-color: rgba(255, 200, 87, 0.36); }
 
+/* ── Inline command result (TTS / Safety) ────────────────── */
+.cmd-result {
+  margin-top: 10px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  animation: fadeIn 0.22s ease;
+}
+.cmd-result.ok {
+  background: rgba(68, 242, 161, 0.12);
+  border-color: rgba(68, 242, 161, 0.38);
+  color: #44f2a1;
+}
+.cmd-result.error {
+  background: rgba(255, 92, 122, 0.12);
+  border-color: rgba(255, 92, 122, 0.38);
+  color: #ff5c7a;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ── LLM offline setup guide ─────────────────────────────── */
+.llm-offline-guide {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 200, 87, 0.08);
+  border: 1px solid rgba(255, 200, 87, 0.28);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: rgba(238, 248, 239, 0.82);
+}
+.llm-offline-guide strong { display: block; color: var(--amber); margin-bottom: 8px; }
+.llm-offline-guide ul { margin: 0 0 8px 1.2em; padding: 0; }
+.llm-offline-guide li { margin-bottom: 5px; }
+.llm-offline-guide code { background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 6px; font-family: monospace; font-size: 0.82rem; }
+.llm-offline-guide span { opacity: 0.68; font-style: italic; }
+
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════ */
