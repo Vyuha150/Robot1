@@ -1,4 +1,4 @@
-﻿export type ApiEnvelope<T> = {
+export type ApiEnvelope<T> = {
   success: boolean;
   data?: T;
   error?: string;
@@ -84,76 +84,107 @@ export class ApiClient {
     this.token = token;
   }
 
-  setBaseUrl(baseUrl: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
-  }
+  setBaseUrl(url: string) { this.baseUrl = url.replace(/\/$/, ""); }
+  setToken(token: string) { this.token = token; }
 
-  setToken(token: string) {
-    this.token = token;
-  }
-
+  // ── Health & auth ──────────────────────────────────────────────────────────
   async health() {
-    return this.request<{ status: string; robot_online: boolean; timestamp: number }>("/health", {
-      auth: false
-    });
+    return this.request<{ status: string; robot_online: boolean; timestamp: number }>("/health", { auth: false });
   }
 
   async login(username: string, password: string) {
     const result = await this.request<LoginResponse>("/api/v1/auth/login", {
-      method: "POST",
-      body: { username, password },
-      auth: false
+      method: "POST", body: { username, password }, auth: false,
     });
-    if (result.access_token) {
-      this.setToken(result.access_token);
-    }
+    if (result.access_token) this.setToken(result.access_token);
     return result;
   }
 
+  // ── Robot status ───────────────────────────────────────────────────────────
   async robotStatus() {
     return this.request<Record<string, unknown>>("/api/v1/robot/status");
   }
 
+  async getSafetyState() {
+    return this.request<Record<string, unknown>>("/api/v1/robot/safety-state");
+  }
+
+  async getBatteryStatus() {
+    return this.request<Record<string, unknown>>("/api/v1/robot/battery");
+  }
+
+  async getNavigationStatus() {
+    return this.request<Record<string, unknown>>("/api/v1/robot/navigation-status");
+  }
+
+  // ── Diagnostics ────────────────────────────────────────────────────────────
   async diagnostics() {
     return this.request<Record<string, unknown>>("/api/v1/diagnostics/modules");
   }
 
-  async speak(text: string) {
+  async getHealthSummary() {
+    return this.request<Record<string, unknown>>("/api/v1/diagnostics/health");
+  }
+
+  // ── Commands ───────────────────────────────────────────────────────────────
+  async speak(text: string, emotion = "neutral", language = "en", priority = "normal") {
     return this.request<Record<string, unknown>>("/api/v1/robot/commands/speak", {
-      method: "POST",
-      body: { text, language: "en", priority: "normal" }
+      method: "POST", body: { text, language, priority, emotion },
     });
   }
 
   async emergencyStop(reason: string) {
     return this.request<Record<string, unknown>>("/api/v1/robot/commands/emergency_stop", {
-      method: "POST",
-      body: { reason }
+      method: "POST", body: { reason },
     });
   }
 
+  async navigate(goal_x: number, goal_y: number, goal_yaw = 0.0, speed_limit_mps?: number) {
+    return this.request<Record<string, unknown>>("/api/v1/robot/commands/navigate", {
+      method: "POST", body: { goal_x, goal_y, goal_yaw, speed_limit_mps, allow_replanning: true },
+    });
+  }
+
+  async pauseNavigation(reason = "operator_pause") {
+    return this.request<Record<string, unknown>>("/api/v1/robot/commands/pause", {
+      method: "POST", body: { reason },
+    });
+  }
+
+  async resumeNavigation() {
+    return this.request<Record<string, unknown>>("/api/v1/robot/commands/resume", {
+      method: "POST", body: {},
+    });
+  }
+
+  async dock() {
+    return this.request<Record<string, unknown>>("/api/v1/robot/commands/dock", {
+      method: "POST", body: {},
+    });
+  }
+
+  async cancelTask() {
+    return this.request<Record<string, unknown>>("/api/v1/robot/commands/cancel", {
+      method: "POST", body: {},
+    });
+  }
+
+  // ── LLM ───────────────────────────────────────────────────────────────────
   async llmTest(body: {
-    provider: LlmProvider;
-    prompt: string;
-    model: string;
-    base_url: string;
-    api_key?: string;
-    timeout_sec?: number;
+    provider: LlmProvider; prompt: string; model: string;
+    base_url: string; api_key?: string; timeout_sec?: number;
   }) {
-    return this.request<LlmTestResponse>("/api/v1/llm/test-query", {
-      method: "POST",
-      body
-    });
+    return this.request<LlmTestResponse>("/api/v1/llm/test-query", { method: "POST", body });
   }
 
+  // ── Testbench ─────────────────────────────────────────────────────────────
   async testbenchStatus() {
     return this.request<TestbenchStatus>("/api/v1/testbench/status");
   }
 
   async updateClientOutput(module: string, status: "idle" | "ok" | "warn" | "error", payload: Record<string, unknown>) {
     return this.request<Record<string, unknown>>("/api/v1/testbench/client-output", {
-      method: "POST",
-      body: { module, status, payload }
+      method: "POST", body: { module, status, payload },
     });
   }
 
@@ -161,24 +192,13 @@ export class ApiClient {
     return this.request<{ providers: ProviderCatalogItem[]; secret_policy: string }>("/api/v1/testbench/providers");
   }
 
-  async checkProvider(body: {
-    provider: ProviderName;
-    base_url: string;
-    api_key?: string;
-    model?: string;
-    timeout_sec?: number;
-  }) {
-    return this.request<ProviderCheckResponse>("/api/v1/testbench/providers/check", {
-      method: "POST",
-      body
-    });
+  async checkProvider(body: { provider: ProviderName; base_url: string; api_key?: string; model?: string; timeout_sec?: number }) {
+    return this.request<ProviderCheckResponse>("/api/v1/testbench/providers/check", { method: "POST", body });
   }
 
+  // ── Sessions ──────────────────────────────────────────────────────────────
   async startSession(body: { title: string; scenario: string; operator_notes: string }) {
-    return this.request<TestSession>("/api/v1/testbench/sessions", {
-      method: "POST",
-      body
-    });
+    return this.request<TestSession>("/api/v1/testbench/sessions", { method: "POST", body });
   }
 
   async listSessions() {
@@ -186,58 +206,45 @@ export class ApiClient {
   }
 
   async appendSessionEvent(sessionId: string, body: {
-    module: string;
-    event_type: string;
-    status: "pass" | "fail" | "warn" | "info";
-    summary: string;
-    metrics?: Record<string, unknown>;
-    payload?: Record<string, unknown>;
-    failure_label?: string;
+    module: string; event_type: string; status: "pass" | "fail" | "warn" | "info";
+    summary: string; metrics?: Record<string, unknown>; payload?: Record<string, unknown>; failure_label?: string;
   }) {
-    return this.request<TestSessionEvent>(`/api/v1/testbench/sessions/${sessionId}/events`, {
-      method: "POST",
-      body
-    });
+    return this.request<TestSessionEvent>(`/api/v1/testbench/sessions/${sessionId}/events`, { method: "POST", body });
   }
 
   async analyseSession(sessionId: string) {
-    return this.request<Record<string, unknown>>(`/api/v1/testbench/sessions/${sessionId}/analysis`, {
-      method: "POST"
-    });
+    return this.request<Record<string, unknown>>(`/api/v1/testbench/sessions/${sessionId}/analysis`, { method: "POST" });
   }
 
-  private async request<T>(
-    path: string,
-    options: {
-      method?: "GET" | "POST" | "PUT" | "DELETE";
-      body?: unknown;
-      auth?: boolean;
-    } = {}
-  ): Promise<T> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json"
+  // ── WebSocket ─────────────────────────────────────────────────────────────
+  openWebSocket(channel: "robot-status" | "safety-events" | "diagnostics", onMessage: (data: unknown) => void, onClose?: () => void): WebSocket {
+    const wsUrl = `${this.baseUrl.replace(/^http/, "ws")}/ws/${channel}?token=${this.token}`;
+    const ws = new WebSocket(wsUrl);
+    ws.onmessage = (ev) => {
+      try { onMessage(JSON.parse(ev.data as string)); } catch { /* ignore malformed */ }
     };
-    if (options.auth !== false && this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
+    if (onClose) ws.onclose = onClose;
+    return ws;
+  }
 
+  // ── Internal request ──────────────────────────────────────────────────────
+  private async request<T>(path: string, options: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown; auth?: boolean } = {}): Promise<T> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.auth !== false && this.token) headers.Authorization = `Bearer ${this.token}`;
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body)
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
     });
-    const contentType = response.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json") ? await response.json() : await response.text();
-
+    const ct = response.headers.get("content-type") ?? "";
+    const payload = ct.includes("application/json") ? await response.json() : await response.text();
     if (!response.ok) {
-      const detail = typeof payload === "object" && payload !== null ? payload.detail ?? payload.error : payload;
+      const detail = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>).detail ?? (payload as Record<string, unknown>).error : payload;
       throw new Error(String(detail || `HTTP ${response.status}`));
     }
     if (typeof payload === "object" && payload !== null && "success" in payload) {
       const envelope = payload as ApiEnvelope<T>;
-      if (!envelope.success) {
-        throw new Error(envelope.error || "Request failed");
-      }
+      if (!envelope.success) throw new Error(envelope.error || "Request failed");
       return envelope.data as T;
     }
     return payload as T;

@@ -235,14 +235,14 @@ async def get_provider_catalog(
                     "default_model": "llama3.2:3b",
                     "tests": ["models endpoint", "generation endpoint via LLM panel"],
                 },
-            {
-                "id": "openai_compatible",
-                "label": "DeepSeek / OpenAI-compatible LLM",
-                "required_secret": True,
-                "default_base_url": "https://api.deepseek.com",
-                "default_model": "deepseek-v4-flash",
-                "tests": ["model list", "chat completions via LLM panel"],
-            },
+                {
+                    "id": "openai_compatible",
+                    "label": "DeepSeek / OpenAI-compatible LLM",
+                    "required_secret": True,
+                    "default_base_url": "https://api.deepseek.com",
+                    "default_model": "deepseek-v4-flash",
+                    "tests": ["model list", "chat completions via LLM panel"],
+                },
                 {
                     "id": "deepgram",
                     "label": "Deepgram STT",
