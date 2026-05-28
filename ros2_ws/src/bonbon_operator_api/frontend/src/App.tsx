@@ -760,6 +760,13 @@ function IntentTab(p: TabProps) {
   const [manualText, setManualText] = useState("");
   const [manualResult, setManualResult] = useState<IntentResult | null>(null);
 
+  // Auto-classify with 350 ms debounce as user types
+  useEffect(() => {
+    if (!manualText.trim()) { setManualResult(null); return; }
+    const t = setTimeout(() => { setManualResult(classifyIntent(manualText)); }, 350);
+    return () => clearTimeout(t);
+  }, [manualText]);
+
   const classify = () => { const res = classifyIntent(manualText || p.transcript); setManualResult(res); p.addLog("ok", `Intent: ${res.intent} (${Math.round(res.confidence * 100)}%)`); };
 
   const sc = p.sceneContext;
@@ -806,7 +813,7 @@ function IntentTab(p: TabProps) {
             {Object.keys(INTENT_PATTERNS).map((intent) => (
               <div key={intent} className={`pattern-row ${ir?.intent === intent ? "active" : ""}`}>
                 <span>{intent}</span>
-                <button className="mini-btn" onClick={() => { const examples: Record<string, string> = { order_item: "Can I get a coffee please?", navigate_to: "Take me to the reception", ask_question: "What can you do?", cancel: "Cancel that please", greeting: "Hey Bonbon, hello!", emergency_help: "I need help, I fell down", thanks: "Thank you so much", status_check: "Who are you?", privacy: "Stop recording me" }; setManualText(examples[intent] ?? ""); }}>Try</button>
+                <button className="mini-btn" onClick={() => { const examples: Record<string, string> = { order_item: "Can I get a coffee please?", navigate_to: "Take me to the reception", ask_question: "What can you do?", cancel: "Cancel that please", greeting: "Hey Bonbon, hello!", emergency_help: "I need help, I fell down", thanks: "Thank you so much", status_check: "Who are you?", privacy: "Stop recording me" }; const ex = examples[intent] ?? ""; setManualText(ex); if (ex) setManualResult(classifyIntent(ex)); }}>Try</button>
               </div>
             ))}
           </div>
@@ -923,7 +930,20 @@ function LanguageTab(p: TabProps) {
     setRagDocs(docs);
   };
 
-  useEffect(() => { if (!p.disabled) { api.providerCatalog().then((d) => setCatalog(d.providers)).catch(() => {}); } }, [p.disabled]);
+  // Rule-based demo response for offline / no-key mode
+  const generateDemoResponse = (text: string): string => {
+    if (/greet|hello|welcome|visitor|patient|arrive/i.test(text)) return "Hello! Welcome to BonBon service. I can assist you with directions, food & beverage orders, and patient support. How may I help you today?";
+    if (/coffee|tea|drink|order|food|menu|eat/i.test(text)) return "I'd be happy to take your order! Our menu includes Coffee (RM5), Tea (RM3), Juice (RM4), and Water (RM1). What would you like?";
+    if (/direction|go|navigate|where|find|location|room|floor/i.test(text)) return "I can guide you anywhere in the facility. Reception is on Level 1, Canteen on Level 2, and Wards A–D on Level 3. Where would you like to go?";
+    if (/help|assist|support|emergency|hurt|fell/i.test(text)) return "I'm here to help! I can take orders, give directions, or contact staff. For medical emergencies, I'll immediately notify the nearest nurse station.";
+    if (/bonbon|robot|what|who|introduce|capability|do you/i.test(text)) return "I'm BonBon, an AI service robot at Sunway Medical Centre. I can serve food and beverages, guide visitors, assist patients, and communicate in English, Chinese, and Malay.";
+    if (/safety|stop|halt|danger|estop/i.test(text)) return "Safety is my top priority. All motion commands pass through the Safety Supervisor. In any emergency I stop immediately and notify on-duty staff.";
+    return "I understand your request. As BonBon I'm here to assist with orders, navigation, and patient support. Could you provide more detail so I can help you better?";
+  };
+
+  const api = p.api;
+
+  useEffect(() => { if (!p.disabled) { api.providerCatalog().then((d) => setCatalog(d.providers)).catch(() => {}); } }, [p.disabled, api]);
 
   const switchProvider = (next: LlmProvider) => { setProvider(next); if (next === "ollama") { setBaseUrl("http://127.0.0.1:11434"); setModel("llama3.2:3b"); } else { setBaseUrl("https://api.deepseek.com"); setModel("deepseek-v4-flash"); } };
 
@@ -945,13 +965,22 @@ function LanguageTab(p: TabProps) {
       p.addLog("ok", `LLM (${result.provider}/${result.model}) responded in ${result.latency_ms} ms`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setResponse(`Error: ${msg}`); setSafetyFlag("ERROR");
-      p.updateLocalOutput("llm", "error", { provider, model, error: msg });
-      p.addLog("error", `LLM failed: ${msg}`);
+      const isOffline = /unavailable|connection|refused|network|ECONNREFUSED|fetch/i.test(msg);
+      if (isOffline) {
+        const demoResp = generateDemoResponse(prompt);
+        setResponse(demoResp);
+        setLatency(null);
+        setGrounding(estimateGrounding(prompt, demoResp));
+        setSafetyFlag("⚠ LLM offline — rule-based demo response (start Ollama or add API key)");
+        p.updateLocalOutput("llm", "warn", { provider, model, response_text: demoResp, safety_filter: "demo_mode" });
+        p.addLog("warn", "LLM offline — showing rule-based demo response");
+      } else {
+        setResponse(`Error: ${msg}`); setSafetyFlag("ERROR");
+        p.updateLocalOutput("llm", "error", { provider, model, error: msg });
+        p.addLog("error", `LLM failed: ${msg}`);
+      }
     } finally { setBusy(false); }
   };
-
-  const api = p.api;
 
   return (
     <div className="tab-body">
@@ -974,8 +1003,18 @@ function LanguageTab(p: TabProps) {
           <div className="btn-row"><button className="primary" onClick={() => void runPrompt()} disabled={p.disabled || busy}>{busy ? "⌛ Thinking…" : "▶ Run LLM"}</button><button onClick={() => setApiKey("")}>Clear key</button></div>
           <div className="llm-response">
             <div><strong>Response</strong><div style={{ display: "flex", gap: 8 }}>{latency !== null && <span className="latency-badge">{latency} ms</span>}{grounding !== null && <span className="grounding-badge">ground {Math.round(grounding * 100)}%</span>}</div></div>
-            <p>{response || "No response yet."}</p>
+            <p>{response || "No response yet. Click ▶ Run LLM — works offline with demo responses when no provider is configured."}</p>
           </div>
+          {safetyFlag.startsWith("⚠ LLM offline") && (
+            <div className="llm-offline-guide">
+              <strong>💡 To use a live LLM:</strong>
+              <ul>
+                <li><b>Ollama (local):</b> run <code>ollama serve</code> + <code>ollama pull llama3.2:3b</code>, set provider → Local Ollama</li>
+                <li><b>DeepSeek:</b> get a free key at deepseek.com, paste in API key field, set Base URL → https://api.deepseek.com</li>
+              </ul>
+              <span>Demo responses are rule-based and safe — they show how the personality layer would respond.</span>
+            </div>
+          )}
         </section>
 
         <div className="side-stack">
@@ -1029,20 +1068,26 @@ function TTSTab(p: TabProps) {
   const [priority, setPriority] = useState("normal");
   const [lastMetrics, setLastMetrics] = useState<{ latency: number; chars: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cmdResult, setCmdResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const speak = async () => {
-    setBusy(true);
+    setBusy(true); setCmdResult(null);
     const t0 = performance.now();
     try {
       await p.speakWithEmotion(ttsText, p.ttsEmotion);
       const lat = Math.round(performance.now() - t0);
       setLastMetrics({ latency: lat, chars: ttsText.length });
+      setCmdResult({ ok: true, msg: `✓ Speak command accepted — Piper TTS queued  (emotion: ${p.ttsEmotion}, ${lat} ms)` });
       const payload = { current_text: ttsText, emotion: p.ttsEmotion, latency_ms: lat, is_speaking: true, queue_depth: 1, backend: "piper" };
       p.updateLocalOutput("tts", "ok", payload);
       if (p.sessionId) await p.api.appendSessionEvent(p.sessionId, { module: "tts", event_type: "speak_with_emotion", status: "pass", summary: `TTS (${p.ttsEmotion}) accepted`, metrics: { latency_ms: lat }, payload: { text_chars: ttsText.length, emotion: p.ttsEmotion } });
       await p.refreshTestbench();
       p.addLog("ok", `TTS sent (${p.ttsEmotion}, ${language}) — ${lat} ms`);
-    } catch (e) { p.addLog("error", `TTS: ${e instanceof Error ? e.message : String(e)}`); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setCmdResult({ ok: false, msg: `✗ TTS failed: ${msg}` });
+      p.addLog("error", `TTS: ${msg}`);
+    }
     finally { setBusy(false); }
   };
 
@@ -1068,6 +1113,7 @@ function TTSTab(p: TabProps) {
             </select></label>
           </div>
           <div className="btn-row"><button className="primary" onClick={() => void speak()} disabled={p.disabled || busy}>{busy ? "⌛ Sending…" : `🔊 Speak (${p.ttsEmotion})`}</button></div>
+          {cmdResult && <div className={`cmd-result ${cmdResult.ok ? "ok" : "error"}`}>{cmdResult.msg}</div>}
           {lastMetrics && (
             <div className="tts-metrics">
               <Metric label="Latency" value={`${lastMetrics.latency} ms`} />
@@ -1124,11 +1170,12 @@ function TTSTab(p: TabProps) {
 function SafetyTab(p: TabProps) {
   const [navX, setNavX] = useState("2.0"); const [navY, setNavY] = useState("1.5");
   const [busy, setBusy] = useState(false);
+  const [cmdResult, setCmdResult] = useState<{ ok: boolean; label: string } | null>(null);
 
   const sendCmd = async (label: string, fn: () => Promise<unknown>) => {
-    setBusy(true);
-    try { await fn(); p.addLog("ok", `${label} accepted`); await p.refreshTestbench(); }
-    catch (e) { p.addLog("error", `${label} failed: ${e instanceof Error ? e.message : String(e)}`); }
+    setBusy(true); setCmdResult(null);
+    try { await fn(); setCmdResult({ ok: true, label }); p.addLog("ok", `${label} accepted`); await p.refreshTestbench(); }
+    catch (e) { setCmdResult({ ok: false, label }); p.addLog("error", `${label} failed: ${e instanceof Error ? e.message : String(e)}`); }
     finally { setBusy(false); }
   };
 
@@ -1184,6 +1231,7 @@ function SafetyTab(p: TabProps) {
               <button disabled={busy || p.disabled} onClick={() => void sendCmd("Dock", () => p.api.dock())}>⚡ Dock</button>
             </div>
             <p className="hint-small" style={{ marginTop: 12 }}>Commands go through SafetyCommandGate. If safety state is FAULT/DANGER, navigation commands are rejected.</p>
+            {cmdResult && <div className={`cmd-result ${cmdResult.ok ? "ok" : "error"}`}>{cmdResult.ok ? `✓ ${cmdResult.label} accepted` : `✗ ${cmdResult.label} failed`}</div>}
           </section>
 
           <section className="panel">
@@ -1197,6 +1245,7 @@ function SafetyTab(p: TabProps) {
               <button disabled={busy || p.disabled} onClick={() => void sendCmd("Cancel", () => p.api.cancelTask())}>✕ Cancel</button>
             </div>
             {!["NORMAL", "CAUTION"].includes(p.safetyLevel) && <p className="danger-hint">⚠ Navigation disabled — safety state is {p.safetyLevel}</p>}
+            {cmdResult && cmdResult.label === "Navigate" && <div className={`cmd-result ${cmdResult.ok ? "ok" : "error"}`}>{cmdResult.ok ? `✓ Navigation goal sent to Nav2` : `✗ Navigate failed — check safety state`}</div>}
           </section>
 
           <section className="panel">
@@ -1221,6 +1270,13 @@ function SystemTab(p: TabProps) {
   const load = async (kind: "status" | "diagnostics") => {
     try { const r = kind === "status" ? await p.api.robotStatus() : await p.api.diagnostics(); setSysData(r); p.addLog("ok", `Loaded ${kind}`); } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
   };
+
+  // Auto-load robot status when the tab becomes accessible (user logs in)
+  useEffect(() => {
+    if (p.disabled) return;
+    void p.api.robotStatus().then((r) => setSysData(r)).catch(() => {});
+  }, [p.disabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const startSession = async () => {
     try { const s = await p.api.startSession({ title, scenario, operator_notes: notes }); p.setSessionId(s.session_id); setAnalysis(s.analysis ?? {}); p.addLog("ok", `Session started: ${s.session_id.slice(0, 8)}`); }
     catch (e) { p.addLog("error", `Session: ${e instanceof Error ? e.message : String(e)}`); }
