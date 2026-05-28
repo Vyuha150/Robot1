@@ -82,13 +82,15 @@ input:focus, select:focus, textarea:focus {
 /* ── Panel ──────────────────────────────────────────────────── */
 .panel {
   position: relative;
-  overflow: hidden;
+  overflow: visible;     /* allow content to grow naturally — ::before uses clip */
   border: 1px solid var(--stroke);
   border-radius: 28px;
   padding: 22px;
   background: var(--panel);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(22px);
+  /* clip children to border-radius without using overflow:hidden */
+  -webkit-mask-image: radial-gradient(white, white);
 }
 .panel::before {
   content: "";
@@ -597,6 +599,48 @@ p.muted { margin: 8px 0 0; }
 /* ═══════════════════════════════════════════════════════════════
    INTENT
    ═══════════════════════════════════════════════════════════════ */
+
+/* Prominent output box — always visible at top of panel */
+.intent-output-box {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 2px solid rgba(68, 242, 161, 0.15);
+  background: rgba(5, 13, 12, 0.45);
+  transition: border-color 0.25s, background 0.25s;
+  min-height: 64px;
+}
+.intent-output-box.has-result.high {
+  border-color: rgba(68, 242, 161, 0.55);
+  background: rgba(68, 242, 161, 0.07);
+  box-shadow: 0 0 22px rgba(68, 242, 161, 0.08);
+}
+.intent-output-box.has-result.mid {
+  border-color: rgba(255, 200, 87, 0.45);
+  background: rgba(255, 200, 87, 0.06);
+}
+.intent-output-box.has-result.low {
+  border-color: rgba(255, 92, 122, 0.38);
+  background: rgba(255, 92, 122, 0.05);
+}
+.intent-output-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(238, 248, 239, 0.45);
+  margin-bottom: 8px;
+}
+.intent-output-placeholder {
+  margin: 0;
+  font-size: 0.86rem;
+  color: rgba(238, 248, 239, 0.35);
+  font-style: italic;
+  line-height: 1.5;
+  padding: 4px 0;
+}
+
+/* Legacy .intent-result kept for compat */
 .intent-result {
   position: relative;
   z-index: 1;
@@ -1126,6 +1170,41 @@ p.muted { margin: 8px 0 0; }
   color: #ff5c7a;
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ── Provider preset grid (Language tab) ────────────────── */
+.provider-preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+.provider-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(238, 248, 239, 0.14);
+  color: rgba(238, 248, 239, 0.72);
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+.provider-chip:hover { border-color: rgba(68, 242, 161, 0.5); color: #eef8ef; }
+.provider-chip.selected {
+  background: rgba(68, 242, 161, 0.14);
+  border-color: rgba(68, 242, 161, 0.6);
+  color: var(--glow);
+  font-weight: 700;
+}
+.provider-note {
+  margin: 4px 0 8px;
+  font-size: 0.78rem;
+  color: rgba(238, 248, 239, 0.48);
+  font-style: italic;
+}
 
 /* ── LLM offline setup guide ─────────────────────────────── */
 .llm-offline-guide {
