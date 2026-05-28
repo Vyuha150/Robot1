@@ -235,14 +235,14 @@ async def get_provider_catalog(
                     "default_model": "llama3.2:3b",
                     "tests": ["models endpoint", "generation endpoint via LLM panel"],
                 },
-                {
-                    "id": "openai_compatible",
-                    "label": "OpenAI-compatible LLM",
-                    "required_secret": True,
-                    "default_base_url": "https://api.openai.com/v1",
-                    "default_model": "gpt-4o-mini",
-                    "tests": ["model list", "chat completions via LLM panel"],
-                },
+            {
+                "id": "openai_compatible",
+                "label": "DeepSeek / OpenAI-compatible LLM",
+                "required_secret": True,
+                "default_base_url": "https://api.deepseek.com",
+                "default_model": "deepseek-v4-flash",
+                "tests": ["model list", "chat completions via LLM panel"],
+            },
                 {
                     "id": "deepgram",
                     "label": "Deepgram STT",
@@ -435,7 +435,7 @@ async def _check_provider(body: ProviderCheckRequest) -> dict[str, Any]:
         return {"provider": body.provider, "ok": True, "models": models[:20], "base_url": base_url}
 
     if body.provider == "openai_compatible":
-        base_url = body.base_url or "https://api.openai.com/v1"
+        base_url = body.base_url or "https://api.deepseek.com"
         headers = _bearer_headers(body.api_key)
         async with httpx.AsyncClient(timeout=body.timeout_sec) as client:
             response = await client.get(f"{base_url}/models", headers=headers)

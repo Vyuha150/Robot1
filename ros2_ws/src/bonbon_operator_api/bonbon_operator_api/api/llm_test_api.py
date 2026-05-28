@@ -53,9 +53,9 @@ async def list_llm_providers(
                 },
                 {
                     "id": "openai_compatible",
-                    "label": "OpenAI-compatible HTTP API",
-                    "default_base_url": "https://api.openai.com/v1",
-                    "default_model": "gpt-4o-mini",
+                    "label": "DeepSeek / OpenAI-compatible HTTP API",
+                    "default_base_url": "https://api.deepseek.com",
+                    "default_model": "deepseek-v4-flash",
                     "api_key_required": True,
                 },
             ],
