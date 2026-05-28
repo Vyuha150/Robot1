@@ -519,3 +519,54 @@ h1 {
     gap: 4px;
   }
 }
+
+.auth-banner,
+.inline-output {
+  position: relative;
+  z-index: 1;
+  margin: 14px 0;
+  border: 1px solid rgba(238, 248, 239, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.auth-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.auth-banner span {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.auth-banner.good {
+  border-color: rgba(68, 242, 161, 0.42);
+  box-shadow: 0 0 22px rgba(68, 242, 161, 0.08);
+}
+
+.auth-banner.warn {
+  border-color: rgba(255, 200, 87, 0.45);
+}
+
+.auth-banner.bad {
+  border-color: rgba(255, 92, 122, 0.5);
+}
+
+.inline-output > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #eaffef;
+}
+
+.inline-output .output-row {
+  grid-template-columns: 120px 1fr;
+  font-size: 0.92rem;
+}
+
+.inline-output .output-row b {
+  overflow-wrap: anywhere;
+}
