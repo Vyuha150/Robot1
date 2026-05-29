@@ -1,0 +1,7 @@
+string text
+string person_id
+string context
+---
+bool success
+bonbon_msgs/TextEmotion result
+string error_message

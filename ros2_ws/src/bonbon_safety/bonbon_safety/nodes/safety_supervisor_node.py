@@ -293,7 +293,7 @@ class SafetySupervisorNode(LifecycleNode):
         sub(ThermalReadings, "/bonbon/temperature/readings", self._cb_thermal, RELIABLE_D5)
         sub(ServoStateArray, "/bonbon/servo/neck/state", self._cb_servo, RELIABLE_D5)
         sub(ServoStateArray, "/bonbon/servo/arm/state", self._cb_servo, RELIABLE_D5)
-        sub(PersonStateArray, "/bonbon/perception/persons", self._cb_persons, RELIABLE_D5)
+        sub(PersonStateArray, "/bonbon/vision/persons", self._cb_persons, RELIABLE_D5)
         sub(Bool, "/bonbon/estop/state", self._cb_estop, RELIABLE_TL)
         sub(
             ModuleHealth,

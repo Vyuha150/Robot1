@@ -1,0 +1,9 @@
+string command_text
+string source              # 'llm','operator','speech'
+string person_id
+---
+bool safe
+string risk_level          # 'none','low','medium','high','critical'
+string[] reasons
+string recommended_action  # 'approve','reject','modify','escalate'
+string modified_command

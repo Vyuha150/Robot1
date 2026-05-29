@@ -5,6 +5,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/AudioChunk.msg"
@@ -31,7 +32,20 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TTSRequest.msg"
   "msg/LLMResponse.msg"
   "msg/LLMLog.msg"
-  DEPENDENCIES std_msgs geometry_msgs
+  "msg/FaceEmotion.msg"
+  "msg/VoiceEmotion.msg"
+  "msg/TextEmotion.msg"
+  "msg/HumanEmotionState.msg"
+  "msg/GestureEvent.msg"
+  "msg/SpatialEntity.msg"
+  "msg/SpatialRelation.msg"
+  "msg/SocialNavigationHint.msg"
+  "msg/BehaviorProposal.msg"
+  "msg/BehaviorDecision.msg"
+  "msg/ActuationGesture.msg"
+  "msg/ActuationStatus.msg"
+  "msg/HumanStateEstimate.msg"
+  DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 
 ament_export_dependencies(rosidl_default_runtime)

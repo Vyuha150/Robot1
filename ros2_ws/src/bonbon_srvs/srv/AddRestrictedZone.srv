@@ -1,0 +1,8 @@
+string zone_id
+string zone_label
+geometry_msgs/Polygon polygon
+float32 buffer_m
+string reason
+---
+bool success
+string error_message

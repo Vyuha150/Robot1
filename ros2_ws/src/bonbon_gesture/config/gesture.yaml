@@ -1,0 +1,14 @@
+/**:
+  ros__parameters:
+    backend: "mediapipe"
+    enabled: true
+    confidence_threshold: 0.65
+    temporal_window: 4
+    gesture_cooldown_sec: 1.0
+    frame_sample_rate: 3
+    head_gesture_enabled: true
+    hand_gesture_enabled: true
+    body_gesture_enabled: true
+    safety_gesture_immediate: true
+    processing_timeout_sec: 0.08
+    min_visibility_threshold: 0.5

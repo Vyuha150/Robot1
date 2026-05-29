@@ -53,6 +53,7 @@ try:
     from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
     from std_msgs.msg import String
     from std_srvs.srv import Empty
+    from bonbon_msgs.msg import TTSRequest
 
     _ROS2_AVAILABLE = True
 except ImportError:
@@ -201,6 +202,14 @@ else:
                     10,
                 )
             )
+            self._subs.append(
+                self.create_subscription(
+                    TTSRequest,
+                    "/bonbon/tts/request",
+                    self._cb_tts_request,
+                    10,
+                )
+            )
 
             # Health publisher + timer
             self._health_pub = self.create_publisher(
@@ -282,6 +291,39 @@ else:
                 source="tts/emergency",
                 max_age_sec=120.0,
             )
+            self._synth.say(utt)
+
+        def _cb_tts_request(self, msg) -> None:  # type: ignore[name-defined]
+            """Handle TTSRequest messages on /bonbon/tts/request.
+
+            TTSRequest.priority is a uint8 with constants:
+              PRIORITY_LOW=1, PRIORITY_NORMAL=5, PRIORITY_HIGH=10
+            Map to the internal Priority enum.
+            """
+            text = msg.text.strip() if msg.text else ""
+            if not text:
+                return
+            # Map numeric priority to Priority enum
+            if msg.priority >= 10:
+                prio = Priority.HIGH
+            elif msg.priority >= 5:
+                prio = Priority.NORMAL
+            else:
+                prio = Priority.LOW
+            utt = Utterance(
+                text=text,
+                priority=prio,
+                source="tts/request",
+                dedup_key=getattr(msg, "request_id", ""),
+                max_age_sec=30.0,
+            )
+            # Apply optional fields when present
+            if hasattr(msg, "language") and msg.language:
+                utt.language = msg.language
+            if hasattr(msg, "voice") and msg.voice:
+                utt.voice = msg.voice
+            if hasattr(msg, "speed_factor") and msg.speed_factor > 0.0:
+                utt.speed_factor = msg.speed_factor
             self._synth.say(utt)
 
         # ── Service callbacks ──────────────────────────────────────────────────

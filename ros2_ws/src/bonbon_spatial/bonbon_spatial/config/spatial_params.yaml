@@ -1,0 +1,13 @@
+spatial_reasoning_node:
+  ros__parameters:
+    publish_rate_hz: 5.0
+    entity_timeout_sec: 5.0
+    personal_space:
+      intimate_m: 0.45
+      personal_m: 1.2
+      social_m: 3.6
+      public_m: 7.6
+      stop_distance_m: 0.6
+      slow_distance_m: 1.5
+      approach_target_m: 1.0
+    zones: []   # list of {zone_id, zone_type, polygon:[{x,y}...], min_clearance_m, reason}

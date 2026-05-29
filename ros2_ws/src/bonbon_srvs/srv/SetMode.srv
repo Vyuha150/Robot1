@@ -1,0 +1,6 @@
+string mode                # 'normal','child_safe','elderly','degraded','demo','emergency'
+string operator_id
+---
+bool success
+string previous_mode
+string error_message

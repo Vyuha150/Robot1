@@ -1,0 +1,8 @@
+bool include_relations
+bool include_zones
+---
+bool success
+bonbon_msgs/SpatialEntity[] entities
+bonbon_msgs/SpatialRelation[] relations
+string[] zone_ids
+string error_message

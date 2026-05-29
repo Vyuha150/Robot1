@@ -1,0 +1,13 @@
+actuation_node:
+  ros__parameters:
+    # Topics
+    servo_command_topic: /bonbon/hal/servo_commands
+    status_topic: /bonbon/actuation/status
+    gesture_topic: /bonbon/behavior/actuation
+    safety_topic: /bonbon/safety/state
+
+    # Behaviour
+    rest_on_deactivate: true
+
+    # Execution thread pool size (keep at 1 — gestures are serial)
+    executor_thread_count: 1

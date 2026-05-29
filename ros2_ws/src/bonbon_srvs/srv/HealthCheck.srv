@@ -1,0 +1,7 @@
+string module_name
+---
+bool healthy
+string status
+string[] warnings
+string[] errors
+float64 uptime_sec

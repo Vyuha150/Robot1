@@ -1,5 +1,5 @@
 # ServoState.msg — state of a single Dynamixel servo
-uint8 id                    # Dynamixel motor ID
+uint8 servo_id              # Dynamixel motor ID
 float32 position_rad        # present position in radians
 float32 velocity_rads       # present velocity (rad/s)
 float32 load_percent        # present load as % of max torque (0-100)

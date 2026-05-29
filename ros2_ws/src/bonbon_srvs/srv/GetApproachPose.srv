@@ -1,0 +1,9 @@
+string person_id
+int32 tracking_id
+float32 desired_distance_m
+string approach_style       # front, side, any
+---
+bool success
+geometry_msgs/PoseStamped approach_pose
+string reason
+string error_message

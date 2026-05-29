@@ -1,0 +1,13 @@
+behavior_engine_node:
+  ros__parameters:
+    # Operating mode: normal | child_safe | elderly | degraded | demo | emergency
+    operating_mode: normal
+
+    # Idle behavior tick interval (seconds between ambient gestures)
+    idle_period_sec: 15.0
+
+    # Maximum TTS characters from LLM-extracted speech
+    max_tts_chars: 200
+
+    # Whether to process LLM-source proposals (set false to disable LLM routing)
+    enable_llm_proposals: true

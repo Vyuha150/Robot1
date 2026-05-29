@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>bonbon_affective_ai</name>
+  <version>0.1.0</version>
+  <description>BonBon affective AI — face, voice, text emotion recognition and fusion</description>
+  <maintainer email="bonbon@robot.local">BonBon Team</maintainer>
+  <license>Apache-2.0</license>
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>bonbon_msgs</depend>
+  <depend>bonbon_srvs</depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <test_depend>pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

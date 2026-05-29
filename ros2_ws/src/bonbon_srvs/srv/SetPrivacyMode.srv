@@ -1,0 +1,7 @@
+bool enabled
+string level               # 'none', 'face_only', 'suppressed'
+string operator_id
+---
+bool success
+string previous_level
+string error_message

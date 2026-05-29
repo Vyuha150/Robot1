@@ -1,0 +1,21 @@
+/**:
+  ros__parameters:
+    face_backend: "deepface"
+    face_sample_interval_sec: 0.5
+    face_confidence_threshold: 0.55
+    face_temporal_window: 5
+    face_enabled: true
+    voice_backend: "speechbrain"
+    voice_confidence_threshold: 0.5
+    voice_enabled: true
+    text_backend: "rules"
+    text_enabled: true
+    fusion_face_weight: 0.4
+    fusion_voice_weight: 0.35
+    fusion_text_weight: 0.15
+    fusion_gesture_weight: 0.10
+    fusion_update_hz: 2.0
+    privacy_mode: false
+    privacy_level: "none"
+    max_faces: 5
+    processing_timeout_sec: 1.0

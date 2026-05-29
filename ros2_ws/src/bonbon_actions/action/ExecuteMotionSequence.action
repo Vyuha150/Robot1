@@ -1,0 +1,16 @@
+# Goal
+bonbon_msgs/ActuationGesture[] gestures
+bool loop                  # repeat sequence
+int32 loop_count           # 0 = loop forever
+---
+# Result
+bool success
+int32 gestures_completed
+string[] failed_gestures
+string error_message
+---
+# Feedback
+int32 current_gesture_index
+string current_gesture_name
+float32 progress_pct
+bonbon_msgs/ActuationStatus current_status

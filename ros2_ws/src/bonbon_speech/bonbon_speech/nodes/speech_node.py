@@ -136,7 +136,7 @@ class SpeechNode(LifecycleNode):
             ModuleHealth, "/health/speech", reliable_qos
         )
         self._sub_audio = self.create_subscription(
-            AudioChunk, "/hal/audio", self._on_audio_chunk, best_effort_qos
+            AudioChunk, "/bonbon/speech/audio", self._on_audio_chunk, best_effort_qos
         )
 
     def _init_pipeline(self) -> None:

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>bonbon_actions</name>
+  <version>0.1.0</version>
+  <description>BonBon robot ROS2 action definitions</description>
+  <maintainer email="bonbon@robot.local">BonBon Team</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>action_msgs</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>bonbon_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>
