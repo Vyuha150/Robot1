@@ -61,7 +61,7 @@ const FSM_DESC: Record<SafetyLevel, string> = {
 
 const EMOTIONS: Emotion[] = ["neutral", "happy", "excited", "calm", "sad", "urgent", "friendly", "angry", "whisper"];
 const EMOTION_ICON: Record<Emotion, string> = { neutral: "😐", happy: "😊", excited: "🤩", calm: "😌", sad: "😢", urgent: "🚨", friendly: "🙂", angry: "😠", whisper: "🤫" };
-const EMOTION_SPEED: Record<Emotion, string> = { neutral: "1.00×", happy: "1.08×", excited: "1.18×", calm: "0.91×", sad: "0.83×", urgent: "1.25×", friendly: "1.00×", angry: "1.14×", whisper: "0.87×" };
+const EMOTION_SPEED: Record<Emotion, string> = { neutral: "1.00×", happy: "1.15×", excited: "1.45×", calm: "0.78×", sad: "0.65×", urgent: "1.55×", friendly: "1.05×", angry: "1.30×", whisper: "0.75×" };
 
 const ACTIVITY_ICONS: Record<string, string> = { idle: "🟢", interacting: "🔵", navigating: "🟡", serving: "🟣", crowded: "🔴", unknown: "⚪" };
 const SPATIAL_ICONS: Record<string, string> = { open_space: "🟩", crowded: "🟥", near_person: "🟦", at_station: "🟪" };
@@ -1230,25 +1230,57 @@ function TTSTab(p: TabProps) {
   const [cmdResult, setCmdResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // ── Browser-native speech synthesis ────────────────────────────────────────
+  // Emotion → voice profile (dramatically different per emotion for clear audible distinction)
+  const EMOTION_VOICE: Record<string, { rate: number; pitch: number; volume: number; textPre: string; textPost: string }> = {
+    neutral:  { rate: 1.00, pitch: 1.00, volume: 1.0, textPre: "",         textPost: "" },
+    happy:    { rate: 1.15, pitch: 1.40, volume: 1.0, textPre: "Wonderful! ", textPost: "!" },
+    excited:  { rate: 1.45, pitch: 1.60, volume: 1.0, textPre: "Oh wow! ",  textPost: "!!" },
+    calm:     { rate: 0.78, pitch: 0.82, volume: 0.85,textPre: "",         textPost: "." },
+    sad:      { rate: 0.65, pitch: 0.60, volume: 0.80,textPre: "",         textPost: "..." },
+    urgent:   { rate: 1.55, pitch: 1.10, volume: 1.0, textPre: "URGENT — ", textPost: "! Right away!" },
+    friendly: { rate: 1.05, pitch: 1.25, volume: 0.95,textPre: "Hello! ",  textPost: "" },
+    angry:    { rate: 1.30, pitch: 0.55, volume: 1.0, textPre: "",         textPost: "." },
+    whisper:  { rate: 0.75, pitch: 0.70, volume: 0.30,textPre: "",         textPost: "" },
+  };
+
   const browserSpeak = (text: string) => {
     if (!text.trim()) return;
     const synth = window.speechSynthesis;
     if (!synth) { setCmdResult({ ok: false, msg: "Web Speech API not supported in this browser" }); return; }
     synth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = language === "zh" ? "zh-CN" : language === "ms" ? "ms-MY" : "en-US";
-    const RATE: Record<string, number> = { neutral: 1.0, happy: 1.08, excited: 1.18, calm: 0.91, sad: 0.83, urgent: 1.25, friendly: 1.0, angry: 1.14, whisper: 0.87 };
-    const PITCH: Record<string, number> = { neutral: 1.0, happy: 1.15, excited: 1.25, calm: 0.9, sad: 0.8, urgent: 1.0, friendly: 1.1, angry: 0.85, whisper: 0.7 };
-    utter.rate = RATE[p.ttsEmotion] ?? 1.0;
-    utter.pitch = PITCH[p.ttsEmotion] ?? 1.0;
+    const profile = EMOTION_VOICE[p.ttsEmotion] ?? EMOTION_VOICE.neutral;
+    const utterText = `${profile.textPre}${text}${profile.textPost}`;
+    const utter = new SpeechSynthesisUtterance(utterText);
+    const langCode = language === "zh" ? "zh-CN" : language === "ms" ? "ms-MY" : "en-US";
+    utter.lang = langCode;
+    utter.rate   = profile.rate;
+    utter.pitch  = profile.pitch;
+    utter.volume = profile.volume;
+
+    // Try to select an appropriate voice for the emotion
+    const voices = synth.getVoices();
+    const langVoices = voices.filter((v) => v.lang.startsWith(langCode.slice(0, 2)));
+    if (langVoices.length) {
+      // angry/urgent: prefer lower/male; happy/excited/friendly: prefer female/higher
+      const preferFemale = ["happy", "excited", "friendly", "calm"].includes(p.ttsEmotion);
+      const preferred = langVoices.find((v) => preferFemale
+        ? v.name.toLowerCase().includes("female") || v.name.toLowerCase().includes("zira") || v.name.toLowerCase().includes("samantha")
+        : v.name.toLowerCase().includes("male") || v.name.toLowerCase().includes("david") || v.name.toLowerCase().includes("mark")
+      ) ?? langVoices[0];
+      utter.voice = preferred;
+    }
+
     const t0 = performance.now();
-    utter.onstart = () => { setSpeaking(true); setCmdResult({ ok: true, msg: `🔊 Browser TTS playing (${p.ttsEmotion}, ${language}) — Web Speech API` }); };
+    utter.onstart = () => {
+      setSpeaking(true);
+      setCmdResult({ ok: true, msg: `🔊 ${p.ttsEmotion.toUpperCase()} — rate:${profile.rate}× pitch:${profile.pitch} vol:${profile.volume}` });
+    };
     utter.onend = () => {
       setSpeaking(false);
       const lat = Math.round(performance.now() - t0);
       setLastMetrics({ latency: lat, chars: text.length, backend: "browser_speech_api" });
       p.updateLocalOutput("tts", "ok", { current_text: text, emotion: p.ttsEmotion, latency_ms: lat, is_speaking: false, backend: "browser_speech_api" });
-      p.addLog("ok", `Browser TTS complete (${p.ttsEmotion}) — ${lat} ms`);
+      p.addLog("ok", `TTS (${p.ttsEmotion}) — rate:${profile.rate}, pitch:${profile.pitch} — ${lat} ms`);
     };
     utter.onerror = (e) => { setSpeaking(false); setCmdResult({ ok: false, msg: `Speech error: ${e.error}` }); };
     synth.speak(utter);
@@ -1643,45 +1675,175 @@ function EmotionBar({ label, value, color }: { label: string; value: number; col
 function AffectiveAITab(p: TabProps) {
   const [textInput, setTextInput] = useState("");
   const [textResult, setTextResult] = useState<TextEmotion | null>(null);
-  const [faceSliders, setFaceSliders] = useState<Record<string, number>>({ neutral: 0.7, happy: 0.1, sad: 0.05, angry: 0.05, surprised: 0.05, fearful: 0.03, disgusted: 0.02 });
   const [voiceArousal, setVoiceArousal] = useState(0.2);
   const [voiceValence, setVoiceValence] = useState(0.3);
   const [gestureHint, setGestureHint] = useState("none");
   const [privacyMode, setPrivacyMode] = useState(false);
-  const [liveMode, setLiveMode] = useState(false);
-  const liveRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [tick, setTick] = useState(0);
   const [emotionLog, setEmotionLog] = useState<{ time: string; emotion: string; conf: number; source: string }[]>([]);
+
+  // ── Camera / face-api.js state ──────────────────────────────────────────────
+  const faceVideoRef   = useRef<HTMLVideoElement | null>(null);
+  const faceCanvasRef  = useRef<HTMLCanvasElement | null>(null);
+  const faceAnimRef    = useRef<number | null>(null);
+  const faceApiRef     = useRef<unknown>(null);
+  const lastFaceDetRef = useRef(0);
+  const [faceCamActive, setFaceCamActive] = useState(false);
+  const [faceModelStatus, setFaceModelStatus] = useState("Not loaded");
+  const [loadingFaceModel, setLoadingFaceModel] = useState(false);
+  // Live face emotion scores from camera
+  const [cameraFaceScores, setCameraFaceScores] = useState<Record<string, number>>({});
+  const [cameraFaceDom, setCameraFaceDom] = useState("none");
+  const [cameraFaceCon, setCameraFaceCon] = useState(0);
+  const [facesInFrame, setFacesInFrame] = useState(0);
+  const [camFps, setCamFps] = useState(0);
+  const lastCamFpsRef = useRef(performance.now());
 
   // Text emotion — auto on typing
   useEffect(() => {
     if (!textInput.trim()) { setTextResult(null); return; }
-    const t = setTimeout(() => {
-      const r = analyzeTextEmotion(textInput);
-      setTextResult(r);
-    }, 300);
+    const t = setTimeout(() => setTextResult(analyzeTextEmotion(textInput)), 300);
     return () => clearTimeout(t);
   }, [textInput]);
 
-  // Live simulation tick
-  useEffect(() => {
-    if (!liveMode) { if (liveRef.current) clearInterval(liveRef.current); return; }
-    liveRef.current = setInterval(() => setTick((n) => n + 1), 1800);
-    return () => { if (liveRef.current) clearInterval(liveRef.current); };
-  }, [liveMode]);
+  // ── face-api.js camera helpers ──────────────────────────────────────────────
+  const loadFaceModel = async () => {
+    if (faceApiRef.current) return;
+    setLoadingFaceModel(true);
+    setFaceModelStatus("Downloading face-api.js models…");
+    try {
+      const faceapi = await import("face-api.js");
+      // Load TinyFaceDetector + expression net from jsDelivr CDN
+      const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
+      await Promise.all([
+        (faceapi.nets.tinyFaceDetector as {loadFromUri: (u:string)=>Promise<void>}).loadFromUri(MODEL_URL),
+        (faceapi.nets.faceExpressionNet as {loadFromUri: (u:string)=>Promise<void>}).loadFromUri(MODEL_URL),
+      ]);
+      faceApiRef.current = faceapi;
+      setFaceModelStatus("✓ Face expression model ready");
+      p.addLog("ok", "face-api.js expression model loaded");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.slice(0, 80) : String(err);
+      setFaceModelStatus(`Model load failed: ${msg}`);
+      p.addLog("warn", `face-api.js failed: ${msg}`);
+    } finally { setLoadingFaceModel(false); }
+  };
 
-  useEffect(() => {
-    if (!liveMode) return;
-    const emotions = FACE_EMOTIONS;
-    const dominant = emotions[Math.floor(Math.random() * emotions.length)];
-    const conf = 0.45 + Math.random() * 0.5;
-    setEmotionLog((prev) => [{ time: nowStr(), emotion: dominant, conf: +conf.toFixed(2), source: "face" }, ...prev].slice(0, 10));
-  }, [tick, liveMode]);
+  const startFaceCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" }, audio: false });
+      const video = faceVideoRef.current!;
+      video.srcObject = stream; await video.play();
+      setFaceCamActive(true);
+      p.addLog("ok", "Face emotion camera started");
+      void loadFaceModel();
+      runFaceLoop();
+    } catch (e) { p.addLog("error", `Face cam: ${e instanceof Error ? e.message : e}`); }
+  };
 
-  // Derived face emotion
-  const faceDominant = Object.entries(faceSliders).sort((a, b) => b[1] - a[1])[0];
-  const faceCon = faceDominant[1];
-  const faceEm = privacyMode ? "none" : faceDominant[0];
+  const stopFaceCamera = () => {
+    if (faceAnimRef.current) cancelAnimationFrame(faceAnimRef.current);
+    const video = faceVideoRef.current;
+    if (video) { (video.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); video.srcObject = null; }
+    setFaceCamActive(false); setCameraFaceScores({}); setCameraFaceDom("none"); setFacesInFrame(0);
+    p.addLog("info", "Face emotion camera stopped");
+  };
+
+  const runFaceLoop = () => {
+    const video  = faceVideoRef.current;
+    const canvas = faceCanvasRef.current;
+    if (!video || !canvas) return;
+    const ctx = canvas.getContext("2d")!;
+
+    const loop = () => {
+      if (!video.videoWidth) { faceAnimRef.current = requestAnimationFrame(loop); return; }
+      if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
+
+      // Draw mirrored for natural selfie view
+      ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+
+      const now = performance.now();
+      setCamFps(Math.round(1000 / Math.max(now - lastCamFpsRef.current, 1)));
+      lastCamFpsRef.current = now;
+
+      // Face detection ~8 Hz (expression models are heavy)
+      if (now - lastFaceDetRef.current > 125 && faceApiRef.current) {
+        lastFaceDetRef.current = now;
+        const faceapi = faceApiRef.current as {
+          detectAllFaces: (el: HTMLVideoElement, opts: unknown) => { withFaceExpressions: () => Promise<{detection: {box: {x:number;y:number;width:number;height:number}; score:number}; expressions: Record<string, number>}[]> };
+          TinyFaceDetectorOptions: new (opts?: {inputSize?: number; scoreThreshold?: number}) => unknown;
+        };
+        faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+          .withFaceExpressions()
+          .then((results) => {
+            setFacesInFrame(results.length);
+            // Redraw with new detections
+            ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+
+            if (results.length === 0) { setCameraFaceScores({}); setCameraFaceDom("none"); return; }
+
+            const scX = canvas.width / video.videoWidth;
+            const scY = canvas.height / video.videoHeight;
+
+            results.forEach((det, i) => {
+              const { box } = det.detection;
+              const mirX = canvas.width - (box.x + box.width) * scX;  // mirror x for display
+
+              // Face bounding box
+              ctx.strokeStyle = i === 0 ? "#44f2a1" : "#a0c4ff"; ctx.lineWidth = 2;
+              ctx.strokeRect(mirX, box.y * scY, box.width * scX, box.height * scY);
+              ctx.fillStyle = "rgba(68,242,161,0.08)";
+              ctx.fillRect(mirX, box.y * scY, box.width * scX, box.height * scY);
+
+              // Dominant expression label above box
+              const exprs  = det.expressions;
+              const sorted = Object.entries(exprs).sort((a, b) => b[1] - a[1]);
+              const [topEm, topCon] = sorted[0];
+              ctx.fillStyle = "#44f2a1"; ctx.font = "bold 14px sans-serif";
+              ctx.fillText(`${topEm} ${Math.round(topCon * 100)}%`, mirX, box.y * scY - 8);
+
+              // Mini bars inside box
+              if (box.height * scY > 80) {
+                sorted.slice(0, 4).forEach(([em, val], j) => {
+                  const barY = box.y * scY + box.height * scY - (4 - j) * 14;
+                  ctx.fillStyle = "rgba(0,0,0,0.4)";
+                  ctx.fillRect(mirX + 4, barY, box.width * scX - 8, 10);
+                  ctx.fillStyle = EMOTION_FACE_COLORS[em] ?? "#44f2a1";
+                  ctx.fillRect(mirX + 4, barY, Math.max(0, (box.width * scX - 8) * val), 10);
+                  ctx.fillStyle = "#fff"; ctx.font = "9px sans-serif";
+                  ctx.fillText(em.slice(0, 5), mirX + 6, barY + 8);
+                });
+              }
+
+              if (i === 0) {
+                setCameraFaceScores(exprs);
+                setCameraFaceDom(topEm);
+                setCameraFaceCon(topCon);
+                setEmotionLog((prev) => [{ time: nowStr(), emotion: topEm, conf: +topCon.toFixed(2), source: "face_cam" }, ...prev].slice(0, 12));
+              }
+            });
+          }).catch(() => {});
+      }
+      faceAnimRef.current = requestAnimationFrame(loop);
+    };
+    loop();
+  };
+
+  useEffect(() => () => {
+    if (faceAnimRef.current) cancelAnimationFrame(faceAnimRef.current);
+  }, []);
+
+  // Emotion color palette
+  const EMOTION_FACE_COLORS: Record<string, string> = {
+    happy: "#44f2a1", neutral: "#a0c4ff", sad: "#8090b0", angry: "#f06060",
+    surprised: "#f2e44f", fearful: "#c080f0", disgusted: "#80c080",
+    joy: "#44f2a1", excited: "#f2e44f", calm: "#60d0c0", distress: "#f0a060", emergency: "#ff4444",
+  };
+  const fColor = (em: string) => EMOTION_FACE_COLORS[em] ?? "#a0c4ff";
+
+  // Face emotion — prefer camera when active
+  const faceEm  = privacyMode ? "none" : (faceCamActive && cameraFaceDom !== "none") ? cameraFaceDom
+                  : Object.entries(cameraFaceScores).sort((a,b) => b[1]-a[1])[0]?.[0] ?? "neutral";
+  const faceCon = privacyMode ? 0 : (faceCamActive && cameraFaceDom !== "none") ? cameraFaceCon : 0.5;
 
   // Derived voice emotion from arousal/valence
   let voiceEm = "neutral", voiceCon = 0.6;
@@ -1696,8 +1858,6 @@ function AffectiveAITab(p: TabProps) {
   const textCon = textResult?.confidence ?? 0.5;
   const fusion = fuseEmotions(faceEm, faceCon, voiceEm, voiceCon, textEm, textCon);
 
-  const fusionColors: Record<string, string> = { joy: "#44f2a1", happy: "#44f2a1", excited: "#f2e44f", neutral: "#a0c4ff", sad: "#8090b0", sadness: "#8090b0", angry: "#f06060", anger: "#f06060", fearful: "#c080f0", fear: "#c080f0", distress: "#f0a060", disgust: "#80c080", emergency: "#ff4444", surprise: "#f0d060", calm: "#60d0c0" };
-  const fColor = (em: string) => fusionColors[em] ?? "#a0c4ff";
 
   return (
     <div className="tab-body">
@@ -1735,36 +1895,64 @@ function AffectiveAITab(p: TabProps) {
           </div>
         </section>
 
-        {/* ── Face Emotion ───────────────────────────────────── */}
-        <section className="panel">
+        {/* ── Face Emotion Camera ──────────────────────────── */}
+        <section className="panel face-emotion-panel">
           <div className="section-title">
-            <span>😐 Face Emotion Simulator</span>
-            <small>DeepFace backend mock</small>
+            <span>📸 Live Face Emotion (Camera)</span>
+            <small>{faceModelStatus}</small>
             <label className="privacy-toggle" style={{ marginLeft: "auto" }}>
               <input type="checkbox" checked={privacyMode} onChange={(e) => setPrivacyMode(e.target.checked)} />
-              Privacy mode
+              🔒 Privacy
             </label>
           </div>
           {privacyMode ? (
-            <div className="privacy-banner">🔒 Privacy mode ON — face analysis suppressed. No emotion data will be published.</div>
+            <div className="privacy-banner">🔒 Privacy mode ON — face analysis suppressed, no data published.</div>
           ) : (
             <>
-              <div className="emo-bars" style={{ marginBottom: 10 }}>
-                {FACE_EMOTIONS.map((em) => (
-                  <div key={em} className="emo-slider-row">
-                    <span className="emo-bar-label">{em}</span>
-                    <input type="range" min={0} max={100} value={Math.round((faceSliders[em] ?? 0) * 100)}
-                      onChange={(e) => { const v = parseInt(e.target.value) / 100; setFaceSliders((prev) => ({ ...prev, [em]: v })); }}
-                      style={{ flex: 1, margin: "0 8px" }} />
-                    <span className="emo-bar-pct">{Math.round((faceSliders[em] ?? 0) * 100)}%</span>
+              <div className="face-cam-row">
+                <div className="face-cam-video-wrap">
+                  <video ref={faceVideoRef} muted playsInline style={{ display: "none" }} />
+                  <canvas ref={faceCanvasRef}
+                    style={{ width: "100%", maxWidth: 320, borderRadius: 10, background: "#000",
+                             display: faceCamActive ? "block" : "none" }} />
+                  {!faceCamActive && (
+                    <div className="face-cam-placeholder">
+                      <span>😐</span><p>Start camera for live face emotion</p>
+                      <small>face-api.js TinyFaceDetector + FaceExpressionNet</small>
+                    </div>
+                  )}
+                </div>
+                <div className="face-cam-stats">
+                  <div className="face-cam-stat-row"><span>Faces</span><b>{facesInFrame}</b></div>
+                  <div className="face-cam-stat-row"><span>FPS</span><b>{camFps}</b></div>
+                  <div className="face-cam-stat-row"><span>Dominant</span>
+                    <b style={{ color: fColor(cameraFaceDom), textTransform: "capitalize" }}>{cameraFaceDom}</b>
                   </div>
-                ))}
+                  <div className="face-cam-stat-row"><span>Confidence</span>
+                    <b>{faceCamActive ? `${Math.round(cameraFaceCon * 100)}%` : "—"}</b>
+                  </div>
+                </div>
               </div>
-              <div className="emotion-result-card">
+              <div className="btn-row" style={{ marginTop: 8 }}>
+                {!faceCamActive
+                  ? <button className="primary" onClick={() => void startFaceCamera()} disabled={loadingFaceModel}>
+                      {loadingFaceModel ? "Loading model…" : "📸 Start Face Cam"}
+                    </button>
+                  : <button className="danger" onClick={stopFaceCamera}>⏹ Stop</button>}
+              </div>
+              {/* Live expression bars from camera */}
+              {Object.keys(cameraFaceScores).length > 0 && (
+                <div className="emo-bars" style={{ marginTop: 10 }}>
+                  {Object.entries(cameraFaceScores).sort((a, b) => b[1] - a[1]).map(([em, val]) => (
+                    <EmotionBar key={em} label={em} value={val} color={fColor(em)} />
+                  ))}
+                </div>
+              )}
+              <div className="emotion-result-card" style={{ marginTop: 8 }}>
                 <div className="emotion-result-header">
                   <span className="emotion-badge" style={{ background: fColor(faceEm) }}>{faceEm}</span>
                   <span className="conf-pill">{Math.round(faceCon * 100)}%</span>
-                  <small>FaceEmotion msg</small>
+                  <small>{faceCamActive ? "live camera" : "waiting for camera"}</small>
                 </div>
               </div>
             </>
@@ -1839,21 +2027,37 @@ function AffectiveAITab(p: TabProps) {
           </div>
         </section>
 
-        {/* ── Live Stream ────────────────────────────────────── */}
+        {/* ── Live Emotion Stream ─────────────────────────────── */}
         <section className="panel">
           <div className="section-title">
-            <span>📡 Live Emotion Stream</span>
-            <button className={`live-toggle ${liveMode ? "active" : ""}`} onClick={() => setLiveMode((v) => !v)}>{liveMode ? "⏹ Stop" : "▶ Start"}</button>
+            <span>📡 Live HumanEmotionState Stream</span>
+            <small>{faceCamActive ? "🟢 live from camera" : "waiting for camera"}</small>
           </div>
-          <p className="hint-small">Simulates the affective AI node publishing HumanEmotionState at ~1 Hz.</p>
-          {emotionLog.length === 0 ? <p className="muted">Press Start to begin streaming.</p> : (
-            <div className="emotion-stream">
-              {emotionLog.map((e, i) => (
-                <div key={i} className="emotion-stream-row" style={{ opacity: 1 - i * 0.08 }}>
-                  <span className="stream-time">{e.time}</span>
-                  <span className="emotion-badge sm" style={{ background: fColor(e.emotion) }}>{e.emotion}</span>
-                  <div className="emo-bar-track sm"><div className="emo-bar-fill" style={{ width: `${Math.round(e.conf * 100)}%`, background: fColor(e.emotion) }} /></div>
-                  <span className="emo-bar-pct">{Math.round(e.conf * 100)}%</span>
+          <p className="hint-small">
+            Shows HumanEmotionState messages published by the affective AI node (from camera when active, else from text/voice inputs).
+          </p>
+          {emotionLog.length === 0
+            ? <p className="muted">Start the face emotion camera above to see live stream.</p>
+            : (
+              <div className="emotion-stream">
+                {emotionLog.map((e, i) => (
+                  <div key={i} className="emotion-stream-row" style={{ opacity: Math.max(0.2, 1 - i * 0.07) }}>
+                    <span className="stream-time">{e.time}</span>
+                    <span className="emotion-badge sm" style={{ background: fColor(e.emotion) }}>{e.emotion}</span>
+                    <div className="emo-bar-track sm"><div className="emo-bar-fill" style={{ width: `${Math.round(e.conf * 100)}%`, background: fColor(e.emotion) }} /></div>
+                    <span className="emo-bar-pct">{Math.round(e.conf * 100)}%</span>
+                    <span style={{ fontSize: "0.65rem", color: "rgba(238,248,239,0.4)", marginLeft: 4 }}>{e.source}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          {/* Emotion timeline mini-chart */}
+          {emotionLog.length >= 3 && (
+            <div className="emotion-timeline">
+              {emotionLog.slice(0, 10).reverse().map((e, i) => (
+                <div key={i} className="timeline-bar-wrap" title={`${e.emotion} ${Math.round(e.conf*100)}%`}>
+                  <div className="timeline-bar" style={{ height: `${Math.round(e.conf * 44)}px`, background: fColor(e.emotion) }} />
+                  <span className="timeline-label">{e.emotion.slice(0, 3)}</span>
                 </div>
               ))}
             </div>
@@ -1917,30 +2121,70 @@ function classifyGestureResult(gesture: string, source: string): GestureResult {
 // ══════════════════════════════════════════════════════════════════════════════
 type HandKP = { x: number; y: number; z?: number; name?: string };
 
-function classifyFromKP(kp: HandKP[]): string {
+/**
+ * Classify gesture from 21 MediaPipe hand keypoints.
+ * Works on ORIGINAL (non-mirrored) coordinates from estimateHands().
+ *
+ * Finger indices (MediaPipe standard):
+ *   0=wrist, 1-4=thumb, 5-8=index, 9-12=middle, 13-16=ring, 17-20=pinky
+ *   MCP=knuckle(5,9,13,17), PIP=mid-joint(6,10,14,18), DIP(7,11,15,19), TIP(8,12,16,20)
+ */
+function classifyFromKP(kp: HandKP[], handedness: string = "Right"): string {
   if (!kp || kp.length < 21) return "none";
-  // Finger extension: tip.y < pip.y means finger is raised (lower y = higher on screen)
-  const thumbExt  = kp[4].x < kp[3].x;               // rough for mirrored (front) camera
-  const indexExt  = kp[8].y  < kp[6].y;
-  const middleExt = kp[12].y < kp[10].y;
-  const ringExt   = kp[16].y < kp[14].y;
-  const pinkyExt  = kp[20].y < kp[18].y;
+
+  // Build hand orientation vector (wrist → middle_mcp) to determine up/down
+  const wrist     = kp[0];
+  const midMcp    = kp[9];
+  const palmVecY  = midMcp.y - wrist.y;   // negative = hand pointing up (y increases downward)
+  const handUp    = palmVecY < 0;
+
+  // Finger extension: for each 4-bone finger, check if tip is past PIP in palm direction
+  const fingerExt = (tip: HandKP, pip: HandKP, mcp: HandKP) => {
+    const palmDir = { x: midMcp.x - wrist.x, y: midMcp.y - wrist.y };
+    const fingerDir = { x: tip.x - mcp.x, y: tip.y - mcp.y };
+    // If dot product positive → tip extends in palm direction → finger extended
+    const dot = palmDir.x * fingerDir.x + palmDir.y * fingerDir.y;
+    // Also check simple y-threshold when hand is clearly upright
+    if (handUp) return tip.y < pip.y - 10;
+    return dot > 0 && Math.abs(tip.y - pip.y) > 8;
+  };
+
+  const indexExt  = fingerExt(kp[8],  kp[6],  kp[5]);
+  const middleExt = fingerExt(kp[12], kp[10], kp[9]);
+  const ringExt   = fingerExt(kp[16], kp[14], kp[13]);
+  const pinkyExt  = fingerExt(kp[20], kp[18], kp[17]);
   const extCount  = [indexExt, middleExt, ringExt, pinkyExt].filter(Boolean).length;
 
-  // Wrist vs fingertips height — used for thumbs up/down
-  const wristY = kp[0].y;
-  const thumbTipY = kp[4].y;
+  // Thumb: use thumb direction along thumb bone axis, accounting for handedness
+  const thumbVec  = { x: kp[4].x - kp[3].x, y: kp[4].y - kp[3].y };
+  const palmVec   = { x: midMcp.x - wrist.x, y: midMcp.y - wrist.y };
+  const thumbDot  = thumbVec.x * palmVec.x + thumbVec.y * palmVec.y;
+  const thumbExt  = thumbDot > 20;  // thumb points generally away from palm
 
-  if (extCount === 0 && !thumbExt)                             return "fist";
-  if (extCount === 4 && thumbExt)                              return "stop_palm";
-  if (extCount === 4 && !thumbExt)                             return "open_palm";
-  if (extCount === 1 && indexExt)                              return "pointing";
+  // Thumbs up/down: only thumb extended, others folded, wrist pointing sideways
+  const thumbTipY = kp[4].y;
+  const thumbMcpY = kp[2].y;
+  const thumbsUp  = thumbExt && !indexExt && !middleExt && !ringExt && !pinkyExt
+                    && (thumbTipY < thumbMcpY - 25);
+  const thumbsDn  = thumbExt && !indexExt && !middleExt && !ringExt && !pinkyExt
+                    && (thumbTipY > thumbMcpY + 20);
+
+  // OK sign: thumb tip near index tip
+  const tDist = Math.hypot(kp[4].x - kp[8].x, kp[4].y - kp[8].y);
+  const okSign = tDist < 30 && middleExt && ringExt && pinkyExt;
+
+  // Classify by priority
+  if (thumbsUp)  return "thumbs_up";
+  if (thumbsDn)  return "thumbs_down";
+  if (okSign)    return "ok_sign";
+  if (extCount === 0 && !thumbExt) return "fist";
+  if (extCount === 4 && thumbExt)  return "stop_palm";
+  if (extCount === 4)              return "open_palm";
+  if (extCount === 1 && indexExt && !middleExt) return "pointing";
   if (extCount === 2 && indexExt && middleExt && !ringExt && !pinkyExt) return "victory_v";
-  if (extCount === 0 && thumbExt && thumbTipY < wristY - 30)  return "thumbs_up";
-  if (extCount === 0 && thumbExt && thumbTipY > wristY + 30)  return "thumbs_down";
-  if (extCount === 3 && indexExt && middleExt && ringExt)      return "three_fingers";
-  if (extCount === 0 && thumbExt)                              return "thumbs_up";
-  return extCount >= 2 ? "open_palm" : "pointing";
+  if (extCount === 3 && indexExt && middleExt && ringExt)  return "three_fingers";
+  if (extCount >= 3) return "open_palm";
+  return "pointing";
 }
 
 function drawHandLandmarks(ctx: CanvasRenderingContext2D, kp: HandKP[], scX: number, scY: number, color: string) {
@@ -2050,63 +2294,82 @@ function GestureTab(p: TabProps) {
     if (!video || !canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = 640; canvas.height = 480;
 
     const loop = () => {
       if (!video.videoWidth) { gestureAnimRef.current = requestAnimationFrame(loop); return; }
-      // Mirror the feed for natural interaction
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-      ctx.restore();
+      // Sync canvas size to video
+      if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
 
-      // FPS
+      // Draw mirrored video for natural selfie view
+      ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+
       const now = performance.now();
       setFps(Math.round(1000 / Math.max(now - lastFpsRef.current, 1)));
       lastFpsRef.current = now;
 
-      // Hand detection throttled to ~15 Hz
-      if (now - lastHandDetectRef.current > 67 && handDetectorRef.current) {
+      // Hand detection throttled to ~12 Hz to avoid UI jank
+      if (now - lastHandDetectRef.current > 83 && handDetectorRef.current) {
         lastHandDetectRef.current = now;
-        handDetectorRef.current.estimateHands(video).then((hands) => {
-          setHandCount(hands.length);
-          ctx.save(); ctx.scale(-1,1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
-          if (hands.length === 0) { setDetectedGesture("none"); return; }
+        // IMPORTANT: detect on original (un-mirrored) video element
+        (handDetectorRef.current.estimateHands(video) as Promise<{keypoints: HandKP[]; handedness: string; score?: number}[]>)
+          .then((allHands) => {
+            // Filter out low-confidence detections (prevents phantom hands)
+            const hands = allHands.filter((h) => (h.score ?? 1) > 0.75);
+            setHandCount(hands.length);
 
-          const scX = canvas.width  / video.videoWidth;
-          const scY = canvas.height / video.videoHeight;
+            // Redraw video frame (detection is async, video may have advanced)
+            ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
 
-          // Wave detection: track wrist X movement
-          const wristXs = hands.map((h) => {
-            const mirroredX = video.videoWidth - h.keypoints[0].x;  // mirror
-            return mirroredX;
-          });
-          prevWristXRef.current.push(...wristXs);
-          if (prevWristXRef.current.length > 20) prevWristXRef.current = prevWristXRef.current.slice(-20);
-          const wristRange = Math.max(...prevWristXRef.current) - Math.min(...prevWristXRef.current);
-
-          hands.forEach((hand, idx) => {
-            const color = idx === 0 ? "#44f2a1" : "#a0c4ff";
-            // Mirror keypoints for display
-            const mirroredKP = hand.keypoints.map((kp) => ({ ...kp, x: video.videoWidth - kp.x }));
-            drawHandLandmarks(ctx, mirroredKP, scX, scY, color);
-            const gesture = wristRange > 80 ? "wave" : classifyFromKP(mirroredKP);
-
-            // Overlay gesture label
-            ctx.fillStyle = SAFETY_GESTURES.has(gesture) ? "#ff5c7a" : "#44f2a1";
-            ctx.font = "bold 18px sans-serif";
-            ctx.fillText(`${hand.handedness}: ${gesture}`, mirroredKP[0].x * scX - 40, mirroredKP[0].y * scY - 14);
-
-            if (idx === 0) {
-              setDetectedGesture(gesture);
-              const gr = classifyGestureResult(gesture, "camera");
-              setGestureHistory((prev) => [gr, ...prev].slice(0, 8));
+            if (hands.length === 0) {
+              prevWristXRef.current = [];
+              setDetectedGesture("none");
+              return;
             }
-          });
 
-          // Reset wave accumulator gradually
-          if (prevWristXRef.current.length > 10) prevWristXRef.current = prevWristXRef.current.slice(-5);
-        }).catch(() => {});
+            const scX = canvas.width  / video.videoWidth;
+            const scY = canvas.height / video.videoHeight;
+
+            // Wave detection: track first hand wrist velocity (mirrored X for natural direction)
+            const primaryWrist = video.videoWidth - hands[0].keypoints[0].x; // mirror for display
+            prevWristXRef.current = [...prevWristXRef.current, primaryWrist].slice(-16);
+            // Wave = total traversal distance, not just range (prevents misclassification)
+            let wristTravel = 0;
+            for (let i = 1; i < prevWristXRef.current.length; i++) {
+              wristTravel += Math.abs(prevWristXRef.current[i] - prevWristXRef.current[i - 1]);
+            }
+            const isWave = wristTravel > 250 && prevWristXRef.current.length >= 10;
+
+            hands.forEach((hand, idx) => {
+              // Classify on ORIGINAL (non-mirrored) keypoints for correct thumb logic
+              const rawGesture = isWave && idx === 0
+                ? "wave"
+                : classifyFromKP(hand.keypoints, hand.handedness);
+
+              // Mirror keypoints for drawing only
+              const dispKP = hand.keypoints.map((kp) => ({ ...kp, x: video.videoWidth - kp.x }));
+              const color  = idx === 0 ? "#44f2a1" : "#a0c4ff";
+              drawHandLandmarks(ctx, dispKP, scX, scY, color);
+
+              // Gesture label above wrist (in display coords)
+              const labelX = dispKP[0].x * scX;
+              const labelY = Math.max(20, dispKP[0].y * scY - 16);
+              ctx.fillStyle = SAFETY_GESTURES.has(rawGesture) ? "#ff5c7a" : "#44f2a1";
+              ctx.font = "bold 15px sans-serif";
+              ctx.fillText(`${hand.handedness[0]}: ${rawGesture}`, labelX - 30, labelY);
+              // Confidence score
+              if (hand.score !== undefined) {
+                ctx.fillStyle = "rgba(255,255,255,0.55)";
+                ctx.font = "12px sans-serif";
+                ctx.fillText(`${Math.round(hand.score * 100)}%`, labelX - 30, labelY + 14);
+              }
+
+              if (idx === 0) {
+                setDetectedGesture(rawGesture);
+                const gr = classifyGestureResult(rawGesture, "camera");
+                setGestureHistory((prev) => [gr, ...prev].slice(0, 8));
+              }
+            });
+          }).catch(() => {});
       }
       gestureAnimRef.current = requestAnimationFrame(loop);
     };
@@ -2419,7 +2682,7 @@ const EMOTION_PLANS: Record<string, { gesture: string; ttsEmotion: string; speed
 // ══════════════════════════════════════════════════════════════════════════════
 // TAB 11 — BEHAVIOR ENGINE
 // ══════════════════════════════════════════════════════════════════════════════
-function BehaviorEngineTab(_p: TabProps) {
+function BehaviorEngineTab(p: TabProps) {
   const [fsmState, setFsmState] = useState<BehaviorStateId>("IDLE");
   const [fsmHistory, setFsmHistory] = useState<{ from: BehaviorStateId; to: BehaviorStateId; time: string; reason: string }[]>([]);
   const [commandText, setCommandText] = useState("");
@@ -2480,12 +2743,161 @@ function BehaviorEngineTab(_p: TabProps) {
   if (operatingMode === "child_safe") { modeEmPlan.gesture = "greeting_pose"; modeEmPlan.speed = 0.85; }
   if (operatingMode === "elderly") { modeEmPlan.speed = 0.8; }
 
+  // ── Real-time sensor inputs from other subsystems ───────────────────────────
+  const personCount = p.detections.filter((d) => d.class_name === "person").length;
+  const motionLevel = p.videoMetrics.motion;
+  const [lastAutoDecision, setLastAutoDecision] = useState("");
+
+  // Typed FSM history entry helper
+  const fsmEntry = (from: BehaviorStateId, to: BehaviorStateId, reason: string) =>
+    ({ from, to, time: nowStr(), reason });
+
+  // Auto-respond to real inputs from other tabs
+  useEffect(() => {
+    if (personCount > 0 && fsmState === "IDLE") {
+      const reason = `${personCount} person(s) detected by camera`;
+      setFsmHistory((h) => [fsmEntry("IDLE", "GREETING", reason), ...h].slice(0, 10));
+      setFsmState("GREETING");
+      setDecisionLog((d) => [{ time: nowStr(), action: "gesture:greeting_pose + tts:hello", decision: "approved", reason }, ...d].slice(0, 15));
+      setLastAutoDecision("greeting_pose");
+      const t = setTimeout(() => {
+        setFsmState("INTERACTING");
+        setFsmHistory((h) => [fsmEntry("GREETING", "INTERACTING", "greeting complete"), ...h].slice(0, 10));
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+    if (personCount === 0 && fsmState === "INTERACTING") {
+      setFsmState("IDLE");
+      setFsmHistory((h) => [fsmEntry("INTERACTING", "IDLE", "person left frame"), ...h].slice(0, 10));
+      setDecisionLog((d) => [{ time: nowStr(), action: "idle_scan", decision: "approved", reason: "no person in frame" }, ...d].slice(0, 15));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personCount]);
+
+  useEffect(() => {
+    if (!p.intentResult) return;
+    const { intent, confidence } = p.intentResult;
+    if (confidence < 0.4) return;
+    const reason = `speech intent: ${intent} (${Math.round(confidence * 100)}%)`;
+    if (intent === "emergency_help" && fsmState !== "ALERTING") {
+      setFsmState("ALERTING");
+      setFsmHistory((h) => [fsmEntry(fsmState, "ALERTING", reason), ...h].slice(0, 10));
+      setDecisionLog((d) => [{ time: nowStr(), action: "emergency_attention_pose + alert_operator", decision: "approved", reason }, ...d].slice(0, 15));
+    } else if (intent === "greeting" && (FSM_TRANSITIONS[fsmState] as string[]).includes("GREETING")) {
+      setFsmState("GREETING");
+      setFsmHistory((h) => [fsmEntry(fsmState, "GREETING", reason), ...h].slice(0, 10));
+      setDecisionLog((d) => [{ time: nowStr(), action: "wave + speak:hello", decision: "approved", reason }, ...d].slice(0, 15));
+    } else if (intent === "navigate_to" && (FSM_TRANSITIONS[fsmState] as string[]).includes("NAVIGATING")) {
+      setFsmState("NAVIGATING");
+      setFsmHistory((h) => [fsmEntry(fsmState, "NAVIGATING", reason), ...h].slice(0, 10));
+      setDecisionLog((d) => [{ time: nowStr(), action: "safe_folded_pose + navigate_to_goal", decision: "approved", reason }, ...d].slice(0, 15));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.intentResult]);
+
+  useEffect(() => {
+    if (["DANGER", "FAULT", "SAFE_STOP"].includes(p.safetyLevel) && fsmState !== "ALERTING") {
+      setFsmState("ALERTING");
+      setFsmHistory((h) => [fsmEntry(fsmState, "ALERTING", `Safety: ${p.safetyLevel}`), ...h].slice(0, 10));
+      setDecisionLog((d) => [{ time: nowStr(), action: "emergency_attention_pose + stop_all", decision: "approved", reason: `Safety supervisor: ${p.safetyLevel}` }, ...d].slice(0, 15));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.safetyLevel]);
+
   return (
     <div className="tab-body">
       <div className="section-hero">
         <h2>🤖 Behavior Engine — bonbon_behavior_engine</h2>
         <p>Central decision hub. Fuses emotion, gesture, spatial, speech and LLM signals into safe validated decisions. <strong>The LLM never directly controls navigation or actuation</strong> — all outputs are risk-classified and safety-gated first.</p>
       </div>
+
+      {/* ── REAL-TIME SIGNAL FLOW ─────────────────────────────────────────── */}
+      <section className="panel signal-flow-panel">
+        <div className="section-title"><span>⚡ Live Signal Flow</span><small>auto-responds to camera · speech · safety state</small></div>
+        <div className="signal-flow-grid">
+          {/* Inputs */}
+          <div className="signal-column">
+            <div className="signal-col-header">INPUTS</div>
+            <div className={`signal-node ${p.cameraActive ? "active-signal" : ""}`}>
+              <span>👁 Camera</span>
+              <b>{p.cameraActive ? `${personCount} person(s)` : "off"}</b>
+              {p.cameraActive && <div className="signal-bar"><div style={{ width: `${Math.min(100, personCount * 33)}%`, background: "#44f2a1" }} /></div>}
+            </div>
+            <div className={`signal-node ${p.micActive ? "active-signal" : ""}`}>
+              <span>🎙 Mic / VAD</span>
+              <b>{p.micActive ? (p.vadActive ? "voice active" : "listening") : "off"}</b>
+              {p.micActive && <div className="signal-bar"><div style={{ width: `${p.audioLevel}%`, background: "#a0c4ff" }} /></div>}
+            </div>
+            <div className={`signal-node ${p.intentResult ? "active-signal" : ""}`}>
+              <span>🧠 Intent</span>
+              <b>{p.intentResult?.intent ?? "—"}</b>
+              {p.intentResult && <small>{Math.round(p.intentResult.confidence * 100)}%</small>}
+            </div>
+            <div className={`signal-node ${["DANGER","FAULT","SAFE_STOP"].includes(p.safetyLevel) ? "danger-signal" : p.safetyLevel === "NORMAL" ? "ok-signal" : "warn-signal"}`}>
+              <span>🛡 Safety</span>
+              <b>{p.safetyLevel}</b>
+            </div>
+            <div className={`signal-node ${motionLevel > 20 ? "active-signal" : ""}`}>
+              <span>📡 Motion</span>
+              <b>{motionLevel.toFixed(0)}%</b>
+              <div className="signal-bar"><div style={{ width: `${Math.min(100, motionLevel)}%`, background: "#f2e44f" }} /></div>
+            </div>
+          </div>
+
+          {/* Processing arrows */}
+          <div className="signal-arrows">
+            {["→","→","→","→","→"].map((a, i) => (
+              <div key={i} className="signal-arrow">{a}</div>
+            ))}
+          </div>
+
+          {/* Behavior Engine */}
+          <div className="signal-column center-col">
+            <div className="signal-col-header">BEHAVIOR ENGINE</div>
+            <div className={`signal-engine-node fsm-state-${fsmState.toLowerCase()}`}
+              style={{ borderColor: FSM_STATE_COLORS[fsmState], background: FSM_STATE_COLORS[fsmState] + "18" }}>
+              <span style={{ color: FSM_STATE_COLORS[fsmState], fontWeight: 800, fontSize: "1rem" }}>{fsmState}</span>
+              <small>{FSM_STATE_DESC[fsmState]}</small>
+              {lastAutoDecision && <span className="auto-decision-badge">auto: {lastAutoDecision}</span>}
+            </div>
+            <div className="risk-mini">
+              <span>Risk gate:</span>
+              {riskResult
+                ? <span className="risk-badge" style={{ background: RISK_COLORS[riskResult.level] }}>{riskResult.level}</span>
+                : <span className="muted">idle</span>}
+            </div>
+          </div>
+
+          {/* Processing arrows */}
+          <div className="signal-arrows">
+            {["→","→","→","→","→"].map((a, i) => (
+              <div key={i} className="signal-arrow">{a}</div>
+            ))}
+          </div>
+
+          {/* Outputs */}
+          <div className="signal-column">
+            <div className="signal-col-header">OUTPUTS</div>
+            <div className={`signal-node ${fsmState !== "IDLE" ? "active-signal" : ""}`}>
+              <span>🤚 Actuation</span>
+              <b style={{ textTransform: "capitalize" }}>{modeEmPlan.gesture}</b>
+            </div>
+            <div className={`signal-node ${p.intentResult ? "active-signal" : ""}`}>
+              <span>🔊 TTS</span>
+              <b style={{ fontSize: "0.72rem" }}>{modeEmPlan.ttsEmotion} {modeEmPlan.speed}×</b>
+              {modeEmPlan.ack && <small style={{ color: "rgba(238,248,239,0.55)" }}>"{modeEmPlan.ack.slice(0, 22)}…"</small>}
+            </div>
+            <div className={`signal-node ${fsmState === "NAVIGATING" ? "active-signal" : ""}`}>
+              <span>🗺 Navigation</span>
+              <b>{fsmState === "NAVIGATING" ? "goal requested" : "idle"}</b>
+            </div>
+            <div className={`signal-node ${fsmState === "ALERTING" ? "danger-signal" : ""}`}>
+              <span>🚨 Safety Gate</span>
+              <b>{fsmState === "ALERTING" ? "ALERT ACTIVE" : "✓ ok"}</b>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="behavior-grid">
         {/* ── Behavior State Machine ─────────────────── */}
