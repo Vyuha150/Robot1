@@ -14,7 +14,7 @@ type SessionEventStatus = "pass" | "fail" | "warn" | "info";
 type TestbenchModule = keyof TestbenchStatus;
 type OutputStatus = "idle" | "ok" | "warn" | "error";
 type LocalOutputUpdater = (m: TestbenchModule, s: OutputStatus, p: Record<string, unknown>) => void;
-type TabId = "overview" | "perception" | "speech" | "intent" | "language" | "tts" | "safety" | "system";
+type TabId = "overview" | "perception" | "speech" | "intent" | "language" | "tts" | "safety" | "system" | "affective" | "gesture" | "behavior";
 type WsStatus = "disconnected" | "connecting" | "connected";
 type Emotion = "neutral" | "happy" | "excited" | "calm" | "sad" | "urgent" | "friendly" | "angry" | "whisper";
 type SafetyLevel = "INITIALIZING" | "NORMAL" | "CAUTION" | "DEGRADED" | "FAULT" | "DANGER" | "SAFE_STOP";
@@ -46,6 +46,9 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "tts",        label: "TTS",             icon: "🔊" },
   { id: "safety",     label: "Safety",          icon: "🛡"  },
   { id: "system",     label: "System",          icon: "⚙"  },
+  { id: "affective",  label: "Affective AI",    icon: "😊" },
+  { id: "gesture",    label: "Gesture",         icon: "🤚" },
+  { id: "behavior",   label: "Behavior Engine", icon: "🤖" },
 ];
 
 const FSM_STATES: SafetyLevel[] = ["INITIALIZING", "NORMAL", "CAUTION", "DEGRADED", "FAULT", "DANGER", "SAFE_STOP"];
@@ -281,6 +284,9 @@ export default function App() {
         <div style={{ display: activeTab === "tts"        ? "" : "none" }}><TTSTab        {...tabProps} /></div>
         <div style={{ display: activeTab === "safety"     ? "" : "none" }}><SafetyTab     {...tabProps} /></div>
         <div style={{ display: activeTab === "system"     ? "" : "none" }}><SystemTab     {...tabProps} /></div>
+        <div style={{ display: activeTab === "affective"  ? "" : "none" }}><AffectiveAITab {...tabProps} /></div>
+        <div style={{ display: activeTab === "gesture"    ? "" : "none" }}><GestureTab    {...tabProps} /></div>
+        <div style={{ display: activeTab === "behavior"   ? "" : "none" }}><BehaviorEngineTab {...tabProps} /></div>
       </div>
     </div>
   );
@@ -1409,4 +1415,850 @@ function SystemTab(p: TabProps) {
 // ══════════════════════════════════════════════════════════════════════════════
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="metric"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PURE LOGIC — Text Emotion (mirrors bonbon_affective_ai/text_emotion_analyzer.py)
+// ══════════════════════════════════════════════════════════════════════════════
+const EMERGENCY_KEYWORDS = ["help", "emergency", "fallen", "fall", "pain", "hurt", "call nurse", "call doctor", "heart attack", "can't breathe", "fire", "danger"];
+const DISTRESS_KEYWORDS = ["scared", "afraid", "worried", "anxious", "panic", "lost", "confused", "dizzy", "nausea"];
+const NEGATIVE_PATTERNS: Record<string, RegExp> = {
+  sadness:  /\b(sad|unhappy|depressed|lonely|miss|grief|cry|tears|sorrow)\b/i,
+  anger:    /\b(angry|furious|mad|outraged|annoyed|frustrated|upset|hate|rage)\b/i,
+  fear:     /\b(scared|afraid|fear|frightened|terrified|worried|anxious|nervous)\b/i,
+  disgust:  /\b(disgusted|gross|horrible|awful|disgusting|nasty|repulsive)\b/i,
+};
+const POSITIVE_PATTERNS: Record<string, RegExp> = {
+  joy:      /\b(happy|glad|excited|wonderful|great|fantastic|love|joy|amazing|excellent)\b/i,
+  surprise: /\b(wow|omg|oh my|really|seriously|unbelievable|incredible|unexpected)\b/i,
+};
+type TextEmotion = { dominant: string; confidence: number; isEmergency: boolean; isDistress: boolean; scores: Record<string, number> };
+function analyzeTextEmotion(text: string): TextEmotion {
+  if (!text.trim()) return { dominant: "neutral", confidence: 0.5, isEmergency: false, isDistress: false, scores: { neutral: 1 } };
+  const lower = text.toLowerCase();
+  const isEmergency = EMERGENCY_KEYWORDS.some((kw) => lower.includes(kw));
+  const isDistress = DISTRESS_KEYWORDS.some((kw) => lower.includes(kw));
+  if (isEmergency) return { dominant: "emergency", confidence: 0.97, isEmergency: true, isDistress: true, scores: { emergency: 1 } };
+  const scores: Record<string, number> = { neutral: 0.3 };
+  for (const [em, pat] of Object.entries(NEGATIVE_PATTERNS)) if (pat.test(text)) scores[em] = (scores[em] ?? 0) + 0.65;
+  for (const [em, pat] of Object.entries(POSITIVE_PATTERNS)) if (pat.test(text)) scores[em] = (scores[em] ?? 0) + 0.65;
+  if (isDistress) scores["distress"] = (scores["distress"] ?? 0) + 0.7;
+  const total = Object.values(scores).reduce((a, b) => a + b, 0) || 1;
+  const norm: Record<string, number> = {}; for (const [k, v] of Object.entries(scores)) norm[k] = +(v / total).toFixed(2);
+  const dominant = Object.entries(norm).sort((a, b) => b[1] - a[1])[0];
+  return { dominant: dominant[0], confidence: dominant[1], isEmergency, isDistress, scores: norm };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PURE LOGIC — Emotion Fusion (mirrors EmotionFusionEngine)
+// ══════════════════════════════════════════════════════════════════════════════
+const FUSION_WEIGHTS = { face: 0.40, voice: 0.35, text: 0.15, gesture: 0.10 };
+const EMOTION_VALENCE: Record<string, number> = { joy: 1, happy: 1, excited: 0.8, surprise: 0.2, neutral: 0, calm: 0.2, sad: -0.8, sadness: -0.8, anger: -0.9, angry: -0.9, fear: -0.8, fearful: -0.8, disgust: -0.7, distress: -0.9, emergency: -1 };
+const EMOTION_AROUSAL: Record<string, number> = { joy: 0.7, happy: 0.6, excited: 1, surprise: 0.8, neutral: 0, calm: -0.4, sad: -0.5, sadness: -0.5, anger: 0.9, angry: 0.9, fear: 0.8, fearful: 0.8, disgust: 0.4, distress: 0.9, emergency: 1 };
+type FusionResult = { dominant: string; confidence: number; valence: number; arousal: number; behaviorHint: string };
+function fuseEmotions(faceEm: string, faceCon: number, voiceEm: string, voiceCon: number, textEm: string, textCon: number): FusionResult {
+  const weighted: Record<string, number> = {};
+  const add = (em: string, con: number, w: number) => { if (em !== "none") weighted[em] = (weighted[em] ?? 0) + con * w; };
+  add(faceEm, faceCon, FUSION_WEIGHTS.face);
+  add(voiceEm, voiceCon, FUSION_WEIGHTS.voice);
+  add(textEm, textCon, FUSION_WEIGHTS.text);
+  if (!Object.keys(weighted).length) return { dominant: "neutral", confidence: 0.5, valence: 0, arousal: 0, behaviorHint: "maintain_current" };
+  const sorted = Object.entries(weighted).sort((a, b) => b[1] - a[1]);
+  const [dominant, score] = sorted[0];
+  const total = sorted.reduce((s, [, v]) => s + v, 0);
+  const conf = +(score / total).toFixed(2);
+  const valence = EMOTION_VALENCE[dominant] ?? 0;
+  const arousal = EMOTION_AROUSAL[dominant] ?? 0;
+  let behaviorHint = "maintain_current";
+  if (dominant === "emergency") behaviorHint = "alert_immediately";
+  else if (dominant === "distress" || dominant === "fear" || dominant === "fearful") behaviorHint = "calm_approach";
+  else if (dominant === "anger" || dominant === "angry") behaviorHint = "de-escalate";
+  else if (dominant === "joy" || dominant === "happy" || dominant === "excited") behaviorHint = "engage_positively";
+  else if (dominant === "sad" || dominant === "sadness") behaviorHint = "show_empathy";
+  return { dominant, confidence: conf, valence, arousal, behaviorHint };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB 9 — AFFECTIVE AI
+// ══════════════════════════════════════════════════════════════════════════════
+const FACE_EMOTIONS = ["neutral", "happy", "sad", "angry", "surprised", "fearful", "disgusted"];
+const VOICE_EMOTIONS = ["neutral", "happy", "sad", "angry", "fearful", "excited", "calm"];
+const GESTURE_HINTS = ["none", "waving", "pointing", "thumbs_up", "stop_palm", "raised_hand"];
+
+function EmotionBar({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="emo-bar-row">
+      <span className="emo-bar-label">{label}</span>
+      <div className="emo-bar-track"><div className="emo-bar-fill" style={{ width: `${Math.round(value * 100)}%`, background: color }} /></div>
+      <span className="emo-bar-pct">{Math.round(value * 100)}%</span>
+    </div>
+  );
+}
+
+function AffectiveAITab(p: TabProps) {
+  const [textInput, setTextInput] = useState("");
+  const [textResult, setTextResult] = useState<TextEmotion | null>(null);
+  const [faceSliders, setFaceSliders] = useState<Record<string, number>>({ neutral: 0.7, happy: 0.1, sad: 0.05, angry: 0.05, surprised: 0.05, fearful: 0.03, disgusted: 0.02 });
+  const [voiceArousal, setVoiceArousal] = useState(0.2);
+  const [voiceValence, setVoiceValence] = useState(0.3);
+  const [gestureHint, setGestureHint] = useState("none");
+  const [privacyMode, setPrivacyMode] = useState(false);
+  const [liveMode, setLiveMode] = useState(false);
+  const liveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [tick, setTick] = useState(0);
+  const [emotionLog, setEmotionLog] = useState<{ time: string; emotion: string; conf: number; source: string }[]>([]);
+
+  // Text emotion — auto on typing
+  useEffect(() => {
+    if (!textInput.trim()) { setTextResult(null); return; }
+    const t = setTimeout(() => {
+      const r = analyzeTextEmotion(textInput);
+      setTextResult(r);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [textInput]);
+
+  // Live simulation tick
+  useEffect(() => {
+    if (!liveMode) { if (liveRef.current) clearInterval(liveRef.current); return; }
+    liveRef.current = setInterval(() => setTick((n) => n + 1), 1800);
+    return () => { if (liveRef.current) clearInterval(liveRef.current); };
+  }, [liveMode]);
+
+  useEffect(() => {
+    if (!liveMode) return;
+    const emotions = FACE_EMOTIONS;
+    const dominant = emotions[Math.floor(Math.random() * emotions.length)];
+    const conf = 0.45 + Math.random() * 0.5;
+    setEmotionLog((prev) => [{ time: nowStr(), emotion: dominant, conf: +conf.toFixed(2), source: "face" }, ...prev].slice(0, 10));
+  }, [tick, liveMode]);
+
+  // Derived face emotion
+  const faceDominant = Object.entries(faceSliders).sort((a, b) => b[1] - a[1])[0];
+  const faceCon = faceDominant[1];
+  const faceEm = privacyMode ? "none" : faceDominant[0];
+
+  // Derived voice emotion from arousal/valence
+  let voiceEm = "neutral", voiceCon = 0.6;
+  if (voiceArousal > 0.6 && voiceValence > 0.4) { voiceEm = "excited"; voiceCon = 0.75; }
+  else if (voiceArousal > 0.6 && voiceValence < -0.3) { voiceEm = "angry"; voiceCon = 0.7; }
+  else if (voiceArousal < -0.3 && voiceValence < -0.3) { voiceEm = "sad"; voiceCon = 0.7; }
+  else if (voiceArousal < -0.3 && voiceValence > 0.3) { voiceEm = "calm"; voiceCon = 0.65; }
+  else if (voiceArousal > 0.4 && voiceValence < -0.5) { voiceEm = "fearful"; voiceCon = 0.65; }
+  else if (voiceValence > 0.5) { voiceEm = "happy"; voiceCon = 0.68; }
+
+  const textEm = textResult?.dominant ?? "neutral";
+  const textCon = textResult?.confidence ?? 0.5;
+  const fusion = fuseEmotions(faceEm, faceCon, voiceEm, voiceCon, textEm, textCon);
+
+  const fusionColors: Record<string, string> = { joy: "#44f2a1", happy: "#44f2a1", excited: "#f2e44f", neutral: "#a0c4ff", sad: "#8090b0", sadness: "#8090b0", angry: "#f06060", anger: "#f06060", fearful: "#c080f0", fear: "#c080f0", distress: "#f0a060", disgust: "#80c080", emergency: "#ff4444", surprise: "#f0d060", calm: "#60d0c0" };
+  const fColor = (em: string) => fusionColors[em] ?? "#a0c4ff";
+
+  return (
+    <div className="tab-body">
+      <div className="section-hero">
+        <h2>😊 Affective AI — Multi-Modal Emotion Recognition</h2>
+        <p>Live testbench for <strong>bonbon_affective_ai</strong>. Combines face, voice, and text emotion signals into a fused state using weighted fusion (face 40 % · voice 35 % · text 15 % · gesture 10 %). All logic mirrors the Python package running on the robot.</p>
+      </div>
+
+      <div className="affective-grid">
+        {/* ── Text Emotion ───────────────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>📝 Text Emotion Analyzer</span><small>TextEmotionAnalyzer.py</small></div>
+          <label>Input text (speech transcript or typed)
+            <textarea value={textInput} onChange={(e) => setTextInput(e.target.value)} placeholder="Type something… e.g. 'I'm feeling really scared and don't know what to do'" style={{ minHeight: 72 }} />
+          </label>
+          {textResult && (
+            <div className={`emotion-result-card ${textResult.isEmergency ? "emergency" : textResult.dominant}`}>
+              <div className="emotion-result-header">
+                <span className="emotion-badge" style={{ background: fColor(textResult.dominant) }}>{textResult.dominant}</span>
+                <span className="conf-pill">{Math.round(textResult.confidence * 100)}%</span>
+                {textResult.isEmergency && <span className="emergency-tag">🚨 EMERGENCY</span>}
+                {textResult.isDistress && !textResult.isEmergency && <span className="distress-tag">⚠ Distress</span>}
+              </div>
+              <div className="emo-bars">
+                {Object.entries(textResult.scores).sort((a, b) => b[1] - a[1]).map(([em, val]) => (
+                  <EmotionBar key={em} label={em} value={val} color={fColor(em)} />
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="try-examples">
+            {["I'm so happy to see you!", "Help! I've fallen and I can't get up!", "I feel a bit sad today.", "I'm absolutely furious!", "Wow that was unexpected!"].map((ex) => (
+              <button key={ex} className="example-chip" onClick={() => setTextInput(ex)}>{ex.slice(0, 28)}…</button>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Face Emotion ───────────────────────────────────── */}
+        <section className="panel">
+          <div className="section-title">
+            <span>😐 Face Emotion Simulator</span>
+            <small>DeepFace backend mock</small>
+            <label className="privacy-toggle" style={{ marginLeft: "auto" }}>
+              <input type="checkbox" checked={privacyMode} onChange={(e) => setPrivacyMode(e.target.checked)} />
+              Privacy mode
+            </label>
+          </div>
+          {privacyMode ? (
+            <div className="privacy-banner">🔒 Privacy mode ON — face analysis suppressed. No emotion data will be published.</div>
+          ) : (
+            <>
+              <div className="emo-bars" style={{ marginBottom: 10 }}>
+                {FACE_EMOTIONS.map((em) => (
+                  <div key={em} className="emo-slider-row">
+                    <span className="emo-bar-label">{em}</span>
+                    <input type="range" min={0} max={100} value={Math.round((faceSliders[em] ?? 0) * 100)}
+                      onChange={(e) => { const v = parseInt(e.target.value) / 100; setFaceSliders((prev) => ({ ...prev, [em]: v })); }}
+                      style={{ flex: 1, margin: "0 8px" }} />
+                    <span className="emo-bar-pct">{Math.round((faceSliders[em] ?? 0) * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+              <div className="emotion-result-card">
+                <div className="emotion-result-header">
+                  <span className="emotion-badge" style={{ background: fColor(faceEm) }}>{faceEm}</span>
+                  <span className="conf-pill">{Math.round(faceCon * 100)}%</span>
+                  <small>FaceEmotion msg</small>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* ── Voice Emotion ──────────────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>🎙 Voice Emotion (Arousal/Valence)</span><small>SpeechBrain backend mock</small></div>
+          <p className="hint-small">Russell's circumplex model: arousal (energy) × valence (positive/negative).</p>
+          <div className="av-sliders">
+            <label>Arousal (low energy ← → high energy)
+              <input type="range" min={-100} max={100} value={Math.round(voiceArousal * 100)} onChange={(e) => setVoiceArousal(parseInt(e.target.value) / 100)} />
+              <span>{voiceArousal > 0 ? "+" : ""}{(voiceArousal * 100).toFixed(0)}</span>
+            </label>
+            <label>Valence (negative ← → positive)
+              <input type="range" min={-100} max={100} value={Math.round(voiceValence * 100)} onChange={(e) => setVoiceValence(parseInt(e.target.value) / 100)} />
+              <span>{voiceValence > 0 ? "+" : ""}{(voiceValence * 100).toFixed(0)}</span>
+            </label>
+          </div>
+          <div className="av-grid">
+            <div className="av-cell" style={{ opacity: voiceArousal > 0.4 && voiceValence > 0.4 ? 1 : 0.25 }}>⚡ Excited</div>
+            <div className="av-cell" style={{ opacity: voiceArousal > 0.4 && voiceValence < -0.3 ? 1 : 0.25 }}>😠 Angry</div>
+            <div className="av-cell" style={{ opacity: voiceArousal < -0.3 && voiceValence > 0.3 ? 1 : 0.25 }}>😌 Calm</div>
+            <div className="av-cell" style={{ opacity: voiceArousal < -0.3 && voiceValence < -0.3 ? 1 : 0.25 }}>😢 Sad</div>
+          </div>
+          <div className="emotion-result-card" style={{ marginTop: 10 }}>
+            <div className="emotion-result-header">
+              <span className="emotion-badge" style={{ background: fColor(voiceEm) }}>{voiceEm}</span>
+              <span className="conf-pill">{Math.round(voiceCon * 100)}%</span>
+              <small>VoiceEmotion msg</small>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Fusion Engine ──────────────────────────────────── */}
+        <section className="panel fusion-panel">
+          <div className="section-title"><span>🔀 Emotion Fusion Engine</span><small>EmotionFusionEngine.py · 40/35/15/10</small></div>
+          <div className="fusion-inputs">
+            {[
+              { label: "Face", em: privacyMode ? "suppressed" : faceEm, conf: privacyMode ? 0 : faceCon, weight: 0.40, color: "#44f2a1" },
+              { label: "Voice", em: voiceEm, conf: voiceCon, weight: 0.35, color: "#a0c4ff" },
+              { label: "Text", em: textEm, conf: textCon, weight: 0.15, color: "#f2e44f" },
+              { label: "Gesture", em: gestureHint === "none" ? "none" : gestureHint, conf: gestureHint === "none" ? 0 : 0.8, weight: 0.10, color: "#f0a060" },
+            ].map((inp) => (
+              <div key={inp.label} className="fusion-input-row">
+                <span className="fusion-modal-label" style={{ color: inp.color }}>{inp.label}</span>
+                <span className="fusion-modal-em">{inp.em}</span>
+                <div className="fusion-modal-bar"><div style={{ width: `${Math.round(inp.conf * 100)}%`, background: inp.color, height: "100%", borderRadius: 4 }} /></div>
+                <span className="fusion-modal-weight">{Math.round(inp.weight * 100)}%</span>
+              </div>
+            ))}
+          </div>
+          <div className="fusion-gesture-row">
+            <span>Gesture hint:</span>
+            {GESTURE_HINTS.map((g) => <button key={g} className={`gesture-chip ${gestureHint === g ? "selected" : ""}`} onClick={() => setGestureHint(g)}>{g}</button>)}
+          </div>
+          <div className="fusion-result" style={{ borderColor: fColor(fusion.dominant) }}>
+            <div className="fusion-result-header">
+              <span className="emotion-badge" style={{ background: fColor(fusion.dominant), fontSize: "1rem" }}>{fusion.dominant}</span>
+              <span className="conf-pill high">{Math.round(fusion.confidence * 100)}%</span>
+              <span className="behavior-hint">→ {fusion.behaviorHint}</span>
+            </div>
+            <div className="fusion-av-row">
+              <span>Valence: <b>{fusion.valence > 0 ? "+" : ""}{fusion.valence.toFixed(2)}</b></span>
+              <span>Arousal: <b>{fusion.arousal > 0 ? "+" : ""}{fusion.arousal.toFixed(2)}</b></span>
+            </div>
+            <div className="fusion-msg-preview">
+              <span className="msg-type">HumanEmotionState</span>
+              <pre>{JSON.stringify({ dominant_emotion: fusion.dominant, confidence: fusion.confidence, behavior_hint: fusion.behaviorHint, privacy_mode: privacyMode }, null, 2)}</pre>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Live Stream ────────────────────────────────────── */}
+        <section className="panel">
+          <div className="section-title">
+            <span>📡 Live Emotion Stream</span>
+            <button className={`live-toggle ${liveMode ? "active" : ""}`} onClick={() => setLiveMode((v) => !v)}>{liveMode ? "⏹ Stop" : "▶ Start"}</button>
+          </div>
+          <p className="hint-small">Simulates the affective AI node publishing HumanEmotionState at ~1 Hz.</p>
+          {emotionLog.length === 0 ? <p className="muted">Press Start to begin streaming.</p> : (
+            <div className="emotion-stream">
+              {emotionLog.map((e, i) => (
+                <div key={i} className="emotion-stream-row" style={{ opacity: 1 - i * 0.08 }}>
+                  <span className="stream-time">{e.time}</span>
+                  <span className="emotion-badge sm" style={{ background: fColor(e.emotion) }}>{e.emotion}</span>
+                  <div className="emo-bar-track sm"><div className="emo-bar-fill" style={{ width: `${Math.round(e.conf * 100)}%`, background: fColor(e.emotion) }} /></div>
+                  <span className="emo-bar-pct">{Math.round(e.conf * 100)}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Module Info ─────────────────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>📦 Module Architecture</span></div>
+          {[
+            { name: "FaceEmotionAnalyzer", backend: "DeepFace (optional)", note: "Analyzes face crops per PersonState" },
+            { name: "VoiceEmotionAnalyzer", backend: "SpeechBrain wav2vec2", note: "Processes AudioChunk messages" },
+            { name: "TextEmotionAnalyzer", backend: "Rules-based (no LLM)", note: "Emergency keyword detection" },
+            { name: "EmotionFusionEngine", backend: "Weighted avg", note: "face 40% · voice 35% · text 15% · gesture 10%" },
+            { name: "TemporalSmoother", backend: "Sliding window", note: "Reduces flicker in emotion stream" },
+            { name: "PrivacyGate", backend: "Policy check", note: "Suppresses face analysis in privacy mode" },
+          ].map((mod) => (
+            <div key={mod.name} className="module-info-row">
+              <div><strong>{mod.name}</strong><small>{mod.note}</small></div>
+              <span className="mod-backend-badge">{mod.backend}</span>
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PURE LOGIC — Gesture Classifier (mirrors bonbon_gesture classifiers)
+// ══════════════════════════════════════════════════════════════════════════════
+type GestureResult = { gesture: string; confidence: number; isSafetyRelevant: boolean; intent: string; source: string };
+
+const HAND_GESTURES = ["none", "stop_palm", "thumbs_up", "thumbs_down", "pointing", "wave", "fist", "open_palm", "victory", "ok_sign"];
+const BODY_GESTURES = ["none", "raised_hand", "arms_crossed", "pointing_left", "pointing_right", "fallen_posture", "standing", "sitting", "walking"];
+const HEAD_GESTURES = ["none", "nod_yes", "shake_no", "tilt_right", "tilt_left", "look_up"];
+const SAFETY_GESTURES = new Set(["stop_palm", "raised_hand", "fallen_posture"]);
+
+const GESTURE_INTENT: Record<string, string> = {
+  stop_palm: "stop_robot", thumbs_up: "approve_action", thumbs_down: "reject_action",
+  pointing: "indicate_direction", wave: "greeting_gesture", fist: "attention",
+  open_palm: "halt_request", victory: "positive_feedback", ok_sign: "confirm",
+  raised_hand: "request_attention", arms_crossed: "discomfort_signal",
+  pointing_left: "navigate_left", pointing_right: "navigate_right",
+  fallen_posture: "emergency_fallen", nod_yes: "affirmative", shake_no: "negative",
+  tilt_right: "uncertain", look_up: "searching", none: "no_gesture",
+};
+
+function classifyGestureResult(gesture: string, source: string): GestureResult {
+  return {
+    gesture,
+    confidence: gesture === "none" ? 0 : 0.55 + Math.random() * 0.4,
+    isSafetyRelevant: SAFETY_GESTURES.has(gesture),
+    intent: GESTURE_INTENT[gesture] ?? "unknown",
+    source,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB 10 — GESTURE
+// ══════════════════════════════════════════════════════════════════════════════
+function GestureTab(_p: TabProps) {
+  const [handGesture, setHandGesture] = useState("none");
+  const [bodyGesture, setBodyGesture] = useState("none");
+  const [headGesture, setHeadGesture] = useState("none");
+  const [handResult, setHandResult] = useState<GestureResult | null>(null);
+  const [bodyResult, setBodyResult] = useState<GestureResult | null>(null);
+  const [headResult, setHeadResult] = useState<GestureResult | null>(null);
+  const [gestureHistory, setGestureHistory] = useState<GestureResult[]>([]);
+  const [smoothed, setSmoothed] = useState("none");
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
+  const [streamGesture, setStreamGesture] = useState(false);
+  const streamRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const classify = (g: string, source: string, setter: (r: GestureResult) => void) => {
+    const r = classifyGestureResult(g, source);
+    setter(r);
+    if (g !== "none") {
+      setGestureHistory((prev) => [r, ...prev].slice(0, 8));
+      // Temporal smoother: majority vote in last 5
+      setSmoothed((prev) => {
+        const last5 = [r, ...prev ? [] : []];
+        return r.gesture;
+      });
+    }
+  };
+
+  // Temporal smoother majority vote
+  useEffect(() => {
+    if (gestureHistory.length < 2) { setSmoothed(gestureHistory[0]?.gesture ?? "none"); return; }
+    const counts: Record<string, number> = {};
+    gestureHistory.slice(0, 5).forEach((gr) => { counts[gr.gesture] = (counts[gr.gesture] ?? 0) + 1; });
+    setSmoothed(Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]);
+  }, [gestureHistory]);
+
+  // Simulation stream
+  useEffect(() => {
+    if (!streamGesture) { if (streamRef.current) clearInterval(streamRef.current); return; }
+    const allGestures = [...HAND_GESTURES.filter((g) => g !== "none")];
+    streamRef.current = setInterval(() => {
+      const g = allGestures[Math.floor(Math.random() * allGestures.length)];
+      const r = classifyGestureResult(g, "hand");
+      setHandGesture(g);
+      setHandResult(r);
+      setGestureHistory((prev) => [r, ...prev].slice(0, 8));
+    }, 1200);
+    return () => { if (streamRef.current) clearInterval(streamRef.current); };
+  }, [streamGesture]);
+
+  const activeResult = handResult ?? bodyResult ?? headResult;
+  const safetyAlert = activeResult?.isSafetyRelevant && activeResult.gesture !== "none";
+
+  return (
+    <div className="tab-body">
+      <div className="section-hero">
+        <h2>🤚 Gesture Recognition — bonbon_gesture</h2>
+        <p>Interactive testbench for hand, body, and head gesture classifiers. Tests the full pipeline: detection → classification → temporal smoothing → safety tagging → intent mapping. Mirrors the MediaPipe Holistic pipeline running on the robot.</p>
+      </div>
+
+      {safetyAlert && (
+        <div className="safety-gesture-alert">
+          🚨 <strong>Safety gesture detected:</strong> <span>{activeResult?.gesture}</span> → intent: <strong>{activeResult?.intent}</strong>
+        </div>
+      )}
+
+      <div className="gesture-grid">
+        {/* ── Hand Gesture ─────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>🖐 Hand Gesture Classifier</span><small>21 landmark points · MediaPipe Hands</small></div>
+          <p className="hint-small">Select a hand gesture to simulate MediaPipe landmark detection and classification.</p>
+          <div className="gesture-btn-grid">
+            {HAND_GESTURES.map((g) => (
+              <button key={g} className={`gesture-select-btn ${handGesture === g ? "selected" : ""} ${SAFETY_GESTURES.has(g) ? "safety" : ""}`}
+                onClick={() => { setHandGesture(g); classify(g, "hand", setHandResult); }}>
+                {SAFETY_GESTURES.has(g) ? "⚠ " : ""}{g.replace(/_/g, " ")}
+              </button>
+            ))}
+          </div>
+          {handResult && handResult.gesture !== "none" && (
+            <div className="gesture-result-card">
+              <div className="gesture-result-row"><span>Gesture</span><b>{handResult.gesture}</b></div>
+              <div className="gesture-result-row"><span>Confidence</span>
+                <div className="emo-bar-track"><div className="emo-bar-fill" style={{ width: `${Math.round(handResult.confidence * 100)}%`, background: "#44f2a1" }} /></div>
+                <b>{Math.round(handResult.confidence * 100)}%</b>
+              </div>
+              <div className="gesture-result-row"><span>Intent</span><b>{handResult.intent}</b></div>
+              <div className="gesture-result-row"><span>Safety</span><b className={handResult.isSafetyRelevant ? "warn-text" : "ok-text"}>{handResult.isSafetyRelevant ? "🚨 YES" : "✓ No"}</b></div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Body Gesture ─────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>🧍 Body Gesture Classifier</span><small>33 pose landmarks · MediaPipe Pose</small></div>
+          <div className="gesture-btn-grid">
+            {BODY_GESTURES.map((g) => (
+              <button key={g} className={`gesture-select-btn ${bodyGesture === g ? "selected" : ""} ${SAFETY_GESTURES.has(g) ? "safety" : ""}`}
+                onClick={() => { setBodyGesture(g); classify(g, "body", setBodyResult); }}>
+                {SAFETY_GESTURES.has(g) ? "⚠ " : ""}{g.replace(/_/g, " ")}
+              </button>
+            ))}
+          </div>
+          {bodyResult && bodyResult.gesture !== "none" && (
+            <div className="gesture-result-card">
+              <div className="gesture-result-row"><span>Gesture</span><b>{bodyResult.gesture}</b></div>
+              <div className="gesture-result-row"><span>Confidence</span>
+                <div className="emo-bar-track"><div className="emo-bar-fill" style={{ width: `${Math.round(bodyResult.confidence * 100)}%`, background: "#a0c4ff" }} /></div>
+                <b>{Math.round(bodyResult.confidence * 100)}%</b>
+              </div>
+              <div className="gesture-result-row"><span>Intent</span><b>{bodyResult.intent}</b></div>
+              <div className="gesture-result-row"><span>Safety</span><b className={bodyResult.isSafetyRelevant ? "warn-text" : "ok-text"}>{bodyResult.isSafetyRelevant ? "🚨 YES" : "✓ No"}</b></div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Head Gesture ─────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>🗣 Head Gesture Classifier</span><small>Temporal nose tracking · nod/shake</small></div>
+          <div className="gesture-btn-grid">
+            {HEAD_GESTURES.map((g) => (
+              <button key={g} className={`gesture-select-btn ${headGesture === g ? "selected" : ""}`}
+                onClick={() => { setHeadGesture(g); classify(g, "head", setHeadResult); }}>
+                {g.replace(/_/g, " ")}
+              </button>
+            ))}
+          </div>
+          {headResult && headResult.gesture !== "none" && (
+            <div className="gesture-result-card">
+              <div className="gesture-result-row"><span>Gesture</span><b>{headResult.gesture}</b></div>
+              <div className="gesture-result-row"><span>Intent</span><b>{headResult.intent}</b></div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Temporal Smoother + Pipeline ─────────── */}
+        <section className="panel">
+          <div className="section-title">
+            <span>⏱ Temporal Smoother</span>
+            <button className={`live-toggle ${streamGesture ? "active" : ""}`} onClick={() => setStreamGesture((v) => !v)}>{streamGesture ? "⏹ Stop" : "▶ Simulate"}</button>
+          </div>
+          <p className="hint-small">Majority vote over last 5 frames. Confidence threshold: {confidenceThreshold.toFixed(2)}</p>
+          <label>Confidence threshold
+            <input type="range" min={0} max={100} value={Math.round(confidenceThreshold * 100)} onChange={(e) => setConfidenceThreshold(parseInt(e.target.value) / 100)} />
+          </label>
+          <div className="smoother-display">
+            <div className="smoother-result">
+              <span>Smoothed output:</span>
+              <span className="gesture-badge">{smoothed}</span>
+            </div>
+            <div className="gesture-history">
+              {gestureHistory.slice(0, 5).map((gr, i) => (
+                <div key={i} className={`gesture-history-row ${gr.confidence >= confidenceThreshold ? "above-threshold" : "below-threshold"}`}>
+                  <span>{gr.source}</span>
+                  <span className="gesture-badge sm">{gr.gesture}</span>
+                  <span>{Math.round(gr.confidence * 100)}%</span>
+                  <span className={gr.confidence >= confidenceThreshold ? "ok-text" : "muted"}>
+                    {gr.confidence >= confidenceThreshold ? "✓" : "✗"}
+                  </span>
+                </div>
+              ))}
+              {gestureHistory.length === 0 && <p className="muted">No gestures detected yet.</p>}
+            </div>
+          </div>
+
+          <div className="section-title" style={{ marginTop: 16 }}><span>🔗 GestureEvent Message</span></div>
+          <pre className="json-view compact">{JSON.stringify({
+            gesture_name: smoothed,
+            confidence: (activeResult?.confidence ?? 0).toFixed(2),
+            is_safety_relevant: SAFETY_GESTURES.has(smoothed),
+            intent: GESTURE_INTENT[smoothed] ?? "unknown",
+            source_module: "bonbon_gesture",
+          }, null, 2)}</pre>
+        </section>
+
+        {/* ── Module Info ──────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>📦 Module Architecture</span></div>
+          {[
+            { name: "MediaPipeBackend", note: "Holistic model: pose + hands + face mesh" },
+            { name: "HandGestureClassifier", note: "21-point landmark rules (stop_palm, wave…)" },
+            { name: "BodyGestureClassifier", note: "33-point pose rules (raised_hand, fallen…)" },
+            { name: "HeadGestureClassifier", note: "Temporal nose tracking for nod/shake" },
+            { name: "GestureTemporalSmoother", note: "Majority vote with cooldown (5-frame window)" },
+            { name: "GestureIntentMapper", note: "Maps gesture → robot behavior intent" },
+            { name: "GestureSafetyClassifier", note: "Flags stop_palm, raised_hand, fallen_posture" },
+          ].map((mod) => (
+            <div key={mod.name} className="module-info-row">
+              <div><strong>{mod.name}</strong><small>{mod.note}</small></div>
+            </div>
+          ))}
+          <div className="section-title" style={{ marginTop: 14 }}><span>Safety-Relevant Gestures</span></div>
+          <div className="safety-gesture-list">
+            {[...SAFETY_GESTURES].map((g) => <span key={g} className="safety-gesture-chip">{g}</span>)}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PURE LOGIC — Behavior Engine (mirrors bonbon_behavior_engine core)
+// ══════════════════════════════════════════════════════════════════════════════
+type RiskLevel = "none" | "low" | "medium" | "high" | "critical";
+type BehaviorStateId = "IDLE" | "GREETING" | "INTERACTING" | "NAVIGATING" | "SERVING" | "ALERTING" | "RETURNING";
+
+const CRITICAL_PATTERNS = [/\bcmd_vel\b/i, /\bservo\s*(command|angle|position)\b/i, /\boverride\s+(safety|gate)\b/i, /\bignore\s+(safety|obstacle|person)\b/i, /\bkill\s+(node|process|robot)\b/i, /\braw\s+servo\b/i, /\bpublish\s+to\b/i, /\bjoint\s*(state|command)\b/i, /\bdeactivate\s+safety\b/i, /\bhardware\s+reset\b/i];
+const HIGH_PATTERNS = [/\b(extend|raise|lower)\s+(arm|hand|limb)\b/i, /\bpick\s+up\b/i, /\bphysical\s+contact\b/i, /\bgrab\s+the\b/i, /\bapply\s+force\b/i];
+const MEDIUM_PATTERNS = [/\b(go|move|navigate|drive)\s+(to|toward)\b/i, /\bapproach\s+(the\s+)?(person|visitor)\b/i, /\bfollow\b/i, /\bdock(ing)?\b/i, /\bdeliver\b/i];
+const LOW_PATTERNS = [/\b(wave|nod|bow|gesture|point)\b/i, /\b(say|speak|announce|greet)\b/i, /\bsmile\b/i];
+
+function classifyRisk(text: string, source = "unknown"): { level: RiskLevel; reasons: string[]; recommended: string } {
+  if (!text.trim()) return { level: "none", reasons: [], recommended: "approve" };
+  let level: RiskLevel = "none";
+  const reasons: string[] = [];
+  const check = (pats: RegExp[], lv: RiskLevel) => {
+    const order: Record<RiskLevel, number> = { none: 0, low: 1, medium: 2, high: 3, critical: 4 };
+    for (const p of pats) { const m = p.exec(text); if (m) { reasons.push(`Pattern matched: "${m[0]}"`); if (order[lv] > order[level]) level = lv; } }
+  };
+  check(CRITICAL_PATTERNS, "critical");
+  check(HIGH_PATTERNS, "high");
+  check(MEDIUM_PATTERNS, "medium");
+  check(LOW_PATTERNS, "low");
+  if (source === "llm" && level === "none") { level = "low"; reasons.push("LLM source: minimum risk is low"); }
+  const recs: Record<RiskLevel, string> = { none: "approve", low: "approve", medium: "approve", high: "escalate", critical: "reject" };
+  return { level, reasons, recommended: recs[level] };
+}
+
+const FSM_TRANSITIONS: Record<BehaviorStateId, BehaviorStateId[]> = {
+  IDLE:        ["GREETING", "NAVIGATING", "SERVING", "ALERTING", "RETURNING"],
+  GREETING:    ["IDLE", "INTERACTING", "ALERTING"],
+  INTERACTING: ["IDLE", "NAVIGATING", "SERVING", "ALERTING"],
+  NAVIGATING:  ["IDLE", "INTERACTING", "SERVING", "ALERTING", "RETURNING"],
+  SERVING:     ["IDLE", "INTERACTING", "NAVIGATING", "ALERTING", "RETURNING"],
+  ALERTING:    ["IDLE", "RETURNING"],
+  RETURNING:   ["IDLE", "ALERTING"],
+};
+const FSM_STATE_COLORS: Record<BehaviorStateId, string> = {
+  IDLE: "#a0c4ff", GREETING: "#44f2a1", INTERACTING: "#f2e44f", NAVIGATING: "#f0a060",
+  SERVING: "#c080f0", ALERTING: "#f06060", RETURNING: "#80c080",
+};
+const FSM_STATE_DESC: Record<BehaviorStateId, string> = {
+  IDLE: "Robot is idle — ambient scanning", GREETING: "Greeting a newly detected person",
+  INTERACTING: "In conversation or task interaction", NAVIGATING: "Moving to a navigation goal",
+  SERVING: "Performing a service task", ALERTING: "Handling emergency/operator alert",
+  RETURNING: "Returning to home / dock",
+};
+
+const EMOTION_PLANS: Record<string, { gesture: string; ttsEmotion: string; speed: number; ack: string }> = {
+  happy:     { gesture: "wave",           ttsEmotion: "warm",     speed: 1.0,  ack: "" },
+  neutral:   { gesture: "listening_pose", ttsEmotion: "neutral",  speed: 1.0,  ack: "" },
+  sad:       { gesture: "listening_pose", ttsEmotion: "warm",     speed: 0.9,  ack: "I'm here to help." },
+  angry:     { gesture: "listening_pose", ttsEmotion: "calm",     speed: 0.85, ack: "I understand. Let me help you." },
+  fearful:   { gesture: "rest_pose",      ttsEmotion: "calm",     speed: 0.8,  ack: "You're safe. I'm here." },
+  surprised: { gesture: "thinking_pose",  ttsEmotion: "neutral",  speed: 0.9,  ack: "" },
+  distress:  { gesture: "listening_pose", ttsEmotion: "concerned",speed: 0.85, ack: "Are you alright? Do you need help?" },
+  emergency: { gesture: "emergency_attention_pose", ttsEmotion: "urgent", speed: 1.2, ack: "Emergency detected! Alerting staff now." },
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB 11 — BEHAVIOR ENGINE
+// ══════════════════════════════════════════════════════════════════════════════
+function BehaviorEngineTab(_p: TabProps) {
+  const [fsmState, setFsmState] = useState<BehaviorStateId>("IDLE");
+  const [fsmHistory, setFsmHistory] = useState<{ from: BehaviorStateId; to: BehaviorStateId; time: string; reason: string }[]>([]);
+  const [commandText, setCommandText] = useState("");
+  const [commandSource, setCommandSource] = useState<"llm" | "operator" | "speech">("llm");
+  const [riskResult, setRiskResult] = useState<{ level: RiskLevel; reasons: string[]; recommended: string } | null>(null);
+  const [gateResult, setGateResult] = useState<{ allowed: boolean; proposalType: string; content: string } | null>(null);
+  const [selectedEmotion, setSelectedEmotion] = useState("neutral");
+  const [operatingMode, setOperatingMode] = useState("normal");
+  const [decisionLog, setDecisionLog] = useState<{ time: string; action: string; decision: string; reason: string }[]>([]);
+  const [rateLimitCounters, setRateLimitCounters] = useState<Record<string, number>>({});
+
+  const OPERATING_MODES = ["normal", "child_safe", "elderly", "degraded", "demo", "emergency"];
+  const allEmotions = Object.keys(EMOTION_PLANS);
+  const RISK_COLORS: Record<RiskLevel, string> = { none: "#a0c4ff", low: "#44f2a1", medium: "#f2e44f", high: "#f0a060", critical: "#f06060" };
+
+  // Auto-classify on typing
+  useEffect(() => {
+    if (!commandText.trim()) { setRiskResult(null); setGateResult(null); return; }
+    const t = setTimeout(() => {
+      const risk = classifyRisk(commandText, commandSource);
+      setRiskResult(risk);
+      // Gate logic
+      if (risk.level === "critical") {
+        setGateResult({ allowed: false, proposalType: "alert_operator", content: "BLOCKED: forbidden command pattern detected" });
+      } else if (risk.level === "high") {
+        setGateResult({ allowed: false, proposalType: "ask_clarification", content: "BLOCKED: high-risk command requires operator approval" });
+      } else {
+        // Extract intent
+        let proposalType = "speak", content = commandText;
+        if (/\b(go|navigate|move)\s+to\b/i.test(commandText)) { proposalType = "navigate"; content = commandText.match(/to\s+(.+?)(?:\.|,|$)/i)?.[1] ?? commandText; }
+        else if (/\b(wave|nod|bow|gesture)\b/i.test(commandText)) { proposalType = "gesture"; content = commandText.match(/\b(wave|nod_yes|shake_no|greeting_pose|apology_pose)\b/i)?.[0] ?? "nod_yes"; }
+        else if (/\b(say|speak|tell|announce)\b/i.test(commandText)) { const m = commandText.match(/(?:say|speak|tell|announce)[:\s]+["']?(.+?)["']?$/i); content = m?.[1] ?? commandText; }
+        setGateResult({ allowed: true, proposalType, content: content.slice(0, 80) });
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [commandText, commandSource]);
+
+  const doTransition = (to: BehaviorStateId, reason = "") => {
+    const allowed = FSM_TRANSITIONS[fsmState].includes(to);
+    if (!allowed) return;
+    setFsmHistory((h) => [{ from: fsmState, to, time: nowStr(), reason }, ...h].slice(0, 10));
+    setFsmState(to);
+    setDecisionLog((d) => [{ time: nowStr(), action: `FSM: ${fsmState}→${to}`, decision: "approved", reason }, ...d].slice(0, 15));
+  };
+
+  const executeGateCommand = () => {
+    if (!gateResult) return;
+    const entry = { time: nowStr(), action: gateResult.proposalType, decision: gateResult.allowed ? "approved" : "rejected", reason: riskResult?.level ?? "" };
+    setDecisionLog((d) => [entry, ...d].slice(0, 15));
+    if (gateResult.allowed) {
+      setRateLimitCounters((c) => ({ ...c, [gateResult.proposalType]: Date.now() }));
+    }
+  };
+
+  const emPlan = EMOTION_PLANS[selectedEmotion] ?? EMOTION_PLANS.neutral;
+  const modeEmPlan = { ...emPlan };
+  if (operatingMode === "child_safe") { modeEmPlan.gesture = "greeting_pose"; modeEmPlan.speed = 0.85; }
+  if (operatingMode === "elderly") { modeEmPlan.speed = 0.8; }
+
+  return (
+    <div className="tab-body">
+      <div className="section-hero">
+        <h2>🤖 Behavior Engine — bonbon_behavior_engine</h2>
+        <p>Central decision hub. Fuses emotion, gesture, spatial, speech and LLM signals into safe validated decisions. <strong>The LLM never directly controls navigation or actuation</strong> — all outputs are risk-classified and safety-gated first.</p>
+      </div>
+
+      <div className="behavior-grid">
+        {/* ── Behavior State Machine ─────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>🔀 Behavior State Machine</span><small>7-state FSM · legal transitions enforced</small></div>
+          <div className="fsm-display">
+            {(Object.keys(FSM_TRANSITIONS) as BehaviorStateId[]).map((s) => (
+              <div key={s} className={`fsm-state-node ${fsmState === s ? "active" : ""}`}
+                style={{ borderColor: FSM_STATE_COLORS[s], background: fsmState === s ? FSM_STATE_COLORS[s] + "22" : "" }}>
+                <span className="fsm-state-name" style={{ color: FSM_STATE_COLORS[s] }}>{s}</span>
+                <small>{FSM_STATE_DESC[s]}</small>
+              </div>
+            ))}
+          </div>
+          <div className="section-title" style={{ marginTop: 12 }}><span>Transition buttons</span><small>Legal transitions from {fsmState}</small></div>
+          <div className="fsm-btn-row">
+            {(Object.keys(FSM_TRANSITIONS) as BehaviorStateId[]).map((to) => {
+              const legal = FSM_TRANSITIONS[fsmState].includes(to);
+              return (
+                <button key={to} className={`fsm-btn ${fsmState === to ? "current" : ""} ${legal ? "" : "illegal"}`}
+                  onClick={() => doTransition(to)} disabled={!legal || fsmState === to}
+                  style={{ borderColor: FSM_STATE_COLORS[to] }}>
+                  → {to}
+                </button>
+              );
+            })}
+          </div>
+          <div className="section-title" style={{ marginTop: 10 }}><span>State history</span></div>
+          <div className="fsm-history">
+            {fsmHistory.length === 0 ? <p className="muted">No transitions yet.</p> : fsmHistory.map((e, i) => (
+              <div key={i} className="fsm-history-row">
+                <span>{e.time}</span>
+                <span style={{ color: FSM_STATE_COLORS[e.from] }}>{e.from}</span>
+                <span>→</span>
+                <span style={{ color: FSM_STATE_COLORS[e.to] }}>{e.to}</span>
+                {e.reason && <small>{e.reason}</small>}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── LLM Command Gate ──────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>🔐 LLM Command Gate</span><small>Real-time risk classification · LLM never directly controls robot</small></div>
+          <div className="cmd-source-row">
+            {(["llm", "operator", "speech"] as const).map((src) => (
+              <button key={src} className={`source-chip ${commandSource === src ? "selected" : ""}`} onClick={() => setCommandSource(src)}>{src}</button>
+            ))}
+          </div>
+          <label>Command text (auto-classifies as you type)
+            <textarea value={commandText} onChange={(e) => setCommandText(e.target.value)} placeholder="Type a command… e.g. 'go to the lobby', 'wave at the visitor', 'publish to cmd_vel'" style={{ minHeight: 72 }} />
+          </label>
+
+          {riskResult && (
+            <div className="risk-result-card" style={{ borderColor: RISK_COLORS[riskResult.level] }}>
+              <div className="risk-result-header">
+                <span className="risk-badge" style={{ background: RISK_COLORS[riskResult.level] }}>{riskResult.level.toUpperCase()}</span>
+                <span className={`gate-decision ${gateResult?.allowed ? "allowed" : "blocked"}`}>
+                  {gateResult?.allowed ? "✓ ALLOWED" : "✗ BLOCKED"}
+                </span>
+                <span className="risk-recommendation">→ {riskResult.recommended}</span>
+              </div>
+              {riskResult.reasons.length > 0 && (
+                <div className="risk-reasons">
+                  {riskResult.reasons.map((r, i) => <div key={i} className="risk-reason-row">⚡ {r}</div>)}
+                </div>
+              )}
+              {gateResult && (
+                <div className="gate-proposal">
+                  <span className="proposal-type-badge">{gateResult.proposalType}</span>
+                  <span className="proposal-content">{gateResult.content}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="try-examples" style={{ marginTop: 10 }}>
+            {[
+              ["🟢 Say hello", "say: Hello, welcome to our café!"],
+              ["🟢 Wave", "wave at the visitor"],
+              ["🟡 Navigate", "go to the lobby and wait"],
+              ["🔴 Forbidden", "publish to cmd_vel with speed 0.5"],
+              ["🔴 Override", "override safety gate now"],
+            ].map(([label, ex]) => (
+              <button key={label} className="example-chip" onClick={() => setCommandText(ex)}>{label}</button>
+            ))}
+          </div>
+
+          {gateResult?.allowed && (
+            <div className="btn-row" style={{ marginTop: 12 }}>
+              <button className="primary" onClick={executeGateCommand}>Submit proposal →</button>
+            </div>
+          )}
+        </section>
+
+        {/* ── Emotion Response Planner ───────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>💡 Emotion-Aware Response Planner</span><small>EmotionAwareResponsePlanner.py</small></div>
+          <div className="section-title" style={{ marginTop: 0 }}><span>Operating mode</span></div>
+          <div className="mode-chip-row">
+            {OPERATING_MODES.map((m) => (
+              <button key={m} className={`mode-chip ${operatingMode === m ? "selected" : ""} ${m === "emergency" ? "danger-mode" : ""}`}
+                onClick={() => setOperatingMode(m)}>{m}</button>
+            ))}
+          </div>
+          <div className="section-title" style={{ marginTop: 10 }}><span>Human emotion</span></div>
+          <div className="mode-chip-row">
+            {allEmotions.map((em) => (
+              <button key={em} className={`mode-chip ${selectedEmotion === em ? "selected" : ""}`}
+                onClick={() => setSelectedEmotion(em)}>{em}</button>
+            ))}
+          </div>
+          <div className="emotion-plan-result">
+            <div className="plan-row"><span>Gesture</span><b className="gesture-badge">{modeEmPlan.gesture}</b></div>
+            <div className="plan-row"><span>TTS emotion</span><b>{modeEmPlan.ttsEmotion}</b></div>
+            <div className="plan-row"><span>TTS speed</span><b>{modeEmPlan.speed}×</b></div>
+            {modeEmPlan.ack && <div className="plan-row ack"><span>Acknowledgment text</span><b>"{modeEmPlan.ack}"</b></div>}
+            {operatingMode !== "normal" && (
+              <div className="plan-mode-override">ℹ Mode override active: <b>{operatingMode}</b></div>
+            )}
+          </div>
+          <div className="section-title" style={{ marginTop: 14 }}><span>BehaviorDecision message preview</span></div>
+          <pre className="json-view compact">{JSON.stringify({
+            decision: "approved",
+            approved_action: modeEmPlan.gesture !== "none" ? "gesture" : "speak",
+            approved_content: modeEmPlan.ack || modeEmPlan.gesture,
+            safety_approved: true,
+            operating_mode: operatingMode,
+          }, null, 2)}</pre>
+        </section>
+
+        {/* ── Decision Log ──────────────────────────── */}
+        <section className="panel">
+          <div className="section-title"><span>📋 Decision Log</span><small>{decisionLog.length} entries</small></div>
+          {decisionLog.length === 0 ? <p className="muted">No decisions logged yet. Use the FSM or LLM Gate above.</p> : (
+            <div className="decision-log">
+              {decisionLog.map((d, i) => (
+                <div key={i} className={`decision-row ${d.decision}`}>
+                  <span className="decision-time">{d.time}</span>
+                  <span className={`decision-badge ${d.decision}`}>{d.decision}</span>
+                  <span className="decision-action">{d.action}</span>
+                  {d.reason && <span className="decision-reason">{d.reason}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="section-title" style={{ marginTop: 14 }}><span>📦 Core Components</span></div>
+          {[
+            { name: "BehaviorStateMachine", note: "7-state FSM, legal transitions enforced" },
+            { name: "CommandRiskClassifier", note: "Pattern-based, LLM-free, <1 ms, O(n) patterns" },
+            { name: "LLMCommandGate", note: "LLM output → safe BehaviorProposal only" },
+            { name: "EmotionAwareResponsePlanner", note: "Emotion → gesture + TTS plan (no LLM)" },
+            { name: "ProposalEvaluator", note: "Rate limiting + safety gating + content sanitize" },
+            { name: "BehaviorEngineNode", note: "LifecycleNode: fuses all signals → decisions" },
+          ].map((mod) => (
+            <div key={mod.name} className="module-info-row">
+              <div><strong>{mod.name}</strong><small>{mod.note}</small></div>
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+  );
 }
