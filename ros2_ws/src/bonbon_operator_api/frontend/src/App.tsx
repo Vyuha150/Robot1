@@ -765,18 +765,44 @@ function SpeechTab(p: TabProps) {
 function IntentTab(p: TabProps) {
   const [manualText, setManualText] = useState("");
   const [manualResult, setManualResult] = useState<IntentResult | null>(null);
+  const [classifySource, setClassifySource] = useState<"text" | "speech" | null>(null);
 
   // Auto-classify with 350 ms debounce as user types
   useEffect(() => {
-    if (!manualText.trim()) { setManualResult(null); return; }
-    const t = setTimeout(() => { setManualResult(classifyIntent(manualText)); }, 350);
+    if (!manualText.trim()) { setManualResult(null); setClassifySource(null); return; }
+    const t = setTimeout(() => { setManualResult(classifyIntent(manualText)); setClassifySource("text"); }, 350);
     return () => clearTimeout(t);
   }, [manualText]);
 
-  const classify = () => { const res = classifyIntent(manualText || p.transcript); setManualResult(res); p.addLog("ok", `Intent: ${res.intent} (${Math.round(res.confidence * 100)}%)`); };
+  // When speech transcript updates, show it in the input area and auto-classify
+  useEffect(() => {
+    if (p.transcript.trim() && !manualText.trim()) {
+      setManualResult(classifyIntent(p.transcript));
+      setClassifySource("speech");
+    }
+  }, [p.transcript]);
+
+  const classify = () => {
+    const text = manualText.trim() || p.transcript.trim();
+    if (!text) return;
+    const res = classifyIntent(text);
+    setManualResult(res);
+    setClassifySource(manualText.trim() ? "text" : "speech");
+    p.addLog("ok", `Intent: ${res.intent} (${Math.round(res.confidence * 100)}%) via ${manualText.trim() ? "text input" : "speech transcript"}`);
+  };
+
+  const useTranscript = () => {
+    if (!p.transcript.trim()) return;
+    setManualText(p.transcript);
+    const res = classifyIntent(p.transcript);
+    setManualResult(res);
+    setClassifySource("speech");
+    p.addLog("ok", `Intent from speech: ${res.intent} (${Math.round(res.confidence * 100)}%)`);
+  };
 
   const sc = p.sceneContext;
-  const ir = p.intentResult ?? manualResult;
+  // Prioritise manual result when user has typed; otherwise use speech result
+  const ir = manualText.trim() ? (manualResult ?? p.intentResult) : (p.intentResult ?? manualResult);
 
   const behaviorRecommendation = ir && sc ? (() => {
     if (ir.intent === "emergency_help") return { behavior: "alert_safety", priority: "URGENT", params: { announce: "true" } };
@@ -819,13 +845,26 @@ function IntentTab(p: TabProps) {
           </div>
 
           {/* ── Input ─────────────────────────────────────────────── */}
-          <label style={{ marginTop: 12 }}>Test text (or uses live transcript)
-            <textarea value={manualText} onChange={(e) => setManualText(e.target.value)} placeholder='e.g. "Hey, can I get a coffee please?"' style={{ minHeight: 70 }} />
+          <label style={{ marginTop: 12 }}>
+            Test text
+            <textarea value={manualText} onChange={(e) => setManualText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); classify(); } }}
+              placeholder='Type here and press Enter or click Classify… e.g. "Can I get a coffee?"'
+              style={{ minHeight: 70 }} />
           </label>
+          {p.transcript && (
+            <div className="speech-feed-row">
+              <span>🎙 Live transcript:</span>
+              <span className="speech-feed-text">{p.transcript.slice(0, 80)}{p.transcript.length > 80 ? "…" : ""}</span>
+              <button className="mini-btn" onClick={useTranscript}>Use ↑</button>
+            </div>
+          )}
           <div className="btn-row">
             <button className="primary" onClick={classify}>🔍 Classify Intent</button>
-            <button onClick={() => { setManualText(""); setManualResult(null); }}>Clear</button>
+            <button onClick={useTranscript} disabled={!p.transcript.trim()} title="Import live speech transcript">🎙 Use Speech</button>
+            <button onClick={() => { setManualText(""); setManualResult(null); setClassifySource(null); }}>Clear</button>
           </div>
+          {classifySource && <p className="hint-small" style={{ marginTop: 4 }}>✓ Classified from <strong>{classifySource}</strong> input</p>}
 
           {/* ── Supported intents with Try examples ───────────────── */}
           <div className="intent-pattern-grid">
@@ -926,7 +965,7 @@ const PROVIDER_PRESETS: Record<ProviderPresetId, ProviderPresetDef> = {
   ollama:    { label: "Local Ollama",   icon: "🖥",  provider: "ollama",            baseUrl: "http://127.0.0.1:11434",                                    model: "llama3.2:3b",                         needsKey: false, note: "Run: ollama serve && ollama pull llama3.2:3b" },
   deepseek:  { label: "DeepSeek",       icon: "🔷",  provider: "openai_compatible", baseUrl: "https://api.deepseek.com",                                   model: "deepseek-chat",                       needsKey: true,  note: "Free tier at platform.deepseek.com" },
   openai:    { label: "OpenAI",         icon: "🟢",  provider: "openai_compatible", baseUrl: "https://api.openai.com/v1",                                  model: "gpt-4o-mini",                         needsKey: true,  note: "Get key at platform.openai.com" },
-  gemini:    { label: "Google Gemini",  icon: "💎",  provider: "openai_compatible", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",    model: "gemini-2.0-flash",                    needsKey: true,  note: "Get key at aistudio.google.com" },
+  gemini:    { label: "Google Gemini",  icon: "💎",  provider: "openai_compatible", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",    model: "gemini-2.0-flash",                    needsKey: true,  note: "🚀 Direct browser mode — no backend needed! Add API key → Run LLM. Free key: aistudio.google.com" },
   groq:      { label: "Groq",           icon: "⚡",  provider: "openai_compatible", baseUrl: "https://api.groq.com/openai/v1",                             model: "llama-3.3-70b-versatile",             needsKey: true,  note: "Free tier at console.groq.com" },
   mistral:   { label: "Mistral",        icon: "🌊",  provider: "openai_compatible", baseUrl: "https://api.mistral.ai/v1",                                  model: "mistral-small-latest",                needsKey: true,  note: "Get key at console.mistral.ai" },
   together:  { label: "Together AI",    icon: "🤝",  provider: "openai_compatible", baseUrl: "https://api.together.xyz/v1",                                model: "meta-llama/Llama-3-8b-chat-hf",       needsKey: true,  note: "Get key at api.together.ai" },
@@ -988,12 +1027,69 @@ function LanguageTab(p: TabProps) {
     if (p.model) setModel(p.model);
   };
 
+  // ── Direct Gemini browser call (no backend needed) ──────────────────────────
+  const callGeminiDirect = async (promptText: string, key: string, mdl: string): Promise<{ text: string; latency: number }> => {
+    const geminiModel = mdl || "gemini-2.0-flash";
+    // Try native generateContent endpoint first (works with CORS)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`;
+    const t0 = performance.now();
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
+        safetySettings: [
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" },
+          { category: "HARM_CATEGORY_HARASSMENT",        threshold: "BLOCK_ONLY_HIGH" },
+        ],
+      }),
+    });
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => "");
+      let friendly = `Gemini API error ${resp.status}`;
+      if (resp.status === 400) friendly = "Gemini: invalid request or model name";
+      else if (resp.status === 403) friendly = "Gemini: API key invalid or quota exceeded";
+      else if (resp.status === 429) friendly = "Gemini: rate limit — wait a moment and retry";
+      throw new Error(`${friendly}. ${errBody.slice(0, 120)}`);
+    }
+    const data = await resp.json() as { candidates?: { content: { parts: { text: string }[] } }[] };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "(empty response)";
+    return { text, latency: Math.round(performance.now() - t0) };
+  };
+
   const runPrompt = async () => {
     setBusy(true); setResponse(""); setSafetyFlag(""); setLatency(null);
     setDetectedLang(detectLang(prompt));
     computeRagDocs(prompt);
     if (HARM_WORDS.test(prompt)) { setSafetyFlag("BLOCKED — harmful content detected in prompt"); setBusy(false); return; }
     p.updateLocalOutput("llm", "warn", { provider, model, response_text: "Thinking…", safety_filter: "pending" });
+
+    // ── Path A: Direct Gemini (no backend needed) ─────────────────────────────
+    if (preset === "gemini" && apiKey.trim()) {
+      try {
+        const { text, latency: lat } = await callGeminiDirect(prompt, apiKey.trim(), model);
+        const g = estimateGrounding(prompt, text);
+        setResponse(text); setLatency(lat); setGrounding(g);
+        setSafetyFlag(HARM_WORDS.test(text) ? "WARN — response flagged" : "PASSED");
+        const payload = { provider: "gemini_direct", model, response_text: text, latency_ms: lat, safety_filter: "passed", grounding_score: g };
+        p.updateLocalOutput("llm", "ok", payload);
+        try { await api.updateClientOutput("llm", "ok", payload); } catch { /* optional sync */ }
+        p.addLog("ok", `Gemini direct (${model}) responded in ${lat} ms`);
+        setBusy(false);
+        return;
+      } catch (geminiErr) {
+        const msg = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
+        // Show the Gemini error and stop — don't fall through to demo
+        setResponse(""); setSafetyFlag(`Gemini error: ${msg}`);
+        p.updateLocalOutput("llm", "error", { provider: "gemini_direct", model, error: msg });
+        p.addLog("error", `Gemini direct failed: ${msg}`);
+        setBusy(false);
+        return;
+      }
+    }
+
+    // ── Path B: Backend API (requires robot/server running) ───────────────────
     try {
       const result = await api.llmTest({ provider, base_url: baseUrl, model, prompt, api_key: apiKey || undefined, timeout_sec: 60 });
       const g = estimateGrounding(prompt, result.response_text);
@@ -1012,7 +1108,7 @@ function LanguageTab(p: TabProps) {
         setResponse(demoResp);
         setLatency(null);
         setGrounding(estimateGrounding(prompt, demoResp));
-        setSafetyFlag("⚠ LLM offline — rule-based demo response (start Ollama or add API key)");
+        setSafetyFlag("⚠ LLM offline — rule-based demo response (select Gemini + add API key for live responses)");
         p.updateLocalOutput("llm", "warn", { provider, model, response_text: demoResp, safety_filter: "demo_mode" });
         p.addLog("warn", "LLM offline — showing rule-based demo response");
       } else {
@@ -1052,7 +1148,15 @@ function LanguageTab(p: TabProps) {
           <label style={{ marginTop: 10 }}>Prompt
             <textarea value={prompt} onChange={(e) => { setPrompt(e.target.value); computeRagDocs(e.target.value); }} style={{ minHeight: 100 }} />
           </label>
-          <div className="btn-row"><button className="primary" onClick={() => void runPrompt()} disabled={p.disabled || busy}>{busy ? "⌛ Thinking…" : "▶ Run LLM"}</button><button onClick={() => setApiKey("")}>Clear key</button></div>
+          {preset === "gemini" && apiKey.trim() && (
+            <div className="gemini-direct-badge">⚡ Gemini Direct Mode — calls Google API directly from browser (no robot/backend needed)</div>
+          )}
+          <div className="btn-row">
+            <button className="primary" onClick={() => void runPrompt()} disabled={busy || (!p.token && preset !== "gemini") || (!apiKey.trim() && preset === "gemini")}>
+              {busy ? "⌛ Thinking…" : preset === "gemini" && apiKey.trim() ? "▶ Run Gemini" : "▶ Run LLM"}
+            </button>
+            <button onClick={() => setApiKey("")}>Clear key</button>
+          </div>
           <div className="llm-response">
             <div><strong>Response</strong><div style={{ display: "flex", gap: 8 }}>{latency !== null && <span className="latency-badge">{latency} ms</span>}{grounding !== null && <span className="grounding-badge">ground {Math.round(grounding * 100)}%</span>}</div></div>
             <p>{response || "No response yet. Click ▶ Run LLM — works offline with demo responses when no provider is configured."}</p>
@@ -1120,29 +1224,58 @@ function TTSTab(p: TabProps) {
   const [ttsText, setTtsText] = useState("Hello, I am BonBon. How can I help you today?");
   const [language, setLanguage] = useState("en");
   const [priority, setPriority] = useState("normal");
-  const [lastMetrics, setLastMetrics] = useState<{ latency: number; chars: number } | null>(null);
+  const [lastMetrics, setLastMetrics] = useState<{ latency: number; chars: number; backend: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [cmdResult, setCmdResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // ── Browser-native speech synthesis ────────────────────────────────────────
+  const browserSpeak = (text: string) => {
+    if (!text.trim()) return;
+    const synth = window.speechSynthesis;
+    if (!synth) { setCmdResult({ ok: false, msg: "Web Speech API not supported in this browser" }); return; }
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = language === "zh" ? "zh-CN" : language === "ms" ? "ms-MY" : "en-US";
+    const RATE: Record<string, number> = { neutral: 1.0, happy: 1.08, excited: 1.18, calm: 0.91, sad: 0.83, urgent: 1.25, friendly: 1.0, angry: 1.14, whisper: 0.87 };
+    const PITCH: Record<string, number> = { neutral: 1.0, happy: 1.15, excited: 1.25, calm: 0.9, sad: 0.8, urgent: 1.0, friendly: 1.1, angry: 0.85, whisper: 0.7 };
+    utter.rate = RATE[p.ttsEmotion] ?? 1.0;
+    utter.pitch = PITCH[p.ttsEmotion] ?? 1.0;
+    const t0 = performance.now();
+    utter.onstart = () => { setSpeaking(true); setCmdResult({ ok: true, msg: `🔊 Browser TTS playing (${p.ttsEmotion}, ${language}) — Web Speech API` }); };
+    utter.onend = () => {
+      setSpeaking(false);
+      const lat = Math.round(performance.now() - t0);
+      setLastMetrics({ latency: lat, chars: text.length, backend: "browser_speech_api" });
+      p.updateLocalOutput("tts", "ok", { current_text: text, emotion: p.ttsEmotion, latency_ms: lat, is_speaking: false, backend: "browser_speech_api" });
+      p.addLog("ok", `Browser TTS complete (${p.ttsEmotion}) — ${lat} ms`);
+    };
+    utter.onerror = (e) => { setSpeaking(false); setCmdResult({ ok: false, msg: `Speech error: ${e.error}` }); };
+    synth.speak(utter);
+  };
+
+  // ── Robot Piper TTS ─────────────────────────────────────────────────────────
   const speak = async () => {
-    setBusy(true); setCmdResult(null);
+    if (!ttsText.trim()) return;
+    // Try browser TTS first for instant feedback
+    browserSpeak(ttsText);
+    if (!p.token) return;   // no robot connection — browser only
+    setBusy(true);
     const t0 = performance.now();
     try {
       await p.speakWithEmotion(ttsText, p.ttsEmotion);
       const lat = Math.round(performance.now() - t0);
-      setLastMetrics({ latency: lat, chars: ttsText.length });
-      setCmdResult({ ok: true, msg: `✓ Speak command accepted — Piper TTS queued  (emotion: ${p.ttsEmotion}, ${lat} ms)` });
+      setLastMetrics({ latency: lat, chars: ttsText.length, backend: "piper" });
+      setCmdResult({ ok: true, msg: `✓ Piper TTS queued on robot  (emotion: ${p.ttsEmotion}, ${lat} ms)` });
       const payload = { current_text: ttsText, emotion: p.ttsEmotion, latency_ms: lat, is_speaking: true, queue_depth: 1, backend: "piper" };
       p.updateLocalOutput("tts", "ok", payload);
       if (p.sessionId) await p.api.appendSessionEvent(p.sessionId, { module: "tts", event_type: "speak_with_emotion", status: "pass", summary: `TTS (${p.ttsEmotion}) accepted`, metrics: { latency_ms: lat }, payload: { text_chars: ttsText.length, emotion: p.ttsEmotion } });
       await p.refreshTestbench();
-      p.addLog("ok", `TTS sent (${p.ttsEmotion}, ${language}) — ${lat} ms`);
+      p.addLog("ok", `TTS sent to robot (${p.ttsEmotion}, ${language}) — ${lat} ms`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setCmdResult({ ok: false, msg: `✗ TTS failed: ${msg}` });
-      p.addLog("error", `TTS: ${msg}`);
-    }
-    finally { setBusy(false); }
+      p.addLog("warn", `Robot TTS unavailable (${msg}) — audio playing via browser`);
+    } finally { setBusy(false); }
   };
 
   return (
@@ -1151,7 +1284,13 @@ function TTSTab(p: TabProps) {
       <div className="grid two">
         <section className="panel">
           <div className="section-title"><span>Speak Command</span><small>via SafetyCommandGate</small></div>
-          <label>Text to speak<textarea value={ttsText} onChange={(e) => setTtsText(e.target.value)} style={{ minHeight: 100 }} /></label>
+          <label>Text to speak
+            <textarea value={ttsText} onChange={(e) => setTtsText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); browserSpeak(ttsText); } }}
+              placeholder="Type text and press Enter to hear it immediately…"
+              style={{ minHeight: 100 }} />
+          </label>
+          <div className="tts-hint">⌨ Press <kbd>Enter</kbd> to speak instantly via browser · <kbd>Shift+Enter</kbd> for new line</div>
           <div className="two-col" style={{ marginTop: 10 }}>
             <label>Language<select value={language} onChange={(e) => setLanguage(e.target.value)}>
               <option value="en">English (en)</option>
@@ -1166,14 +1305,20 @@ function TTSTab(p: TabProps) {
               <option value="background">Background</option>
             </select></label>
           </div>
-          <div className="btn-row"><button className="primary" onClick={() => void speak()} disabled={p.disabled || busy}>{busy ? "⌛ Sending…" : `🔊 Speak (${p.ttsEmotion})`}</button></div>
+          <div className="btn-row">
+            <button className="primary" onClick={() => browserSpeak(ttsText)} disabled={!ttsText.trim() || speaking}>
+              {speaking ? "🔊 Speaking…" : `🔊 Speak Now (${p.ttsEmotion})`}
+            </button>
+            {speaking && <button className="danger" onClick={() => { window.speechSynthesis?.cancel(); setSpeaking(false); }}>⏹ Stop</button>}
+            <button onClick={() => void speak()} disabled={p.disabled || busy || !ttsText.trim()} title="Also queue on robot Piper TTS">{busy ? "⌛" : "🤖 + Robot"}</button>
+          </div>
           {cmdResult && <div className={`cmd-result ${cmdResult.ok ? "ok" : "error"}`}>{cmdResult.msg}</div>}
           {lastMetrics && (
             <div className="tts-metrics">
               <Metric label="Latency" value={`${lastMetrics.latency} ms`} />
               <Metric label="Characters" value={String(lastMetrics.chars)} />
               <Metric label="Est. duration" value={`~${(lastMetrics.chars * 0.065).toFixed(1)} s`} />
-              <Metric label="Backend" value="piper" />
+              <Metric label="Backend" value={lastMetrics.backend} />
             </div>
           )}
           <div className="capability-note" style={{ marginTop: 14 }}>
@@ -1768,9 +1913,82 @@ function classifyGestureResult(gesture: string, source: string): GestureResult {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// GESTURE: 21-keypoint classifier (mirrors MediaPipe Hands landmark indices)
+// ══════════════════════════════════════════════════════════════════════════════
+type HandKP = { x: number; y: number; z?: number; name?: string };
+
+function classifyFromKP(kp: HandKP[]): string {
+  if (!kp || kp.length < 21) return "none";
+  // Finger extension: tip.y < pip.y means finger is raised (lower y = higher on screen)
+  const thumbExt  = kp[4].x < kp[3].x;               // rough for mirrored (front) camera
+  const indexExt  = kp[8].y  < kp[6].y;
+  const middleExt = kp[12].y < kp[10].y;
+  const ringExt   = kp[16].y < kp[14].y;
+  const pinkyExt  = kp[20].y < kp[18].y;
+  const extCount  = [indexExt, middleExt, ringExt, pinkyExt].filter(Boolean).length;
+
+  // Wrist vs fingertips height — used for thumbs up/down
+  const wristY = kp[0].y;
+  const thumbTipY = kp[4].y;
+
+  if (extCount === 0 && !thumbExt)                             return "fist";
+  if (extCount === 4 && thumbExt)                              return "stop_palm";
+  if (extCount === 4 && !thumbExt)                             return "open_palm";
+  if (extCount === 1 && indexExt)                              return "pointing";
+  if (extCount === 2 && indexExt && middleExt && !ringExt && !pinkyExt) return "victory_v";
+  if (extCount === 0 && thumbExt && thumbTipY < wristY - 30)  return "thumbs_up";
+  if (extCount === 0 && thumbExt && thumbTipY > wristY + 30)  return "thumbs_down";
+  if (extCount === 3 && indexExt && middleExt && ringExt)      return "three_fingers";
+  if (extCount === 0 && thumbExt)                              return "thumbs_up";
+  return extCount >= 2 ? "open_palm" : "pointing";
+}
+
+function drawHandLandmarks(ctx: CanvasRenderingContext2D, kp: HandKP[], scX: number, scY: number, color: string) {
+  // Connections: wrist→thumb, finger chains
+  const connections = [
+    [0,1],[1,2],[2,3],[3,4],       // thumb
+    [0,5],[5,6],[6,7],[7,8],       // index
+    [0,9],[9,10],[10,11],[11,12],  // middle
+    [0,13],[13,14],[14,15],[15,16],// ring
+    [0,17],[17,18],[18,19],[19,20],// pinky
+    [5,9],[9,13],[13,17],          // palm cross
+  ];
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  connections.forEach(([a, b]) => {
+    if (!kp[a] || !kp[b]) return;
+    ctx.beginPath();
+    ctx.moveTo(kp[a].x * scX, kp[a].y * scY);
+    ctx.lineTo(kp[b].x * scX, kp[b].y * scY);
+    ctx.stroke();
+  });
+  kp.forEach((p, i) => {
+    ctx.fillStyle = i === 0 ? "#ff5c7a" : i % 4 === 0 ? "#f2e44f" : color;
+    ctx.beginPath();
+    ctx.arc(p.x * scX, p.y * scY, i === 0 ? 5 : 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // TAB 10 — GESTURE
 // ══════════════════════════════════════════════════════════════════════════════
-function GestureTab(_p: TabProps) {
+function GestureTab(p: TabProps) {
+  // Camera state
+  const gestureVideoRef   = useRef<HTMLVideoElement | null>(null);
+  const gestureCanvasRef  = useRef<HTMLCanvasElement | null>(null);
+  const gestureAnimRef    = useRef<number | null>(null);
+  const handDetectorRef   = useRef<{ estimateHands: (v: HTMLVideoElement) => Promise<{ keypoints: HandKP[]; handedness: string }[]> } | null>(null);
+  const lastHandDetectRef = useRef(0);
+  const prevWristXRef     = useRef<number[]>([]);
+  const [camActive, setCamActive] = useState(false);
+  const [modelStatus, setModelStatus] = useState("Model not loaded");
+  const [loadingModel, setLoadingModel] = useState(false);
+  const [detectedGesture, setDetectedGesture] = useState("none");
+  const [handCount, setHandCount] = useState(0);
+  const [fps, setFps] = useState(0);
+  const lastFpsRef = useRef(performance.now());
+
+  // Simulation state (manual override)
   const [handGesture, setHandGesture] = useState("none");
   const [bodyGesture, setBodyGesture] = useState("none");
   const [headGesture, setHeadGesture] = useState("none");
@@ -1783,16 +2001,128 @@ function GestureTab(_p: TabProps) {
   const [streamGesture, setStreamGesture] = useState(false);
   const streamRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Camera + hand detection ─────────────────────────────────────────────────
+  const loadHandModel = async () => {
+    if (handDetectorRef.current) return;
+    setLoadingModel(true);
+    setModelStatus("Loading MediaPipe Hands (TFJS lite)…");
+    try {
+      const tf = await import("@tensorflow/tfjs");
+      await tf.ready();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hpd = await import("@tensorflow-models/hand-pose-detection") as any;
+      const model = hpd.SupportedModels.MediaPipeHands;
+      const detector = await hpd.createDetector(model, { runtime: "tfjs", modelType: "lite", maxHands: 2 });
+      handDetectorRef.current = detector;
+      setModelStatus("✓ MediaPipe Hands ready (21 landmarks, live)");
+      p.addLog("ok", "Hand pose detection model loaded");
+    } catch (err) {
+      setModelStatus(`Model unavailable: ${err instanceof Error ? err.message.slice(0, 60) : err}`);
+      p.addLog("warn", "Hand model failed — use manual simulation below");
+    } finally { setLoadingModel(false); }
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" }, audio: false });
+      const video = gestureVideoRef.current;
+      if (!video) return;
+      video.srcObject = stream;
+      await video.play();
+      setCamActive(true);
+      p.addLog("ok", "Gesture camera started");
+      void loadHandModel();
+      runGestureLoop();
+    } catch (e) { p.addLog("error", `Gesture camera: ${e instanceof Error ? e.message : e}`); }
+  };
+
+  const stopCamera = () => {
+    if (gestureAnimRef.current) cancelAnimationFrame(gestureAnimRef.current);
+    const video = gestureVideoRef.current;
+    if (video) { (video.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop()); video.srcObject = null; }
+    setCamActive(false); setDetectedGesture("none"); setHandCount(0);
+    p.addLog("info", "Gesture camera stopped");
+  };
+
+  const runGestureLoop = () => {
+    const video  = gestureVideoRef.current;
+    const canvas = gestureCanvasRef.current;
+    if (!video || !canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = 640; canvas.height = 480;
+
+    const loop = () => {
+      if (!video.videoWidth) { gestureAnimRef.current = requestAnimationFrame(loop); return; }
+      // Mirror the feed for natural interaction
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      // FPS
+      const now = performance.now();
+      setFps(Math.round(1000 / Math.max(now - lastFpsRef.current, 1)));
+      lastFpsRef.current = now;
+
+      // Hand detection throttled to ~15 Hz
+      if (now - lastHandDetectRef.current > 67 && handDetectorRef.current) {
+        lastHandDetectRef.current = now;
+        handDetectorRef.current.estimateHands(video).then((hands) => {
+          setHandCount(hands.length);
+          ctx.save(); ctx.scale(-1,1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+          if (hands.length === 0) { setDetectedGesture("none"); return; }
+
+          const scX = canvas.width  / video.videoWidth;
+          const scY = canvas.height / video.videoHeight;
+
+          // Wave detection: track wrist X movement
+          const wristXs = hands.map((h) => {
+            const mirroredX = video.videoWidth - h.keypoints[0].x;  // mirror
+            return mirroredX;
+          });
+          prevWristXRef.current.push(...wristXs);
+          if (prevWristXRef.current.length > 20) prevWristXRef.current = prevWristXRef.current.slice(-20);
+          const wristRange = Math.max(...prevWristXRef.current) - Math.min(...prevWristXRef.current);
+
+          hands.forEach((hand, idx) => {
+            const color = idx === 0 ? "#44f2a1" : "#a0c4ff";
+            // Mirror keypoints for display
+            const mirroredKP = hand.keypoints.map((kp) => ({ ...kp, x: video.videoWidth - kp.x }));
+            drawHandLandmarks(ctx, mirroredKP, scX, scY, color);
+            const gesture = wristRange > 80 ? "wave" : classifyFromKP(mirroredKP);
+
+            // Overlay gesture label
+            ctx.fillStyle = SAFETY_GESTURES.has(gesture) ? "#ff5c7a" : "#44f2a1";
+            ctx.font = "bold 18px sans-serif";
+            ctx.fillText(`${hand.handedness}: ${gesture}`, mirroredKP[0].x * scX - 40, mirroredKP[0].y * scY - 14);
+
+            if (idx === 0) {
+              setDetectedGesture(gesture);
+              const gr = classifyGestureResult(gesture, "camera");
+              setGestureHistory((prev) => [gr, ...prev].slice(0, 8));
+            }
+          });
+
+          // Reset wave accumulator gradually
+          if (prevWristXRef.current.length > 10) prevWristXRef.current = prevWristXRef.current.slice(-5);
+        }).catch(() => {});
+      }
+      gestureAnimRef.current = requestAnimationFrame(loop);
+    };
+    loop();
+  };
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    if (gestureAnimRef.current) cancelAnimationFrame(gestureAnimRef.current);
+  }, []);
+
   const classify = (g: string, source: string, setter: (r: GestureResult) => void) => {
     const r = classifyGestureResult(g, source);
     setter(r);
     if (g !== "none") {
       setGestureHistory((prev) => [r, ...prev].slice(0, 8));
-      // Temporal smoother: majority vote in last 5
-      setSmoothed((prev) => {
-        const last5 = [r, ...prev ? [] : []];
-        return r.gesture;
-      });
     }
   };
 
@@ -1818,14 +2148,18 @@ function GestureTab(_p: TabProps) {
     return () => { if (streamRef.current) clearInterval(streamRef.current); };
   }, [streamGesture]);
 
-  const activeResult = handResult ?? bodyResult ?? headResult;
+
+
+  const activeResult = camActive
+    ? (detectedGesture !== "none" ? classifyGestureResult(detectedGesture, "camera") : null)
+    : (handResult ?? bodyResult ?? headResult);
   const safetyAlert = activeResult?.isSafetyRelevant && activeResult.gesture !== "none";
 
   return (
     <div className="tab-body">
       <div className="section-hero">
         <h2>🤚 Gesture Recognition — bonbon_gesture</h2>
-        <p>Interactive testbench for hand, body, and head gesture classifiers. Tests the full pipeline: detection → classification → temporal smoothing → safety tagging → intent mapping. Mirrors the MediaPipe Holistic pipeline running on the robot.</p>
+        <p>Live camera-based gesture recognition using MediaPipe Hands (21 landmarks per hand). Shows the full pipeline: camera → landmark detection → gesture classification → temporal smoothing → safety tagging → intent mapping. Manual simulation available when camera is off.</p>
       </div>
 
       {safetyAlert && (
@@ -1834,11 +2168,65 @@ function GestureTab(_p: TabProps) {
         </div>
       )}
 
+      {/* ── LIVE CAMERA SECTION ──────────────────────────────────────── */}
+      <section className="panel gesture-camera-panel">
+        <div className="section-title">
+          <span>📹 Live Camera Gesture Detection</span>
+          <small>{modelStatus}</small>
+          <div className="gesture-cam-controls">
+            {!camActive
+              ? <button className="primary" onClick={() => void startCamera()}>▶ Start Camera</button>
+              : <button className="danger" onClick={stopCamera}>⏹ Stop</button>}
+            {!camActive && !handDetectorRef.current && !loadingModel && (
+              <button onClick={() => void loadHandModel()} disabled={loadingModel}>
+                {loadingModel ? "Loading…" : "⚡ Pre-load Model"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="gesture-cam-layout">
+          <div className="gesture-cam-video">
+            <video ref={gestureVideoRef} muted playsInline style={{ display: "none" }} />
+            <canvas ref={gestureCanvasRef}
+              style={{ width: "100%", maxWidth: 480, borderRadius: 12, background: "#000",
+                       display: camActive ? "block" : "none" }} />
+            {!camActive && (
+              <div className="gesture-cam-placeholder">
+                <span>🤚</span>
+                <p>Start camera to see live hand landmark detection</p>
+                <small>Uses MediaPipe Hands TFJS model — detects 21 landmarks per hand</small>
+              </div>
+            )}
+          </div>
+
+          <div className="gesture-live-info">
+            <div className="gesture-live-stat"><span>Hands detected</span><b>{handCount}</b></div>
+            <div className="gesture-live-stat"><span>Camera FPS</span><b>{fps}</b></div>
+            <div className="gesture-live-stat"><span>Detected gesture</span>
+              <b className={SAFETY_GESTURES.has(detectedGesture) ? "warn-text" : "ok-text"} style={{ textTransform: "capitalize" }}>{detectedGesture || "none"}</b>
+            </div>
+            {detectedGesture !== "none" && (
+              <>
+                <div className="gesture-live-stat"><span>Intent</span><b>{GESTURE_INTENT[detectedGesture] ?? "unknown"}</b></div>
+                <div className="gesture-live-stat"><span>Safety flag</span><b className={SAFETY_GESTURES.has(detectedGesture) ? "warn-text" : "ok-text"}>{SAFETY_GESTURES.has(detectedGesture) ? "🚨 Safety-relevant" : "✓ Normal"}</b></div>
+              </>
+            )}
+            <div className="gesture-supported-list">
+              <small>Recognized gestures:</small>
+              {["fist","stop_palm","open_palm","pointing","victory_v","thumbs_up","thumbs_down","wave","three_fingers"].map((g) => (
+                <span key={g} className={`gesture-badge sm ${g === detectedGesture ? "active-gesture" : ""} ${SAFETY_GESTURES.has(g) ? "safety-bg" : ""}`}>{g.replace(/_/g," ")}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="gesture-grid">
-        {/* ── Hand Gesture ─────────────────────────── */}
+        {/* ── Manual Simulation ────────────────────── */}
         <section className="panel">
-          <div className="section-title"><span>🖐 Hand Gesture Classifier</span><small>21 landmark points · MediaPipe Hands</small></div>
-          <p className="hint-small">Select a hand gesture to simulate MediaPipe landmark detection and classification.</p>
+          <div className="section-title"><span>🖐 Manual Simulation</span><small>21-landmark mock · for testing without camera</small></div>
+          <p className="hint-small">Click any gesture to simulate MediaPipe classification. Camera mode (above) overrides these when active.</p>
           <div className="gesture-btn-grid">
             {HAND_GESTURES.map((g) => (
               <button key={g} className={`gesture-select-btn ${handGesture === g ? "selected" : ""} ${SAFETY_GESTURES.has(g) ? "safety" : ""}`}
