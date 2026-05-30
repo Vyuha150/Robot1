@@ -13,7 +13,6 @@
   <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
   <license>Proprietary</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_python</buildtool_depend>
 
   <exec_depend>rclpy</exec_depend>
