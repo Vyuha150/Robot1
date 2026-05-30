@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_bringup</name>
+  <version>1.0.0</version>
+  <description>
+    Top-level system bring-up for the BonBon service robot. Orchestrates the
+    startup of every subsystem (HAL, safety, perception, speech, AI, behaviour,
+    actuation, navigation, operator API) in the correct order, with launch
+    arguments to select simulation/mock mode and to enable/disable subsystem
+    groups. This is the package the Docker entrypoint and docker-compose files
+    launch (`ros2 launch bonbon_bringup bringup.launch.py`).
+  </description>
+
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+
+  <!-- Subsystem packages this bring-up composes -->
+  <exec_depend>bonbon_hal</exec_depend>
+  <exec_depend>bonbon_safety</exec_depend>
+  <exec_depend>bonbon_vision</exec_depend>
+  <exec_depend>bonbon_speech</exec_depend>
+  <exec_depend>bonbon_tts</exec_depend>
+  <exec_depend>bonbon_llm</exec_depend>
+  <exec_depend>bonbon_navigation</exec_depend>
+  <exec_depend>bonbon_perception_ai</exec_depend>
+  <exec_depend>bonbon_data_stores</exec_depend>
+  <exec_depend>bonbon_affective_ai</exec_depend>
+  <exec_depend>bonbon_gesture</exec_depend>
+  <exec_depend>bonbon_spatial</exec_depend>
+  <exec_depend>bonbon_actuation</exec_depend>
+  <exec_depend>bonbon_behavior_engine</exec_depend>
+  <exec_depend>bonbon_operator_api</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
