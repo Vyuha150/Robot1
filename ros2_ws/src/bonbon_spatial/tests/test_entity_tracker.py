@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import time
-from unittest.mock import MagicMock
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,18 +17,25 @@ from bonbon_spatial.core.entity_tracker import EntityTracker, TrackedEntity
 
 def _mock_person(tracking_id: int, x: float, y: float,
                  vx: float = 0.0, vy: float = 0.0,
-                 person_id: str = "") -> MagicMock:
-    """Build a minimal PersonState mock compatible with EntityTracker.update_person."""
-    ps = MagicMock()
-    ps.tracking_id = tracking_id
-    ps.person_id = person_id or f"p{tracking_id}"
-    ps.pose.pose.position.x = x
-    ps.pose.pose.position.y = y
-    ps.pose.pose.position.z = 0.0
-    ps.velocity.x = vx
-    ps.velocity.y = vy
-    ps.velocity.z = 0.0
-    return ps
+                 person_id: str = ""):
+    """Build a PersonState stub matching bonbon_msgs/PersonState.msg.
+
+    The real message carries a scalar ``velocity_mps`` + ``bearing_deg`` rather
+    than Cartesian velocity, so the (vx, vy) test inputs are converted to that
+    polar form — which EntityTracker decomposes back into (vx, vy) internally.
+    """
+    speed = math.hypot(vx, vy)
+    bearing_deg = math.degrees(math.atan2(vy, vx)) if speed > 0.0 else 0.0
+    return SimpleNamespace(
+        track_id=str(tracking_id),
+        face_id=person_id or f"p{tracking_id}",
+        distance_m=math.hypot(x, y),
+        bearing_deg=bearing_deg,
+        velocity_mps=speed,
+        facing_robot=False,
+        age_group="unknown",
+        position=SimpleNamespace(x=float(x), y=float(y), z=0.0),
+    )
 
 
 # ---------------------------------------------------------------------------

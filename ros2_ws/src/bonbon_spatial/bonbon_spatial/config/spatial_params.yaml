@@ -10,4 +10,16 @@ spatial_reasoning_node:
       stop_distance_m: 0.6
       slow_distance_m: 1.5
       approach_target_m: 1.0
+
+    # Forward-corridor blockage detection
+    blockage:
+      corridor_half_width_m: 0.5   # ± lateral half-width of forward corridor
+      corridor_length_m: 2.0       # how far ahead the corridor extends
+      persistence_sec: 1.5         # sustained occupancy before declaring blocked
+
+    # Dynamic-obstacle (constant-velocity) collision prediction
+    prediction:
+      horizon_sec: 2.5             # how far ahead to predict
+      timestep_sec: 0.25           # path sampling interval
+
     zones: []   # list of {zone_id, zone_type, polygon:[{x,y}...], min_clearance_m, reason}

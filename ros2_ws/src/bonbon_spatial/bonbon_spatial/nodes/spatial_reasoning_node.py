@@ -43,6 +43,7 @@ from builtin_interfaces.msg import Time as BuiltinTime
 
 from bonbon_msgs.msg import (
     PersonStateArray,
+    RiskEvent,
     SafetyState,
     SpatialEntity,
     SpatialRelation,
@@ -64,6 +65,16 @@ from bonbon_spatial.core.personal_space_estimator import (
 from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZoneManager
 from bonbon_spatial.core.social_navigation_hints import SocialNavigationHints, HintSummary
 from bonbon_spatial.core.approach_pose_planner import ApproachPosePlanner
+from bonbon_spatial.core.restricted_zone_monitor import RestrictedZoneMonitor
+from bonbon_spatial.core.blockage_detector import BlockageDetector
+from bonbon_spatial.core.dynamic_obstacle_predictor import DynamicObstaclePredictor
+
+# RiskEvent severity constants (mirror bonbon_msgs/RiskEvent.msg)
+_SEV_INFO = 0
+_SEV_LOW = 1
+_SEV_MEDIUM = 2
+_SEV_HIGH = 3
+_SEV_CRITICAL = 4
 
 # ---------------------------------------------------------------------------
 # QoS profiles
@@ -131,6 +142,12 @@ class SpatialReasoningNode(LifecycleNode):
         self.declare_parameter("personal_space.stop_distance_m", 0.6)
         self.declare_parameter("personal_space.slow_distance_m", 1.5)
         self.declare_parameter("personal_space.approach_target_m", 1.0)
+        # Blockage / prediction parameters.
+        self.declare_parameter("blockage.corridor_half_width_m", 0.5)
+        self.declare_parameter("blockage.corridor_length_m", 2.0)
+        self.declare_parameter("blockage.persistence_sec", 1.5)
+        self.declare_parameter("prediction.horizon_sec", 2.5)
+        self.declare_parameter("prediction.timestep_sec", 0.25)
 
         # Core components — initialised in on_configure.
         self._tracker: Optional[EntityTracker] = None
@@ -138,6 +155,9 @@ class SpatialReasoningNode(LifecycleNode):
         self._zone_manager: Optional[SemanticZoneManager] = None
         self._hint_generator: Optional[SocialNavigationHints] = None
         self._approach_planner: Optional[ApproachPosePlanner] = None
+        self._zone_monitor: Optional[RestrictedZoneMonitor] = None
+        self._blockage_detector: Optional[BlockageDetector] = None
+        self._predictor: Optional[DynamicObstaclePredictor] = None
 
         # ROS2 infrastructure — initialised in on_activate.
         self._sub_persons = None
@@ -145,6 +165,7 @@ class SpatialReasoningNode(LifecycleNode):
         self._pub_entities: Optional[LifecyclePublisher] = None
         self._pub_relations: Optional[LifecyclePublisher] = None
         self._pub_hints: Optional[LifecyclePublisher] = None
+        self._pub_alerts: Optional[LifecyclePublisher] = None
         self._srv_world_model = None
         self._srv_approach_pose = None
         self._srv_add_zone = None
@@ -156,6 +177,7 @@ class SpatialReasoningNode(LifecycleNode):
         self._safety_state: Optional[SafetyState] = None
         self._last_hint_type: str = ""
         self._privacy_mode: bool = False
+        self._last_blocked: bool = False
 
     # ------------------------------------------------------------------
     # Lifecycle callbacks
@@ -201,9 +223,22 @@ class SpatialReasoningNode(LifecycleNode):
                 zone_manager=self._zone_manager,
                 estimator=self._estimator,
             )
+            self._zone_monitor = RestrictedZoneMonitor(zone_manager=self._zone_manager)
+
+            gp = self.get_parameter
+            self._blockage_detector = BlockageDetector(
+                corridor_half_width_m=gp("blockage.corridor_half_width_m").get_parameter_value().double_value,
+                corridor_length_m=gp("blockage.corridor_length_m").get_parameter_value().double_value,
+                persistence_sec=gp("blockage.persistence_sec").get_parameter_value().double_value,
+            )
+            self._predictor = DynamicObstaclePredictor(
+                horizon_sec=gp("prediction.horizon_sec").get_parameter_value().double_value,
+                timestep_sec=gp("prediction.timestep_sec").get_parameter_value().double_value,
+            )
 
             self.get_logger().info(
-                "SpatialReasoningNode: configured (timeout=%.1fs, stop=%.2fm, slow=%.2fm)",
+                "SpatialReasoningNode: configured (timeout=%.1fs, stop=%.2fm, slow=%.2fm, "
+                "+ zone monitor, blockage detector, obstacle predictor)",
                 timeout_sec, zones_cfg.stop_distance_m, zones_cfg.slow_distance_m,
             )
         except Exception as exc:  # noqa: BLE001
@@ -249,6 +284,11 @@ class SpatialReasoningNode(LifecycleNode):
             self._pub_hints = self.create_lifecycle_publisher(
                 SocialNavigationHint,
                 "/bonbon/spatial/hints",
+                _QOS_RELIABLE,
+            )
+            self._pub_alerts = self.create_lifecycle_publisher(
+                RiskEvent,
+                "/bonbon/spatial/alerts",
                 _QOS_RELIABLE,
             )
 
@@ -302,9 +342,13 @@ class SpatialReasoningNode(LifecycleNode):
             self._zone_manager = None
             self._hint_generator = None
             self._approach_planner = None
+            self._zone_monitor = None
+            self._blockage_detector = None
+            self._predictor = None
             self._safety_state = None
             self._last_hint_type = ""
             self._privacy_mode = False
+            self._last_blocked = False
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
@@ -386,6 +430,108 @@ class SpatialReasoningNode(LifecycleNode):
             elif self._last_hint_type != "":
                 # No entities → clear hint.
                 self._last_hint_type = ""
+
+        # Restricted-zone entry/exit alerts, blockage detection, and
+        # dynamic-obstacle collision prediction.
+        self._evaluate_alerts(entities, stamp)
+
+    # ------------------------------------------------------------------
+    # Alerting: restricted zones, blockage, obstacle prediction
+    # ------------------------------------------------------------------
+
+    def _evaluate_alerts(self, entities, stamp) -> None:
+        """Run zone monitor, blockage detector and obstacle predictor; alert."""
+        if self._pub_alerts is None or not self._pub_alerts.is_activated:
+            return
+
+        # 1. Restricted-zone entry/exit (edge-triggered).
+        if self._zone_monitor is not None:
+            for alert in self._zone_monitor.update(entities):
+                if alert.alert_type != "entry":
+                    continue
+                self._publish_alert(
+                    stamp,
+                    risk_type="restricted_zone_entry",
+                    severity=_SEV_HIGH,
+                    subject_id=alert.person_id or alert.entity_id,
+                    distance_m=alert.distance_m,
+                    description=alert.description,
+                    requires_action=True,
+                    suggested_action="notify_operator",
+                    confidence=0.95,
+                )
+
+        # 2. Forward-corridor blockage (state-triggered).
+        if self._blockage_detector is not None:
+            blockage = self._blockage_detector.update(entities)
+            if blockage.is_blocked and not self._last_blocked:
+                self.get_logger().warn("Path blockage: %s", blockage.reason)
+                self._publish_alert(
+                    stamp,
+                    risk_type="path_blocked",
+                    severity=_SEV_MEDIUM,
+                    subject_id=",".join(blockage.blocking_entity_ids)[:64] or "scene",
+                    distance_m=blockage.nearest_blocker_m,
+                    description=blockage.reason,
+                    requires_action=False,
+                    suggested_action="reroute",
+                    confidence=0.85,
+                )
+            self._last_blocked = blockage.is_blocked
+
+        # 3. Dynamic-obstacle collision prediction.
+        if self._predictor is not None and entities:
+            preds = self._predictor.predict_all(entities)
+            crit = self._predictor.most_critical(preds)
+            if crit is not None and crit.risk_level in ("high", "medium"):
+                sev = _SEV_HIGH if crit.risk_level == "high" else _SEV_MEDIUM
+                self._publish_alert(
+                    stamp,
+                    risk_type="collision_risk",
+                    severity=sev,
+                    subject_id=crit.entity_id,
+                    distance_m=crit.closest_distance_m,
+                    description=(
+                        f"predicted closest approach {crit.closest_distance_m:.2f}m "
+                        f"in {crit.time_to_closest_sec:.1f}s"
+                    ),
+                    requires_action=(crit.risk_level == "high"),
+                    suggested_action="slow_down" if crit.risk_level == "medium" else "stop",
+                    confidence=0.8,
+                )
+
+    def _publish_alert(
+        self,
+        stamp,
+        *,
+        risk_type: str,
+        severity: int,
+        subject_id: str,
+        distance_m: float,
+        description: str,
+        requires_action: bool,
+        suggested_action: str,
+        confidence: float,
+    ) -> None:
+        """Build and publish a :class:`bonbon_msgs/RiskEvent`."""
+        import uuid as _uuid
+
+        labels = {0: "info", 1: "low", 2: "medium", 3: "high", 4: "critical"}
+        msg = RiskEvent()
+        msg.header = Header()
+        msg.header.stamp = stamp
+        msg.header.frame_id = "base_link"
+        msg.risk_id = str(_uuid.uuid4())[:8]
+        msg.severity = severity
+        msg.severity_label = labels.get(severity, "info")
+        msg.risk_type = risk_type
+        msg.confidence = float(confidence)
+        msg.subject_id = subject_id
+        msg.distance_m = float(distance_m)
+        msg.description = description
+        msg.requires_immediate_action = requires_action
+        msg.suggested_action = suggested_action
+        self._pub_alerts.publish(msg)
 
     # ------------------------------------------------------------------
     # Service handlers
@@ -740,6 +886,7 @@ class SpatialReasoningNode(LifecycleNode):
             "_pub_entities",
             "_pub_relations",
             "_pub_hints",
+            "_pub_alerts",
             "_srv_world_model",
             "_srv_approach_pose",
             "_srv_add_zone",
