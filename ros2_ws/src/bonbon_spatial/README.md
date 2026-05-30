@@ -63,6 +63,7 @@ derating).
 | `/bonbon/spatial/relations` | `bonbon_msgs/SpatialRelation` | pairwise spatial relations |
 | `/bonbon/spatial/hints` | `bonbon_msgs/SocialNavigationHint` | social slowdown/stop/reroute |
 | `/bonbon/spatial/alerts` | `bonbon_msgs/RiskEvent` | **restricted-zone / blockage / collision** |
+| `/bonbon/spatial/spatial_reasoning_node/health` | `bonbon_msgs/ModuleHealth` | 1 Hz health heartbeat |
 
 ### Services
 | Service | Type | Purpose |
@@ -71,6 +72,7 @@ derating).
 | `~/get_approach_pose` | `bonbon_srvs/GetApproachPose` | plan a socially-aware approach pose |
 | `~/add_restricted_zone` | `bonbon_srvs/AddRestrictedZone` | add a zone at runtime |
 | `~/remove_restricted_zone` | `bonbon_srvs/RemoveRestrictedZone` | remove a zone |
+| `~/health_check` | `bonbon_srvs/HealthCheck` | synchronous health query |
 
 ---
 
@@ -151,7 +153,10 @@ python -m pytest tests/ -q          # 95 tests
 
 ### Diagnostics
 
-Entity counts are logged each publish cycle. Restricted-zone entries and path
+A `ModuleHealth` heartbeat is published at 1 Hz on
+`/bonbon/spatial/spatial_reasoning_node/health` (status OK/WARN/ERROR/STALE,
+uptime, cycle count, per-cycle latency, error count), and `~/health_check`
+answers synchronous health queries. Restricted-zone entries and path
 blockages are logged at WARN. All three alert classes are published as
 `RiskEvent` on `/bonbon/spatial/alerts` with severity labels for the safety
 supervisor / behaviour engine to consume.

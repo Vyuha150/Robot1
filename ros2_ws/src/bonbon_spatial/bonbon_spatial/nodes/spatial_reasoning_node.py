@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 import threading
+import time
 import uuid
 from typing import List, Optional
 
@@ -42,6 +43,7 @@ from geometry_msgs.msg import (
 from builtin_interfaces.msg import Time as BuiltinTime
 
 from bonbon_msgs.msg import (
+    ModuleHealth,
     PersonStateArray,
     RiskEvent,
     SafetyState,
@@ -54,7 +56,14 @@ from bonbon_srvs.srv import (
     GetApproachPose,
     AddRestrictedZone,
     RemoveRestrictedZone,
+    HealthCheck,
 )
+
+# ModuleHealth status constants (mirror bonbon_msgs/ModuleHealth.msg)
+_HEALTH_OK = 0
+_HEALTH_WARN = 1
+_HEALTH_ERROR = 2
+_HEALTH_STALE = 3
 
 # Core components
 from bonbon_spatial.core.entity_tracker import EntityTracker, TrackedEntity
@@ -148,6 +157,7 @@ class SpatialReasoningNode(LifecycleNode):
         self.declare_parameter("blockage.persistence_sec", 1.5)
         self.declare_parameter("prediction.horizon_sec", 2.5)
         self.declare_parameter("prediction.timestep_sec", 0.25)
+        self.declare_parameter("health_rate_hz", 1.0)
 
         # Core components — initialised in on_configure.
         self._tracker: Optional[EntityTracker] = None
@@ -166,11 +176,22 @@ class SpatialReasoningNode(LifecycleNode):
         self._pub_relations: Optional[LifecyclePublisher] = None
         self._pub_hints: Optional[LifecyclePublisher] = None
         self._pub_alerts: Optional[LifecyclePublisher] = None
+        self._pub_health: Optional[LifecyclePublisher] = None
         self._srv_world_model = None
         self._srv_approach_pose = None
         self._srv_add_zone = None
         self._srv_remove_zone = None
+        self._srv_health = None
         self._timer = None
+        self._health_timer = None
+
+        # Health / diagnostics telemetry.
+        self._node_start: float = time.monotonic()
+        self._cycle_count: int = 0
+        self._error_count: int = 0
+        self._warning_count: int = 0
+        self._last_cycle_t: float = 0.0
+        self._last_latency_ms: float = 0.0
 
         # Runtime state.
         self._lock = threading.Lock()
@@ -291,6 +312,11 @@ class SpatialReasoningNode(LifecycleNode):
                 "/bonbon/spatial/alerts",
                 _QOS_RELIABLE,
             )
+            self._pub_health = self.create_lifecycle_publisher(
+                ModuleHealth,
+                "/bonbon/spatial/spatial_reasoning_node/health",
+                _QOS_RELIABLE,
+            )
 
             # Services.
             self._srv_world_model = self.create_service(
@@ -313,13 +339,25 @@ class SpatialReasoningNode(LifecycleNode):
                 "~/remove_restricted_zone",
                 self._handle_remove_restricted_zone,
             )
+            self._srv_health = self.create_service(
+                HealthCheck,
+                "~/health_check",
+                self._handle_health_check,
+            )
 
             # Publish timer.
             period_sec = 1.0 / max(rate_hz, 0.1)
             self._timer = self.create_timer(period_sec, self._cb_publish_timer)
 
+            # Health timer (independent of the publish rate).
+            health_hz = self.get_parameter("health_rate_hz").get_parameter_value().double_value
+            self._health_timer = self.create_timer(
+                1.0 / max(health_hz, 0.1), self._cb_health_timer
+            )
+
             self.get_logger().info(
-                "SpatialReasoningNode: active (publish rate=%.1f Hz)", rate_hz
+                "SpatialReasoningNode: active (publish rate=%.1f Hz, health=%.1f Hz)",
+                rate_hz, health_hz,
             )
         except Exception as exc:  # noqa: BLE001
             self.get_logger().error("on_activate failed: %s", str(exc))
@@ -383,7 +421,18 @@ class SpatialReasoningNode(LifecycleNode):
         """Periodic callback: clean stale entities, publish state and hints."""
         if self._tracker is None:
             return
+        cycle_start = time.monotonic()
+        try:
+            self._run_publish_cycle()
+            self._cycle_count += 1
+            self._last_cycle_t = time.monotonic()
+            self._last_latency_ms = (self._last_cycle_t - cycle_start) * 1000.0
+        except Exception as exc:  # noqa: BLE001
+            self._error_count += 1
+            self.get_logger().error("Spatial publish cycle failed: %s", str(exc))
 
+    def _run_publish_cycle(self) -> None:
+        """The actual per-cycle work (separated so the timer can wrap it)."""
         with self._lock:
             stale = self._tracker.cleanup_stale()
             if stale:
@@ -391,9 +440,7 @@ class SpatialReasoningNode(LifecycleNode):
             entities = self._tracker.get_all()
             entity_count = self._tracker.count()
 
-        self.get_logger().info(
-            "Spatial: %d entities tracked", entity_count
-        )
+        self.get_logger().debug("Spatial: %d entities tracked", entity_count)
 
         stamp = self.get_clock().now().to_msg()
 
@@ -532,6 +579,60 @@ class SpatialReasoningNode(LifecycleNode):
         msg.requires_immediate_action = requires_action
         msg.suggested_action = suggested_action
         self._pub_alerts.publish(msg)
+
+    # ------------------------------------------------------------------
+    # Health monitoring / diagnostics
+    # ------------------------------------------------------------------
+
+    def _health_status(self) -> tuple:
+        """Compute (status, text) from current telemetry."""
+        now = time.monotonic()
+        # STALE if the publish cycle has not run within 3× its period.
+        if self._last_cycle_t and (now - self._last_cycle_t) > 3.0:
+            return _HEALTH_STALE, "publish cycle stalled"
+        if self._error_count > 0 and self._cycle_count == 0:
+            return _HEALTH_ERROR, "all publish cycles failing"
+        if self._error_count > 0:
+            return _HEALTH_WARN, f"{self._error_count} cycle error(s)"
+        if self._tracker is None:
+            return _HEALTH_WARN, "not configured"
+        return _HEALTH_OK, "nominal"
+
+    def _cb_health_timer(self) -> None:
+        """Publish a ModuleHealth heartbeat."""
+        if self._pub_health is None or not self._pub_health.is_activated:
+            return
+        status, text = self._health_status()
+        msg = ModuleHealth()
+        msg.header = _now_header(self, "base_link")
+        msg.module_name = "bonbon_spatial.spatial_reasoning_node"
+        msg.status = status
+        msg.status_text = text
+        msg.uptime_sec = float(time.monotonic() - self._node_start)
+        msg.last_successful_cycle_sec = float(
+            (time.monotonic() - self._last_cycle_t) if self._last_cycle_t else -1.0
+        )
+        msg.cpu_percent = 0.0
+        msg.memory_mb = 0.0
+        msg.latency_ms = float(self._last_latency_ms)
+        msg.error_count = int(self._error_count)
+        msg.warning_count = int(self._warning_count)
+        msg.processed_count = int(self._cycle_count)
+        self._pub_health.publish(msg)
+
+    def _handle_health_check(
+        self,
+        request: HealthCheck.Request,
+        response: HealthCheck.Response,
+    ) -> HealthCheck.Response:
+        """Synchronous health query (bonbon_srvs/HealthCheck)."""
+        status, text = self._health_status()
+        response.healthy = status in (_HEALTH_OK, _HEALTH_WARN)
+        response.status = text
+        response.warnings = [text] if status == _HEALTH_WARN else []
+        response.errors = [text] if status in (_HEALTH_ERROR, _HEALTH_STALE) else []
+        response.uptime_sec = float(time.monotonic() - self._node_start)
+        return response
 
     # ------------------------------------------------------------------
     # Service handlers
@@ -879,6 +980,9 @@ class SpatialReasoningNode(LifecycleNode):
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
+        if self._health_timer is not None:
+            self._health_timer.cancel()
+            self._health_timer = None
 
         for attr in (
             "_sub_persons",
@@ -887,10 +991,12 @@ class SpatialReasoningNode(LifecycleNode):
             "_pub_relations",
             "_pub_hints",
             "_pub_alerts",
+            "_pub_health",
             "_srv_world_model",
             "_srv_approach_pose",
             "_srv_add_zone",
             "_srv_remove_zone",
+            "_srv_health",
         ):
             resource = getattr(self, attr, None)
             if resource is not None:

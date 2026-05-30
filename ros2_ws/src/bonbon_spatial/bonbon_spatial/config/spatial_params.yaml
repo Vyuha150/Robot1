@@ -22,4 +22,7 @@ spatial_reasoning_node:
       horizon_sec: 2.5             # how far ahead to predict
       timestep_sec: 0.25           # path sampling interval
 
+    # ModuleHealth heartbeat rate (Hz)
+    health_rate_hz: 1.0
+
     zones: []   # list of {zone_id, zone_type, polygon:[{x,y}...], min_clearance_m, reason}
