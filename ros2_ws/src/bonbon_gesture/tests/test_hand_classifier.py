@@ -66,28 +66,26 @@ def _pointing_hand(cx: float = 320.0, cy: float = 240.0) -> List[Tuple[float, fl
 
 
 def _thumbs_up_hand(cx: float = 320.0, cy: float = 240.0, is_right: bool = True) -> List[Tuple[float, float, float]]:
-    """Thumb extended upward, four fingers curled."""
+    """Thumb extended upward, all four fingers curled (realistic thumbs-up)."""
     pts = _closed_fist(cx, cy)
-    # Thumb tip (4) well above wrist (0), IP joint (3) between
-    pts[0] = (cx, cy, 0.0)          # wrist
-    pts[3] = (cx - 12 if is_right else cx + 12, cy - 20, 0.0)   # thumb IP
-    pts[4] = (cx - 20 if is_right else cx + 20, cy - 50, 0.0)   # thumb tip
-    # Middle tip y at wrist level (needed for threshold)
-    pts[12] = (cx, cy - 5, 0.0)
-    # All finger tips below pip
-    for tip, pip_idx in [(8, 6), (16, 14), (20, 18)]:
+    pts[0] = (cx, cy, 0.0)                                       # wrist
+    pts[9] = (cx, cy - 18, 0.0)                                  # middle_mcp (palm-size ref)
+    pts[3] = (cx - 12 if is_right else cx + 12, cy - 20, 0.0)    # thumb IP
+    pts[4] = (cx - 20 if is_right else cx + 20, cy - 50, 0.0)    # thumb tip well above wrist
+    # All four fingers (incl. middle) curled: tip below its PIP.
+    for tip, pip_idx in [(8, 6), (12, 10), (16, 14), (20, 18)]:
         pts[tip] = (pts[tip][0], pts[pip_idx][1] + 12, 0.0)
     return pts
 
 
 def _thumbs_down_hand(cx: float = 320.0, cy: float = 240.0, is_right: bool = True) -> List[Tuple[float, float, float]]:
-    """Thumb pointing downward, four fingers curled."""
+    """Thumb pointing downward, all four fingers curled (realistic thumbs-down)."""
     pts = _closed_fist(cx, cy)
-    pts[0] = (cx, cy, 0.0)           # wrist
-    pts[3] = (cx - 10 if is_right else cx + 10, cy + 20, 0.0)
-    pts[4] = (cx - 18 if is_right else cx + 18, cy + 55, 0.0)   # thumb tip well below wrist
-    pts[12] = (cx, cy - 5, 0.0)
-    for tip, pip_idx in [(8, 6), (16, 14), (20, 18)]:
+    pts[0] = (cx, cy, 0.0)                                       # wrist
+    pts[9] = (cx, cy - 18, 0.0)                                  # middle_mcp (palm-size ref)
+    pts[3] = (cx - 10 if is_right else cx + 10, cy + 20, 0.0)    # thumb IP
+    pts[4] = (cx - 18 if is_right else cx + 18, cy + 55, 0.0)    # thumb tip well below wrist
+    for tip, pip_idx in [(8, 6), (12, 10), (16, 14), (20, 18)]:
         pts[tip] = (pts[tip][0], pts[pip_idx][1] + 12, 0.0)
     return pts
 

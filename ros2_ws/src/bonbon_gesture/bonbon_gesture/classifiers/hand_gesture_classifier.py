@@ -20,7 +20,13 @@ image — i.e., the finger is more extended toward the top of the frame.
 
 from __future__ import annotations
 
+import math
 from typing import List, Optional, Tuple
+
+
+def _dist(a: Tuple[float, float, float], b: Tuple[float, float, float]) -> float:
+    """2-D Euclidean distance between two landmarks (ignores z)."""
+    return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
 class HandGestureClassifier:
@@ -113,17 +119,25 @@ class HandGestureClassifier:
             if lm[tip_idx][1] < lm[pip_idx][1]:
                 count += 1
 
-        # ── Thumb: compare x-axis because it extends sideways ───────────────
-        # For a right hand (as labelled by MediaPipe) the thumb tip (4) is to
-        # the *left* of the IP joint (3) when the thumb is extended outward.
-        if is_right:
-            if lm[4][0] < lm[3][0]:
-                count += 1
-        else:
-            if lm[4][0] > lm[3][0]:
-                count += 1
+        # ── Thumb: distance-based, orientation-independent ──────────────────
+        # The thumb is "extended" when its tip is further from the wrist than
+        # its MCP joint is — true whether the thumb points up (open palm) or
+        # sideways (thumbs-up). This avoids the failure mode where an x-only
+        # test misses a straight-up thumb on an open palm.
+        if self._is_thumb_extended(lm):
+            count += 1
 
         return count
+
+    def _is_thumb_extended(self, lm: List[Tuple[float, float, float]]) -> bool:
+        """True when the thumb is splayed out from the palm (not folded in)."""
+        wrist = lm[0]
+        thumb_mcp = lm[2]
+        thumb_tip = lm[4]
+        tip_to_wrist = _dist(thumb_tip, wrist)
+        mcp_to_wrist = _dist(thumb_mcp, wrist)
+        # Extended if the tip reaches well beyond the MCP relative to the wrist.
+        return tip_to_wrist > mcp_to_wrist * 1.2
 
     def _is_palm_facing_camera(self, lm: List[Tuple[float, float, float]]) -> bool:
         """Heuristic check that the palm is oriented toward the camera.
@@ -165,14 +179,15 @@ class HandGestureClassifier:
         Returns:
             True when thumbs-up is detected.
         """
-        # Thumb tip must be clearly above wrist; use 30% of wrist-to-middle-tip
-        # distance as the threshold so the check scales with hand size.
+        # Thumb tip must be clearly above the wrist. Scale the margin by the
+        # palm size (wrist→middle_mcp), which is independent of finger curl —
+        # unlike the middle fingertip, which must itself be curled here.
         wrist_y = lm[0][1]
-        middle_tip_y = lm[12][1]
-        threshold = (wrist_y - middle_tip_y) * 0.30  # positive when middle above wrist
+        hand_scale = _dist(lm[0], lm[9])
+        threshold = hand_scale * 0.30
         thumb_up = lm[4][1] < wrist_y - threshold
 
-        # All other fingers curled
+        # All four fingers (index–pinky) curled.
         other_curled = all(
             lm[t][1] > lm[p][1]
             for t, p in zip([8, 12, 16, 20], [6, 10, 14, 18])
@@ -194,8 +209,8 @@ class HandGestureClassifier:
             True when thumbs-down is detected.
         """
         wrist_y = lm[0][1]
-        middle_tip_y = lm[12][1]
-        threshold = abs(wrist_y - middle_tip_y) * 0.30
+        hand_scale = _dist(lm[0], lm[9])
+        threshold = hand_scale * 0.30
         thumb_down = lm[4][1] > wrist_y + threshold
 
         other_curled = all(
