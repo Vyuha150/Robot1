@@ -11,3 +11,8 @@ behavior_engine_node:
 
     # Whether to process LLM-source proposals (set false to disable LLM routing)
     enable_llm_proposals: true
+
+    # Operator-alert deduplication cooldown (seconds). Repeat alerts of the
+    # same (type, subject) within this window are suppressed unless severity
+    # escalates.
+    operator_alert_cooldown_sec: 10.0
