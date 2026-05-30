@@ -62,13 +62,21 @@ class TestGestureDefinitionProperties:
             assert g.duration_sec > 0.0, f"Gesture '{name}' duration={g.duration_sec}"
 
     def test_duration_matches_last_keyframe(self):
+        # Multi-keyframe gestures: duration == last keyframe offset.
+        # Single-keyframe poses (last offset 0.0): duration is the minimum
+        # settle time, so duration >= last keyframe offset always holds.
         for name in GestureLibrary.list_names():
             g = GestureLibrary.get(name)
             last_kf_time = max(kf.time_offset_sec for kf in g.keyframes)
-            assert abs(g.duration_sec - last_kf_time) < 1e-6, (
-                f"Gesture '{name}' duration {g.duration_sec} != "
-                f"last keyframe {last_kf_time}"
-            )
+            if last_kf_time > 0.0:
+                assert abs(g.duration_sec - last_kf_time) < 1e-6, (
+                    f"Gesture '{name}' duration {g.duration_sec} != "
+                    f"last keyframe {last_kf_time}"
+                )
+            else:
+                assert g.duration_sec > 0.0, (
+                    f"Single-keyframe pose '{name}' must have positive settle duration"
+                )
 
     def test_stop_gesture_not_interruptible(self):
         assert GestureLibrary.get("stop_gesture").interruptible is False

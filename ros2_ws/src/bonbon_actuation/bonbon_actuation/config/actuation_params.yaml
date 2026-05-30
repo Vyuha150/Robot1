@@ -1,13 +1,18 @@
 actuation_node:
   ros__parameters:
-    # Topics
-    servo_command_topic: /bonbon/hal/servo_commands
-    status_topic: /bonbon/actuation/status
-    gesture_topic: /bonbon/behavior/actuation
-    safety_topic: /bonbon/safety/state
+    # ── Topics ────────────────────────────────────────────────────────────
+    servo_command_topic: /bonbon/hal/servo_commands   # → HAL servo bus
+    status_topic: /bonbon/actuation/status            # ActuationStatus out
+    gesture_topic: /bonbon/behavior/actuation         # ActuationGesture in
+    safety_topic: /bonbon/safety/state                # SafetyState in
+    estop_topic: /bonbon/estop/state                  # std_msgs/Bool in
+    spatial_hint_topic: /bonbon/spatial/hints         # SocialNavigationHint in
+    spatial_entity_topic: /bonbon/spatial/entities    # SpatialEntity in (proximity)
 
-    # Behaviour
-    rest_on_deactivate: true
+    # ── Behaviour ─────────────────────────────────────────────────────────
+    rest_on_deactivate: true        # fold to safe pose when deactivating
+    operating_mode: normal          # normal|child_safe|elderly|degraded|demo|emergency
+    motion_queue_depth: 16          # max pending gesture requests
 
-    # Execution thread pool size (keep at 1 — gestures are serial)
+    # Execution thread pool size (keep at 1 — gestures are serial on the bus)
     executor_thread_count: 1

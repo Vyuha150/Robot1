@@ -95,6 +95,12 @@ LISTENING_POSE: List[ServoTarget] = [
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+# Minimum duration for a static single-keyframe pose. A pose still needs a
+# non-zero settle time so the motion profile and status reporting behave
+# sensibly (progress, ETA, completion).
+_MIN_POSE_DURATION_SEC = 0.5
+
+
 def _make_gesture(
     name: str,
     description: str,
@@ -102,8 +108,14 @@ def _make_gesture(
     interruptible: bool = True,
     requires_clear_space: bool = False,
 ) -> GestureDefinition:
-    """Build a GestureDefinition, computing duration from the last keyframe."""
+    """Build a GestureDefinition, computing duration from the last keyframe.
+
+    Single-keyframe poses (whose last offset is 0.0) are given a minimum settle
+    duration so they are never zero-length.
+    """
     duration = max(kf.time_offset_sec for kf in keyframes) if keyframes else 1.0
+    if duration <= 0.0:
+        duration = _MIN_POSE_DURATION_SEC
     return GestureDefinition(
         name=name,
         description=description,
