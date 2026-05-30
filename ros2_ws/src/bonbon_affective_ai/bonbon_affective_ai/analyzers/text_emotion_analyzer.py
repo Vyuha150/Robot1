@@ -345,4 +345,22 @@ class TextEmotionAnalyzer:
         msg.dominant_confidence = 0.0
         msg.backend_used = "suppressed"
         msg.requires_operator_alert = False
+        # Privacy-suppressed messages must carry explicitly-zeroed detections
+        # (never stale/garbage). All flags False, all scores 0.0.
+        msg.emergency_detected = False
+        msg.distress_detected = False
+        msg.medical_concern_detected = False
+        msg.safety_concern_detected = False
+        msg.anger_detected = False
+        msg.confusion_detected = False
+        msg.emergency_score = 0.0
+        msg.distress_score = 0.0
+        msg.confusion_score = 0.0
+        msg.anger_score = 0.0
+        msg.gratitude_score = 0.0
+        msg.complaint_score = 0.0
+        msg.request_score = 0.0
+        msg.medical_score = 0.0
+        msg.safety_score = 0.0
+        msg.neutral_score = 1.0
         return msg

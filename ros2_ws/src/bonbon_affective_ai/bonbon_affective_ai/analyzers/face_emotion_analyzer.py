@@ -180,6 +180,14 @@ class FaceEmotionAnalyzer:
         msg.is_ambiguous = True
         msg.privacy_suppressed = True
         msg.privacy_level = self._privacy.current_level
+        # Privacy-suppressed messages must carry explicitly-zeroed scores.
+        msg.anger = 0.0
+        msg.disgust = 0.0
+        msg.fear = 0.0
+        msg.happiness = 0.0
+        msg.sadness = 0.0
+        msg.surprise = 0.0
+        msg.neutral = 0.0
         return msg
 
     def _make_failed_msg(self, tracking_id: int, person_id: str):
