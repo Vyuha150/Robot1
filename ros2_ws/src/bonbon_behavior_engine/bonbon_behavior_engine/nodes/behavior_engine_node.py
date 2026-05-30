@@ -50,6 +50,7 @@ from bonbon_msgs.msg import (
     BehaviorProposal,
     GestureEvent,
     HumanEmotionState,
+    RiskEvent,
     SafetyState,
     SocialNavigationHint,
     SpatialEntity,
@@ -65,7 +66,9 @@ from bonbon_behavior_engine.core.behavior_state_machine import (
 from bonbon_behavior_engine.core.command_risk_classifier import CommandRiskClassifier
 from bonbon_behavior_engine.core.emotion_response_planner import EmotionAwareResponsePlanner
 from bonbon_behavior_engine.core.llm_command_gate import LLMCommandGate
+from bonbon_behavior_engine.core.operator_alerter import OperatorAlerter
 from bonbon_behavior_engine.core.proposal_evaluator import ProposalEvaluator
+from bonbon_behavior_engine.core.spatial_response_planner import SpatialResponsePlanner
 
 _logger = logging.getLogger(__name__)
 
@@ -109,6 +112,8 @@ class BehaviorEngineNode(LifecycleNode):
         self._llm_gate = LLMCommandGate(risk_classifier=self._clf)
         self._evaluator = ProposalEvaluator(risk_classifier=self._clf)
         self._emotion_planner = EmotionAwareResponsePlanner()
+        self._spatial_planner = SpatialResponsePlanner()
+        self._operator_alerter = OperatorAlerter()
 
         # Runtime state (protected by _lock)
         self._lock = threading.Lock()
@@ -140,6 +145,7 @@ class BehaviorEngineNode(LifecycleNode):
         self.declare_parameter("idle_period_sec",        _IDLE_PERIOD_SEC)
         self.declare_parameter("max_tts_chars",          200)
         self.declare_parameter("enable_llm_proposals",   True)
+        self.declare_parameter("operator_alert_cooldown_sec", 10.0)
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -151,6 +157,8 @@ class BehaviorEngineNode(LifecycleNode):
         )
         self._evaluator.set_operating_mode(self._operating_mode)
         idle_period = p("idle_period_sec").get_parameter_value().double_value
+        cooldown = p("operator_alert_cooldown_sec").get_parameter_value().double_value
+        self._operator_alerter = OperatorAlerter(cooldown_sec=cooldown)
 
         # ── Publishers ────────────────────────────────────────────────────
         self._pubs["decision"] = self.create_lifecycle_publisher(
@@ -164,6 +172,10 @@ class BehaviorEngineNode(LifecycleNode):
         )
         self._pubs["tts"] = self.create_lifecycle_publisher(
             TTSRequest, "/bonbon/tts/request", _QOS_DEFAULT
+        )
+        # Operator-alert egress (consumed by bonbon_operator_api dashboard).
+        self._pubs["operator_alert"] = self.create_lifecycle_publisher(
+            RiskEvent, "/bonbon/operator/alerts", _QOS_DEFAULT
         )
 
         # ── Subscribers ──────────────────────────────────────────────────
@@ -181,6 +193,8 @@ class BehaviorEngineNode(LifecycleNode):
                 self._on_spatial_hint),
             sub(SpatialEntity,       "/bonbon/spatial/entities",
                 self._on_spatial_entity),
+            sub(RiskEvent,           "/bonbon/spatial/alerts",
+                self._on_spatial_alert, _QOS_DEFAULT),
             sub(SpeechCommand,       "/speech/command",
                 self._on_speech_command),
         ]
@@ -231,6 +245,7 @@ class BehaviorEngineNode(LifecycleNode):
         with self._lock:
             self._last_emotion = None
             self._person_present = False
+        self._operator_alerter.reset()
         self._fsm.force_transition(BehaviorState.IDLE, "cleanup")
         return TransitionCallbackReturn.SUCCESS
 
@@ -304,8 +319,77 @@ class BehaviorEngineNode(LifecycleNode):
 
     def _on_spatial_hint(self, msg: SocialNavigationHint) -> None:
         hint_type = getattr(msg, "hint_type", "")
-        if hint_type == "stop" and self._fsm.current_state == BehaviorState.NAVIGATING:
-            self.get_logger().warn("Spatial hint: STOP — pausing navigation intent.")
+        urgency = float(getattr(msg, "urgency", 0.0))
+        response = self._spatial_planner.plan_for_hint(hint_type, urgency)
+        self._executor.submit(self._apply_spatial_response, response, "scene")
+
+    # ── Spatial alert callback (RiskEvent from bonbon_spatial) ──────────────
+
+    def _on_spatial_alert(self, msg: RiskEvent) -> None:
+        risk_type = getattr(msg, "risk_type", "")
+        severity = int(getattr(msg, "severity", 2))
+        subject = getattr(msg, "subject_id", "") or "scene"
+        response = self._spatial_planner.plan_for_alert(risk_type, severity)
+        self.get_logger().info(
+            "Spatial alert '%s' (sev=%d) → %s", risk_type, severity, response.reason
+        )
+        self._executor.submit(self._apply_spatial_response, response, subject)
+
+    def _apply_spatial_response(self, response, subject_id: str) -> None:
+        """Execute a SpatialResponse via the normal safety-gated dispatch path."""
+        if response.pause_navigation and self._fsm.current_state == BehaviorState.NAVIGATING:
+            self.get_logger().warn("Spatial response: pausing navigation (%s)", response.reason)
+            # Pause is advisory here; navigation node enforces its own safety stop.
+
+        if response.gesture and self._actuation_enabled:
+            self._dispatch_actuation_gesture(
+                response.gesture, self._last_person_id, self._last_tracking_id,
+                priority=response.gesture_priority,
+            )
+
+        if response.say and self._tts_enabled:
+            self._dispatch_tts(response.say, response.tts_emotion,
+                               self._last_person_id, self._last_tracking_id)
+
+        if response.escalate_to_operator:
+            self._raise_operator_alert(
+                alert_type="spatial",
+                severity=response.operator_severity,
+                subject_id=subject_id,
+                description=response.reason,
+            )
+
+    def _raise_operator_alert(
+        self, alert_type: str, severity: int, subject_id: str, description: str
+    ) -> None:
+        """Deduplicate then publish an operator alert as a RiskEvent."""
+        decision = self._operator_alerter.request(
+            alert_type=alert_type, severity=severity,
+            subject_id=subject_id, description=description,
+        )
+        if not decision.should_send:
+            self.get_logger().debug(
+                "Operator alert suppressed: %s", decision.suppressed_reason
+            )
+            return
+        pub = self._pubs.get("operator_alert")
+        if pub is None:
+            return
+        msg = RiskEvent()
+        msg.header = Header()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "behavior_engine"
+        msg.risk_id = str(uuid.uuid4())[:8]
+        msg.severity = decision.severity
+        msg.severity_label = decision.severity_label
+        msg.risk_type = decision.alert_type
+        msg.confidence = 1.0
+        msg.subject_id = decision.subject_id
+        msg.distance_m = -1.0
+        msg.description = decision.description
+        msg.requires_immediate_action = decision.severity >= 3
+        msg.suggested_action = "notify_operator"
+        pub.publish(msg)
 
     # ── Spatial entity callback ────────────────────────────────────────────
 
@@ -417,7 +501,7 @@ class BehaviorEngineNode(LifecycleNode):
                 "Emergency detected! I'm alerting staff immediately.",
                 "urgent", person_id, tracking_id,
             )
-        # Publish alert decision
+        # Publish alert decision + escalate to the operator console.
         self._publish_decision(
             event_id=str(uuid.uuid4())[:8],
             person_id=person_id,
@@ -426,6 +510,12 @@ class BehaviorEngineNode(LifecycleNode):
             content="Emergency keyword detected — staff alerted",
             confidence=1.0,
             operator_alerted=True,
+        )
+        self._raise_operator_alert(
+            alert_type="medical_emergency",
+            severity=4,  # CRITICAL
+            subject_id=person_id or "scene",
+            description="Emergency keyword detected in speech",
         )
 
     def _dispatch_gesture_ack(self, gesture: str, msg: GestureEvent) -> None:
