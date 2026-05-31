@@ -1,3 +1,9 @@
+[project]
+name = "bonbon-robot-ai"
+version = "1.0.0"
+description = "BonBon AI service robot — ROS2 software stack"
+requires-python = ">=3.11"
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
@@ -42,3 +48,13 @@ python_version = "3.11"
 ignore_missing_imports = true
 warn_unused_configs = true
 exclude = "(build|install|log|\\.venv)"
+
+[tool.coverage.run]
+branch = true
+omit = ["*/tests/*", "*/__pycache__/*", "*/benchmarks/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+# CI enforces >= 80% on the reliability/performance cores (see .github/workflows/ci.yml).
+

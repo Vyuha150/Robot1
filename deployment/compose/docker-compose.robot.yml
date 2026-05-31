@@ -6,7 +6,9 @@ services:
     env_file: /etc/bonbon/bonbon.env
     volumes:
       - /etc/bonbon:/config:ro
-      - /var/lib/bonbon:/data
+      # Persistent data dir must match the image's BONBON_DATA_DIR so SQLite /
+      # FAISS / ChromaDB / audit logs survive container restarts.
+      - /var/lib/bonbon:/var/bonbon/data
       - /var/log/bonbon:/logs
     command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_bringup bringup.launch.py"
     security_opt: ["no-new-privileges:true"]
