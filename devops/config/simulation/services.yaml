@@ -1,10 +1,4 @@
-environment: simulation
-services:
-  simulation: required
-  safety: required
-  dashboard: optional
-  monitoring: required
-safety:
-  min_battery_pct: 20
-  require_estop: true
-  require_operator_authorization: false
+profile: simulation
+simulation: true
+services: [data_stores, safety, hal, vision, speech, ai, behavior, actuation, navigation, tts, operator_api]
+navigation: true

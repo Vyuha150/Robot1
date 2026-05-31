@@ -20,8 +20,18 @@ RUN rosdep update && \
 COPY devops/scripts/health_check.sh /usr/local/bin/bonbon-health-check
 RUN chmod +x /usr/local/bin/bonbon-health-check && \
     useradd --create-home --shell /bin/bash bonbon && \
-    chown -R bonbon:bonbon /opt/bonbon
+    mkdir -p /var/bonbon/data && \
+    chown -R bonbon:bonbon /opt/bonbon /var/bonbon
+
+# Persistent data (SQLite / FAISS / ChromaDB / audit logs) must survive restarts.
+ENV BONBON_DATA_DIR=/var/bonbon/data
+VOLUME ["/var/bonbon/data"]
+
 USER bonbon
+
+# Let container orchestrators detect a crashed / unhealthy robot stack.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD bonbon-health-check || exit 1
 
 ENTRYPOINT ["/bin/bash", "-lc"]
 CMD ["source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_bringup bringup.launch.py"]

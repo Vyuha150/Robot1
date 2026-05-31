@@ -1,11 +1,13 @@
 name: BonBon CI
 
+# No code is considered deployable unless every job here passes.
 on:
   push:
     branches: [master, main]
   pull_request:
 
 jobs:
+  # ── 1. Static quality: lint, format, types, secrets ──────────────────────
   quality:
     runs-on: ubuntu-22.04
     steps:
@@ -16,19 +18,94 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install Python tooling
-        run: python -m pip install --upgrade pip ruff black mypy pytest PyYAML
-      - name: Python lint with ruff
+        run: python -m pip install --upgrade pip ruff black mypy PyYAML
+      - name: Lint (ruff)
         run: ruff check .
-      - name: Formatting check with black
+      - name: Format check (black)
         run: black --check .
-      - name: Type check with mypy
-        run: mypy devops ros2_ws/src/bonbon_simulation
+      - name: Type check (mypy) — rclpy-free cores
+        run: |
+          mypy devops \
+               ros2_ws/src/bonbon_simulation \
+               ros2_ws/src/bonbon_safety/bonbon_safety/core \
+               ros2_ws/src/bonbon_safety/bonbon_safety/testkit
       - name: Documentation check
-        run: test -f deployment/docs/README.md && test -f ros2_ws/src/bonbon_simulation/README.md
+        run: |
+          test -f deployment/docs/README.md
+          test -f ros2_ws/src/bonbon_simulation/README.md
+          test -f ros2_ws/src/bonbon_safety/docs/FAILURE_MODES.md
+          test -f ros2_ws/src/bonbon_safety/docs/PERFORMANCE.md
+          test -f ros2_ws/src/bonbon_safety/docs/TEST_STRATEGY.md
       - name: Secret scan
         run: |
-          ! grep -R --line-number --exclude-dir=.git --exclude-dir=.github --exclude=.env.example -E 'BONBON_JWT_SECRET=.+|BONBON_ADMIN_PASSWORD=.+' .
+          ! grep -R --line-number --exclude-dir=.git --exclude-dir=.github --exclude=.env.example \
+            -E 'BONBON_JWT_SECRET=.+|BONBON_ADMIN_PASSWORD=.+' .
 
+  # ── 2. Pure-Python tests: the safety-critical decision/AI cores ───────────
+  # Runs without ROS2 — fast, gates every push. Covers the packages the old CI
+  # never tested (safety, behavior_engine, actuation, spatial, gesture,
+  # affective_ai) plus the 30 real-world scenarios and the latency budget gate.
+  python-tests:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test deps
+        run: python -m pip install --upgrade pip pytest pytest-cov PyYAML numpy
+      - name: Run all pure-Python suites
+        run: bash scripts/test.sh --no-ros2
+      - name: Real-world scenario suite
+        run: |
+          cd ros2_ws/src/bonbon_safety
+          python -m pytest tests/scenarios -q -p no:cacheprovider
+      - name: Latency budget gate
+        run: |
+          cd ros2_ws/src/bonbon_safety
+          python -m pytest tests/benchmarks/bench_hotpaths.py -q -p no:cacheprovider
+      - name: Coverage gate (reliability + performance cores ≥ 80%)
+        run: |
+          cd ros2_ws/src/bonbon_safety
+          python -m pytest \
+            tests/test_fault_levels.py tests/test_fault_handler.py \
+            tests/test_failure_catalog.py tests/test_perf_monitor.py \
+            tests/test_perf_targets.py tests/test_resource_monitor.py \
+            tests/scenarios \
+            --cov=bonbon_safety/bonbon_safety/core/fault_levels.py \
+            --cov=bonbon_safety/bonbon_safety/core/fault_handler.py \
+            --cov=bonbon_safety/bonbon_safety/core/failure_catalog.py \
+            --cov=bonbon_safety/bonbon_safety/core/perf_monitor.py \
+            --cov=bonbon_safety/bonbon_safety/core/perf_targets.py \
+            --cov=bonbon_safety/bonbon_safety/core/resource_monitor.py \
+            --cov=bonbon_safety/bonbon_safety/testkit/scenario.py \
+            --cov-report=term-missing --cov-report=xml \
+            --cov-fail-under=80 -p no:cacheprovider
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-xml
+          path: ros2_ws/src/bonbon_safety/coverage.xml
+
+  # ── 3. Config validation ──────────────────────────────────────────────────
+  config-validation:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: python -m pip install --upgrade pip PyYAML
+      - name: Validate all configs
+        run: python scripts/validate_config.py --all
+
+  # ── 4. Full ROS2 build + node/launch/sim tests (sourced workspace) ────────
   ros2-build-test:
     runs-on: ubuntu-22.04
     container: ros:humble-ros-base-jammy
@@ -39,7 +116,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y python3-pip python3-colcon-common-extensions python3-rosdep python3-pytest python3-yaml
-          pip3 install pytest PyYAML
+          pip3 install pytest PyYAML numpy
       - name: ROS2 dependency check with rosdep
         run: |
           rosdep update
@@ -49,19 +126,21 @@ jobs:
           . /opt/ros/humble/setup.sh
           cd ros2_ws
           colcon build --symlink-install --event-handlers console_direct+
-      - name: Unit tests
+      - name: ROS2 package tests (colcon)
         run: |
-          cd ros2_ws/src/bonbon_operator_api && python3 -m pytest tests/ -q
-          cd ../bonbon_data_stores && python3 -m pytest tests/ -q
-      - name: Integration tests
-        run: |
-          cd ros2_ws/src/bonbon_simulation && python3 -m pytest tests/ -q
-      - name: Safety tests
-        run: |
-          cd ros2_ws/src/bonbon_operator_api && python3 -m pytest tests/test_safety_gate.py tests/test_commands.py -q
+          . /opt/ros/humble/setup.sh
+          cd ros2_ws
+          . install/setup.sh
+          colcon test --packages-select \
+            bonbon_safety bonbon_hal bonbon_operator_api bonbon_data_stores \
+            bonbon_simulation bonbon_bringup \
+            --event-handlers console_direct+ || true
+          colcon test-result --verbose
       - name: Simulation smoke test
         run: |
-          cd ros2_ws/src/bonbon_simulation && python3 -m pytest tests/test_simulation_suite.py::test_ci_headless_run -q
+          . /opt/ros/humble/setup.sh
+          cd ros2_ws/src/bonbon_simulation
+          python3 -m pytest tests/test_simulation_suite.py::test_ci_headless_run -q
       - name: Artifact upload
         uses: actions/upload-artifact@v4
         if: always()
@@ -71,15 +150,15 @@ jobs:
             ros2_ws/log
             ros2_ws/src/bonbon_simulation/simulation_reports
 
+  # ── 5. Docker build + image security scan ─────────────────────────────────
   docker-security:
     runs-on: ubuntu-22.04
-    needs: [quality]
+    needs: [quality, python-tests, config-validation]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Docker image build
-        run: |
-          docker build -f deployment/docker/Dockerfile.dashboard -t bonbon/dashboard:${{ github.sha }} .
+        run: docker build -f deployment/docker/Dockerfile.dashboard -t bonbon/dashboard:${{ github.sha }} .
       - name: Security scan
         uses: aquasecurity/trivy-action@0.24.0
         with:
