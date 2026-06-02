@@ -1705,26 +1705,43 @@ function AffectiveAITab(p: TabProps) {
     return () => clearTimeout(t);
   }, [textInput]);
 
-  // ── face-api.js camera helpers ──────────────────────────────────────────────
+  // ── face-api camera helpers (@vladmandic/face-api, models vendored locally) ──
   const loadFaceModel = async () => {
     if (faceApiRef.current) return;
     setLoadingFaceModel(true);
-    setFaceModelStatus("Downloading face-api.js models…");
+    setFaceModelStatus("Loading face models…");
+    // Vendored locally under public/models/face — no CDN dependency. The CDN is
+    // only a last-resort fallback if the local files are ever missing.
+    const SOURCES = [
+      "/models/face",
+      "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model",
+    ];
+    let lastErr: unknown = null;
     try {
-      const faceapi = await import("face-api.js");
-      // Load TinyFaceDetector + expression net from jsDelivr CDN
-      const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
-      await Promise.all([
-        (faceapi.nets.tinyFaceDetector as {loadFromUri: (u:string)=>Promise<void>}).loadFromUri(MODEL_URL),
-        (faceapi.nets.faceExpressionNet as {loadFromUri: (u:string)=>Promise<void>}).loadFromUri(MODEL_URL),
-      ]);
-      faceApiRef.current = faceapi;
-      setFaceModelStatus("✓ Face expression model ready");
-      p.addLog("ok", "face-api.js expression model loaded");
+      const faceapi = await import("@vladmandic/face-api");
+      // Ensure the TFJS backend is ready before loading weights.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ftf = (faceapi as any).tf;
+      try { await ftf.setBackend("webgl"); } catch { /* fall back to cpu */ }
+      try { await ftf.ready(); } catch { /* backend ready best-effort */ }
+      for (const url of SOURCES) {
+        try {
+          await faceapi.nets.tinyFaceDetector.loadFromUri(url);
+          await faceapi.nets.faceExpressionNet.loadFromUri(url);
+          faceApiRef.current = faceapi;
+          setFaceModelStatus(`✓ Face model ready (${url.startsWith("/") ? "local" : "cdn"})`);
+          p.addLog("ok", `face model loaded from ${url}`);
+          return;
+        } catch (err) {
+          lastErr = err;
+          p.addLog("warn", `face model source failed (${url}): ${err instanceof Error ? err.message.slice(0, 60) : err}`);
+        }
+      }
+      throw lastErr ?? new Error("all face-model sources failed");
     } catch (err) {
-      const msg = err instanceof Error ? err.message.slice(0, 80) : String(err);
+      const msg = err instanceof Error ? err.message.slice(0, 90) : String(err);
       setFaceModelStatus(`Model load failed: ${msg}`);
-      p.addLog("warn", `face-api.js failed: ${msg}`);
+      p.addLog("error", `face model load failed: ${msg}`);
     } finally { setLoadingFaceModel(false); }
   };
 
@@ -1918,7 +1935,7 @@ function AffectiveAITab(p: TabProps) {
                   {!faceCamActive && (
                     <div className="face-cam-placeholder">
                       <span>😐</span><p>Start camera for live face emotion</p>
-                      <small>face-api.js TinyFaceDetector + FaceExpressionNet</small>
+                      <small>@vladmandic/face-api · TinyFaceDetector + FaceExpressionNet (local models)</small>
                     </div>
                   )}
                 </div>
@@ -2249,21 +2266,44 @@ function GestureTab(p: TabProps) {
   const loadHandModel = async () => {
     if (handDetectorRef.current) return;
     setLoadingModel(true);
-    setModelStatus("Loading MediaPipe Hands (TFJS lite)…");
-    try {
-      const tf = await import("@tensorflow/tfjs");
-      await tf.ready();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hpd = await import("@tensorflow-models/hand-pose-detection") as any;
-      const model = hpd.SupportedModels.MediaPipeHands;
-      const detector = await hpd.createDetector(model, { runtime: "tfjs", modelType: "lite", maxHands: 2 });
-      handDetectorRef.current = detector;
-      setModelStatus("✓ MediaPipe Hands ready (21 landmarks, live)");
-      p.addLog("ok", "Hand pose detection model loaded");
-    } catch (err) {
-      setModelStatus(`Model unavailable: ${err instanceof Error ? err.message.slice(0, 60) : err}`);
-      p.addLog("warn", "Hand model failed — use manual simulation below");
-    } finally { setLoadingModel(false); }
+    setModelStatus("Loading MediaPipe Hands…");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hpd = await import("@tensorflow-models/hand-pose-detection") as any;
+    const model = hpd.SupportedModels.MediaPipeHands;
+
+    // Attempt order: vendored MediaPipe runtime (offline, most accurate) →
+    // MediaPipe runtime via CDN → TFJS runtime (downloads model) as last resort.
+    const attempts: Array<[string, () => Promise<unknown>]> = [
+      ["mediapipe-local", () => hpd.createDetector(model, {
+        runtime: "mediapipe", solutionPath: "/models/hands",
+        modelType: "full", maxHands: 2,
+      })],
+      ["mediapipe-cdn", () => hpd.createDetector(model, {
+        runtime: "mediapipe",
+        solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/hands",
+        modelType: "full", maxHands: 2,
+      })],
+      ["tfjs", async () => {
+        const tf = await import("@tensorflow/tfjs"); await tf.ready();
+        return hpd.createDetector(model, { runtime: "tfjs", modelType: "full", maxHands: 2 });
+      }],
+    ];
+
+    for (const [name, make] of attempts) {
+      try {
+        const detector = await make();
+        handDetectorRef.current = detector as typeof handDetectorRef.current;
+        setModelStatus(`✓ MediaPipe Hands ready (${name}, 21 landmarks)`);
+        p.addLog("ok", `hand model loaded (${name})`);
+        setLoadingModel(false);
+        return;
+      } catch (err) {
+        p.addLog("warn", `hand model '${name}' failed: ${err instanceof Error ? err.message.slice(0, 60) : err}`);
+      }
+    }
+    setModelStatus("Model unavailable — use manual simulation below");
+    p.addLog("error", "all hand-model backends failed");
+    setLoadingModel(false);
   };
 
   const startCamera = async () => {
