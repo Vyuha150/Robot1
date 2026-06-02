@@ -13,15 +13,30 @@ from pathlib import Path
 from pydantic import BaseModel, Field, model_validator
 
 
+def _default_cors_origins() -> list[str]:
+    """Allowed browser origins for the dashboard.
+
+    Extra origins can be supplied (comma-separated) via the
+    ``BONBON_CORS_ORIGINS`` env var — e.g. the LAN address a phone uses, or a
+    deployed dashboard URL — without code changes.
+    """
+    base = [
+        "http://localhost:3000", "http://127.0.0.1:3000",
+        "http://localhost:8080", "http://127.0.0.1:8080",
+        # Vite dev/preview ports the dashboard is commonly served on.
+        "http://localhost:4173", "http://127.0.0.1:4173",
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:5174", "http://127.0.0.1:5174",
+    ]
+    extra = os.environ.get("BONBON_CORS_ORIGINS", "")
+    for origin in (o.strip() for o in extra.split(",")):
+        if origin and origin not in base:
+            base.append(origin)
+    return base
+
+
 class CORSConfig(BaseModel):
-    allowed_origins: list[str] = Field(
-        default_factory=lambda: [
-            "http://localhost:3000",
-            "http://localhost:8080",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:8080",
-        ]
-    )
+    allowed_origins: list[str] = Field(default_factory=_default_cors_origins)
     allow_credentials: bool = True
     allowed_methods: list[str] = Field(default_factory=lambda: ["*"])
     allowed_headers: list[str] = Field(default_factory=lambda: ["*"])
