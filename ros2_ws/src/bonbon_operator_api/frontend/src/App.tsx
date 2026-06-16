@@ -2146,62 +2146,51 @@ type HandKP = { x: number; y: number; z?: number; name?: string };
  *   0=wrist, 1-4=thumb, 5-8=index, 9-12=middle, 13-16=ring, 17-20=pinky
  *   MCP=knuckle(5,9,13,17), PIP=mid-joint(6,10,14,18), DIP(7,11,15,19), TIP(8,12,16,20)
  */
-function classifyFromKP(kp: HandKP[], handedness: string = "Right"): string {
+function classifyFromKP(kp: HandKP[], _handedness: string = "Right"): string {
   if (!kp || kp.length < 21) return "none";
+  const W = kp[0];
+  const dist = (a: HandKP, b: HandKP) => Math.hypot(a.x - b.x, a.y - b.y);
 
-  // Build hand orientation vector (wrist → middle_mcp) to determine up/down
-  const wrist     = kp[0];
-  const midMcp    = kp[9];
-  const palmVecY  = midMcp.y - wrist.y;   // negative = hand pointing up (y increases downward)
-  const handUp    = palmVecY < 0;
+  // Palm size = wrist → middle-MCP. Used as the scale unit so every threshold
+  // below is invariant to how near/far the hand is from the camera.
+  const scale = Math.max(1e-3, dist(W, kp[9]));
 
-  // Finger extension: for each 4-bone finger, check if tip is past PIP in palm direction
-  const fingerExt = (tip: HandKP, pip: HandKP, mcp: HandKP) => {
-    const palmDir = { x: midMcp.x - wrist.x, y: midMcp.y - wrist.y };
-    const fingerDir = { x: tip.x - mcp.x, y: tip.y - mcp.y };
-    // If dot product positive → tip extends in palm direction → finger extended
-    const dot = palmDir.x * fingerDir.x + palmDir.y * fingerDir.y;
-    // Also check simple y-threshold when hand is clearly upright
-    if (handUp) return tip.y < pip.y - 10;
-    return dot > 0 && Math.abs(tip.y - pip.y) > 8;
-  };
+  // A finger is OPEN when its tip is farther from the wrist than its PIP joint.
+  // This is rotation- AND scale-invariant: a curled finger folds its tip back
+  // toward the palm (tip closer to wrist than the PIP), an extended finger
+  // pushes the tip out past the PIP — true at any hand angle or distance.
+  const fingerOpen = (tip: number, pip: number) =>
+    dist(kp[tip], W) > dist(kp[pip], W) * 1.05;
+  const index  = fingerOpen(8, 6);
+  const middle = fingerOpen(12, 10);
+  const ring   = fingerOpen(16, 14);
+  const pinky  = fingerOpen(20, 18);
+  const nOpen  = [index, middle, ring, pinky].filter(Boolean).length;
 
-  const indexExt  = fingerExt(kp[8],  kp[6],  kp[5]);
-  const middleExt = fingerExt(kp[12], kp[10], kp[9]);
-  const ringExt   = fingerExt(kp[16], kp[14], kp[13]);
-  const pinkyExt  = fingerExt(kp[20], kp[18], kp[17]);
-  const extCount  = [indexExt, middleExt, ringExt, pinkyExt].filter(Boolean).length;
+  // Thumb OPEN = tip splayed away from the index knuckle (kp5) and reaching
+  // past the IP joint. In a fist the thumb folds across the palm → tip near kp5.
+  const thumbOpen =
+    dist(kp[4], kp[5]) > 0.55 * scale && dist(kp[4], W) > dist(kp[3], W) * 0.92;
+  // Vertical direction of the thumb relative to the wrist (scaled).
+  const thumbUp   = kp[4].y < W.y - 0.35 * scale;
+  const thumbDown = kp[4].y > W.y + 0.35 * scale;
 
-  // Thumb: use thumb direction along thumb bone axis, accounting for handedness
-  const thumbVec  = { x: kp[4].x - kp[3].x, y: kp[4].y - kp[3].y };
-  const palmVec   = { x: midMcp.x - wrist.x, y: midMcp.y - wrist.y };
-  const thumbDot  = thumbVec.x * palmVec.x + thumbVec.y * palmVec.y;
-  const thumbExt  = thumbDot > 20;  // thumb points generally away from palm
+  // OK sign: thumb tip pinches the index tip while the rest stay open.
+  const okPinch = dist(kp[4], kp[8]) < 0.35 * scale;
 
-  // Thumbs up/down: only thumb extended, others folded, wrist pointing sideways
-  const thumbTipY = kp[4].y;
-  const thumbMcpY = kp[2].y;
-  const thumbsUp  = thumbExt && !indexExt && !middleExt && !ringExt && !pinkyExt
-                    && (thumbTipY < thumbMcpY - 25);
-  const thumbsDn  = thumbExt && !indexExt && !middleExt && !ringExt && !pinkyExt
-                    && (thumbTipY > thumbMcpY + 20);
-
-  // OK sign: thumb tip near index tip
-  const tDist = Math.hypot(kp[4].x - kp[8].x, kp[4].y - kp[8].y);
-  const okSign = tDist < 30 && middleExt && ringExt && pinkyExt;
-
-  // Classify by priority
-  if (thumbsUp)  return "thumbs_up";
-  if (thumbsDn)  return "thumbs_down";
-  if (okSign)    return "ok_sign";
-  if (extCount === 0 && !thumbExt) return "fist";
-  if (extCount === 4 && thumbExt)  return "stop_palm";
-  if (extCount === 4)              return "open_palm";
-  if (extCount === 1 && indexExt && !middleExt) return "pointing";
-  if (extCount === 2 && indexExt && middleExt && !ringExt && !pinkyExt) return "victory_v";
-  if (extCount === 3 && indexExt && middleExt && ringExt)  return "three_fingers";
-  if (extCount >= 3) return "open_palm";
-  return "pointing";
+  // ── Classify, specific → general ─────────────────────────────────────────
+  if (okPinch && middle && ring)                  return "ok_sign";
+  if (nOpen === 0 && thumbOpen && thumbUp)         return "thumbs_up";
+  if (nOpen === 0 && thumbOpen && thumbDown)       return "thumbs_down";
+  if (nOpen === 0)                                 return "fist";
+  if (nOpen >= 4 && thumbOpen)                     return "stop_palm";
+  if (nOpen >= 4)                                  return "open_palm";
+  if (nOpen === 1 && index)                        return "pointing";
+  if (nOpen === 2 && index && middle)              return "victory_v";
+  if (nOpen === 3 && index && middle && ring)      return "three_fingers";
+  if (nOpen >= 3)                                  return "open_palm";
+  if (index && !middle)                            return "pointing";
+  return "fist";
 }
 
 function drawHandLandmarks(ctx: CanvasRenderingContext2D, kp: HandKP[], scX: number, scY: number, color: string) {
@@ -2241,6 +2230,7 @@ function GestureTab(p: TabProps) {
   const handDetectorRef   = useRef<{ estimateHands: (v: HTMLVideoElement) => Promise<{ keypoints: HandKP[]; handedness: string }[]> } | null>(null);
   const lastHandDetectRef = useRef(0);
   const prevWristXRef     = useRef<number[]>([]);
+  const gestureBufRef     = useRef<string[]>([]);   // recent raw gestures → majority vote
   const [camActive, setCamActive] = useState(false);
   const [modelStatus, setModelStatus] = useState("Model not loaded");
   const [loadingModel, setLoadingModel] = useState(false);
@@ -2353,8 +2343,8 @@ function GestureTab(p: TabProps) {
         // IMPORTANT: detect on original (un-mirrored) video element
         (handDetectorRef.current.estimateHands(video) as Promise<{keypoints: HandKP[]; handedness: string; score?: number}[]>)
           .then((allHands) => {
-            // Filter out low-confidence detections (prevents phantom hands)
-            const hands = allHands.filter((h) => (h.score ?? 1) > 0.75);
+            // Filter out clearly-spurious detections (keep valid hands).
+            const hands = allHands.filter((h) => (h.score ?? 1) > 0.5);
             setHandCount(hands.length);
 
             // Redraw video frame (detection is async, video may have advanced)
@@ -2362,6 +2352,7 @@ function GestureTab(p: TabProps) {
 
             if (hands.length === 0) {
               prevWristXRef.current = [];
+              gestureBufRef.current = [];
               setDetectedGesture("none");
               return;
             }
@@ -2404,8 +2395,17 @@ function GestureTab(p: TabProps) {
               }
 
               if (idx === 0) {
-                setDetectedGesture(rawGesture);
-                const gr = classifyGestureResult(rawGesture, "camera");
+                // Majority vote over the last ~7 frames → stable, flicker-free
+                // gesture shown in the dashboard (wave bypasses, it's already temporal).
+                const buf = [rawGesture, ...gestureBufRef.current].slice(0, 7);
+                gestureBufRef.current = buf;
+                const counts: Record<string, number> = {};
+                for (const g of buf) counts[g] = (counts[g] ?? 0) + 1;
+                const smoothed = isWave
+                  ? "wave"
+                  : Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+                setDetectedGesture(smoothed);
+                const gr = classifyGestureResult(smoothed, "camera");
                 setGestureHistory((prev) => [gr, ...prev].slice(0, 8));
               }
             });
