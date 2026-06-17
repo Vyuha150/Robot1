@@ -2238,6 +2238,7 @@ function GestureTab(p: TabProps) {
   const [modelStatus, setModelStatus] = useState("Model not loaded");
   const [loadingModel, setLoadingModel] = useState(false);
   const [detectedGesture, setDetectedGesture] = useState("none");
+  const [liveConfidence, setLiveConfidence] = useState(0);
   const [handCount, setHandCount] = useState(0);
   const [fps, setFps] = useState(0);
   const lastFpsRef = useRef(performance.now());
@@ -2272,20 +2273,22 @@ function GestureTab(p: TabProps) {
        "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task"],
     ];
     for (const [name, wasmPath, modelPath] of sources) {
-      try {
-        const fileset = await FilesetResolver.forVisionTasks(wasmPath);
-        const recognizer = await GestureRecognizer.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: modelPath, delegate: "GPU" },
-          runningMode: "VIDEO",
-          numHands: 2,
-        });
-        handDetectorRef.current = recognizer;
-        setModelStatus(`✓ Gesture recognizer ready (${name}, trained model)`);
-        p.addLog("ok", `gesture recognizer loaded (${name})`);
-        setLoadingModel(false);
-        return;
-      } catch (err) {
-        p.addLog("warn", `gesture model '${name}' failed: ${err instanceof Error ? err.message.slice(0, 70) : err}`);
+      for (const delegate of ["GPU", "CPU"] as const) {
+        try {
+          const fileset = await FilesetResolver.forVisionTasks(wasmPath);
+          const recognizer = await GestureRecognizer.createFromOptions(fileset, {
+            baseOptions: { modelAssetPath: modelPath, delegate },
+            runningMode: "VIDEO",
+            numHands: 2,
+          });
+          handDetectorRef.current = recognizer;
+          setModelStatus(`✓ Gesture recognizer ready (${name}/${delegate})`);
+          p.addLog("ok", `gesture recognizer loaded (${name}/${delegate})`);
+          setLoadingModel(false);
+          return;
+        } catch (err) {
+          p.addLog("warn", `gesture model '${name}/${delegate}' failed: ${err instanceof Error ? err.message.slice(0, 70) : err}`);
+        }
       }
     }
     setModelStatus("Model unavailable — use manual simulation below");
@@ -2363,6 +2366,7 @@ function GestureTab(p: TabProps) {
           prevWristXRef.current = [];
           gestureBufRef.current = [];
           setDetectedGesture("none");
+          setLiveConfidence(0);
           gestureAnimRef.current = requestAnimationFrame(loop);
           return;
         }
@@ -2408,10 +2412,12 @@ function GestureTab(p: TabProps) {
             const counts: Record<string, number> = {};
             for (const g of buf) counts[g] = (counts[g] ?? 0) + 1;
             const top = isWave ? "wave" : Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+            const conf = isWave ? 0.9 : Math.max(score, 0.5);
             setDetectedGesture(top);
+            setLiveConfidence(top === "none" ? 0 : conf);
             const gr = classifyGestureResult(top, "camera");
             // Use the real model confidence rather than a random value.
-            gr.confidence = isWave ? 0.9 : Math.max(score, 0.5);
+            gr.confidence = conf;
             setGestureHistory((prev) => [gr, ...prev].slice(0, 8));
           }
         });
@@ -2492,6 +2498,27 @@ function GestureTab(p: TabProps) {
             )}
           </div>
         </div>
+
+        {/* ── Prominent real-time gesture readout ──────────────────────── */}
+        {camActive && (
+          <div className={`gesture-live-readout ${detectedGesture !== "none" ? "detecting" : "idle"} ${SAFETY_GESTURES.has(detectedGesture) ? "safety" : ""}`}>
+            <div className="glr-label">LIVE GESTURE</div>
+            <div className="glr-gesture">
+              {detectedGesture === "none" ? "— show a gesture —" : detectedGesture.replace(/_/g, " ")}
+            </div>
+            <div className="glr-meta">
+              {detectedGesture !== "none" && (
+                <>
+                  <div className="glr-conf-track">
+                    <div className="glr-conf-fill" style={{ width: `${Math.round(liveConfidence * 100)}%` }} />
+                  </div>
+                  <span className="glr-conf-pct">{Math.round(liveConfidence * 100)}%</span>
+                  <span className="glr-intent">→ {GESTURE_INTENT[detectedGesture] ?? "unknown"}</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="gesture-cam-layout">
           <div className="gesture-cam-video">

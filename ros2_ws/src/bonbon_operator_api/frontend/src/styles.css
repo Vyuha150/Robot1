@@ -1867,6 +1867,43 @@ kbd {
 
 .gesture-cam-controls { display: flex; gap: 8px; align-items: center; margin-left: auto; }
 
+/* ── Prominent real-time gesture readout ─────────────────────────────────── */
+.gesture-live-readout {
+  margin: 10px 0 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 2px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.03);
+  transition: border-color 0.2s, background 0.2s;
+}
+.gesture-live-readout.detecting {
+  border-color: rgba(68,242,161,0.6);
+  background: rgba(68,242,161,0.08);
+}
+.gesture-live-readout.safety {
+  border-color: rgba(255,92,122,0.7);
+  background: rgba(255,92,122,0.10);
+  animation: pulse 1.1s infinite;
+}
+.glr-label {
+  font-size: 0.68rem; letter-spacing: 0.12em; font-weight: 800;
+  color: rgba(238,248,239,0.45);
+}
+.glr-gesture {
+  font-size: 2.1rem; font-weight: 800; line-height: 1.1; text-transform: capitalize;
+  margin: 2px 0 8px; color: #eef8ef;
+}
+.gesture-live-readout.detecting .glr-gesture { color: #44f2a1; }
+.gesture-live-readout.safety .glr-gesture { color: #ff5c7a; }
+.glr-meta { display: flex; align-items: center; gap: 10px; min-height: 16px; }
+.glr-conf-track {
+  flex: 1; max-width: 220px; height: 8px; border-radius: 4px;
+  background: rgba(255,255,255,0.10); overflow: hidden;
+}
+.glr-conf-fill { height: 100%; border-radius: 4px; background: #44f2a1; transition: width 0.15s; }
+.glr-conf-pct { font-size: 0.85rem; font-weight: 700; color: rgba(238,248,239,0.85); min-width: 40px; }
+.glr-intent { font-size: 0.8rem; color: rgba(238,248,239,0.6); }
+
 .gesture-cam-layout {
   display: grid;
   grid-template-columns: 1fr auto;
