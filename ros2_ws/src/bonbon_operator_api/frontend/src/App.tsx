@@ -2116,7 +2116,8 @@ const SAFETY_GESTURES = new Set(["stop_palm", "raised_hand", "fallen_posture"]);
 const GESTURE_INTENT: Record<string, string> = {
   stop_palm: "stop_robot", thumbs_up: "approve_action", thumbs_down: "reject_action",
   pointing: "indicate_direction", wave: "greeting_gesture", fist: "attention",
-  open_palm: "halt_request", victory: "positive_feedback", ok_sign: "confirm",
+  open_palm: "halt_request", victory: "positive_feedback", victory_v: "positive_feedback",
+  ok_sign: "confirm", i_love_you: "friendly_signal",
   raised_hand: "request_attention", arms_crossed: "discomfort_signal",
   pointing_left: "navigate_left", pointing_right: "navigate_right",
   fallen_posture: "emergency_fallen", nod_yes: "affirmative", shake_no: "negative",
@@ -2227,7 +2228,9 @@ function GestureTab(p: TabProps) {
   const gestureVideoRef   = useRef<HTMLVideoElement | null>(null);
   const gestureCanvasRef  = useRef<HTMLCanvasElement | null>(null);
   const gestureAnimRef    = useRef<number | null>(null);
-  const handDetectorRef   = useRef<{ estimateHands: (v: HTMLVideoElement) => Promise<{ keypoints: HandKP[]; handedness: string }[]> } | null>(null);
+  // Trained MediaPipe GestureRecognizer (tasks-vision) — direct gesture labels.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handDetectorRef   = useRef<any>(null);
   const lastHandDetectRef = useRef(0);
   const prevWristXRef     = useRef<number[]>([]);
   const gestureBufRef     = useRef<string[]>([]);   // recent raw gestures → majority vote
@@ -2252,47 +2255,41 @@ function GestureTab(p: TabProps) {
   const [streamGesture, setStreamGesture] = useState(false);
   const streamRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Camera + hand detection ─────────────────────────────────────────────────
+  // ── Camera + hand detection (trained MediaPipe GestureRecognizer) ────────────
   const loadHandModel = async () => {
     if (handDetectorRef.current) return;
     setLoadingModel(true);
-    setModelStatus("Loading MediaPipe Hands…");
+    setModelStatus("Loading gesture recognizer model…");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hpd = await import("@tensorflow-models/hand-pose-detection") as any;
-    const model = hpd.SupportedModels.MediaPipeHands;
+    const vision = await import("@mediapipe/tasks-vision") as any;
+    const { GestureRecognizer, FilesetResolver } = vision;
 
-    // Attempt order: vendored MediaPipe runtime (offline, most accurate) →
-    // MediaPipe runtime via CDN → TFJS runtime (downloads model) as last resort.
-    const attempts: Array<[string, () => Promise<unknown>]> = [
-      ["mediapipe-local", () => hpd.createDetector(model, {
-        runtime: "mediapipe", solutionPath: "/models/hands",
-        modelType: "full", maxHands: 2,
-      })],
-      ["mediapipe-cdn", () => hpd.createDetector(model, {
-        runtime: "mediapipe",
-        solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/hands",
-        modelType: "full", maxHands: 2,
-      })],
-      ["tfjs", async () => {
-        const tf = await import("@tensorflow/tfjs"); await tf.ready();
-        return hpd.createDetector(model, { runtime: "tfjs", modelType: "full", maxHands: 2 });
-      }],
+    // WASM + model vendored under public/models/gesture (offline); CDN fallback.
+    const sources = [
+      ["local", "/models/gesture/wasm", "/models/gesture/gesture_recognizer.task"],
+      ["cdn",
+       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
+       "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task"],
     ];
-
-    for (const [name, make] of attempts) {
+    for (const [name, wasmPath, modelPath] of sources) {
       try {
-        const detector = await make();
-        handDetectorRef.current = detector as typeof handDetectorRef.current;
-        setModelStatus(`✓ MediaPipe Hands ready (${name}, 21 landmarks)`);
-        p.addLog("ok", `hand model loaded (${name})`);
+        const fileset = await FilesetResolver.forVisionTasks(wasmPath);
+        const recognizer = await GestureRecognizer.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: modelPath, delegate: "GPU" },
+          runningMode: "VIDEO",
+          numHands: 2,
+        });
+        handDetectorRef.current = recognizer;
+        setModelStatus(`✓ Gesture recognizer ready (${name}, trained model)`);
+        p.addLog("ok", `gesture recognizer loaded (${name})`);
         setLoadingModel(false);
         return;
       } catch (err) {
-        p.addLog("warn", `hand model '${name}' failed: ${err instanceof Error ? err.message.slice(0, 60) : err}`);
+        p.addLog("warn", `gesture model '${name}' failed: ${err instanceof Error ? err.message.slice(0, 70) : err}`);
       }
     }
     setModelStatus("Model unavailable — use manual simulation below");
-    p.addLog("error", "all hand-model backends failed");
+    p.addLog("error", "all gesture-model sources failed");
     setLoadingModel(false);
   };
 
@@ -2318,6 +2315,18 @@ function GestureTab(p: TabProps) {
     p.addLog("info", "Gesture camera stopped");
   };
 
+  // MediaPipe GestureRecognizer category → dashboard gesture name.
+  const MP_GESTURE_MAP: Record<string, string> = {
+    Closed_Fist: "fist",
+    Open_Palm: "stop_palm",
+    Pointing_Up: "pointing",
+    Thumb_Up: "thumbs_up",
+    Thumb_Down: "thumbs_down",
+    Victory: "victory_v",
+    ILoveYou: "i_love_you",
+    None: "none",
+  };
+
   const runGestureLoop = () => {
     const video  = gestureVideoRef.current;
     const canvas = gestureCanvasRef.current;
@@ -2327,89 +2336,85 @@ function GestureTab(p: TabProps) {
 
     const loop = () => {
       if (!video.videoWidth) { gestureAnimRef.current = requestAnimationFrame(loop); return; }
-      // Sync canvas size to video
       if (canvas.width !== video.videoWidth) { canvas.width = video.videoWidth; canvas.height = video.videoHeight; }
 
-      // Draw mirrored video for natural selfie view
+      // Draw mirrored video for natural selfie view.
       ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
 
       const now = performance.now();
       setFps(Math.round(1000 / Math.max(now - lastFpsRef.current, 1)));
       lastFpsRef.current = now;
 
-      // Hand detection throttled to ~12 Hz to avoid UI jank
-      if (now - lastHandDetectRef.current > 83 && handDetectorRef.current) {
+      // Recognise ~15 Hz; recognizeForVideo is synchronous.
+      if (now - lastHandDetectRef.current > 66 && handDetectorRef.current) {
         lastHandDetectRef.current = now;
-        // IMPORTANT: detect on original (un-mirrored) video element
-        (handDetectorRef.current.estimateHands(video) as Promise<{keypoints: HandKP[]; handedness: string; score?: number}[]>)
-          .then((allHands) => {
-            // Filter out clearly-spurious detections (keep valid hands).
-            const hands = allHands.filter((h) => (h.score ?? 1) > 0.5);
-            setHandCount(hands.length);
+        let result: { gestures?: {categoryName: string; score: number}[][];
+                      landmarks?: {x: number; y: number}[][];
+                      handednesses?: {displayName?: string; categoryName?: string}[][] } | null = null;
+        try {
+          result = handDetectorRef.current.recognizeForVideo(video, now);
+        } catch {
+          result = null;
+        }
 
-            // Redraw video frame (detection is async, video may have advanced)
-            ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+        const landmarks = result?.landmarks ?? [];
+        setHandCount(landmarks.length);
+        if (landmarks.length === 0) {
+          prevWristXRef.current = [];
+          gestureBufRef.current = [];
+          setDetectedGesture("none");
+          gestureAnimRef.current = requestAnimationFrame(loop);
+          return;
+        }
 
-            if (hands.length === 0) {
-              prevWristXRef.current = [];
-              gestureBufRef.current = [];
-              setDetectedGesture("none");
-              return;
-            }
+        const W = canvas.width, H = canvas.height;
+        // Normalised landmarks (0..1) → mirrored canvas pixels for drawing.
+        const dispHands = landmarks.map((lms) =>
+          lms.map((lm) => ({ x: (1 - lm.x) * W, y: lm.y * H, z: 0 }))
+        );
 
-            const scX = canvas.width  / video.videoWidth;
-            const scY = canvas.height / video.videoHeight;
+        // Wave: total horizontal travel of the primary wrist (normalised).
+        const wristX = (1 - landmarks[0][0].x) * W;
+        prevWristXRef.current = [...prevWristXRef.current, wristX].slice(-16);
+        let travel = 0;
+        for (let i = 1; i < prevWristXRef.current.length; i++)
+          travel += Math.abs(prevWristXRef.current[i] - prevWristXRef.current[i - 1]);
+        const isWave = travel > 0.4 * W && prevWristXRef.current.length >= 10;
 
-            // Wave detection: track first hand wrist velocity (mirrored X for natural direction)
-            const primaryWrist = video.videoWidth - hands[0].keypoints[0].x; // mirror for display
-            prevWristXRef.current = [...prevWristXRef.current, primaryWrist].slice(-16);
-            // Wave = total traversal distance, not just range (prevents misclassification)
-            let wristTravel = 0;
-            for (let i = 1; i < prevWristXRef.current.length; i++) {
-              wristTravel += Math.abs(prevWristXRef.current[i] - prevWristXRef.current[i - 1]);
-            }
-            const isWave = wristTravel > 250 && prevWristXRef.current.length >= 10;
+        dispHands.forEach((dkp, idx) => {
+          const cat = result?.gestures?.[idx]?.[0];
+          const mapped = MP_GESTURE_MAP[cat?.categoryName ?? "None"] ?? "none";
+          const score = cat?.score ?? 0;
+          const rawGesture = idx === 0 && isWave ? "wave" : mapped;
 
-            hands.forEach((hand, idx) => {
-              // Classify on ORIGINAL (non-mirrored) keypoints for correct thumb logic
-              const rawGesture = isWave && idx === 0
-                ? "wave"
-                : classifyFromKP(hand.keypoints, hand.handedness);
+          const color = idx === 0 ? "#44f2a1" : "#a0c4ff";
+          drawHandLandmarks(ctx, dkp as HandKP[], 1, 1, color);  // already in pixels
 
-              // Mirror keypoints for drawing only
-              const dispKP = hand.keypoints.map((kp) => ({ ...kp, x: video.videoWidth - kp.x }));
-              const color  = idx === 0 ? "#44f2a1" : "#a0c4ff";
-              drawHandLandmarks(ctx, dispKP, scX, scY, color);
+          const labelX = Math.max(4, dkp[0].x - 30);
+          const labelY = Math.max(20, dkp[0].y - 16);
+          ctx.fillStyle = SAFETY_GESTURES.has(rawGesture) ? "#ff5c7a" : "#44f2a1";
+          ctx.font = "bold 16px sans-serif";
+          ctx.fillText(rawGesture.replace(/_/g, " "), labelX, labelY);
+          if (score > 0) {
+            ctx.fillStyle = "rgba(255,255,255,0.6)";
+            ctx.font = "12px sans-serif";
+            ctx.fillText(`${Math.round(score * 100)}%`, labelX, labelY + 14);
+          }
 
-              // Gesture label above wrist (in display coords)
-              const labelX = dispKP[0].x * scX;
-              const labelY = Math.max(20, dispKP[0].y * scY - 16);
-              ctx.fillStyle = SAFETY_GESTURES.has(rawGesture) ? "#ff5c7a" : "#44f2a1";
-              ctx.font = "bold 15px sans-serif";
-              ctx.fillText(`${hand.handedness[0]}: ${rawGesture}`, labelX - 30, labelY);
-              // Confidence score
-              if (hand.score !== undefined) {
-                ctx.fillStyle = "rgba(255,255,255,0.55)";
-                ctx.font = "12px sans-serif";
-                ctx.fillText(`${Math.round(hand.score * 100)}%`, labelX - 30, labelY + 14);
-              }
-
-              if (idx === 0) {
-                // Majority vote over the last ~7 frames → stable, flicker-free
-                // gesture shown in the dashboard (wave bypasses, it's already temporal).
-                const buf = [rawGesture, ...gestureBufRef.current].slice(0, 7);
-                gestureBufRef.current = buf;
-                const counts: Record<string, number> = {};
-                for (const g of buf) counts[g] = (counts[g] ?? 0) + 1;
-                const smoothed = isWave
-                  ? "wave"
-                  : Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-                setDetectedGesture(smoothed);
-                const gr = classifyGestureResult(smoothed, "camera");
-                setGestureHistory((prev) => [gr, ...prev].slice(0, 8));
-              }
-            });
-          }).catch(() => {});
+          if (idx === 0) {
+            // 7-frame majority vote → stable, flicker-free dashboard label.
+            const buf = [rawGesture, ...gestureBufRef.current].slice(0, 7);
+            gestureBufRef.current = buf;
+            const counts: Record<string, number> = {};
+            for (const g of buf) counts[g] = (counts[g] ?? 0) + 1;
+            const top = isWave ? "wave" : Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+            setDetectedGesture(top);
+            const gr = classifyGestureResult(top, "camera");
+            // Use the real model confidence rather than a random value.
+            gr.confidence = isWave ? 0.9 : Math.max(score, 0.5);
+            setGestureHistory((prev) => [gr, ...prev].slice(0, 8));
+          }
+        });
       }
       gestureAnimRef.current = requestAnimationFrame(loop);
     };
@@ -2497,8 +2502,8 @@ function GestureTab(p: TabProps) {
             {!camActive && (
               <div className="gesture-cam-placeholder">
                 <span>🤚</span>
-                <p>Start camera to see live hand landmark detection</p>
-                <small>Uses MediaPipe Hands TFJS model — detects 21 landmarks per hand</small>
+                <p>Start camera for live gesture recognition</p>
+                <small>Trained MediaPipe Gesture Recognizer — labels gestures directly with confidence</small>
               </div>
             )}
           </div>
@@ -2517,7 +2522,7 @@ function GestureTab(p: TabProps) {
             )}
             <div className="gesture-supported-list">
               <small>Recognized gestures:</small>
-              {["fist","stop_palm","open_palm","pointing","victory_v","thumbs_up","thumbs_down","wave","three_fingers"].map((g) => (
+              {["fist","stop_palm","pointing","victory_v","thumbs_up","thumbs_down","i_love_you","wave"].map((g) => (
                 <span key={g} className={`gesture-badge sm ${g === detectedGesture ? "active-gesture" : ""} ${SAFETY_GESTURES.has(g) ? "safety-bg" : ""}`}>{g.replace(/_/g," ")}</span>
               ))}
             </div>
