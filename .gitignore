@@ -55,3 +55,6 @@ credentials.json
 
 # Cloned remote placeholder (not part of this repo)
 Bonbon-robot/
+
+# Runtime SQLite databases
+*.db
