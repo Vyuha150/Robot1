@@ -31,6 +31,9 @@
   <!-- Python libraries (real hardware) -->
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-smbus2</exec_depend>
+  <!-- Generic USB camera (V4L2/OpenCV) + USB microphone (ALSA/PortAudio) -->
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-sounddevice</exec_depend>
 
   <!-- Test -->
   <test_depend>python3-pytest</test_depend>

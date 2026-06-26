@@ -14,7 +14,7 @@ import rclpy
 from sensor_msgs.msg import CameraInfo, Image
 
 from bonbon_hal.base.driver_base import DriverBase
-from bonbon_hal.drivers.camera import MockCameraDriver, OrbbecDriver
+from bonbon_hal.drivers.camera import MockCameraDriver, OrbbecDriver, UsbCameraDriver
 
 from .hal_node_base import BEST_EFFORT_D5, HalNodeBase
 
@@ -30,6 +30,10 @@ class CameraNode(HalNodeBase):
         self.declare_parameter("width", 640)
         self.declare_parameter("height", 480)
         self.declare_parameter("fps", 30)
+        # Backend: 'mock' | 'usb' (generic USB/V4L2 webcam) | 'orbbec' (RGB-D).
+        self.declare_parameter("backend", "mock")
+        self.declare_parameter("device", "0")  # V4L2 index or path for USB cam
+        self.declare_parameter("hfov_deg", 60.0)
         self.declare_parameter("frame_id_color", "camera_color_optical_frame")
         self.declare_parameter("frame_id_depth", "camera_depth_optical_frame")
         self._pub_color = None
@@ -40,8 +44,21 @@ class CameraNode(HalNodeBase):
         w = self.get_parameter("width").value
         h = self.get_parameter("height").value
         f = self.get_parameter("fps").value
-        if self.get_parameter("driver_mode").value == "real":
+        # Explicit backend takes precedence; fall back to driver_mode for compat.
+        backend = self.get_parameter("backend").value
+        if backend == "mock" and self.get_parameter("driver_mode").value == "real":
+            backend = "orbbec"  # legacy default when only driver_mode=real was set
+
+        if backend == "usb":
+            device_param = str(self.get_parameter("device").value)
+            device: int | str = int(device_param) if device_param.isdigit() else device_param
+            hfov = float(self.get_parameter("hfov_deg").value)
+            self.get_logger().info("Camera backend: USB/V4L2 device=%s", device)
+            return UsbCameraDriver(device=device, width=w, height=h, fps=f, hfov_deg=hfov)
+        if backend == "orbbec":
+            self.get_logger().info("Camera backend: Orbbec RGB-D")
             return OrbbecDriver(width=w, height=h, fps=f)
+        self.get_logger().info("Camera backend: mock (simulation)")
         return MockCameraDriver(width=w, height=h, fps=f)
 
     def _create_publishers(self) -> None:

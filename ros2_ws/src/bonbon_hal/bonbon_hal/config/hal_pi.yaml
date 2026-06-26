@@ -1,0 +1,96 @@
+# hal_pi.yaml — Raspberry Pi deployment profile with EXTERNAL USB camera + mic.
+#
+# Use on a Pi with: a USB webcam (/dev/video0), a USB microphone, an I2C IMU +
+# battery monitor, GPIO e-stop, and USB-serial LIDAR + servos. Pass this file to
+# the HAL launch:
+#
+#   ros2 launch bonbon_hal hal.launch.py params_file:=<install>/config/hal_pi.yaml
+#
+# Verify devices first with:  bash scripts/pi_hardware_check.sh
+# Override individual values per robot with a small second YAML if needed.
+
+# ── Camera: generic USB / V4L2 webcam ─────────────────────────────────────────
+camera_node:
+  ros__parameters:
+    backend:       "usb"        # generic USB/V4L2 webcam (OpenCV)
+    device:        "0"          # /dev/video0 (run pi_hardware_check.sh to confirm)
+    data_rate_hz:  15.0         # 15 FPS keeps the Pi CPU headroom for AI
+    width:         640
+    height:        480
+    fps:           15
+    hfov_deg:      60.0         # horizontal field of view of your lens
+    frame_id_color: "camera_color_optical_frame"
+    reconnect_max_attempts:   8
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  20.0
+
+# ── Microphone: generic USB / ALSA mic ────────────────────────────────────────
+mic_node:
+  ros__parameters:
+    backend:       "usb"        # generic USB/ALSA mic (sounddevice/PortAudio)
+    device:        ""           # "" = default input; or a name substring e.g. "USB"
+    data_rate_hz:  16.0
+    sample_rate:   16000        # required by the Silero VAD + Whisper pipeline
+    channels:      1
+    chunk_frames:  1024
+    reconnect_max_attempts:   8
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  20.0
+
+# ── LIDAR (USB serial, e.g. RPLIDAR) ──────────────────────────────────────────
+lidar_node:
+  ros__parameters:
+    driver_mode:   "real"
+    data_rate_hz:  10.0
+    port:          "/dev/ttyUSB0"
+    baudrate:      115200
+    reconnect_max_attempts:   8
+
+# ── IMU (MPU-6050 over I2C) ────────────────────────────────────────────────────
+imu_node:
+  ros__parameters:
+    driver_mode:   "real"
+    data_rate_hz:  100.0
+    i2c_bus:       1
+    i2c_addr:      0x68
+    frame_id:      "imu_link"
+    run_calibration: true       # calibrate on first deploy (keep robot still)
+
+# ── Servos (Dynamixel over USB serial) ────────────────────────────────────────
+servo_node:
+  ros__parameters:
+    driver_mode:   "real"
+    data_rate_hz:  20.0
+    port:          "/dev/ttyUSB1"
+    baudrate:      57600
+    servo_ids:     [1, 2, 3, 4]
+    neck_servo_id: 1
+
+# ── Battery (INA226 over I2C) ──────────────────────────────────────────────────
+battery_node:
+  ros__parameters:
+    driver_mode:   "real"
+    data_rate_hz:  1.0
+    i2c_bus:       1
+    i2c_addr:      0x40
+    shunt_ohm:     0.01
+    capacity_ah:   40.0
+
+# ── Speaker (USB / ALSA) ───────────────────────────────────────────────────────
+speaker_node:
+  ros__parameters:
+    driver_mode:   "real"
+    data_rate_hz:  1.0
+    volume_pct:    80.0
+    alsa_device:   "default"    # or "plughw:1,0" for a USB sound card
+    amixer_control: "Master"
+
+# ── E-stop (GPIO) — MUST be real on a physical robot ──────────────────────────
+estop_hal_node:
+  ros__parameters:
+    driver_mode:   "real"
+    data_rate_hz:  50.0
+    input_pin:     17           # BCM GPIO 17 (active LOW)
+    relay_pin:     18           # BCM GPIO 18 (active HIGH = cut motor power)
+    poll_hz:       50.0
+    reconnect_max_attempts:   10
