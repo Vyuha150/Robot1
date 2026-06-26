@@ -10,6 +10,17 @@ services:
       # FAISS / ChromaDB / audit logs survive container restarts.
       - /var/lib/bonbon:/var/bonbon/data
       - /var/log/bonbon:/logs
+    # External hardware passthrough (Raspberry Pi). Adjust device paths to match
+    # `bash scripts/pi_hardware_check.sh`. Missing devices can be commented out
+    # for a partial bring-up.
+    devices:
+      - "/dev/video0:/dev/video0"     # USB camera (V4L2)
+      - "/dev/snd:/dev/snd"           # USB mic + speaker (ALSA)
+      - "/dev/i2c-1:/dev/i2c-1"       # IMU + battery monitor
+      - "/dev/gpiomem:/dev/gpiomem"   # e-stop GPIO
+      - "/dev/ttyUSB0:/dev/ttyUSB0"   # LIDAR (USB serial)
+      - "/dev/ttyUSB1:/dev/ttyUSB1"   # servos (USB serial)
+    group_add: ["audio", "video", "i2c", "dialout", "gpio"]
     command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_bringup bringup.launch.py"
     security_opt: ["no-new-privileges:true"]
 

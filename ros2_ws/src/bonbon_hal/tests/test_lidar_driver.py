@@ -6,6 +6,7 @@ Tests for MockLidarDriver: normal operation, disconnection, timeout, recovery, c
 
 from __future__ import annotations
 
+import contextlib
 import math
 
 import pytest
@@ -105,12 +106,13 @@ class TestMockLidarFaults:
                 assert math.isinf(scan.ranges[i])
 
     def test_status_faulted_after_usb_disconnect(self):
+        # disconnect_after_n=1 → the 1st read succeeds, the 2nd triggers the
+        # simulated USB disconnect and the driver enters FAULTED.
         drv = MockLidarDriver(disconnect_after_n=1)
         drv.connect()
-        try:
-            drv.read_scan()  # triggers disconnect
-        except DriverFault:
-            pass
+        with contextlib.suppress(DriverFault):
+            for _ in range(3):
+                drv.read_scan()
         assert drv.status == DriverStatus.FAULTED
 
 

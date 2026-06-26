@@ -67,6 +67,11 @@ class MockSpeakerDriver(SpeakerDriver):
         self._volume = max(0.0, min(100.0, percent))
         self.volume_log.append(self._volume)
 
+    @property
+    def stopped(self) -> bool:
+        """True after :meth:`stop` until the log is reset."""
+        return self._stopped
+
     def stop(self) -> None:
         self._stopped = True
 

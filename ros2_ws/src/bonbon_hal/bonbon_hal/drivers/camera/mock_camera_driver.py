@@ -51,6 +51,10 @@ class MockCameraDriver(CameraDriver):
         if self._start_disconnected:
             return False
         time.sleep(0.05)  # realistic connect latency
+        # Fresh connection → reset the frame counter so a reconnect after a
+        # simulated USB disconnect actually restores normal reads.
+        with self._lock:
+            self._read_count = 0
         return True
 
     def _do_disconnect(self) -> None:
@@ -82,10 +86,16 @@ class MockCameraDriver(CameraDriver):
         arr[:, :, 1] = int(127 + 127 * math.cos(t * 0.7))  # G oscillates
         arr[:, :, 2] = 80  # R static
 
-        # Corrupt every N frames
+        # Corrupt every N frames — patch size adapts to the frame so it works
+        # at any resolution (including small test frames < 150 px).
         if self._corrupt_every > 0 and self._frame_index % self._corrupt_every == 0:
-            corrupt_region = np.random.randint(0, 256, (50, 50, 3), dtype=np.uint8)
-            arr[100:150, 100:150] = corrupt_region
+            h, w = arr.shape[0], arr.shape[1]
+            ph, pw = min(50, h), min(50, w)
+            if ph > 0 and pw > 0:
+                y0, x0 = (h - ph) // 2, (w - pw) // 2
+                arr[y0:y0 + ph, x0:x0 + pw] = np.random.randint(
+                    0, 256, (ph, pw, 3), dtype=np.uint8
+                )
 
         color = ColorFrame(
             width=self.width,

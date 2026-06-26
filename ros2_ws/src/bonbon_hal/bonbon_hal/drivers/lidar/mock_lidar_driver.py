@@ -67,6 +67,7 @@ class MockLidarDriver(LidarDriver):
             time.sleep(self._latency)
 
         self._scan_count += 1
+        # disconnect_after_n=N → N reads succeed, then reads fault.
         if self._disc_after > 0 and self._scan_count > self._disc_after:
             self._record_fault("USB_DISCONNECTED", "Simulated USB disconnect")
             raise DriverFault("USB disconnect", "USB_DISCONNECTED")
