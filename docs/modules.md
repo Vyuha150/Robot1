@@ -264,6 +264,25 @@ Responsibilities:
 - Metrics and reports.
 - CI-compatible smoke tests.
 
+## Multi-Person Perception Packages
+
+Added/extended in the multi-person perception upgrade. Each consumes
+existing pipelines rather than duplicating them — see the dedicated doc per
+package for architecture, topics, configs, and troubleshooting.
+
+| Package | Responsibility | Doc |
+|---|---|---|
+| `bonbon_object_intelligence` | Object permanence, confidence calibration, OCR hook, depth association — over `bonbon_vision`'s existing detections | [OBJECT_INTELLIGENCE.md](OBJECT_INTELLIGENCE.md) |
+| `bonbon_multi_person_tracker` | Person identity lifecycle (the one genuinely new tracking capability) | [MULTI_PERSON_TRACKING.md](MULTI_PERSON_TRACKING.md) |
+| `bonbon_gesture` (extended) | + multi-person gesture-to-identity assignment | [GESTURE_INTELLIGENCE.md](GESTURE_INTELLIGENCE.md) |
+| `bonbon_speaker_intelligence` | Persistent speaker identity, transcript-to-speaker mapping, audio-visual association | [SPEAKER_INTELLIGENCE.md](SPEAKER_INTELLIGENCE.md) |
+| `bonbon_human_state_fusion` | Per-person fusion of identity + emotion + gesture + speech into `HumanState` | [HUMAN_STATE_FUSION.md](HUMAN_STATE_FUSION.md) |
+| `bonbon_behavior_engine` (extended) | + the 10 multi-person behavior rules, dispatched through the existing safety gate | [REAL_WORLD_INTERACTION_SCENARIOS.md](REAL_WORLD_INTERACTION_SCENARIOS.md) |
+
+See also [AUDIO_VISUAL_PERSON_ASSOCIATION.md](AUDIO_VISUAL_PERSON_ASSOCIATION.md),
+[TESTING_PERCEPTION_INTELLIGENCE.md](TESTING_PERCEPTION_INTELLIGENCE.md), and
+the Multi-Person Perception section of [performance_tuning.md](performance_tuning.md).
+
 ## deployment and devops
 
 Operational deployment system.
