@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bonbon_safety.core.perf_targets import build_targets, critical_targets
 
-# The 10 required targets and their ceilings (ms).
+# The 14 required targets and their ceilings (ms).
 _REQUIRED = {
     "behavior_decision": 100.0,
     "safety_validation": 50.0,
@@ -16,6 +16,10 @@ _REQUIRED = {
     "database_write": 100.0,
     "rag_query": 500.0,
     "tts_emergency": 500.0,
+    "person_tracking_update": 100.0,
+    "object_tracking_update": 50.0,
+    "speaker_turn_update": 1000.0,
+    "human_state_fusion": 100.0,
 }
 
 
@@ -26,13 +30,17 @@ class TestTargets:
             assert name in targets, f"missing target {name}"
             assert targets[name].budget_ms == ceiling
 
-    def test_exactly_ten_targets(self):
-        assert len(build_targets()) == 10
+    def test_exactly_fourteen_targets(self):
+        assert len(build_targets()) == 14
 
     def test_safety_paths_are_critical(self):
         crit = critical_targets()
-        for name in ("safety_validation", "actuation_validation",
-                     "emergency_stop_reaction", "tts_emergency"):
+        for name in (
+            "safety_validation",
+            "actuation_validation",
+            "emergency_stop_reaction",
+            "tts_emergency",
+        ):
             assert name in crit, f"{name} should be critical"
 
     def test_non_safety_paths_not_critical(self):

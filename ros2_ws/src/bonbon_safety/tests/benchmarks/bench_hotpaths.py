@@ -28,12 +28,21 @@ import json
 import os
 import sys
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 # Make sibling packages importable (their cores are pure Python).
 _SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-for _pkg in ("bonbon_behavior_engine", "bonbon_actuation", "bonbon_gesture",
-             "bonbon_spatial", "bonbon_safety"):
+for _pkg in (
+    "bonbon_behavior_engine",
+    "bonbon_actuation",
+    "bonbon_gesture",
+    "bonbon_spatial",
+    "bonbon_safety",
+    "bonbon_multi_person_tracker",
+    "bonbon_object_intelligence",
+    "bonbon_speaker_intelligence",
+    "bonbon_human_state_fusion",
+):
     p = os.path.join(_SRC, _pkg)
     if p not in sys.path:
         sys.path.insert(0, p)
@@ -47,23 +56,27 @@ _DEFAULT_REPS = 2000
 
 # ── Hot-path workloads (each returns a zero-arg callable) ─────────────────────
 
-def _safety_validation_workload() -> Optional[Callable[[], None]]:
+
+def _safety_validation_workload() -> Callable[[], None] | None:
     from bonbon_safety.core.safety_state_machine import SafetyStateMachine
     from bonbon_safety.core.threat_assessor import ThreatAssessor
+
     sm = SafetyStateMachine()
     sm.mark_startup_complete()
     ta = ThreatAssessor()
 
     def run():
         ta.update_lidar_scan(1.5)
-        ta.update_persons([{"track_id": "p1", "distance_m": 2.0},
-                           {"track_id": "p2", "distance_m": 3.5}])
+        ta.update_persons(
+            [{"track_id": "p1", "distance_m": 2.0}, {"track_id": "p2", "distance_m": 3.5}]
+        )
         snap = ta.build_snapshot()
         sm.update(snap)
+
     return run
 
 
-def _emergency_stop_workload() -> Optional[Callable[[], None]]:
+def _emergency_stop_workload() -> Callable[[], None] | None:
     from bonbon_safety.core.safety_state_machine import SafetyStateMachine
     from bonbon_safety.core.threat_assessor import ThreatAssessor
 
@@ -73,31 +86,35 @@ def _emergency_stop_workload() -> Optional[Callable[[], None]]:
         ta = ThreatAssessor()
         ta.update_estop(pressed=True)
         snap = ta.build_snapshot()
-        sm.update(snap)   # must transition to SAFE_STOP
+        sm.update(snap)  # must transition to SAFE_STOP
+
     return run
 
 
-def _behavior_decision_workload() -> Optional[Callable[[], None]]:
+def _behavior_decision_workload() -> Callable[[], None] | None:
     try:
         from bonbon_behavior_engine.core.command_risk_classifier import CommandRiskClassifier
     except Exception:
         return None
     clf = CommandRiskClassifier()
-    cmds = ["go to the lobby and greet the visitor",
-            "publish to cmd_vel at full speed",
-            "say hello and wave"]
+    cmds = [
+        "go to the lobby and greet the visitor",
+        "publish to cmd_vel at full speed",
+        "say hello and wave",
+    ]
     i = {"n": 0}
 
     def run():
         clf.classify(cmds[i["n"] % len(cmds)], source="llm")
         i["n"] += 1
+
     return run
 
 
-def _actuation_validation_workload() -> Optional[Callable[[], None]]:
+def _actuation_validation_workload() -> Callable[[], None] | None:
     try:
+        from bonbon_actuation.core.gesture_library import GestureLibrary
         from bonbon_actuation.core.servo_validator import ServoValidator
-        from bonbon_actuation.core.gesture_library import GestureLibrary, ServoTarget
     except Exception:
         return None
     v = ServoValidator()
@@ -106,16 +123,18 @@ def _actuation_validation_workload() -> Optional[Callable[[], None]]:
 
     def run():
         v.validate(targets)
+
     return run
 
 
-def _gesture_event_workload() -> Optional[Callable[[], None]]:
+def _gesture_event_workload() -> Callable[[], None] | None:
     try:
         from bonbon_gesture.classifiers.hand_gesture_classifier import HandGestureClassifier
     except Exception:
         return None
     clf = HandGestureClassifier()
     import math
+
     lm = []
     for j in range(21):
         ang = (j / 21) * 2 * math.pi
@@ -123,13 +142,14 @@ def _gesture_event_workload() -> Optional[Callable[[], None]]:
 
     def run():
         clf.classify(lm, is_right=True)
+
     return run
 
 
-def _spatial_update_workload() -> Optional[Callable[[], None]]:
+def _spatial_update_workload() -> Callable[[], None] | None:
     try:
-        from bonbon_spatial.core.dynamic_obstacle_predictor import DynamicObstaclePredictor
         from bonbon_spatial.core.blockage_detector import BlockageDetector
+        from bonbon_spatial.core.dynamic_obstacle_predictor import DynamicObstaclePredictor
     except Exception:
         return None
     from dataclasses import dataclass
@@ -150,6 +170,103 @@ def _spatial_update_workload() -> Optional[Callable[[], None]]:
     def run():
         pred.predict_all(ents)
         det.update(ents)
+
+    return run
+
+
+def _person_tracking_workload() -> Callable[[], None] | None:
+    try:
+        from bonbon_multi_person_tracker.core.multi_person_scene_manager import (
+            MultiPersonSceneManager,
+        )
+        from bonbon_multi_person_tracker.core.person_record import RawPersonDetection
+    except Exception:
+        return None
+    mgr = MultiPersonSceneManager()
+    dets = [RawPersonDetection(f"r{k}", x=float(k), y=0.0) for k in range(5)]
+    mgr.update(dets)  # confirm tracks so steady-state matching is measured
+
+    def run():
+        mgr.update(dets)
+
+    return run
+
+
+def _object_tracking_workload() -> Callable[[], None] | None:
+    try:
+        from bonbon_object_intelligence.core.confidence_calibrator import (
+            CalibratorConfig,
+            ObjectConfidenceCalibrator,
+        )
+        from bonbon_object_intelligence.core.object_permanence_tracker import (
+            ObjectPermanenceTracker,
+            RawObjectDetection,
+        )
+    except Exception:
+        return None
+    tracker = ObjectPermanenceTracker()
+    calib = ObjectConfidenceCalibrator(CalibratorConfig())
+    dets = [RawObjectDetection(f"class_{k % 3}", 0.8, float(k), 0.0, 0.0) for k in range(8)]
+    tracker.update(dets)
+
+    def run():
+        inputs = [(d.class_name, d.confidence, (0, 0, 50, 50)) for d in dets]
+        calib.deduplicate(inputs)
+        tracker.update(dets)
+
+    return run
+
+
+def _speaker_turn_workload() -> Callable[[], None] | None:
+    try:
+        from bonbon_speaker_intelligence.core.audio_visual_associator import (
+            TrackedPersonBearing,
+        )
+        from bonbon_speaker_intelligence.core.speaker_identity_manager import (
+            SpeakerIdentityManager,
+        )
+        from bonbon_speaker_intelligence.core.speaker_turn_builder import SpeakerTurnBuilder
+        from bonbon_speaker_intelligence.core.transcript_segment_mapper import (
+            DiarizationSegment,
+            WordTiming,
+        )
+        from bonbon_speaker_intelligence.core.voice_emotion_cache import VoiceEmotionCache
+    except Exception:
+        return None
+    builder = SpeakerTurnBuilder(SpeakerIdentityManager(), VoiceEmotionCache())
+    segs = [DiarizationSegment("SPEAKER_00", 0.0, 1.5), DiarizationSegment("SPEAKER_01", 1.5, 3.0)]
+    words = [
+        WordTiming(w, i * 0.3, i * 0.3 + 0.25)
+        for i, w in enumerate(["hello", "there", "how", "are", "you"])
+    ]
+    people = [TrackedPersonBearing("ptrk_1", 10.0), TrackedPersonBearing("ptrk_2", -10.0)]
+
+    def run():
+        builder.build_turns(
+            segs, words, "hello there how are you", 0.9, doa_deg=10.0, tracked_persons=people
+        )
+
+    return run
+
+
+def _human_state_fusion_workload() -> Callable[[], None] | None:
+    try:
+        from bonbon_human_state_fusion.core.human_state_fusion_engine import (
+            HumanStateFusionEngine,
+        )
+    except Exception:
+        return None
+    engine = HumanStateFusionEngine()
+    for k in range(5):
+        engine.update_person_track(
+            f"ptrk_{k}", "", "present", f"person_{k}", float(k), 0.0, 0.0, 0.9
+        )
+        engine.update_human_emotion_state(f"person_{k}", "happy", 0.8, "warm", 1.0, False)
+        engine.update_gesture_event(f"ptrk_{k}", "wave", 0.85, False)
+
+    def run():
+        engine.build_all()
+
     return run
 
 
@@ -161,10 +278,14 @@ _BENCHES = {
     "actuation_validation": (_actuation_validation_workload, "actuation_validation"),
     "gesture_event": (_gesture_event_workload, "gesture_event"),
     "spatial_reasoning_update": (_spatial_update_workload, "spatial_reasoning_update"),
+    "person_tracking_update": (_person_tracking_workload, "person_tracking_update"),
+    "object_tracking_update": (_object_tracking_workload, "object_tracking_update"),
+    "speaker_turn_update": (_speaker_turn_workload, "speaker_turn_update"),
+    "human_state_fusion": (_human_state_fusion_workload, "human_state_fusion"),
 }
 
 
-def run_bench(name: str, reps: int = _DEFAULT_REPS) -> Optional[dict]:
+def run_bench(name: str, reps: int = _DEFAULT_REPS) -> dict | None:
     """Run one benchmark; return a result dict, or None if unavailable."""
     factory, budget_name = _BENCHES[name]
     workload = factory()
@@ -179,17 +300,23 @@ def run_bench(name: str, reps: int = _DEFAULT_REPS) -> Optional[dict]:
     rep = check_budget(tracker, _TARGETS[budget_name])
     st = tracker.stats()
     return {
-        "bench": name, "reps": st.count,
-        "mean_ms": round(st.mean_ms, 4), "p50_ms": round(st.p50_ms, 4),
-        "p95_ms": round(st.p95_ms, 4), "p99_ms": round(st.p99_ms, 4),
+        "bench": name,
+        "reps": st.count,
+        "mean_ms": round(st.mean_ms, 4),
+        "p50_ms": round(st.p50_ms, 4),
+        "p95_ms": round(st.p95_ms, 4),
+        "p99_ms": round(st.p99_ms, 4),
         "max_ms": round(st.max_ms, 4),
-        "budget_ms": rep.budget_ms, "metric": rep.metric,
-        "observed_ms": rep.observed_ms, "passed": rep.passed,
+        "budget_ms": rep.budget_ms,
+        "metric": rep.metric,
+        "observed_ms": rep.observed_ms,
+        "passed": rep.passed,
     }
 
 
 def run_all(reps: int = _DEFAULT_REPS) -> list[dict]:
     import logging as _logging
+
     _logging.disable(_logging.CRITICAL)  # silence module logs during timing
     try:
         out = []
@@ -204,16 +331,18 @@ def run_all(reps: int = _DEFAULT_REPS) -> list[dict]:
 
 # ── pytest latency tests ──────────────────────────────────────────────────────
 
+
 def _make_test(name):
     def _test():
         r = run_bench(name, reps=500)
         if r is None:
             import pytest
+
             pytest.skip(f"{name} core unavailable")
         assert r["passed"], (
-            f"{name} {r['metric']}={r['observed_ms']}ms exceeds "
-            f"budget {r['budget_ms']}ms"
+            f"{name} {r['metric']}={r['observed_ms']}ms exceeds " f"budget {r['budget_ms']}ms"
         )
+
     _test.__name__ = f"test_latency_{name}"
     return _test
 
@@ -224,9 +353,14 @@ test_latency_behavior_decision = _make_test("behavior_decision")
 test_latency_actuation_validation = _make_test("actuation_validation")
 test_latency_gesture_event = _make_test("gesture_event")
 test_latency_spatial_reasoning_update = _make_test("spatial_reasoning_update")
+test_latency_person_tracking_update = _make_test("person_tracking_update")
+test_latency_object_tracking_update = _make_test("object_tracking_update")
+test_latency_speaker_turn_update = _make_test("speaker_turn_update")
+test_latency_human_state_fusion = _make_test("human_state_fusion")
 
 
 # ── standalone CLI ─────────────────────────────────────────────────────────────
+
 
 def main(argv=None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
@@ -241,8 +375,10 @@ def main(argv=None) -> int:
     print("-" * 64)
     for r in results:
         mark = "OK " if r["passed"] else "!! "
-        print(f"{r['bench']:<28}{r['p50_ms']:>8.3f}{r['p95_ms']:>8.3f}"
-              f"{r['p99_ms']:>8.3f}{r['budget_ms']:>9.0f}  {mark}")
+        print(
+            f"{r['bench']:<28}{r['p50_ms']:>8.3f}{r['p95_ms']:>8.3f}"
+            f"{r['p99_ms']:>8.3f}{r['budget_ms']:>9.0f}  {mark}"
+        )
     failed = [r["bench"] for r in results if not r["passed"]]
     print("-" * 64)
     print("ALL WITHIN BUDGET" if not failed else f"OVER BUDGET: {failed}")
