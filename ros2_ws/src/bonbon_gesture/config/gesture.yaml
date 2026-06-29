@@ -12,3 +12,6 @@
     safety_gesture_immediate: true
     processing_timeout_sec: 0.08
     min_visibility_threshold: 0.5
+    # Multi-person gesture assignment (bonbon_multi_person_tracker integration)
+    camera_hfov_deg: 60.0                    # keep in sync with the active camera driver's hfov_deg
+    person_assign_max_x_norm_delta: 0.35

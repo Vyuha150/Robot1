@@ -20,6 +20,12 @@ Subscribed topics
 ------------------
   /bonbon/vision/camera/color/image_raw  sensor_msgs/Image
   /bonbon/vision/persons                 bonbon_msgs/PersonStateArray
+  /bonbon/persons/tracks                 bonbon_msgs/PersonTrack (multi-person
+                                          identity lifecycle — see
+                                          bonbon_multi_person_tracker; used by
+                                          GesturePersonAssigner to attribute
+                                          each landmark set to the right person
+                                          when multiple people are in frame)
   /bonbon/safety/state                   bonbon_msgs/SafetyState
 
 Published topics
@@ -42,14 +48,12 @@ import threading
 import time
 import traceback
 import uuid
-from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
-from typing import Dict, List, Optional, Tuple
+from concurrent.futures import Future, ThreadPoolExecutor
 
 import numpy as np
 import rclpy
-from bonbon_msgs.msg import GestureEvent, PersonStateArray, SafetyState
+from bonbon_msgs.msg import GestureEvent, PersonStateArray, PersonTrack, SafetyState
 from bonbon_srvs.srv import HealthCheck, SetMode
-from builtin_interfaces.msg import Time as BuiltinTime
 from geometry_msgs.msg import Point, Vector3
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -64,7 +68,15 @@ from ..classifiers.hand_gesture_classifier import HandGestureClassifier
 from ..classifiers.head_gesture_classifier import HeadGestureClassifier
 from ..config.gesture_config import GestureConfig
 from ..health.health_monitor import GestureHealthMonitor
+from ..logic.body_part_classifier import classify_body_part
 from ..logic.intent_mapper import GestureIntentMapper
+from ..logic.person_assigner import (
+    GesturePersonAssigner,
+    LandmarkCandidate,
+    TrackedPersonCandidate,
+    bearing_deg_from_xy,
+    pose_centroid_x_norm,
+)
 from ..logic.safety_classifier import GestureSafetyClassifier
 from ..logic.temporal_smoother import GestureTemporalSmoother
 
@@ -90,10 +102,12 @@ _BEST_EFFORT_D2 = QoSProfile(
 )
 
 # Safety states that disable gesture processing
-_BLOCKING_SAFETY_STATES = frozenset({
-    SafetyState.SAFE_STOP,
-    SafetyState.FAULT,
-})
+_BLOCKING_SAFETY_STATES = frozenset(
+    {
+        SafetyState.SAFE_STOP,
+        SafetyState.FAULT,
+    }
+)
 
 NODE_NAME = "gesture_node"
 SOURCE_MODULE = "bonbon_gesture"
@@ -118,23 +132,30 @@ class GestureNode(LifecycleNode):
         # Declared before on_configure so the launch file can inject values
         self._declare_parameters()
 
-        self._config: Optional[GestureConfig] = None
-        self._backend: Optional[GestureBackendInterface] = None
-        self._hand_cls: Optional[HandGestureClassifier] = None
-        self._body_cls: Optional[BodyGestureClassifier] = None
-        self._head_cls: Optional[HeadGestureClassifier] = None
-        self._smoother: Optional[GestureTemporalSmoother] = None
-        self._intent_mapper: Optional[GestureIntentMapper] = None
-        self._safety_cls: Optional[GestureSafetyClassifier] = None
-        self._health: Optional[GestureHealthMonitor] = None
+        self._config: GestureConfig | None = None
+        self._backend: GestureBackendInterface | None = None
+        self._hand_cls: HandGestureClassifier | None = None
+        self._body_cls: BodyGestureClassifier | None = None
+        self._head_cls: HeadGestureClassifier | None = None
+        self._smoother: GestureTemporalSmoother | None = None
+        self._intent_mapper: GestureIntentMapper | None = None
+        self._safety_cls: GestureSafetyClassifier | None = None
+        self._health: GestureHealthMonitor | None = None
+        self._assigner: GesturePersonAssigner | None = None
 
         # State
         self._frame_counter: int = 0
         self._safety_blocked: bool = False
         self._lock: threading.Lock = threading.Lock()
-        self._executor: Optional[ThreadPoolExecutor] = None
-        self._person_positions: Dict[str, Point] = {}  # person_id → position
-        self._in_flight: Optional[Future] = None
+        self._executor: ThreadPoolExecutor | None = None
+        self._person_positions: dict[str, Point] = {}  # person_id → position
+        self._in_flight: Future | None = None
+
+        # Multi-person identity assignment (bonbon_multi_person_tracker integration)
+        self._person_tracks: dict[str, PersonTrack] = {}  # person_track_id → latest PersonTrack
+        self._last_tracking_id_for_person: dict[str, int] = (
+            {}
+        )  # person_track_id → backend tracking_id
 
         # Pub/sub handles (created in on_activate)
         self._pub_events = None
@@ -142,6 +163,7 @@ class GestureNode(LifecycleNode):
         self._pub_diag = None
         self._sub_image = None
         self._sub_persons = None
+        self._sub_person_tracks = None
         self._sub_safety = None
         self._srv_health = None
         self._srv_set_enabled = None
@@ -164,6 +186,10 @@ class GestureNode(LifecycleNode):
             self._smoother = GestureTemporalSmoother(self._config)
             self._intent_mapper = GestureIntentMapper()
             self._safety_cls = GestureSafetyClassifier()
+            self._assigner = GesturePersonAssigner(
+                camera_hfov_deg=self._config.camera_hfov_deg,
+                max_x_norm_delta=self._config.person_assign_max_x_norm_delta,
+            )
 
             # Backend selection
             self._backend = self._create_backend(self._config.backend)
@@ -186,7 +212,9 @@ class GestureNode(LifecycleNode):
             return TransitionCallbackReturn.SUCCESS
 
         except Exception as exc:
-            self.get_logger().error(f"GestureNode configure failed: {exc}\n{traceback.format_exc()}")
+            self.get_logger().error(
+                f"GestureNode configure failed: {exc}\n{traceback.format_exc()}"
+            )
             return TransitionCallbackReturn.FAILURE
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -197,9 +225,15 @@ class GestureNode(LifecycleNode):
             self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gesture_backend")
 
             # Publishers
-            self._pub_events = self.create_publisher(GestureEvent, "/bonbon/gesture/events", _RELIABLE_D10)
-            self._pub_status = self.create_publisher(String, "/bonbon/gesture/status", _RELIABLE_D10)
-            self._pub_diag = self.create_publisher(String, "/bonbon/diagnostics/events", _RELIABLE_D10)
+            self._pub_events = self.create_publisher(
+                GestureEvent, "/bonbon/gesture/events", _RELIABLE_D10
+            )
+            self._pub_status = self.create_publisher(
+                String, "/bonbon/gesture/status", _RELIABLE_D10
+            )
+            self._pub_diag = self.create_publisher(
+                String, "/bonbon/diagnostics/events", _RELIABLE_D10
+            )
 
             # Subscribers
             self._sub_image = self.create_subscription(
@@ -212,6 +246,12 @@ class GestureNode(LifecycleNode):
                 PersonStateArray,
                 "/bonbon/vision/persons",
                 self._cb_persons,
+                _RELIABLE_D10,
+            )
+            self._sub_person_tracks = self.create_subscription(
+                PersonTrack,
+                "/bonbon/persons/tracks",
+                self._cb_person_track,
                 _RELIABLE_D10,
             )
             self._sub_safety = self.create_subscription(
@@ -255,6 +295,9 @@ class GestureNode(LifecycleNode):
         if self._sub_persons:
             self.destroy_subscription(self._sub_persons)
             self._sub_persons = None
+        if self._sub_person_tracks:
+            self.destroy_subscription(self._sub_person_tracks)
+            self._sub_person_tracks = None
         if self._sub_safety:
             self.destroy_subscription(self._sub_safety)
             self._sub_safety = None
@@ -347,9 +390,43 @@ class GestureNode(LifecycleNode):
             msg: Incoming PersonStateArray message.
         """
         with self._lock:
-            self._person_positions = {
-                p.track_id: p.position for p in msg.persons
-            }
+            self._person_positions = {p.track_id: p.position for p in msg.persons}
+
+    def _cb_person_track(self, msg: PersonTrack) -> None:
+        """Cache the latest PersonTrack from bonbon_multi_person_tracker.
+
+        On left_scene, publish a trailing just_ended gesture event (if this
+        person was holding one) and clean up the assignment cache — closes
+        the gap where a person who walks away mid-gesture would otherwise
+        leave the smoother's window state for their tracking_id dangling
+        forever, and never emit a closing event.
+        """
+        with self._lock:
+            if msg.lifecycle_state == "left_scene":
+                tracking_id = self._last_tracking_id_for_person.pop(msg.person_track_id, None)
+                self._person_tracks.pop(msg.person_track_id, None)
+            else:
+                self._person_tracks[msg.person_track_id] = msg
+                tracking_id = None
+
+        if tracking_id is not None and self._smoother is not None:
+            trailing = self._smoother.notify_person_lost(tracking_id)
+            if trailing is not None:
+                gesture, conf, just_started, is_held, just_ended, stability = trailing
+                self._publish_gesture_event(
+                    tracking_id=tracking_id,
+                    person_track_id=msg.person_track_id,
+                    gesture=gesture,
+                    confidence=conf,
+                    just_started=just_started,
+                    is_held=is_held,
+                    just_ended=just_ended,
+                    stability=stability,
+                    hand_side="",
+                    body_part="",
+                    pointing_dir=Vector3(),
+                    stamp=self.get_clock().now().to_msg(),
+                )
 
     def _cb_safety(self, msg: SafetyState) -> None:
         """Disable processing when in SAFE_STOP or FAULT state.
@@ -383,7 +460,7 @@ class GestureNode(LifecycleNode):
         """
         t0 = time.monotonic()
         try:
-            landmarks_list: List[PersonLandmarks] = self._backend.process_frame(frame)
+            landmarks_list: list[PersonLandmarks] = self._backend.process_frame(frame)
         except Exception as exc:
             err_str = str(exc)
             self._health.record_backend_failure(err_str)
@@ -399,15 +476,55 @@ class GestureNode(LifecycleNode):
 
         self._health.record_frame_processed(latency)
 
+        assignment = self._assign_persons(landmarks_list)
         for person_lm in landmarks_list:
-            self._classify_and_publish(person_lm, stamp)
+            person_track_id = assignment.get(person_lm.tracking_id, "")
+            self._classify_and_publish(person_lm, stamp, person_track_id)
 
-    def _classify_and_publish(self, lm: PersonLandmarks, stamp) -> None:
+    def _assign_persons(self, landmarks_list: list[PersonLandmarks]) -> dict[int, str]:
+        """Map each backend tracking_id to a bonbon_multi_person_tracker
+        person_track_id for this frame (see logic/person_assigner.py).
+
+        Returns an empty/partial dict when bonbon_multi_person_tracker has no
+        known persons yet, or when a landmark set can't be confidently
+        matched — callers must treat a missing entry as "unknown", never guess.
+        """
+        if self._assigner is None:
+            return {}
+
+        with self._lock:
+            tracks = list(self._person_tracks.values())
+
+        if not tracks:
+            return {}
+
+        landmark_candidates = []
+        for lm in landmarks_list:
+            x_norm = pose_centroid_x_norm(lm.pose, lm.image_width)
+            if x_norm is not None:
+                landmark_candidates.append(LandmarkCandidate(lm.tracking_id, x_norm))
+
+        tracked_candidates = [
+            TrackedPersonCandidate(
+                t.person_track_id, bearing_deg_from_xy(t.position_3d.x, t.position_3d.y)
+            )
+            for t in tracks
+        ]
+
+        assignment = self._assigner.assign(landmark_candidates, tracked_candidates)
+        with self._lock:
+            for tracking_id, person_track_id in assignment.items():
+                self._last_tracking_id_for_person[person_track_id] = tracking_id
+        return assignment
+
+    def _classify_and_publish(self, lm: PersonLandmarks, stamp, person_track_id: str = "") -> None:
         """Classify landmarks for one person and publish any fired gesture events.
 
         Args:
             lm: :class:`PersonLandmarks` for one person in the current frame.
             stamp: Message timestamp.
+            person_track_id: The bonbon_multi_person_tracker identity matched
+                to this landmark set this frame, or "" if unmatched.
         """
         # ── Hand classification ──────────────────────────────────────────────
         hand_gesture = "none"
@@ -416,8 +533,12 @@ class GestureNode(LifecycleNode):
 
         if self._config.hand_gesture_enabled:
             # Prefer whichever hand is more visible (right-hand bias as tie-break)
-            right_result = self._hand_cls.classify(lm.right_hand, is_right=True, pose_landmarks=lm.pose)
-            left_result = self._hand_cls.classify(lm.left_hand, is_right=False, pose_landmarks=lm.pose)
+            right_result = self._hand_cls.classify(
+                lm.right_hand, is_right=True, pose_landmarks=lm.pose
+            )
+            left_result = self._hand_cls.classify(
+                lm.left_hand, is_right=False, pose_landmarks=lm.pose
+            )
 
             if right_result[1] >= left_result[1]:
                 hand_gesture, hand_conf = right_result
@@ -450,20 +571,61 @@ class GestureNode(LifecycleNode):
         if result is None:
             return
 
-        smoothed_gesture, smoothed_conf, just_started, is_held, just_ended = result
+        smoothed_gesture, smoothed_conf, just_started, is_held, just_ended, stability = result
 
         # ── Compute pointing direction vector ────────────────────────────────
         if "pointing" in smoothed_gesture and lm.pose and len(lm.pose) >= 33:
             from ..processors.pose_landmark_processor import PoseLandmarkProcessor
+
             proc = PoseLandmarkProcessor(self._config)
             dx, dy, dz = proc.compute_pointing_direction(lm.pose, use_right=pointing_is_right)
             pointing_dir = Vector3(x=float(dx), y=float(dy), z=float(dz))
 
-        # ── Safety classification ────────────────────────────────────────────
-        safety_relevant, safety_class, requires_immediate = self._safety_cls.classify(smoothed_gesture)
+        hand_side = ""
+        if (
+            smoothed_gesture not in ("none", "unknown_gesture")
+            and self._config.hand_gesture_enabled
+        ):
+            body_part_for_side = classify_body_part(smoothed_gesture, hand_gesture)
+            if body_part_for_side in ("hand", "arm"):
+                hand_side = "right" if pointing_is_right else "left"
 
-        # ── Build GestureEvent message ───────────────────────────────────────
-        person_pos = self._get_person_position(lm.tracking_id)
+        self._publish_gesture_event(
+            tracking_id=lm.tracking_id,
+            person_track_id=person_track_id,
+            gesture=smoothed_gesture,
+            confidence=smoothed_conf,
+            just_started=just_started,
+            is_held=is_held,
+            just_ended=just_ended,
+            stability=stability,
+            hand_side=hand_side,
+            body_part=classify_body_part(smoothed_gesture, hand_gesture),
+            pointing_dir=pointing_dir,
+            stamp=stamp,
+        )
+
+    def _publish_gesture_event(
+        self,
+        *,
+        tracking_id: int,
+        person_track_id: str,
+        gesture: str,
+        confidence: float,
+        just_started: bool,
+        is_held: bool,
+        just_ended: bool,
+        stability: float,
+        hand_side: str,
+        body_part: str,
+        pointing_dir: Vector3,
+        stamp,
+    ) -> None:
+        """Build and publish one GestureEvent. Shared by the per-frame
+        classification path and the "person left while holding a gesture"
+        trailing-event path (see _cb_person_track)."""
+        safety_relevant, safety_class, requires_immediate = self._safety_cls.classify(gesture)
+        person_pos = self._get_person_position(tracking_id, person_track_id)
 
         event = GestureEvent()
         event.header = Header()
@@ -472,16 +634,21 @@ class GestureNode(LifecycleNode):
         event.event_id = str(uuid.uuid4())
         event.detected_at = stamp
         event.source_module = SOURCE_MODULE
-        event.person_id = f"person_{lm.tracking_id}"
-        event.tracking_id = lm.tracking_id
-        event.gesture_type = smoothed_gesture
-        event.confidence = float(smoothed_conf)
+        event.person_id = f"person_{tracking_id}"
+        event.tracking_id = tracking_id
+        event.person_track_id = person_track_id
+        event.gesture_type = gesture
+        event.confidence = float(confidence)
+        event.hand_side = hand_side
+        event.body_part = body_part
+        event.recommended_intent = self._intent_mapper.get_intent(gesture)
         event.person_position_map = person_pos
         event.pointing_direction = pointing_dir
         event.safety_relevant = safety_relevant
         event.safety_class = safety_class
         event.requires_immediate_response = requires_immediate
         event.gesture_duration_sec = 0.0  # populated by is_held tracking
+        event.temporal_stability = float(stability)
         event.is_held = is_held
         event.just_started = just_started
         event.just_ended = just_ended
@@ -491,17 +658,17 @@ class GestureNode(LifecycleNode):
         self._health.record_gesture_published()
 
         self.get_logger().debug(
-            f"GestureEvent: person={event.person_id} gesture={smoothed_gesture} "
-            f"conf={smoothed_conf:.2f} safety={safety_class}"
+            f"GestureEvent: person={event.person_id} person_track_id={person_track_id!r} "
+            f"gesture={gesture} conf={confidence:.2f} safety={safety_class}"
         )
 
-        # Diagnostics
         diag = {
             "event": "gesture_published",
             "event_id": event.event_id,
             "person_id": event.person_id,
-            "gesture_type": smoothed_gesture,
-            "confidence": round(float(smoothed_conf), 3),
+            "person_track_id": person_track_id,
+            "gesture_type": gesture,
+            "confidence": round(float(confidence), 3),
             "safety_relevant": safety_relevant,
             "safety_class": safety_class,
             "requires_immediate": requires_immediate,
@@ -513,7 +680,9 @@ class GestureNode(LifecycleNode):
     # Service callbacks
     # ------------------------------------------------------------------
 
-    def _srv_health_check(self, request: HealthCheck.Request, response: HealthCheck.Response) -> HealthCheck.Response:
+    def _srv_health_check(
+        self, request: HealthCheck.Request, response: HealthCheck.Response
+    ) -> HealthCheck.Response:
         """Handle /bonbon/gesture/health_check service calls.
 
         Args:
@@ -531,7 +700,9 @@ class GestureNode(LifecycleNode):
         response.uptime_sec = status["uptime_sec"]
         return response
 
-    def _srv_set_enabled_cb(self, request: SetMode.Request, response: SetMode.Response) -> SetMode.Response:
+    def _srv_set_enabled_cb(
+        self, request: SetMode.Request, response: SetMode.Response
+    ) -> SetMode.Response:
         """Handle /bonbon/gesture/set_enabled service calls.
 
         Interprets ``request.mode`` as ``'true'`` or ``'false'`` (case-insensitive)
@@ -562,7 +733,9 @@ class GestureNode(LifecycleNode):
         response.success = True
         response.previous_mode = prev
         response.error_message = ""
-        self.get_logger().info(f"Gesture processing set to {self._config.enabled} by operator {request.operator_id!r}.")
+        self.get_logger().info(
+            f"Gesture processing set to {self._config.enabled} by operator {request.operator_id!r}."
+        )
         return response
 
     # ------------------------------------------------------------------
@@ -638,28 +811,38 @@ class GestureNode(LifecycleNode):
 
         return img
 
-    def _get_person_position(self, tracking_id: int) -> Point:
-        """Look up the map-frame position for a person by tracking ID.
+    def _get_person_position(self, tracking_id: int, person_track_id: str = "") -> Point:
+        """Look up the map-frame position for a person.
 
-        Falls back to zero position when the person is not in the vision
-        person-state cache.
+        Prefers the authoritative bonbon_multi_person_tracker PersonTrack
+        (when *person_track_id* was successfully assigned this frame — see
+        _assign_persons), since it carries real identity-lifecycle-checked
+        position. Falls back to an EXACT match against bonbon_vision's raw
+        per-frame cache only when no assignment was made.
+
+        Note: a previous version of this method fell back to a substring
+        match (``pid.endswith(str(tracking_id))``), which could cross-match
+        the wrong person whenever one tracking_id's digits were a suffix of
+        another's label (e.g. tracking_id=3 matching both "person_3" and
+        "person_13") — a real identity-mixing bug in any multi-person scene.
+        That fallback has been removed; an unresolved lookup now returns a
+        zero position rather than risk attributing it to the wrong person.
 
         Args:
-            tracking_id: Integer tracking identifier.
+            tracking_id: Backend-local integer tracking identifier.
+            person_track_id: Resolved multi-person-tracker identity, if any.
 
         Returns:
-            geometry_msgs/Point in the map frame.
+            geometry_msgs/Point in the map/robot frame.
         """
         with self._lock:
-            # Vision's track_id is a string like "person_3"
-            key = f"person_{tracking_id}"
-            pos = self._person_positions.get(key)
+            if person_track_id:
+                track = self._person_tracks.get(person_track_id)
+                if track is not None:
+                    return track.position_3d
+            pos = self._person_positions.get(f"person_{tracking_id}")
             if pos is not None:
                 return pos
-            # Also try integer key match fallback
-            for pid, p in self._person_positions.items():
-                if pid.endswith(str(tracking_id)):
-                    return p
         return Point(x=0.0, y=0.0, z=0.0)
 
     def _publish_status(self) -> None:

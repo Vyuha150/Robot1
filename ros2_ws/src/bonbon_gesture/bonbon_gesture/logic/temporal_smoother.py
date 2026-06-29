@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import time
 from collections import Counter, defaultdict, deque
-from typing import Dict, Optional, Tuple
 
 from ..config.gesture_config import GestureConfig
 
@@ -43,13 +42,11 @@ class GestureTemporalSmoother:
 
     def __init__(self, config: GestureConfig) -> None:
         self._config = config
-        self._windows: Dict[int, deque] = defaultdict(
-            lambda: deque(maxlen=config.temporal_window)
-        )
+        self._windows: dict[int, deque] = defaultdict(lambda: deque(maxlen=config.temporal_window))
         # Tracks last fire time per "tracking_id:gesture" key
-        self._last_fired: Dict[str, float] = {}
+        self._last_fired: dict[str, float] = {}
         # Tracks the previous winning gesture per person
-        self._prev_gesture: Dict[int, str] = {}
+        self._prev_gesture: dict[int, str] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -60,7 +57,7 @@ class GestureTemporalSmoother:
         tracking_id: int,
         gesture: str,
         confidence: float,
-    ) -> Optional[Tuple[str, float, bool, bool, bool]]:
+    ) -> tuple[str, float, bool, bool, bool, float] | None:
         """Submit a new gesture observation and decide whether to fire an event.
 
         Args:
@@ -69,10 +66,12 @@ class GestureTemporalSmoother:
             confidence: Classifier confidence score for this observation.
 
         Returns:
-            A 5-tuple ``(gesture, avg_confidence, just_started, is_held,
-            just_ended)`` when an event should be published, or ``None``
-            when the window has not converged, the vote is too weak, or the
-            cooldown has not elapsed.
+            A 6-tuple ``(gesture, avg_confidence, just_started, is_held,
+            just_ended, stability)`` when an event should be published, or
+            ``None`` when the window has not converged, the vote is too weak,
+            or the cooldown has not elapsed. ``stability`` is the fraction of
+            the smoothing window that agreed with the winning gesture
+            (0.0–1.0) — this is ``GestureEvent.temporal_stability``.
         """
         self._windows[tracking_id].append((gesture, confidence))
 
@@ -84,13 +83,12 @@ class GestureTemporalSmoother:
 
         # Require majority and minimum absolute vote count
         window_size = len(self._windows[tracking_id])
+        stability = count / window_size if window_size else 0.0
         if top_gesture == "none" or count < max(_MIN_VOTES, window_size // 2):
             self._update_prev(tracking_id, "none")
             return None
 
-        avg_conf = (
-            sum(c for g, c in self._windows[tracking_id] if g == top_gesture) / count
-        )
+        avg_conf = sum(c for g, c in self._windows[tracking_id] if g == top_gesture) / count
 
         # ── Cooldown check ───────────────────────────────────────────────────
         is_safety = top_gesture in _SAFETY_GESTURES
@@ -114,9 +112,11 @@ class GestureTemporalSmoother:
         is_held = not just_started
 
         self._update_prev(tracking_id, top_gesture)
-        return (top_gesture, avg_conf, just_started, is_held, just_ended)
+        return (top_gesture, avg_conf, just_started, is_held, just_ended, stability)
 
-    def notify_person_lost(self, tracking_id: int) -> Optional[Tuple[str, float, bool, bool, bool]]:
+    def notify_person_lost(
+        self, tracking_id: int
+    ) -> tuple[str, float, bool, bool, bool, float] | None:
         """Notify the smoother that a person has left the scene.
 
         If the person was holding a gesture, a just_ended event is returned
@@ -126,14 +126,16 @@ class GestureTemporalSmoother:
             tracking_id: The lost person's integer tracking ID.
 
         Returns:
-            A 5-tuple with ``just_ended=True`` if the person held a gesture,
-            otherwise ``None``.
+            A 6-tuple with ``just_ended=True`` if the person held a gesture,
+            otherwise ``None``. ``stability`` is reported as 1.0 since the
+            reported gesture was, by definition, the already-confirmed
+            steady-state for this person.
         """
         prev = self._prev_gesture.pop(tracking_id, "none")
         self._windows.pop(tracking_id, None)
 
         if prev and prev != "none":
-            return (prev, 0.0, False, False, True)
+            return (prev, 0.0, False, False, True, 1.0)
         return None
 
     # ------------------------------------------------------------------

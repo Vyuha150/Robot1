@@ -7,7 +7,7 @@ All parameters can be overridden via ROS2 parameters (gesture.yaml).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -35,6 +35,14 @@ class GestureConfig:
             Frame is discarded if the call exceeds this duration.
         min_visibility_threshold: MediaPipe landmark visibility score minimum.
             Landmarks below this are treated as absent.
+        camera_hfov_deg: Horizontal field of view of the source camera, used
+            by GesturePersonAssigner to predict where a bearing-known tracked
+            person should appear in the frame. Matches UsbCameraDriver's
+            default (60.0) — keep these in sync when the camera changes.
+        person_assign_max_x_norm_delta: Maximum tolerated mismatch (0..1,
+            normalised frame width) between a landmark set's observed
+            horizontal position and a tracked person's predicted position
+            before the match is rejected rather than guessed.
     """
 
     backend: str = "mediapipe"
@@ -50,9 +58,11 @@ class GestureConfig:
     safety_gesture_immediate: bool = True
     processing_timeout_sec: float = 0.08
     min_visibility_threshold: float = 0.5
+    camera_hfov_deg: float = 60.0
+    person_assign_max_x_norm_delta: float = 0.35
 
     @classmethod
-    def from_ros_params(cls, node: "rclpy.node.Node") -> "GestureConfig":  # type: ignore[name-defined]
+    def from_ros_params(cls, node: "rclpy.node.Node") -> GestureConfig:  # noqa: F821, UP037
         """Construct a GestureConfig by reading ROS2 parameters from *node*.
 
         Only parameters that have been declared on the node will be read.
@@ -64,6 +74,7 @@ class GestureConfig:
         Returns:
             A fully populated GestureConfig.
         """
+
         def _get(name: str, default):  # type: ignore[no-untyped-def]
             try:
                 return node.get_parameter(name).value
@@ -82,7 +93,17 @@ class GestureConfig:
             head_gesture_enabled=_get("head_gesture_enabled", defaults.head_gesture_enabled),
             hand_gesture_enabled=_get("hand_gesture_enabled", defaults.hand_gesture_enabled),
             body_gesture_enabled=_get("body_gesture_enabled", defaults.body_gesture_enabled),
-            safety_gesture_immediate=_get("safety_gesture_immediate", defaults.safety_gesture_immediate),
-            processing_timeout_sec=float(_get("processing_timeout_sec", defaults.processing_timeout_sec)),
-            min_visibility_threshold=float(_get("min_visibility_threshold", defaults.min_visibility_threshold)),
+            safety_gesture_immediate=_get(
+                "safety_gesture_immediate", defaults.safety_gesture_immediate
+            ),
+            processing_timeout_sec=float(
+                _get("processing_timeout_sec", defaults.processing_timeout_sec)
+            ),
+            min_visibility_threshold=float(
+                _get("min_visibility_threshold", defaults.min_visibility_threshold)
+            ),
+            camera_hfov_deg=float(_get("camera_hfov_deg", defaults.camera_hfov_deg)),
+            person_assign_max_x_norm_delta=float(
+                _get("person_assign_max_x_norm_delta", defaults.person_assign_max_x_norm_delta)
+            ),
         )
