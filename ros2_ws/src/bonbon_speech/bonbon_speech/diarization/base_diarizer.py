@@ -47,7 +47,10 @@ class DiarizationResult:
     """
 
     segments: list[SpeakerSegment] = field(default_factory=list)
-    dominant_speaker: str = "SPEAKER_00"
+    # Default "" (falsy) so the auto-compute below always runs unless a caller
+    # explicitly overrides it. A truthy default here previously short-circuited
+    # the longest-speaking-time computation entirely (bug).
+    dominant_speaker: str = ""
     all_speaker_ids: list[str] = field(default_factory=list)
     is_timeout: bool = False
 
@@ -58,12 +61,15 @@ class DiarizationResult:
                 if s.speaker_id not in seen:
                     seen.append(s.speaker_id)
             self.all_speaker_ids = seen
-        if not self.dominant_speaker and self.segments:
-            # Pick speaker with most cumulative speech
-            acc: dict = {}
-            for s in self.segments:
-                acc[s.speaker_id] = acc.get(s.speaker_id, 0.0) + s.duration_sec
-            self.dominant_speaker = max(acc, key=acc.__getitem__)
+        if not self.dominant_speaker:
+            if self.segments:
+                # Pick speaker with most cumulative speech.
+                acc: dict = {}
+                for s in self.segments:
+                    acc[s.speaker_id] = acc.get(s.speaker_id, 0.0) + s.duration_sec
+                self.dominant_speaker = max(acc, key=acc.__getitem__)
+            else:
+                self.dominant_speaker = "SPEAKER_00"  # safe fallback, no segments
 
 
 class BaseDiarizer(ABC):

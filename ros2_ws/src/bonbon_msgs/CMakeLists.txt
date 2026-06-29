@@ -44,7 +44,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/BehaviorDecision.msg"
   "msg/ActuationGesture.msg"
   "msg/ActuationStatus.msg"
-  "msg/HumanStateEstimate.msg"
+  "msg/TrackedObject.msg"
+  "msg/PersonTrack.msg"
+  "msg/SpeakerTurn.msg"
+  "msg/HumanState.msg"
   DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 

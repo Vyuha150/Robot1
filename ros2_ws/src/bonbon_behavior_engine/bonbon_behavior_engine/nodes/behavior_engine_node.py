@@ -185,7 +185,7 @@ class BehaviorEngineNode(LifecycleNode):
         self._subs = [
             sub(SafetyState,         "/bonbon/safety/state",
                 self._on_safety_state, _QOS_TRANSIENT),
-            sub(HumanEmotionState,   "/bonbon/affective/state",
+            sub(HumanEmotionState,   "/bonbon/affective/human_state",
                 self._on_emotion_state),
             sub(GestureEvent,        "/bonbon/gesture/events",
                 self._on_gesture_event),
