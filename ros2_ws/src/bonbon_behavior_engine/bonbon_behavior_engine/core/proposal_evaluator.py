@@ -136,7 +136,14 @@ class ProposalEvaluator:
                 )
 
         if self._safety_level >= _LEVEL_DANGER:
-            if proposal_type in ("navigate", "approach"):
+            # DANGER ("imminent hazard, all motion stopped" — see
+            # SafetyState.msg) means ALL physical motion, not just wheeled
+            # navigation. 'gesture' drives real servo movement via
+            # bonbon_actuation and must be rejected here too — relying solely
+            # on ActuationSafetyGate's downstream priority threshold to catch
+            # it would make this evaluator's own "approved" decision
+            # misleading (and remove one layer of defense-in-depth).
+            if proposal_type in ("navigate", "approach", "gesture"):
                 return EvaluationResult(
                     decision="rejected",
                     approved_action="",
@@ -146,7 +153,7 @@ class ProposalEvaluator:
                     operator_alerted=False,
                     rejection_reason=(
                         f"Safety level {self._safety_level}: "
-                        "navigation/approach not allowed."
+                        "navigation/approach/gesture not allowed."
                     ),
                 )
 
