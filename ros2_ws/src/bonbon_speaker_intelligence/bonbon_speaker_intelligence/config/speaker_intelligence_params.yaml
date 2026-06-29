@@ -1,0 +1,22 @@
+speaker_intelligence_node:
+  ros__parameters:
+    health_rate_hz: 1.0
+
+    # SpeakerIdentityManager — DOA+recency based persistent speaker_id.
+    # NOT a voiceprint model (none exists in this repo); document this
+    # limitation when tuning. See core/speaker_identity_manager.py.
+    doa_tolerance_deg: 20.0
+    recency_window_sec: 8.0
+
+    # VoiceEmotionCache — how stale a bonbon_affective_ai VoiceEmotion
+    # reading may be before it's no longer attached to a new speaker turn.
+    voice_emotion_max_age_sec: 3.0
+
+    short_segment_threshold_sec: 0.3
+
+    # AudioVisualAssociator — max DOA-to-PersonTrack-bearing mismatch before
+    # a speaker turn is left "off camera" rather than guessed.
+    max_bearing_delta_deg: 25.0
+
+    # When true, person_track_id is never published (anonymous turns only).
+    privacy_mode: false

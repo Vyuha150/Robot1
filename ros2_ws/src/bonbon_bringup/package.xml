@@ -35,6 +35,7 @@
   <exec_depend>bonbon_gesture</exec_depend>
   <exec_depend>bonbon_spatial</exec_depend>
   <exec_depend>bonbon_multi_person_tracker</exec_depend>
+  <exec_depend>bonbon_speaker_intelligence</exec_depend>
   <exec_depend>bonbon_actuation</exec_depend>
   <exec_depend>bonbon_behavior_engine</exec_depend>
   <exec_depend>bonbon_operator_api</exec_depend>
