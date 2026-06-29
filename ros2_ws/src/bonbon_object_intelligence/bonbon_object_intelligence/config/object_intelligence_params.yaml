@@ -1,0 +1,25 @@
+object_intelligence_node:
+  ros__parameters:
+    publish_rate_hz: 10.0
+    health_rate_hz: 1.0
+    vision_stale_timeout_sec: 1.0
+
+    # ObjectPermanenceTracker (see core/object_permanence_tracker.py)
+    occlusion_grace_sec: 2.0
+    memory_grace_sec: 15.0
+    max_objects: 50
+
+    # ObjectConfidenceCalibrator — adjustment hook, NOT a fitted statistical
+    # model (no labeled calibration dataset exists in this repo).
+    rejection_threshold: 0.3
+    small_object_area_px: 900.0
+    small_object_confidence_floor: 0.35
+
+    # Depth association fallback (used only when bonbon_vision hasn't
+    # populated DetectedObject.position_3d itself) — keep in sync with the
+    # active camera driver's hfov_deg.
+    camera_hfov_deg: 60.0
+
+    # OCR is off by default — MockOCRBackend never fabricates text; only
+    # enable once a real backend is wired in.
+    enable_ocr: false

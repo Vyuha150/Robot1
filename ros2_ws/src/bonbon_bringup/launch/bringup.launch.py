@@ -121,6 +121,7 @@ def generate_launch_description() -> LaunchDescription:
         actions=[
             LogInfo(msg="bonbon_bringup: starting AI reasoning subsystems"),
             _include("bonbon_spatial", "spatial.launch.py"),
+            _include("bonbon_object_intelligence", "object_intelligence.launch.py"),
             _include("bonbon_multi_person_tracker", "multi_person_tracker.launch.py"),
             _include("bonbon_affective_ai", "affective_ai.launch.py"),
             _include("bonbon_gesture", "gesture.launch.py"),
