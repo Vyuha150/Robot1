@@ -154,6 +154,10 @@ def _make_stub_modules():
         word_confidences=[],
         speaker_id="",
         all_speaker_ids=[],
+        segment_speaker_ids=[],
+        segment_start_sec=[],
+        segment_end_sec=[],
+        segment_confidences=[],
         audio_duration_sec=0.0,
         transcription_ms=0.0,
         doa_angle_deg=0.0,
@@ -416,6 +420,66 @@ class TestDiarizationIntegration:
         node._on_audio_chunk(make_audio_msg())
         args = node._pub_command.publish.call_args[0]
         assert args[0].speaker_id == "SPEAKER_ANON"
+
+    def test_per_segment_detail_populated_for_speaker_intelligence(self):
+        """bonbon_speaker_intelligence consumes SpeechTranscription's
+        per-segment fields (not just the collapsed speaker_id) to build
+        SpeakerTurn messages without re-running diarization."""
+        cfg = SpeechConfig()
+        cfg.publish_transcription_detail = True
+        node = make_node(cfg)
+        init_pipeline(node)
+        responses = [
+            DiarizationResult(
+                segments=[
+                    SpeakerSegment("SPEAKER_00", 0.0, 1.5, confidence=0.9),
+                    SpeakerSegment("SPEAKER_01", 1.5, 3.0, confidence=0.8),
+                ],
+                dominant_speaker="SPEAKER_01",
+                all_speaker_ids=["SPEAKER_00", "SPEAKER_01"],
+            )
+        ]
+        node._diarizer = MockDiarizer(responses=responses)
+        node._diarizer.load()
+        node._vad.force_next_emit(samples=np.zeros(8000, dtype=np.float32))
+        node._on_audio_chunk(make_audio_msg())
+        args = node._pub_transcription.publish.call_args[0]
+        msg = args[0]
+        assert msg.segment_speaker_ids == ["SPEAKER_00", "SPEAKER_01"]
+        assert msg.segment_start_sec == [0.0, 1.5]
+        assert msg.segment_end_sec == [1.5, 3.0]
+        assert msg.segment_confidences == [0.9, 0.8]
+
+    def test_per_segment_speaker_ids_anonymised_in_privacy_mode(self):
+        cfg = SpeechConfig()
+        cfg.publish_transcription_detail = True
+        cfg.privacy.anonymize_speaker = True
+        node = make_node(cfg)
+        init_pipeline(node)
+        responses = [
+            DiarizationResult(
+                segments=[SpeakerSegment("SPEAKER_00", 0.0, 1.0)],
+                dominant_speaker="SPEAKER_00",
+                all_speaker_ids=["SPEAKER_00"],
+            )
+        ]
+        node._diarizer = MockDiarizer(responses=responses)
+        node._diarizer.load()
+        node._vad.force_next_emit(samples=np.zeros(8000, dtype=np.float32))
+        node._on_audio_chunk(make_audio_msg())
+        args = node._pub_transcription.publish.call_args[0]
+        assert args[0].segment_speaker_ids == ["SPEAKER_ANON"]
+
+    def test_no_segments_when_diarizer_absent(self):
+        cfg = SpeechConfig()
+        cfg.publish_transcription_detail = True
+        node = make_node(cfg)
+        init_pipeline(node)
+        node._diarizer = None
+        node._vad.force_next_emit(samples=np.zeros(8000, dtype=np.float32))
+        node._on_audio_chunk(make_audio_msg())
+        args = node._pub_transcription.publish.call_args[0]
+        assert args[0].segment_speaker_ids == []
 
 
 # ── Wake word gate ────────────────────────────────────────────────────────────

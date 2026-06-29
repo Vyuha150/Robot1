@@ -18,6 +18,17 @@ float32[] word_confidences      # per-word confidence
 string  speaker_id              # primary speaker for this utterance
 string[] all_speaker_ids        # all speakers if multiple voices detected
 
+# Per-segment diarization detail (parallel arrays, like the per-word fields
+# above). Populated from the diarizer's raw SpeakerSegment list — previously
+# computed internally by speech_node and discarded after collapsing to
+# speaker_id/all_speaker_ids above. Consumed by bonbon_speaker_intelligence to
+# build SpeakerTurn messages without re-running diarization. Empty when
+# diarization is disabled, timed out, or produced no segments.
+string[]  segment_speaker_ids
+float32[] segment_start_sec     # offset from audio_start, seconds
+float32[] segment_end_sec
+float32[] segment_confidences
+
 # ── Audio ─────────────────────────────────────────────────────────────────────
 float32 audio_duration_sec
 float32 transcription_ms

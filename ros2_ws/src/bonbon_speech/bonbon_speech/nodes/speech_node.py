@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from dataclasses import replace
 
 import numpy as np
 
@@ -375,16 +376,23 @@ class SpeechNode(LifecycleNode):
         # Diarization (optional)
         speaker_id = "SPEAKER_00"
         all_speakers = ["SPEAKER_00"]
+        diar_segments = []
         if self._diarizer is not None:
             diar = self._diarizer.diarize(segment.samples, segment.sample_rate)
             if not diar.is_timeout:
                 speaker_id = diar.dominant_speaker
                 all_speakers = diar.all_speaker_ids
+                diar_segments = diar.segments
 
         # Privacy: anonymise speaker if required
         if self._cfg.privacy.anonymize_speaker:
             speaker_id = "SPEAKER_ANON"
             all_speakers = ["SPEAKER_ANON"]
+            # Anonymise per-segment speaker IDs too — otherwise privacy mode
+            # would leak real diarizer labels through the detail fields below.
+            diar_segments = [
+                replace(s, speaker_id="SPEAKER_ANON") for s in diar_segments
+            ]
 
         # Build and publish messages
         self._publish_command(
@@ -404,6 +412,7 @@ class SpeechNode(LifecycleNode):
                 stt=stt_result,
                 speaker_id=speaker_id,
                 all_speakers=all_speakers,
+                diar_segments=diar_segments,
                 duration_sec=segment.duration_sec,
                 transcription_ms=transcription_ms,
                 doa=segment.doa_angle_deg,
@@ -453,6 +462,7 @@ class SpeechNode(LifecycleNode):
         stt,
         speaker_id: str,
         all_speakers,
+        diar_segments,
         duration_sec: float,
         transcription_ms: float,
         doa: float,
@@ -471,6 +481,10 @@ class SpeechNode(LifecycleNode):
         msg.word_confidences = [float(c) for c in stt.word_confidences]
         msg.speaker_id = speaker_id
         msg.all_speaker_ids = list(all_speakers)
+        msg.segment_speaker_ids = [s.speaker_id for s in diar_segments]
+        msg.segment_start_sec = [float(s.start_sec) for s in diar_segments]
+        msg.segment_end_sec = [float(s.end_sec) for s in diar_segments]
+        msg.segment_confidences = [float(s.confidence) for s in diar_segments]
         msg.audio_duration_sec = float(duration_sec)
         msg.transcription_ms = float(transcription_ms)
         msg.doa_angle_deg = float(doa)
