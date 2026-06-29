@@ -21,6 +21,13 @@ string  temporary_person_id # human-friendly anonymous label ("Person_3"), stabl
                             # is known and kept for privacy-mode display
 string  known_person_id     # registered/known identity; "" if unknown
 
+string  raw_track_id        # bonbon_vision's PersonState.track_id THIS CYCLE
+                            # ("person_3") — bridges to packages that still key
+                            # off vision's raw per-frame ID (e.g. HumanEmotionState
+                            # from bonbon_affective_ai, predates person_track_id).
+                            # "" while temporarily_lost (the raw ID is not
+                            # trustworthy once the underlying detection is gone).
+
 # ── Visual evidence ───────────────────────────────────────────────────────────
 int32   bbox_x
 int32   bbox_y

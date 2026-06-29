@@ -35,7 +35,10 @@ from rclpy.lifecycle import Publisher as LifecyclePublisher
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Header, String
 
-from bonbon_multi_person_tracker.core.lifecycle_state_machine import LifecycleConfig
+from bonbon_multi_person_tracker.core.lifecycle_state_machine import (
+    LifecycleConfig,
+    PersonLifecycleState,
+)
 from bonbon_multi_person_tracker.core.multi_person_scene_manager import MultiPersonSceneManager
 from bonbon_multi_person_tracker.core.person_record import PersonRecord, RawPersonDetection
 
@@ -288,6 +291,12 @@ class MultiPersonTrackerNode(LifecycleNode):
         msg.person_track_id = rec.person_track_id
         msg.temporary_person_id = rec.temporary_person_id
         msg.known_person_id = "" if self._privacy_mode else rec.known_person_id
+        # Not trustworthy once the underlying detection is gone — the raw
+        # vision-pipeline ID may already have been reassigned to someone else.
+        msg.raw_track_id = (
+            "" if rec.lifecycle_state in (PersonLifecycleState.TEMPORARILY_LOST, PersonLifecycleState.LEFT_SCENE)
+            else rec.raw_track_id
+        )
 
         msg.bbox_x, msg.bbox_y, msg.bbox_w, msg.bbox_h = rec.bbox
         msg.face_bbox_available = rec.face_bbox is not None

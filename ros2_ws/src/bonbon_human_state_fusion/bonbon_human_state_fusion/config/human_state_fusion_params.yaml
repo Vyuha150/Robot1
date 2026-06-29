@@ -1,0 +1,13 @@
+human_state_fusion_node:
+  ros__parameters:
+    publish_rate_hz: 10.0
+    health_rate_hz: 1.0
+
+    # ActiveSpeakerTracker windows — also used to bridge UserIntent/TextEmotion
+    # (keyed by the diarizer's per-utterance speaker_id) to person_track_id via
+    # "whoever spoke most recently."
+    speaking_window_sec: 2.0
+    recently_spoke_window_sec: 15.0
+
+    # When true, known_person_id is never published (temporary IDs only).
+    privacy_mode: false

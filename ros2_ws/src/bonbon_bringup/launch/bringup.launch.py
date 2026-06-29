@@ -125,6 +125,7 @@ def generate_launch_description() -> LaunchDescription:
             _include("bonbon_affective_ai", "affective_ai.launch.py"),
             _include("bonbon_gesture", "gesture.launch.py"),
             _include("bonbon_speaker_intelligence", "speaker_intelligence.launch.py"),
+            _include("bonbon_human_state_fusion", "human_state_fusion.launch.py"),
             _include("bonbon_perception_ai", "perception.launch.py"),
             _include("bonbon_llm", "llm.launch.py"),
         ],
