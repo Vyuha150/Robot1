@@ -36,20 +36,16 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 import rclpy
-from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
-from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-
-from std_msgs.msg import Header
-
 from bonbon_msgs.msg import (
     ActuationGesture,
     BehaviorDecision,
     BehaviorProposal,
     GestureEvent,
     HumanEmotionState,
+    HumanState,
+    PersonTrack,
     RiskEvent,
     SafetyState,
     SocialNavigationHint,
@@ -58,6 +54,9 @@ from bonbon_msgs.msg import (
     TTSRequest,
 )
 from bonbon_srvs.srv import EvaluateCommand, HealthCheck, SetMode
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from std_msgs.msg import Header
 
 from bonbon_behavior_engine.core.behavior_state_machine import (
     BehaviorState,
@@ -66,6 +65,11 @@ from bonbon_behavior_engine.core.behavior_state_machine import (
 from bonbon_behavior_engine.core.command_risk_classifier import CommandRiskClassifier
 from bonbon_behavior_engine.core.emotion_response_planner import EmotionAwareResponsePlanner
 from bonbon_behavior_engine.core.llm_command_gate import LLMCommandGate
+from bonbon_behavior_engine.core.multi_person_behavior_selector import (
+    MultiPersonBehaviorSelector,
+    apply_child_safety_modifier,
+    select_focus_person,
+)
 from bonbon_behavior_engine.core.operator_alerter import OperatorAlerter
 from bonbon_behavior_engine.core.proposal_evaluator import ProposalEvaluator
 from bonbon_behavior_engine.core.spatial_response_planner import SpatialResponsePlanner
@@ -114,6 +118,7 @@ class BehaviorEngineNode(LifecycleNode):
         self._emotion_planner = EmotionAwareResponsePlanner()
         self._spatial_planner = SpatialResponsePlanner()
         self._operator_alerter = OperatorAlerter()
+        self._behavior_selector = MultiPersonBehaviorSelector()
 
         # Runtime state (protected by _lock)
         self._lock = threading.Lock()
@@ -122,10 +127,16 @@ class BehaviorEngineNode(LifecycleNode):
         self._actuation_enabled: bool = False
         self._tts_enabled: bool = False
         self._operating_mode: str = "normal"
-        self._last_emotion: Optional[HumanEmotionState] = None
+        self._privacy_mode: bool = False
+        self._last_emotion: HumanEmotionState | None = None
         self._last_person_id: str = ""
         self._last_tracking_id: int = -1
         self._person_present: bool = False
+
+        # Multi-person state (bonbon_human_state_fusion / bonbon_multi_person_tracker)
+        self._human_states: dict[str, HumanState] = {}
+        self._person_track_raw_ids: dict[str, str] = {}  # person_track_id -> raw vision track_id
+        self._person_categories: dict[str, str] = {}  # raw track_id -> 'child'|'adult'|...
 
         # ROS2 I/O (created in on_activate)
         self._subs: list = []
@@ -146,6 +157,7 @@ class BehaviorEngineNode(LifecycleNode):
         self.declare_parameter("max_tts_chars",          200)
         self.declare_parameter("enable_llm_proposals",   True)
         self.declare_parameter("operator_alert_cooldown_sec", 10.0)
+        self.declare_parameter("privacy_mode",           False)
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -156,6 +168,7 @@ class BehaviorEngineNode(LifecycleNode):
             p("operating_mode").get_parameter_value().string_value
         )
         self._evaluator.set_operating_mode(self._operating_mode)
+        self._privacy_mode = p("privacy_mode").get_parameter_value().bool_value
         idle_period = p("idle_period_sec").get_parameter_value().double_value
         cooldown = p("operator_alert_cooldown_sec").get_parameter_value().double_value
         self._operator_alerter = OperatorAlerter(cooldown_sec=cooldown)
@@ -197,6 +210,10 @@ class BehaviorEngineNode(LifecycleNode):
                 self._on_spatial_alert, _QOS_DEFAULT),
             sub(SpeechCommand,       "/speech/command",
                 self._on_speech_command),
+            sub(HumanState,          "/bonbon/human/state",
+                self._on_human_state),
+            sub(PersonTrack,         "/bonbon/persons/tracks",
+                self._on_person_track),
         ]
 
         # ── Services ─────────────────────────────────────────────────────
@@ -245,6 +262,10 @@ class BehaviorEngineNode(LifecycleNode):
         with self._lock:
             self._last_emotion = None
             self._person_present = False
+            self._human_states.clear()
+            self._person_track_raw_ids.clear()
+            self._person_categories.clear()
+        self._behavior_selector = MultiPersonBehaviorSelector()
         self._operator_alerter.reset()
         self._fsm.force_transition(BehaviorState.IDLE, "cleanup")
         return TransitionCallbackReturn.SUCCESS
@@ -397,10 +418,16 @@ class BehaviorEngineNode(LifecycleNode):
         entity_type = getattr(msg, "entity_type", "")
         if entity_type == "person":
             was_present = self._person_present
+            person_id = getattr(msg, "person_id", "")
             with self._lock:
                 self._person_present   = True
-                self._last_person_id   = getattr(msg, "person_id", "")
+                self._last_person_id   = person_id
                 self._last_tracking_id = getattr(msg, "tracking_id", -1)
+                # Bridges bonbon_human_state_fusion's person_track_id (via
+                # raw_track_id, cached in _on_person_track) to SpatialEntity's
+                # person_category — used by rule 9 (child safety modifier).
+                if person_id:
+                    self._person_categories[person_id] = getattr(msg, "person_category", "unknown")
 
             if not was_present:
                 # New person detected → greet
@@ -437,6 +464,88 @@ class BehaviorEngineNode(LifecycleNode):
                 "gesture", "wave",
                 "speech_intent", pid, tid, 0.2,
             )
+
+    # ── Multi-person state callbacks (bonbon_multi_person_tracker / fusion) ──
+
+    def _on_person_track(self, msg: PersonTrack) -> None:
+        """Caches the person_track_id -> raw_track_id bridge used to look up
+        SpatialEntity.person_category for the child-safety modifier (rule 9)."""
+        with self._lock:
+            if msg.lifecycle_state == "left_scene":
+                self._person_track_raw_ids.pop(msg.person_track_id, None)
+            elif msg.raw_track_id:
+                self._person_track_raw_ids[msg.person_track_id] = msg.raw_track_id
+
+    def _on_human_state(self, msg: HumanState) -> None:
+        """Multi-person-aware decision path. Implements the project brief's
+        10 example behaviors. Every candidate is dispatched through the SAME
+        safety-gated _dispatch_proposal() path the single-person callbacks
+        already use — this never bypasses ProposalEvaluator/SafetyState."""
+        with self._lock:
+            if msg.lifecycle_state == "left_scene":
+                snapshot = dict(self._human_states)
+                snapshot[msg.person_track_id] = msg
+            else:
+                self._human_states[msg.person_track_id] = msg
+                snapshot = dict(self._human_states)
+            privacy_mode = self._privacy_mode
+
+        self._executor.submit(self._decide_multi_person_behavior, msg, snapshot, privacy_mode)
+
+        if msg.lifecycle_state == "left_scene":
+            with self._lock:
+                self._human_states.pop(msg.person_track_id, None)
+
+    def _decide_multi_person_behavior(self, msg: HumanState, snapshot: dict, privacy_mode: bool) -> None:
+        """Runs the rule chain (highest priority first) and dispatches at
+        most one candidate for this HumanState update."""
+        all_states = list(snapshot.values())
+
+        # Rule 6 — safety gesture from ANYONE nearby, regardless of focus.
+        candidate = self._behavior_selector.decide_safety_gesture_response(all_states)
+
+        if candidate is None:
+            focus_id = select_focus_person(all_states)
+            if focus_id != msg.person_track_id:
+                # This update isn't about the current focus person and isn't
+                # a safety gesture — nothing new to decide this cycle.
+                return
+            candidate = (
+                self._behavior_selector.decide_arrival_greeting(msg)
+                or self._behavior_selector.decide_known_person_greeting(msg, privacy_allows_name=not privacy_mode)
+                or self._behavior_selector.decide_confused_question_response(msg)
+                or self._behavior_selector.decide_calm_supportive_response(msg)
+                or self._behavior_selector.decide_pointing_confirmation(msg)
+                or self._behavior_selector.decide_departure_close_session(msg)
+            )
+
+        if candidate is None:
+            return
+
+        is_child = self._is_child(candidate.person_track_id)
+        candidate = apply_child_safety_modifier(candidate, is_child_nearby=is_child)
+
+        self._dispatch_multi_person_candidate(candidate)
+
+    def _is_child(self, person_track_id: str) -> bool:
+        with self._lock:
+            raw_id = self._person_track_raw_ids.get(person_track_id, "")
+            return self._person_categories.get(raw_id, "unknown") == "child"
+
+    def _dispatch_multi_person_candidate(self, candidate) -> None:
+        if candidate.proposal_type == "pause":
+            # Safety-gesture pause: always dispatched as a speak (confirmation
+            # request) — actual motion pausing is enforced by the Safety
+            # Supervisor independently of this proposal.
+            self._dispatch_proposal(
+                "speak", candidate.content, candidate.source,
+                candidate.person_track_id, -1, candidate.urgency,
+            )
+            return
+        self._dispatch_proposal(
+            candidate.proposal_type, candidate.content, candidate.source,
+            candidate.person_track_id, -1, candidate.urgency,
+        )
 
     # ── Idle tick ─────────────────────────────────────────────────────────
 
