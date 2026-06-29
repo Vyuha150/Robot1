@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_multi_person_tracker</name>
+  <version>1.0.0</version>
+  <description>
+    Multi-person identity lifecycle tracking for the BonBon service robot.
+    Consumes existing PersonStateArray detections from bonbon_vision (does not
+    re-detect); adds the identity-continuity, lifecycle state machine, and
+    arrival/leaving/reappearance logic none of the existing trackers provide.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>bonbon_msgs</exec_depend>
+  <exec_depend>bonbon_srvs</exec_depend>
+  <exec_depend>python3-pyyaml</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

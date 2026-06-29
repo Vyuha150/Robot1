@@ -35,6 +35,7 @@ if [[ "${1:-}" == "--no-ros2" ]]; then
   run_pkg bonbon_spatial
   run_pkg bonbon_gesture
   run_pkg bonbon_affective_ai
+  run_pkg bonbon_multi_person_tracker
   echo "### All pure-Python suites passed ###"
 else
   echo "### Full test suites (ROS2 workspace) ###"

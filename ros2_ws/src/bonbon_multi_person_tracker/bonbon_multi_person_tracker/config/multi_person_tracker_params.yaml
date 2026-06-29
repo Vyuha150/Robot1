@@ -1,0 +1,29 @@
+multi_person_tracker_node:
+  ros__parameters:
+    publish_rate_hz: 10.0
+    health_rate_hz: 1.0
+
+    # If /bonbon/vision/persons has not delivered a message within this many
+    # seconds, the current cycle is treated as "nobody detected" rather than
+    # re-using a frozen last-known frame — people correctly age toward
+    # temporarily_lost/left_scene instead of appearing falsely present forever.
+    vision_stale_timeout_sec: 1.0
+
+    # Lifecycle FSM tuning (see core/lifecycle_state_machine.py)
+    confirmation_hits: 2            # consecutive sightings before new_candidate -> present
+    candidate_miss_limit: 2         # consecutive misses before discarding an unconfirmed candidate
+    loss_grace_sec: 4.0             # how long temporarily_lost is tolerated before left_scene
+    active_interaction_hold_sec: 3.0  # how long active_interaction persists after the last signal
+    confidence_decay_per_sec: 0.15  # confidence decay rate while temporarily_lost
+
+    # RecallBuffer: how long a departed known person's identity is remembered
+    # so a later arrival can recover known_person_id (always with a BRAND NEW
+    # person_track_id — never a resurrected one).
+    recall_window_sec: 300.0
+
+    # Resource bound — never track more than this many people at once.
+    max_persons: 20
+
+    # When true, known_person_id and face_id are never published (anonymous
+    # temporary_person_id labels only).
+    privacy_mode: false
