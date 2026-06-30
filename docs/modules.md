@@ -283,6 +283,21 @@ See also [AUDIO_VISUAL_PERSON_ASSOCIATION.md](AUDIO_VISUAL_PERSON_ASSOCIATION.md
 [TESTING_PERCEPTION_INTELLIGENCE.md](TESTING_PERCEPTION_INTELLIGENCE.md), and
 the Multi-Person Perception section of [performance_tuning.md](performance_tuning.md).
 
+## Efficiency and Data Feedback Packages
+
+Added in the efficiency/optimization upgrade. Neither detects anything
+itself — both coordinate/observe existing pipelines. See
+[EFFICIENCY_ARCHITECTURE.md](EFFICIENCY_ARCHITECTURE.md) for the full audit
+findings and design rationale.
+
+| Package | Responsibility | Doc |
+|---|---|---|
+| `bonbon_perception_efficiency` | Confidence policy, frame sampling, stale-frame drop, bounded queues, active-person focus, load shedding, degraded mode, metrics — all advisory | [EFFICIENCY_ARCHITECTURE.md](EFFICIENCY_ARCHITECTURE.md), [PERCEPTION_BUDGET_MANAGER.md](PERCEPTION_BUDGET_MANAGER.md) |
+| `bonbon_data_feedback` | Failure-case logging, hard negatives, dataset export/versioning, model evaluation tracking, privacy-safe retention | [DATA_STRATEGY.md](DATA_STRATEGY.md), [FAILURE_CASE_LEARNING.md](FAILURE_CASE_LEARNING.md), [PRIVACY_SAFE_DATA_COLLECTION.md](PRIVACY_SAFE_DATA_COLLECTION.md) |
+
+See also [PERFORMANCE_METRICS.md](PERFORMANCE_METRICS.md) and
+[OPTIMIZATION_TESTING.md](OPTIMIZATION_TESTING.md).
+
 ## deployment and devops
 
 Operational deployment system.

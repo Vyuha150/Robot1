@@ -83,3 +83,25 @@ these instead, on resource-constrained hardware (e.g. Raspberry Pi):
   `bonbon_multi_person_tracker` and `bonbon_object_intelligence`): keep
   these above your camera's actual worst-case frame interval, or transient
   camera hiccups will spuriously age out tracked people/objects.
+
+## Perception Efficiency and Data Feedback (bonbon_perception_efficiency, bonbon_data_feedback)
+
+Same pattern: both packages' core logic is bounded dict/list/SQLite
+operations, no ML. Measured against budgets in
+[`perf_targets.py`](../ros2_ws/src/bonbon_safety/bonbon_safety/core/perf_targets.py):
+
+| Budget | Target | Measured p95 | Owner |
+|---|---|---|---|
+| `perception_budget_cycle` | ≤ 50 ms | 0.014 ms | `bonbon_perception_efficiency` |
+| `failure_case_log_write` | ≤ 100 ms | 0.253 ms | `bonbon_data_feedback` |
+
+See [PERFORMANCE_METRICS.md](PERFORMANCE_METRICS.md) for the full metric
+catalogue, dashboard schema, and how to run the benchmark.
+
+- **`bonbon_perception_efficiency`**: `publish_rate_hz` (default 2 Hz)
+  controls how often the full budget cycle runs; `hysteresis_cycles`
+  (default 3) trades faster de-escalation against flapping at a CPU/memory
+  threshold boundary.
+- **`bonbon_data_feedback`**: `retention_sweep_rate_hz` (default ~hourly)
+  is deliberately infrequent — the sweep does a `DELETE` scan per category,
+  cheap but no reason to run it more than once an hour.
