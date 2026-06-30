@@ -1,0 +1,69 @@
+# pi_efficiency_profile.yaml — Raspberry Pi 5 efficiency profile.
+# Reduces load WITHOUT reducing safety. Loaded by
+# bonbon_perception_efficiency.core.pi_efficiency_profile.PiEfficiencyProfile
+# and surfaced on the dashboard Pi-efficiency card.
+#
+# The priority order is the single source of truth for what runs first and
+# what is shed first under pressure. Lower priority number = more important =
+# shed LAST. Items 1-6 are safety-critical and are NEVER shed.
+
+priority_order:
+  # ── NEVER shed (safety-critical) ──────────────────────────────────────────
+  - {rank: 1,  module: safety_supervisor,     safety_critical: true}
+  - {rank: 2,  module: hal,                    safety_critical: true}
+  - {rank: 3,  module: emergency_stop,         safety_critical: true}
+  - {rank: 4,  module: lidar_obstacle_safety,  safety_critical: true}
+  - {rank: 5,  module: navigation_safety,      safety_critical: true}
+  - {rank: 6,  module: active_person_tracking, safety_critical: true}
+  # ── Shed under pressure (least important shed first) ──────────────────────
+  - {rank: 7,  module: object_detection,       safety_critical: false}
+  - {rank: 8,  module: person_detection,       safety_critical: false}
+  - {rank: 9,  module: gesture_recognition,    safety_critical: false}
+  - {rank: 10, module: speech_vad,             safety_critical: false}
+  - {rank: 11, module: stt,                    safety_critical: false}
+  - {rank: 12, module: human_state_fusion,     safety_critical: false}
+  - {rank: 13, module: tts,                    safety_critical: false}
+  - {rank: 14, module: dashboard,              safety_critical: false}
+  - {rank: 15, module: rag,                    safety_critical: false}
+  - {rank: 16, module: llm,                    safety_critical: false}
+  - {rank: 17, module: background_emotion,     safety_critical: false}
+  - {rank: 18, module: analytics_logging,      safety_critical: false}
+
+# Pi production default FPS / rate limits (nominal — the LoadSheddingController
+# scales these down further under live CPU/thermal pressure).
+fps_limits:
+  object_detection: 8        # 5-10 range
+  person_tracking: 10        # 8-12 range
+  gesture_recognition: 8     # 5-10 range
+  face_emotion: 1            # active person only, 1 FPS
+  voice_emotion: 0           # 0 = per-speech-segment only, not a steady rate
+  dashboard_ws_hz: 2         # throttled
+
+# Event-gating: these run only on an event, never as a steady poll.
+event_gated:
+  stt: speech_detected           # VAD-gated
+  llm: stable_intent             # only after intent stabilises
+  rag: cache_miss                # only on a cache miss, cache enabled
+  face_emotion: active_person    # only the focus person
+  voice_emotion: speech_segment
+
+# Thresholds (mirror bonbon_safety / bonbon_perception_efficiency defaults).
+thresholds:
+  cpu_overload_percent: 90
+  cpu_caution_percent: 75
+  memory_pressure_percent: 85
+  cpu_temp_caution_c: 75       # matches SafetyStateMachine cpu_temp_caution_c
+  cpu_temp_fault_c: 90         # SAFE_STOP threshold — never reached if shedding works
+  degraded_sustained_sec: 10
+
+# Bounded-queue depths (never grow unbounded).
+queue_limits:
+  vision_inference: 4
+  affective_voice: 4
+  affective_text: 4
+  data_feedback_write: 8
+
+# Data writes are batched, never per-event-blocking.
+data_writes:
+  batched: true
+  non_blocking: true
