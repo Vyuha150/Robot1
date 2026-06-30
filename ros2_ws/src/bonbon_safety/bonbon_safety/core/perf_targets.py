@@ -25,6 +25,12 @@ Targets (from the performance requirements)
                                             diarization latency is measured
                                             separately in bonbon_speech)
   human state fusion           ≤ 100 ms   (bonbon_human_state_fusion)
+  perception budget cycle      ≤  50 ms   (bonbon_perception_efficiency — the
+                                            per-cycle coordination orchestrator;
+                                            pure dict/list arithmetic, no ML)
+  failure case log write       ≤ 100 ms   (bonbon_data_feedback — matches the
+                                            existing database_write budget,
+                                            since it is itself a SQLite write)
 """
 
 from __future__ import annotations
@@ -47,6 +53,8 @@ _TARGETS = [
     PerfBudget("object_tracking_update", 50.0, "p95"),
     PerfBudget("speaker_turn_update", 1000.0, "p95"),
     PerfBudget("human_state_fusion", 100.0, "p95"),
+    PerfBudget("perception_budget_cycle", 50.0, "p95"),
+    PerfBudget("failure_case_log_write", 100.0, "p95"),
 ]
 
 

@@ -42,6 +42,9 @@ for _pkg in (
     "bonbon_object_intelligence",
     "bonbon_speaker_intelligence",
     "bonbon_human_state_fusion",
+    "bonbon_perception_efficiency",
+    "bonbon_data_feedback",
+    "bonbon_data_stores",
 ):
     p = os.path.join(_SRC, _pkg)
     if p not in sys.path:
@@ -270,6 +273,67 @@ def _human_state_fusion_workload() -> Callable[[], None] | None:
     return run
 
 
+def _perception_budget_cycle_workload() -> Callable[[], None] | None:
+    try:
+        from bonbon_perception_efficiency.core.degraded_mode_manager import DegradedModeManager
+        from bonbon_perception_efficiency.core.load_shedding_controller import (
+            LoadSheddingController,
+        )
+        from bonbon_perception_efficiency.core.perception_budget_manager import (
+            BudgetInputs,
+            PerceptionBudgetManager,
+        )
+    except Exception:
+        return None
+    mgr = PerceptionBudgetManager(
+        load_shedding=LoadSheddingController(), degraded_mode=DegradedModeManager()
+    )
+    inputs = BudgetInputs(
+        cpu_overloaded=False,
+        memory_pressure=False,
+        resource_unavailable=False,
+        safety_caution_or_above=False,
+        safety_fault_or_above=False,
+        focus_person_track_id="ptrk_0",
+        person_track_ids=[f"ptrk_{k}" for k in range(5)],
+        new_candidate_ids={"ptrk_4"},
+    )
+
+    def run():
+        mgr.update(inputs)
+
+    return run
+
+
+def _failure_case_log_write_workload() -> Callable[[], None] | None:
+    import tempfile
+    from pathlib import Path
+
+    try:
+        from bonbon_data_feedback.core.feedback_store import FailureCaseRecord, FeedbackStore
+    except Exception:
+        return None
+    tmpdir = tempfile.mkdtemp(prefix="bench_feedback_")
+    store = FeedbackStore(Path(tmpdir) / "bench_feedback.db")
+    i = {"n": 0}
+
+    def run():
+        store.insert_failure_case(
+            FailureCaseRecord(
+                case_id="",
+                category="gesture",
+                signal_name="bench",
+                expected_label="wave",
+                actual_label="point",
+                confidence=0.4,
+                person_track_id=f"p{i['n']}",
+            )
+        )
+        i["n"] += 1
+
+    return run
+
+
 # name → (workload factory, budget name)
 _BENCHES = {
     "safety_validation": (_safety_validation_workload, "safety_validation"),
@@ -282,6 +346,8 @@ _BENCHES = {
     "object_tracking_update": (_object_tracking_workload, "object_tracking_update"),
     "speaker_turn_update": (_speaker_turn_workload, "speaker_turn_update"),
     "human_state_fusion": (_human_state_fusion_workload, "human_state_fusion"),
+    "perception_budget_cycle": (_perception_budget_cycle_workload, "perception_budget_cycle"),
+    "failure_case_log_write": (_failure_case_log_write_workload, "failure_case_log_write"),
 }
 
 
@@ -357,6 +423,8 @@ test_latency_person_tracking_update = _make_test("person_tracking_update")
 test_latency_object_tracking_update = _make_test("object_tracking_update")
 test_latency_speaker_turn_update = _make_test("speaker_turn_update")
 test_latency_human_state_fusion = _make_test("human_state_fusion")
+test_latency_perception_budget_cycle = _make_test("perception_budget_cycle")
+test_latency_failure_case_log_write = _make_test("failure_case_log_write")
 
 
 # ── standalone CLI ─────────────────────────────────────────────────────────────
