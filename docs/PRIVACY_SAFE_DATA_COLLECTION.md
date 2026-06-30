@@ -1,7 +1,15 @@
 # Privacy-Safe Data Collection
 
-Package: [`bonbon_data_feedback`](../ros2_ws/src/bonbon_data_feedback/README.md) ·
-Module: [`core/privacy_safe_data_policy.py`](../ros2_ws/src/bonbon_data_feedback/bonbon_data_feedback/core/privacy_safe_data_policy.py)
+Two independent, complementary layers enforce the same rule from different
+parts of the system:
+
+- **Live perception feedback** — [`bonbon_data_feedback`](../ros2_ws/src/bonbon_data_feedback/README.md)
+  (module: [`core/privacy_safe_data_policy.py`](../ros2_ws/src/bonbon_data_feedback/bonbon_data_feedback/core/privacy_safe_data_policy.py)),
+  documented below.
+- **Field pilot failure capture** — [`bonbon_field_learning`](../bonbon_field_learning/)
+  (the Phase 6 behavior-validation failure pipeline), documented in
+  ["The field-learning layer"](#the-field-learning-layer-bonbon_field_learning)
+  further down.
 
 ## The hard rule
 
@@ -88,3 +96,40 @@ See [OPTIMIZATION_TESTING.md](OPTIMIZATION_TESTING.md).
   — there is no override or exception path for this; if you need raw
   snapshots for debugging, set it explicitly for that session and turn it
   back off.
+
+## The field-learning layer (`bonbon_field_learning`)
+
+The Phase 6 behavior-validation failure pipeline (when an oracle-flagged
+field failure gets logged, reviewed, and turned into a regression test —
+see [FIELD_LEARNING_LOOP.md](FIELD_LEARNING_LOOP.md)) enforces the same
+"no raw face/audio by default" rule, independently, at the type level:
+
+- `bonbon_field_learning.anonymized_event_store.AnonymizedEvent` is a
+  dataclass with fields `event_id`, `timestamp`, `family`,
+  `failure_category`, `scenario_id`, `oracle_reason`, `metadata`
+  (`dict[str, str]`) — there is no field that *can* hold an image or audio
+  payload. This isn't a runtime check; the type cannot represent raw media.
+- `AnonymizedEventStore.append()` additionally scans every `metadata` key
+  against a denylist (`raw_face`, `raw_audio`, `face_image`,
+  `audio_waveform`, `face_embedding`, `voiceprint`, `biometric_raw`) and
+  raises `PrivacyViolationError` rather than silently dropping the
+  offending key — the same defense-in-depth posture as
+  `sanitize_context()` above, applied to this pipeline's own data shape.
+- Raw snapshots can only reach disk through `bonbon_field_learning.failure_case_logger.DebugSnapshotStore`,
+  a structurally separate store from `AnonymizedEventStore` that is only
+  written when `debug_mode=True` **and** a snapshot path **and** a debug
+  store instance are all explicitly supplied — the default
+  `FailureCaseLogger(store)` (no debug store argument) makes raw capture
+  impossible regardless of `debug_mode`.
+
+Tested directly in `tests/unit/test_field_learning.py::TestPrivacyContract`
+(5 tests: no raw-media fields on the type, smuggled-metadata rejection,
+normal metadata accepted, debug-mode-on snapshot isolation, debug-mode-off
+snapshot drop) and re-asserted per-scenario in
+`tests/production/test_field_pilot_learning_scenarios.py`.
+
+This layer and `bonbon_data_feedback`'s are independent on purpose — a bug
+in one does not compromise the other, and the field-learning store has no
+access to whatever live frames/audio `bonbon_vision`/`bonbon_affective_ai`
+hold in memory at evaluation time. See `/privacy/data-collection-status`
+(Phase 8) for the combined live status of both layers.

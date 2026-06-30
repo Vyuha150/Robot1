@@ -15,6 +15,12 @@ from bonbon_behavior_validation.expected_outcomes import (
     CheckStatus,
     derive_expected_outcome,
 )
+from bonbon_behavior_validation.production_score import (
+    ProductionMetrics,
+    ProductionReadinessScore,
+    ProductionScoreCalculator,
+    Verdict,
+)
 
 __all__ = [
     "BehaviorOracle",
@@ -23,4 +29,8 @@ __all__ = [
     "CheckResult",
     "CheckStatus",
     "derive_expected_outcome",
+    "ProductionMetrics",
+    "ProductionReadinessScore",
+    "ProductionScoreCalculator",
+    "Verdict",
 ]
