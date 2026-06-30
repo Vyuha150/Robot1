@@ -214,3 +214,53 @@ class TestBoundedScene:
         snap = mgr.update(dets)
         assert len(snap) <= 3
         assert mgr.active_person_count <= 3
+
+
+class TestIdSwitchMetric:
+    """Compliance audit, check #9: a person-tracking ID-switch metric must
+    exist. Pass 3 (churn merge against ACTIVE people, not TEMPORARILY_LOST)
+    is exactly the MOT-literature definition of an ID switch: someone who
+    was continuously present got a NEW raw_track_id from the upstream
+    tracker, and the system caught it via re-identification rather than
+    spawning a duplicate person."""
+
+    def test_starts_at_zero(self):
+        mgr, _ = _mgr(confirmation_hits=1)
+        assert mgr.id_switch_count == 0
+
+    def test_raw_id_churn_on_an_active_person_increments_the_counter(self):
+        mgr, _ = _mgr(confirmation_hits=1)
+        snap = mgr.update([_det("r1", face_id="bob")])
+        ptid = snap[0].person_track_id
+        assert mgr.id_switch_count == 0
+
+        # Upstream tracker assigns a new raw ID to the same, continuously
+        # present person -- not a real disappearance/reappearance.
+        snap2 = mgr.update([_det("r2", face_id="bob")])
+        assert mgr.id_switch_count == 1
+        assert snap2[0].person_track_id == ptid  # identity preserved
+
+    def test_reappearance_after_real_loss_does_not_count_as_id_switch(self):
+        """Pass 2 (reappearance against TEMPORARILY_LOST) is a different
+        metric -- track re-acquisition after a genuine gap -- and must NOT
+        inflate the ID-switch count."""
+        mgr, clock = _mgr(confirmation_hits=1, loss_grace_sec=5.0)
+        mgr.update([_det("r1", face_id="bob")])
+        mgr.update([])  # missed -> TEMPORARILY_LOST
+        clock.advance(2.0)
+        snap = mgr.update([_det("r1_new", face_id="bob")])  # reappears
+        assert snap[0].lifecycle_state == PersonLifecycleState.REAPPEARED
+        assert mgr.id_switch_count == 0
+
+    def test_genuinely_new_person_does_not_count_as_id_switch(self):
+        mgr, _ = _mgr(confirmation_hits=1)
+        mgr.update([_det("r1", face_id="bob")])
+        mgr.update([_det("r2", face_id="carol", x=10.0)])
+        assert mgr.id_switch_count == 0
+
+    def test_counter_is_cumulative_across_cycles(self):
+        mgr, _ = _mgr(confirmation_hits=1)
+        mgr.update([_det("r1", face_id="bob")])
+        mgr.update([_det("r2", face_id="bob")])  # switch 1
+        mgr.update([_det("r3", face_id="bob")])  # switch 2
+        assert mgr.id_switch_count == 2

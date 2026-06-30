@@ -68,6 +68,16 @@ class MultiPersonSceneManager:
         self._allocator = TemporaryIdAllocator()
         self._recall = RecallBuffer(recall_window_sec=recall_window_sec, clock=self._clock)
 
+        # ID-switch metric (evaluation-metrics audit, check #9): counts Pass 3
+        # successes — every time the upstream raw tracker assigns a NEW
+        # raw_track_id to someone who was already ACTIVE (not lost), which is
+        # exactly the MOT-literature definition of an ID switch the system
+        # caught and corrected via re-identification rather than spawning a
+        # duplicate person. Pass 2 (reappearance after TEMPORARILY_LOST) is a
+        # different metric — track re-acquisition after a real gap — and is
+        # not counted here.
+        self._id_switch_count = 0
+
         # Reappearance: full evidence, used only against TEMPORARILY_LOST.
         self._reappearance_associator = IdentityAssociator()
         # Tracker-churn merge against ACTIVE people: strong evidence only —
@@ -83,6 +93,12 @@ class MultiPersonSceneManager:
     @property
     def recall_buffer_size(self) -> int:
         return len(self._recall)
+
+    @property
+    def id_switch_count(self) -> int:
+        """Cumulative count of raw-tracker ID switches caught and corrected
+        via re-identification against an ACTIVE person (see __init__)."""
+        return self._id_switch_count
 
     def update(self, detections: list[RawPersonDetection]) -> list[PersonRecord]:
         matched: set[str] = set()
@@ -143,6 +159,7 @@ class MultiPersonSceneManager:
                 rec.apply_detection(det)
                 rec.fsm.update(seen_this_cycle=True, match_confidence=result.confidence)
                 matched.add(rec.person_track_id)
+                self._id_switch_count += 1
             else:
                 genuinely_new.append(det)
 
