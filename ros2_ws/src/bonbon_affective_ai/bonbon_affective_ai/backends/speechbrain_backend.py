@@ -12,8 +12,15 @@ from .voice_backend_interface import VoiceBackendInterface
 logger = logging.getLogger(__name__)
 
 _EMOTION_LABELS: list[str] = [
-    "neutral", "happy", "sad", "angry", "fearful",
-    "stressed", "calm", "urgent", "confused",
+    "neutral",
+    "happy",
+    "sad",
+    "angry",
+    "fearful",
+    "stressed",
+    "calm",
+    "urgent",
+    "confused",
 ]
 
 
@@ -75,9 +82,7 @@ class SpeechBrainBackend(VoiceBackendInterface):
             RuntimeError: If the backend is not ready.
         """
         if not self._ready or self._classifier is None:
-            raise RuntimeError(
-                "SpeechBrain backend is not ready.  Call warmup() first."
-            )
+            raise RuntimeError("SpeechBrain backend is not ready.  Call warmup() first.")
 
         try:
             import torch  # type: ignore[import]
@@ -86,18 +91,12 @@ class SpeechBrainBackend(VoiceBackendInterface):
             waveform = torch.tensor(audio_array, dtype=torch.float32).unsqueeze(0)
             lengths = torch.ones(1)
 
-            out_probs, score, index, label = self._classifier.classify_batch(
-                waveform, lengths
-            )
+            out_probs, score, index, label = self._classifier.classify_batch(waveform, lengths)
 
             probs: list[float] = out_probs[0].tolist()
             # Pad / trim to the expected label set length.
-            padded: list[float] = (probs + [0.0] * len(_EMOTION_LABELS))[
-                : len(_EMOTION_LABELS)
-            ]
-            scores: dict[str, float] = {
-                lbl: padded[i] for i, lbl in enumerate(_EMOTION_LABELS)
-            }
+            padded: list[float] = (probs + [0.0] * len(_EMOTION_LABELS))[: len(_EMOTION_LABELS)]
+            scores: dict[str, float] = {lbl: padded[i] for i, lbl in enumerate(_EMOTION_LABELS)}
 
             dominant_label: str = str(label[0]).lower()
             if dominant_label not in scores:

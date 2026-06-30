@@ -4,6 +4,10 @@ from .orbbec_driver import OrbbecDriver
 from .usb_camera_driver import UsbCameraDriver
 
 __all__ = [
-    "CameraDriver", "ColorFrame", "DepthFrame",
-    "MockCameraDriver", "OrbbecDriver", "UsbCameraDriver",
+    "CameraDriver",
+    "ColorFrame",
+    "DepthFrame",
+    "MockCameraDriver",
+    "OrbbecDriver",
+    "UsbCameraDriver",
 ]

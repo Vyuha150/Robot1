@@ -12,9 +12,10 @@ from bonbon_spatial.core.entity_tracker import EntityTracker
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _mock_person(tracking_id: int, x: float, y: float,
-                 vx: float = 0.0, vy: float = 0.0,
-                 person_id: str = ""):
+
+def _mock_person(
+    tracking_id: int, x: float, y: float, vx: float = 0.0, vy: float = 0.0, person_id: str = ""
+):
     """Build a PersonState stub matching bonbon_msgs/PersonState.msg.
 
     The real message carries a scalar ``velocity_mps`` + ``bearing_deg`` rather
@@ -38,6 +39,7 @@ def _mock_person(tracking_id: int, x: float, y: float,
 # ---------------------------------------------------------------------------
 # Creation & update
 # ---------------------------------------------------------------------------
+
 
 class TestEntityTrackerCreation:
     def test_new_entity_created_on_update(self):
@@ -83,6 +85,7 @@ class TestEntityTrackerCreation:
 # Lookup
 # ---------------------------------------------------------------------------
 
+
 class TestEntityTrackerLookup:
     def test_get_by_tracking_id(self):
         tracker = EntityTracker()
@@ -117,6 +120,7 @@ class TestEntityTrackerLookup:
 # Staleness cleanup
 # ---------------------------------------------------------------------------
 
+
 class TestEntityTrackerCleanup:
     def test_stale_entity_removed(self):
         tracker = EntityTracker(timeout_sec=0.05)
@@ -148,6 +152,7 @@ class TestEntityTrackerCleanup:
 # Approach flag computation
 # ---------------------------------------------------------------------------
 
+
 class TestEntityTrackerApproachFlags:
     def test_approaching_robot_when_velocity_points_toward_origin(self):
         tracker = EntityTracker()
@@ -172,6 +177,7 @@ class TestEntityTrackerApproachFlags:
 # ---------------------------------------------------------------------------
 # Distance to robot
 # ---------------------------------------------------------------------------
+
 
 class TestEntityTrackerDistance:
     def test_pythagorean_distance(self):

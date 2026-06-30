@@ -53,13 +53,13 @@ class TestLatencyTracker:
         for v in (1, 2, 3, 4, 5):
             t.record_ms(v)
         st = t.stats()
-        assert st.count == 3              # only last 3 retained
-        assert t.total_count == 5         # but lifetime count is exact
+        assert st.count == 3  # only last 3 retained
+        assert t.total_count == 5  # but lifetime count is exact
         assert st.min_ms == 3.0
 
     def test_seconds_helper(self):
         t = LatencyTracker("x")
-        t.record_s(0.05)                  # 50 ms
+        t.record_s(0.05)  # 50 ms
         assert abs(t.stats().mean_ms - 50.0) < 1e-9
 
     def test_empty_stats(self):
@@ -72,7 +72,7 @@ class TestLatencyTimer:
         clock = _Clock()
         t = LatencyTracker("x")
         with LatencyTimer(t, clock=clock) as timer:
-            clock.t = 0.025               # 25 ms elapsed
+            clock.t = 0.025  # 25 ms elapsed
         assert abs(timer.last_ms - 25.0) < 1e-6
         assert abs(t.stats().mean_ms - 25.0) < 1e-6
 
@@ -82,7 +82,7 @@ class TestLatencyTimer:
 
         @LatencyTimer.wrap(t, clock=clock)
         def work():
-            clock.t += 0.01              # 10 ms each call
+            clock.t += 0.01  # 10 ms each call
             return "ok"
 
         assert work() == "ok"
@@ -98,7 +98,7 @@ class TestLatencyTimer:
                 raise ValueError("boom")
         except ValueError:
             pass
-        assert t.stats().count == 1       # timing recorded despite exception
+        assert t.stats().count == 1  # timing recorded despite exception
 
 
 class TestBudget:
@@ -127,11 +127,9 @@ class TestBudget:
         t = LatencyTracker("emergency_stop_reaction")
         for _ in range(95):
             t.record_ms(100.0)
-        for _ in range(5):                # 5% slow tail → caught by p99
+        for _ in range(5):  # 5% slow tail → caught by p99
             t.record_ms(400.0)
-        rep = check_budget(
-            t, PerfBudget("emergency_stop_reaction", 300.0, "p99", critical=True)
-        )
+        rep = check_budget(t, PerfBudget("emergency_stop_reaction", 300.0, "p99", critical=True))
         # p99 picks up the slow tail → over the 300 ms budget.
         assert rep.observed_ms >= 300.0
         assert rep.passed is False

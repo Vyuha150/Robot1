@@ -34,9 +34,12 @@ class TestStepGeneration:
 
     def test_empty_gesture_returns_empty_list(self):
         from bonbon_actuation.core.gesture_library import GestureDefinition
+
         empty_gesture = GestureDefinition(
-            name="empty", description="no keyframes",
-            keyframes=[], duration_sec=1.0,
+            name="empty",
+            description="no keyframes",
+            keyframes=[],
+            duration_sec=1.0,
         )
         steps = self.gen.generate_steps(empty_gesture, 1.0)
         assert steps == []
@@ -103,7 +106,7 @@ class TestMotionStepStructure:
         steps = self.gen.generate_steps(gesture, 1.0)
         if len(steps) > 1:
             for i in range(1, len(steps)):
-                assert steps[i].progress >= steps[i-1].progress
+                assert steps[i].progress >= steps[i - 1].progress
 
     def test_progress_never_exceeds_one(self):
         for name in GestureLibrary.list_names():

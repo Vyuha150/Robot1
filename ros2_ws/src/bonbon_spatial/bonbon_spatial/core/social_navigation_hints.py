@@ -25,8 +25,8 @@ class HintSummary:
     Fields mirror the ``SocialNavigationHint`` ROS2 message.
     """
 
-    hint_type: str              # 'stop', 'slow_down', 'keep_distance', 'approach_allowed'
-    urgency: float              # 0.0 = low, 1.0 = critical
+    hint_type: str  # 'stop', 'slow_down', 'keep_distance', 'approach_allowed'
+    urgency: float  # 0.0 = low, 1.0 = critical
     reason: str
     affected_entity_id: str
     suggested_max_vel_mps: float
@@ -155,9 +155,7 @@ class SocialNavigationHints:
             f"({space.distance_m:.2f} m)."
         ]
         if entity.is_approaching_robot:
-            parts.append(
-                f"Approaching at {entity.approach_speed_mps:.2f} m/s."
-            )
+            parts.append(f"Approaching at {entity.approach_speed_mps:.2f} m/s.")
         if entity.person_category in ("child", "elderly", "wheelchair"):
             parts.append(
                 f"Vulnerable category ({entity.person_category}) — increased safety margin."

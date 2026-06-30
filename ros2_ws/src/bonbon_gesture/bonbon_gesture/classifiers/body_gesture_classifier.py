@@ -26,10 +26,10 @@ _VIS_MIN = 0.5
 
 # Pixel thresholds (independent of resolution — calibrated for 640×480)
 # scale factor helper: these constants were tuned for 480-pixel-tall frames.
-_RAISED_HAND_MARGIN_PX = 50   # wrist must be this far above shoulder
+_RAISED_HAND_MARGIN_PX = 50  # wrist must be this far above shoulder
 _POINTING_SIDE_MARGIN_PX = 80  # wrist must be this far left/right of nose
-_FALLEN_NOSE_HIP_PX = 60       # max y-distance for "fallen" heuristic
-_WRIST_ELBOW_WAVE_PX = 0       # wrist y strictly less than elbow y
+_FALLEN_NOSE_HIP_PX = 60  # max y-distance for "fallen" heuristic
+_WRIST_ELBOW_WAVE_PX = 0  # wrist y strictly less than elbow y
 
 
 class BodyGestureClassifier:
@@ -152,9 +152,7 @@ class BodyGestureClassifier:
         )
         return left_wave or right_wave
 
-    def _classify_pointing_direction(
-        self, pose: List[Tuple[float, float, float, float]]
-    ) -> str:
+    def _classify_pointing_direction(self, pose: List[Tuple[float, float, float, float]]) -> str:
         """Determine whether the person is pointing left, right, or forward.
 
         The wrist x-coordinate is compared against the nose x-coordinate.

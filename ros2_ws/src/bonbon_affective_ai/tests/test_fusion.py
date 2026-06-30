@@ -148,8 +148,9 @@ class TestEmotionFusionEngine(unittest.TestCase):
         )
         self.engine = EmotionFusionEngine(self.config)
 
-    def _fuse(self, face=None, voice=None, text=None, gesture="none",
-              person_id="p1", tracking_id=1):
+    def _fuse(
+        self, face=None, voice=None, text=None, gesture="none", person_id="p1", tracking_id=1
+    ):
         """Convenience wrapper for engine.fuse."""
         return self.engine.fuse(face, voice, text, gesture, person_id, tracking_id)
 
@@ -271,6 +272,7 @@ class TestEmotionFusionEngine(unittest.TestCase):
     def test_event_id_is_uuid(self) -> None:
         """event_id is a valid UUID."""
         import uuid
+
         msg = self._fuse()
         uuid.UUID(msg.event_id)
 

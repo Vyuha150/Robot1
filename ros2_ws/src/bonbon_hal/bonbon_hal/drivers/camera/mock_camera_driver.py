@@ -93,7 +93,7 @@ class MockCameraDriver(CameraDriver):
             ph, pw = min(50, h), min(50, w)
             if ph > 0 and pw > 0:
                 y0, x0 = (h - ph) // 2, (w - pw) // 2
-                arr[y0:y0 + ph, x0:x0 + pw] = np.random.randint(
+                arr[y0 : y0 + ph, x0 : x0 + pw] = np.random.randint(
                     0, 256, (ph, pw, 3), dtype=np.uint8
                 )
 

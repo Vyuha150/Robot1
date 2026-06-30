@@ -24,6 +24,7 @@ try:
         QoSReliabilityPolicy,
     )
     from std_msgs.msg import String
+
     _ROS2_AVAILABLE = True
 except ImportError:
     _ROS2_AVAILABLE = False
@@ -102,7 +103,7 @@ class AffectiveAINode(LifecycleNode):
 
         # State tracking.
         self._processing_enabled: bool = True
-        self._latest_face_msgs: Dict[str, Any] = {}   # person_id -> FaceEmotion
+        self._latest_face_msgs: Dict[str, Any] = {}  # person_id -> FaceEmotion
         self._latest_voice_msgs: Dict[str, Any] = {}  # person_id -> VoiceEmotion
         self._latest_text_msg: Optional[Any] = None
         self._latest_gesture_states: Dict[str, str] = defaultdict(lambda: "none")
@@ -244,9 +245,7 @@ class AffectiveAINode(LifecycleNode):
         self._voice_analyzer = VoiceEmotionAnalyzer(
             self._config, self._voice_backend, self._privacy_gate, clock
         )
-        self._text_analyzer = TextEmotionAnalyzer(
-            self._config, self._privacy_gate, clock
-        )
+        self._text_analyzer = TextEmotionAnalyzer(self._config, self._privacy_gate, clock)
 
         # ── Publishers ────────────────────────────────────────────────────────
         from bonbon_msgs.msg import (  # type: ignore[import]
@@ -255,6 +254,7 @@ class AffectiveAINode(LifecycleNode):
             TextEmotion,
             VoiceEmotion,
         )
+
         self._pub_face_emotion = self.create_publisher(
             FaceEmotion, "/bonbon/affective/face_emotion", _RELIABLE_QOS
         )
@@ -334,9 +334,7 @@ class AffectiveAINode(LifecycleNode):
         )
 
         # ── Thread pool ───────────────────────────────────────────────────────
-        self._executor = ThreadPoolExecutor(
-            max_workers=4, thread_name_prefix="affective_ai"
-        )
+        self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="affective_ai")
 
         self.get_logger().info("AffectiveAINode configured successfully.")
 
@@ -458,9 +456,7 @@ class AffectiveAINode(LifecycleNode):
         if self._executor is not None:
             admit = self._text_queue.try_admit()
             if admit.admitted:
-                self._executor.submit(
-                    self._run_text_analysis, msg.text, person_id, 0
-                )
+                self._executor.submit(self._run_text_analysis, msg.text, person_id, 0)
             else:
                 self.get_logger().debug(
                     "Text analysis queue full (depth=%d) — dropping transcript.",
@@ -528,9 +524,7 @@ class AffectiveAINode(LifecycleNode):
         finally:
             self._voice_queue.mark_complete()
 
-    def _run_text_analysis(
-        self, text: str, person_id: str, tracking_id: int
-    ) -> None:
+    def _run_text_analysis(self, text: str, person_id: str, tracking_id: int) -> None:
         """Run text analysis in a worker thread and publish the result.
 
         Args:
@@ -573,9 +567,7 @@ class AffectiveAINode(LifecycleNode):
             person_id: String person identifier.
         """
         try:
-            result = self._face_analyzer.analyze_face_crop(
-                face_img, tracking_id, person_id
-            )
+            result = self._face_analyzer.analyze_face_crop(face_img, tracking_id, person_id)
             if result is not None:
                 self._latest_face_msgs[person_id] = result
                 if not result.low_quality_input:
@@ -803,15 +795,16 @@ class AffectiveAINode(LifecycleNode):
         """
         if name == "deepface":
             from ..backends.deepface_backend import DeepFaceBackend
+
             return DeepFaceBackend()
         elif name == "mock":
             from ..backends.mock_backends import MockFaceBackend
+
             return MockFaceBackend()
         else:
-            logger.warning(
-                "Unknown face backend '%s', falling back to mock.", name
-            )
+            logger.warning("Unknown face backend '%s', falling back to mock.", name)
             from ..backends.mock_backends import MockFaceBackend
+
             return MockFaceBackend()
 
     @staticmethod
@@ -826,19 +819,21 @@ class AffectiveAINode(LifecycleNode):
         """
         if name == "speechbrain":
             from ..backends.speechbrain_backend import SpeechBrainBackend
+
             return SpeechBrainBackend()
         elif name == "mock":
             from ..backends.mock_backends import MockVoiceBackend
+
             return MockVoiceBackend()
         else:
-            logger.warning(
-                "Unknown voice backend '%s', falling back to mock.", name
-            )
+            logger.warning("Unknown voice backend '%s', falling back to mock.", name)
             from ..backends.mock_backends import MockVoiceBackend
+
             return MockVoiceBackend()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args: Optional[list] = None) -> None:
     """ROS2 node entry point.

@@ -147,9 +147,7 @@ class FaceEmotionAnalyzer:
 
         msg.dominant_emotion = str(data.get("dominant_emotion", "neutral"))
         msg.dominant_confidence = float(data.get("dominant_confidence", 0.0))
-        msg.is_ambiguous = (
-            msg.dominant_confidence < self._config.face_confidence_threshold
-        )
+        msg.is_ambiguous = msg.dominant_confidence < self._config.face_confidence_threshold
         msg.low_quality_input = False
         msg.privacy_suppressed = False
         msg.privacy_level = self._privacy.current_level

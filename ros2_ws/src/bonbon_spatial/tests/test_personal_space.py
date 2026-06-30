@@ -13,6 +13,7 @@ from bonbon_spatial.core.personal_space_estimator import (
 # Zone classification
 # ---------------------------------------------------------------------------
 
+
 class TestZoneClassification:
     def setup_method(self):
         self.est = PersonalSpaceEstimator()
@@ -46,6 +47,7 @@ class TestZoneClassification:
 # Navigation hints
 # ---------------------------------------------------------------------------
 
+
 class TestNavigationHints:
     def setup_method(self):
         self.est = PersonalSpaceEstimator()
@@ -76,6 +78,7 @@ class TestNavigationHints:
 # ---------------------------------------------------------------------------
 # Vulnerable category multiplier
 # ---------------------------------------------------------------------------
+
 
 class TestVulnerableCategoryMultiplier:
     def setup_method(self):
@@ -114,6 +117,7 @@ class TestVulnerableCategoryMultiplier:
 # Custom zones
 # ---------------------------------------------------------------------------
 
+
 class TestCustomZones:
     def test_custom_stop_distance_respected(self):
         zones = ProxemicZones(stop_distance_m=2.0)
@@ -131,6 +135,7 @@ class TestCustomZones:
 # ---------------------------------------------------------------------------
 # Approach pose computation
 # ---------------------------------------------------------------------------
+
 
 class TestComputeApproachPose:
     def setup_method(self):

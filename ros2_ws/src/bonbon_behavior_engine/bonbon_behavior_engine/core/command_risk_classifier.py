@@ -107,10 +107,10 @@ class RiskAssessment:
 
 _LEVEL_ORDER = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 _RECOMMENDED_ACTION = {
-    "none":     "approve",
-    "low":      "approve",
-    "medium":   "approve",
-    "high":     "escalate",
+    "none": "approve",
+    "low": "approve",
+    "medium": "approve",
+    "high": "escalate",
     "critical": "reject",
 }
 
@@ -161,9 +161,9 @@ class CommandRiskClassifier:
                         level = risk
 
         _check(_CRITICAL_PATTERNS, "critical")
-        _check(_HIGH_PATTERNS,     "high")
-        _check(_MEDIUM_PATTERNS,   "medium")
-        _check(_LOW_PATTERNS,      "low")
+        _check(_HIGH_PATTERNS, "high")
+        _check(_MEDIUM_PATTERNS, "medium")
+        _check(_LOW_PATTERNS, "low")
 
         # LLM-sourced commands always start at 'low' minimum risk
         if source == "llm" and _LEVEL_ORDER[level] < _LEVEL_ORDER["low"]:
@@ -174,13 +174,13 @@ class CommandRiskClassifier:
         rec = _RECOMMENDED_ACTION.get(level, "escalate")
 
         if not is_safe:
-            _logger.warning(
-                "CRITICAL risk in command from '%s': %s", source, command_text[:80]
-            )
+            _logger.warning("CRITICAL risk in command from '%s': %s", source, command_text[:80])
 
         _logger.debug(
             "Risk classification: level=%s source=%s text='%s…'",
-            level, source, command_text[:60],
+            level,
+            source,
+            command_text[:60],
         )
 
         return RiskAssessment(

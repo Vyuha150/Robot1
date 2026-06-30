@@ -26,8 +26,7 @@ setup(
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "behavior_engine_node = "
-            "bonbon_behavior_engine.nodes.behavior_engine_node:main",
+            "behavior_engine_node = " "bonbon_behavior_engine.nodes.behavior_engine_node:main",
         ],
     },
 )

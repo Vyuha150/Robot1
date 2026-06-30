@@ -59,9 +59,11 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
-    return LaunchDescription([
-        log_level_arg,
-        efficiency_node,
-        configure_event,
-        on_configured,
-    ])
+    return LaunchDescription(
+        [
+            log_level_arg,
+            efficiency_node,
+            configure_event,
+            on_configured,
+        ]
+    )

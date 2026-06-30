@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 # ── Comprehensive ROS2 / bonbon_msgs stubs ─────────────────────────────────────
 
+
 def _make_all_stubs() -> None:
     """Build all required stub modules so the node can be imported without ROS2."""
 
@@ -21,6 +22,7 @@ def _make_all_stubs() -> None:
                 class _T:
                     def to_msg(self):
                         return None
+
                 return _T()
 
         rclpy_mod.clock = types.ModuleType("rclpy.clock")
@@ -32,26 +34,52 @@ def _make_all_stubs() -> None:
             def __init__(self, name):
                 self._name = name
                 self._logger = _FakeLogger()
-            def get_clock(self): return _Clock()
-            def get_logger(self): return self._logger
-            def declare_parameter(self, name, default): pass
+
+            def get_clock(self):
+                return _Clock()
+
+            def get_logger(self):
+                return self._logger
+
+            def declare_parameter(self, name, default):
+                pass
+
             def get_parameter(self, name):
                 return type("P", (), {"value": None})()
-            def create_publisher(self, *a, **kw): return _FakePub()
-            def create_subscription(self, *a, **kw): return None
-            def create_service(self, *a, **kw): return None
-            def create_timer(self, *a, **kw): return _FakeTimer()
-            def destroy_node(self): pass
+
+            def create_publisher(self, *a, **kw):
+                return _FakePub()
+
+            def create_subscription(self, *a, **kw):
+                return None
+
+            def create_service(self, *a, **kw):
+                return None
+
+            def create_timer(self, *a, **kw):
+                return _FakeTimer()
+
+            def destroy_node(self):
+                pass
 
         rclpy_mod.node = types.ModuleType("rclpy.node")
         rclpy_mod.node.Node = _FakeNode
 
         class _FakeLogger:
-            def info(self, *a, **kw): pass
-            def warn(self, *a, **kw): pass
-            def warning(self, *a, **kw): pass
-            def error(self, *a, **kw): pass
-            def debug(self, *a, **kw): pass
+            def info(self, *a, **kw):
+                pass
+
+            def warn(self, *a, **kw):
+                pass
+
+            def warning(self, *a, **kw):
+                pass
+
+            def error(self, *a, **kw):
+                pass
+
+            def debug(self, *a, **kw):
+                pass
 
         rclpy_mod.logging = types.ModuleType("rclpy.logging")
         rclpy_mod.logging.get_logger = lambda name: _FakeLogger()
@@ -59,8 +87,10 @@ def _make_all_stubs() -> None:
         # QoS stubs
         qos_mod = types.ModuleType("rclpy.qos")
         for cls_name in (
-            "QoSProfile", "QoSDurabilityPolicy", "QoSReliabilityPolicy",
-            "QoSHistoryPolicy"
+            "QoSProfile",
+            "QoSDurabilityPolicy",
+            "QoSReliabilityPolicy",
+            "QoSHistoryPolicy",
         ):
             setattr(qos_mod, cls_name, MagicMock())
         rclpy_mod.qos = qos_mod
@@ -111,9 +141,15 @@ def _make_all_stubs() -> None:
         bonbon_msgs_msg = types.ModuleType("bonbon_msgs.msg")
 
         for cls_name in (
-            "FaceEmotion", "VoiceEmotion", "TextEmotion", "HumanEmotionState",
-            "PersonStateArray", "AudioChunk", "GestureEvent", "SafetyState",
-            "SpeechCommand"
+            "FaceEmotion",
+            "VoiceEmotion",
+            "TextEmotion",
+            "HumanEmotionState",
+            "PersonStateArray",
+            "AudioChunk",
+            "GestureEvent",
+            "SafetyState",
+            "SpeechCommand",
         ):
             klass = type(cls_name, (), {"__init__": lambda self: None})
             setattr(bonbon_msgs_msg, cls_name, klass)
@@ -182,6 +218,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_mock_face_backend_warms_up(self) -> None:
         """MockFaceBackend warmup succeeds and is_ready becomes True."""
         from bonbon_affective_ai.backends.mock_backends import MockFaceBackend
+
         backend = MockFaceBackend()
         self.assertFalse(backend.is_ready)
         backend.warmup()
@@ -190,6 +227,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_mock_voice_backend_warms_up(self) -> None:
         """MockVoiceBackend warmup succeeds and is_ready becomes True."""
         from bonbon_affective_ai.backends.mock_backends import MockVoiceBackend
+
         backend = MockVoiceBackend()
         self.assertFalse(backend.is_ready)
         backend.warmup()
@@ -198,23 +236,30 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_health_monitor_starts_healthy(self) -> None:
         """HealthMonitor reports healthy right after creation (text always ok)."""
         from bonbon_affective_ai.health.health_monitor import AffectiveAIHealthMonitor
+
         monitor = AffectiveAIHealthMonitor()
         self.assertTrue(monitor.is_healthy())
 
     def test_health_monitor_get_status_keys(self) -> None:
         """HealthMonitor.get_status() returns all expected keys."""
         from bonbon_affective_ai.health.health_monitor import AffectiveAIHealthMonitor
+
         monitor = AffectiveAIHealthMonitor()
         status = monitor.get_status()
         for key in (
-            "face_backend_ok", "voice_backend_ok", "text_backend_ok",
-            "recent_errors", "last_face_analysis_ago_sec", "uptime_sec"
+            "face_backend_ok",
+            "voice_backend_ok",
+            "text_backend_ok",
+            "recent_errors",
+            "last_face_analysis_ago_sec",
+            "uptime_sec",
         ):
             self.assertIn(key, status)
 
     def test_health_monitor_records_failure(self) -> None:
         """Recorded face failure is visible in status."""
         from bonbon_affective_ai.health.health_monitor import AffectiveAIHealthMonitor
+
         monitor = AffectiveAIHealthMonitor()
         monitor.record_face_failure("test_error")
         self.assertFalse(monitor.get_status()["face_backend_ok"])
@@ -223,6 +268,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_health_monitor_records_success(self) -> None:
         """After success, face_backend_ok becomes True."""
         from bonbon_affective_ai.health.health_monitor import AffectiveAIHealthMonitor
+
         monitor = AffectiveAIHealthMonitor()
         monitor.record_face_failure("init_fail")
         monitor.record_face_success()
@@ -231,6 +277,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_privacy_gate_defaults(self) -> None:
         """Default privacy gate allows all analysis."""
         from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
+
         config = AffectiveConfig()
         gate = PrivacyGate(config)
         self.assertFalse(gate.should_suppress_face())
@@ -240,6 +287,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_privacy_gate_face_only(self) -> None:
         """face_only level suppresses face but not voice/text."""
         from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
+
         config = AffectiveConfig(privacy_level="face_only")
         gate = PrivacyGate(config)
         self.assertTrue(gate.should_suppress_face())
@@ -248,6 +296,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_privacy_gate_suppressed(self) -> None:
         """suppressed level suppresses all analysis."""
         from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
+
         config = AffectiveConfig(privacy_level="suppressed")
         gate = PrivacyGate(config)
         self.assertTrue(gate.should_suppress_face())
@@ -257,6 +306,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
     def test_privacy_gate_invalid_level_raises(self) -> None:
         """Setting an invalid privacy level raises ValueError."""
         from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
+
         config = AffectiveConfig()
         gate = PrivacyGate(config)
         with self.assertRaises(ValueError):
@@ -270,7 +320,9 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
         class _FC:
             def now(self):
                 class _T:
-                    def to_msg(self): return None
+                    def to_msg(self):
+                        return None
+
                 return _T()
 
         config = AffectiveConfig(text_backend="rules", text_confidence_threshold=0.1)
@@ -286,13 +338,17 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
 
         monitor = AffectiveAIHealthMonitor()
         # Simulate a health check response object.
-        response = type("Resp", (), {
-            "healthy": False,
-            "status": "",
-            "warnings": [],
-            "errors": [],
-            "uptime_sec": 0.0,
-        })()
+        response = type(
+            "Resp",
+            (),
+            {
+                "healthy": False,
+                "status": "",
+                "warnings": [],
+                "errors": [],
+                "uptime_sec": 0.0,
+            },
+        )()
 
         status = monitor.get_status()
         response.healthy = monitor.is_healthy()
@@ -316,6 +372,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
         """_create_face_backend('mock') returns a MockFaceBackend instance."""
         from bonbon_affective_ai.backends.mock_backends import MockFaceBackend
         from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
+
         backend = AffectiveAINode._create_face_backend("mock")
         self.assertIsInstance(backend, MockFaceBackend)
 
@@ -323,6 +380,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
         """_create_voice_backend('mock') returns a MockVoiceBackend instance."""
         from bonbon_affective_ai.backends.mock_backends import MockVoiceBackend
         from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
+
         backend = AffectiveAINode._create_voice_backend("mock")
         self.assertIsInstance(backend, MockVoiceBackend)
 
@@ -330,6 +388,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
         """Unknown face backend name falls back to MockFaceBackend."""
         from bonbon_affective_ai.backends.mock_backends import MockFaceBackend
         from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
+
         backend = AffectiveAINode._create_face_backend("nonexistent_backend_xyz")
         self.assertIsInstance(backend, MockFaceBackend)
 
@@ -337,6 +396,7 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
         """Unknown voice backend name falls back to MockVoiceBackend."""
         from bonbon_affective_ai.backends.mock_backends import MockVoiceBackend
         from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
+
         backend = AffectiveAINode._create_voice_backend("nonexistent_backend_xyz")
         self.assertIsInstance(backend, MockVoiceBackend)
 
@@ -346,10 +406,18 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
 
         smoother = TemporalSmoother(window=3)
         for _ in range(3):
-            result = smoother.smooth(1, {
-                "anger": 0.9, "disgust": 0.0, "fear": 0.0,
-                "happiness": 0.0, "sadness": 0.0, "surprise": 0.0, "neutral": 0.1
-            })
+            result = smoother.smooth(
+                1,
+                {
+                    "anger": 0.9,
+                    "disgust": 0.0,
+                    "fear": 0.0,
+                    "happiness": 0.0,
+                    "sadness": 0.0,
+                    "surprise": 0.0,
+                    "neutral": 0.1,
+                },
+            )
         self.assertAlmostEqual(result["anger"], 0.9, places=5)
         self.assertEqual(result["dominant_emotion"], "anger")
 
@@ -375,6 +443,7 @@ class TestAffectiveNodeBackpressure(unittest.TestCase):
 
     def _make_node(self):
         from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
+
         return AffectiveAINode()
 
     def test_node_creates_bounded_voice_and_text_queues(self) -> None:
@@ -382,6 +451,7 @@ class TestAffectiveNodeBackpressure(unittest.TestCase):
         from bonbon_perception_efficiency.core.bounded_inference_queue import (
             BoundedInferenceQueue,
         )
+
         self.assertIsInstance(node._voice_queue, BoundedInferenceQueue)
         self.assertIsInstance(node._text_queue, BoundedInferenceQueue)
 

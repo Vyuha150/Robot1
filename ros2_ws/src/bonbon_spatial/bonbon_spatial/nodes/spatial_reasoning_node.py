@@ -209,27 +209,27 @@ class SpatialReasoningNode(LifecycleNode):
                 self.get_parameter("entity_timeout_sec").get_parameter_value().double_value
             )
             zones_cfg = ProxemicZones(
-                intimate_m=self.get_parameter(
-                    "personal_space.intimate_m"
-                ).get_parameter_value().double_value,
-                personal_m=self.get_parameter(
-                    "personal_space.personal_m"
-                ).get_parameter_value().double_value,
-                social_m=self.get_parameter(
-                    "personal_space.social_m"
-                ).get_parameter_value().double_value,
-                public_m=self.get_parameter(
-                    "personal_space.public_m"
-                ).get_parameter_value().double_value,
-                stop_distance_m=self.get_parameter(
-                    "personal_space.stop_distance_m"
-                ).get_parameter_value().double_value,
-                slow_distance_m=self.get_parameter(
-                    "personal_space.slow_distance_m"
-                ).get_parameter_value().double_value,
-                approach_target_m=self.get_parameter(
-                    "personal_space.approach_target_m"
-                ).get_parameter_value().double_value,
+                intimate_m=self.get_parameter("personal_space.intimate_m")
+                .get_parameter_value()
+                .double_value,
+                personal_m=self.get_parameter("personal_space.personal_m")
+                .get_parameter_value()
+                .double_value,
+                social_m=self.get_parameter("personal_space.social_m")
+                .get_parameter_value()
+                .double_value,
+                public_m=self.get_parameter("personal_space.public_m")
+                .get_parameter_value()
+                .double_value,
+                stop_distance_m=self.get_parameter("personal_space.stop_distance_m")
+                .get_parameter_value()
+                .double_value,
+                slow_distance_m=self.get_parameter("personal_space.slow_distance_m")
+                .get_parameter_value()
+                .double_value,
+                approach_target_m=self.get_parameter("personal_space.approach_target_m")
+                .get_parameter_value()
+                .double_value,
             )
 
             self._tracker = EntityTracker(timeout_sec=timeout_sec)
@@ -244,8 +244,12 @@ class SpatialReasoningNode(LifecycleNode):
 
             gp = self.get_parameter
             self._blockage_detector = BlockageDetector(
-                corridor_half_width_m=gp("blockage.corridor_half_width_m").get_parameter_value().double_value,
-                corridor_length_m=gp("blockage.corridor_length_m").get_parameter_value().double_value,
+                corridor_half_width_m=gp("blockage.corridor_half_width_m")
+                .get_parameter_value()
+                .double_value,
+                corridor_length_m=gp("blockage.corridor_length_m")
+                .get_parameter_value()
+                .double_value,
                 persistence_sec=gp("blockage.persistence_sec").get_parameter_value().double_value,
             )
             self._predictor = DynamicObstaclePredictor(
@@ -256,7 +260,9 @@ class SpatialReasoningNode(LifecycleNode):
             self.get_logger().info(
                 "SpatialReasoningNode: configured (timeout=%.1fs, stop=%.2fm, slow=%.2fm, "
                 "+ zone monitor, blockage detector, obstacle predictor)",
-                timeout_sec, zones_cfg.stop_distance_m, zones_cfg.slow_distance_m,
+                timeout_sec,
+                zones_cfg.stop_distance_m,
+                zones_cfg.slow_distance_m,
             )
         except Exception as exc:  # noqa: BLE001
             self.get_logger().error("on_configure failed: %s", str(exc))
@@ -269,9 +275,7 @@ class SpatialReasoningNode(LifecycleNode):
         self.get_logger().info("SpatialReasoningNode: activating …")
 
         try:
-            rate_hz = (
-                self.get_parameter("publish_rate_hz").get_parameter_value().double_value
-            )
+            rate_hz = self.get_parameter("publish_rate_hz").get_parameter_value().double_value
 
             # Subscriptions.
             self._sub_persons = self.create_subscription(
@@ -347,13 +351,12 @@ class SpatialReasoningNode(LifecycleNode):
 
             # Health timer (independent of the publish rate).
             health_hz = self.get_parameter("health_rate_hz").get_parameter_value().double_value
-            self._health_timer = self.create_timer(
-                1.0 / max(health_hz, 0.1), self._cb_health_timer
-            )
+            self._health_timer = self.create_timer(1.0 / max(health_hz, 0.1), self._cb_health_timer)
 
             self.get_logger().info(
                 "SpatialReasoningNode: active (publish rate=%.1f Hz, health=%.1f Hz)",
-                rate_hz, health_hz,
+                rate_hz,
+                health_hz,
             )
         except Exception as exc:  # noqa: BLE001
             self.get_logger().error("on_activate failed: %s", str(exc))
@@ -465,7 +468,9 @@ class SpatialReasoningNode(LifecycleNode):
                 if critical.hint_type != self._last_hint_type:
                     self.get_logger().info(
                         "Navigation hint: %s (urgency=%.2f) — %s",
-                        critical.hint_type, critical.urgency, critical.reason,
+                        critical.hint_type,
+                        critical.urgency,
+                        critical.reason,
                     )
                     ros_hint = self._hint_summary_to_ros(critical, stamp)
                     self._pub_hints.publish(ros_hint)
@@ -665,7 +670,9 @@ class SpatialReasoningNode(LifecycleNode):
 
         self.get_logger().debug(
             "GetWorldModel: %d entities, %d relations, %d zones",
-            len(response.entities), len(response.relations), len(response.zone_ids),
+            len(response.entities),
+            len(response.relations),
+            len(response.zone_ids),
         )
         return response
 
@@ -734,10 +741,7 @@ class SpatialReasoningNode(LifecycleNode):
 
         # Convert geometry_msgs/Polygon to list of (x, y) tuples.
         try:
-            polygon = [
-                (float(pt.x), float(pt.y))
-                for pt in request.polygon.points
-            ]
+            polygon = [(float(pt.x), float(pt.y)) for pt in request.polygon.points]
             if len(polygon) < 3:
                 response.success = False
                 response.error_message = (
@@ -758,16 +762,16 @@ class SpatialReasoningNode(LifecycleNode):
 
             self.get_logger().info(
                 "Added restricted zone '%s' (buffer=%.2fm, reason='%s')",
-                request.zone_id, request.buffer_m, request.reason,
+                request.zone_id,
+                request.buffer_m,
+                request.reason,
             )
             response.success = True
             response.error_message = ""
         except Exception as exc:  # noqa: BLE001
             response.success = False
             response.error_message = f"Failed to add zone: {exc}"
-            self.get_logger().error(
-                "add_restricted_zone error: %s", str(exc)
-            )
+            self.get_logger().error("add_restricted_zone error: %s", str(exc))
 
         return response
 
@@ -799,9 +803,7 @@ class SpatialReasoningNode(LifecycleNode):
     # Message construction helpers
     # ------------------------------------------------------------------
 
-    def _tracked_entity_to_ros(
-        self, entity: TrackedEntity, stamp: BuiltinTime
-    ) -> SpatialEntity:
+    def _tracked_entity_to_ros(self, entity: TrackedEntity, stamp: BuiltinTime) -> SpatialEntity:
         """Convert a :class:`TrackedEntity` to a ``SpatialEntity`` ROS message.
 
         When privacy mode is active, ``person_id`` and ``face_id`` fields are
@@ -918,7 +920,7 @@ class SpatialReasoningNode(LifecycleNode):
                 for eb in entities[i + 1 :]:
                     dx = ea.x - eb.x
                     dy = ea.y - eb.y
-                    d = math.sqrt(dx ** 2 + dy ** 2)
+                    d = math.sqrt(dx**2 + dy**2)
                     if d > 10.0:
                         continue
                     rel = SpatialRelation()
@@ -941,9 +943,7 @@ class SpatialReasoningNode(LifecycleNode):
 
         return relations
 
-    def _hint_summary_to_ros(
-        self, hint: HintSummary, stamp: BuiltinTime
-    ) -> SocialNavigationHint:
+    def _hint_summary_to_ros(self, hint: HintSummary, stamp: BuiltinTime) -> SocialNavigationHint:
         """Convert a :class:`HintSummary` to a ``SocialNavigationHint`` ROS message."""
         msg = SocialNavigationHint()
         msg.header = Header()

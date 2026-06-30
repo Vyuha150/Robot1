@@ -33,8 +33,10 @@ class TestFocusPersonSelection:
         assert select_focus_person([_HS("ptrk_1")]) == "ptrk_1"
 
     def test_speaking_person_wins_over_silent(self):
-        people = [_HS("ptrk_1", active_speaker_status="silent"),
-                  _HS("ptrk_2", active_speaker_status="speaking")]
+        people = [
+            _HS("ptrk_1", active_speaker_status="silent"),
+            _HS("ptrk_2", active_speaker_status="speaking"),
+        ]
         assert select_focus_person(people) == "ptrk_2"
 
     def test_two_speakers_higher_urgency_wins(self):
@@ -46,12 +48,17 @@ class TestFocusPersonSelection:
         assert select_focus_person(people) == "ptrk_2"
 
     def test_active_interaction_beats_plain_present(self):
-        people = [_HS("ptrk_1", lifecycle_state="present"),
-                  _HS("ptrk_2", lifecycle_state="active_interaction")]
+        people = [
+            _HS("ptrk_1", lifecycle_state="present"),
+            _HS("ptrk_2", lifecycle_state="active_interaction"),
+        ]
         assert select_focus_person(people) == "ptrk_2"
 
     def test_left_scene_people_excluded_from_focus(self):
-        people = [_HS("ptrk_1", lifecycle_state="left_scene"), _HS("ptrk_2", lifecycle_state="present")]
+        people = [
+            _HS("ptrk_1", lifecycle_state="left_scene"),
+            _HS("ptrk_2", lifecycle_state="present"),
+        ]
         assert select_focus_person(people) == "ptrk_2"
 
     def test_all_left_scene_returns_empty(self):
@@ -160,8 +167,10 @@ class TestRule3DepartureClosesSession:
 class TestRule6SafetyGestureFromAnyone:
     def test_safety_gesture_from_non_focus_person_still_triggers_pause(self):
         sel = MultiPersonBehaviorSelector()
-        people = [_HS("ptrk_1", active_speaker_status="speaking"),
-                  _HS("ptrk_2", current_gesture="stop_palm")]
+        people = [
+            _HS("ptrk_1", active_speaker_status="speaking"),
+            _HS("ptrk_2", current_gesture="stop_palm"),
+        ]
         candidate = sel.decide_safety_gesture_response(people)
         assert candidate is not None
         assert candidate.proposal_type == "pause"
@@ -170,7 +179,9 @@ class TestRule6SafetyGestureFromAnyone:
 
     def test_raised_hand_also_triggers_pause(self):
         sel = MultiPersonBehaviorSelector()
-        candidate = sel.decide_safety_gesture_response([_HS("ptrk_1", current_gesture="raised_hand")])
+        candidate = sel.decide_safety_gesture_response(
+            [_HS("ptrk_1", current_gesture="raised_hand")]
+        )
         assert candidate is not None
 
     def test_no_safety_gesture_no_pause(self):
@@ -206,7 +217,9 @@ class TestRule7CalmSupportiveResponse:
         """These are exclusively handled by the older single-focus
         HumanEmotionState path — must not also fire here."""
         sel = MultiPersonBehaviorSelector()
-        assert sel.decide_calm_supportive_response(_HS("ptrk_1", emotional_state="distressed")) is None
+        assert (
+            sel.decide_calm_supportive_response(_HS("ptrk_1", emotional_state="distressed")) is None
+        )
         assert sel.decide_calm_supportive_response(_HS("ptrk_1", emotional_state="fearful")) is None
 
 

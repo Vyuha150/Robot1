@@ -100,7 +100,12 @@ class ResponseCache:
         return len(self._entries)
 
     def stats(self) -> dict:
-        return {"hits": self._hits, "misses": self._misses, "hit_rate": self.hit_rate, "size": self.size}
+        return {
+            "hits": self._hits,
+            "misses": self._misses,
+            "hit_rate": self.hit_rate,
+            "size": self.size,
+        }
 
     def clear(self) -> None:
         self._entries.clear()

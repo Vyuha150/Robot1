@@ -19,6 +19,7 @@ from bonbon_hal.drivers.microphone.usb_mic_driver import UsbMicDriver
 
 # ── Camera ─────────────────────────────────────────────────────────────────────
 
+
 class _FakeCap:
     def __init__(self, frames=1, w=640, h=480):
         self._frames = frames
@@ -40,6 +41,7 @@ class _FakeCap:
             return (False, None)
         self._frames -= 1
         import numpy as np
+
         return (True, np.zeros((self._h, self._w, 3), dtype=np.uint8))
 
     def release(self):
@@ -74,7 +76,7 @@ class TestUsbCamera:
         cam = UsbCameraDriver(device=0, width=640, height=480)
         assert cam._do_connect() is True
         color, depth = cam.read_frames()
-        assert depth is None                 # monocular USB cam → no depth
+        assert depth is None  # monocular USB cam → no depth
         assert color is not None
         assert color.width == 640 and color.height == 480
         assert color.encoding == "bgr8"
@@ -92,7 +94,7 @@ class TestUsbCamera:
         cap = _FakeCap(frames=1)  # one warmup frame, then no more
         _install_fake_cv2(monkeypatch, cap)
         cam = UsbCameraDriver(device=0)
-        cam._do_connect()         # consumes the 1 warmup frame
+        cam._do_connect()  # consumes the 1 warmup frame
         # Next reads all fail → after 5 it raises.
         with pytest.raises(DriverFault):
             for _ in range(6):
@@ -103,24 +105,31 @@ class TestUsbCamera:
         intr = cam.get_intrinsics()
         assert intr["width"] == 640 and intr["height"] == 480
         assert intr["cx"] == 320 and intr["cy"] == 240
-        assert 500 < intr["fx"] < 600       # ~554 for 60° @ 640px
+        assert 500 < intr["fx"] < 600  # ~554 for 60° @ 640px
 
 
 # ── Microphone ─────────────────────────────────────────────────────────────────
+
 
 class _FakeStream:
     def __init__(self, fail=False):
         self.fail = fail
         self.started = self.closed = False
 
-    def start(self): self.started = True
-    def stop(self): pass
-    def close(self): self.closed = True
+    def start(self):
+        self.started = True
+
+    def stop(self):
+        pass
+
+    def close(self):
+        self.closed = True
 
     def read(self, n):
         if self.fail:
             raise RuntimeError("device gone")
         import numpy as np
+
         return (np.zeros((n, 1), dtype=np.int16), False)
 
 
@@ -130,6 +139,7 @@ def _install_fake_sd(monkeypatch, stream):
     monkeypatch.setattr(umd, "sd", fake, raising=False)
     monkeypatch.setattr(umd, "_HAS_SD", True, raising=False)
     import numpy as np
+
     monkeypatch.setattr(umd, "np", np, raising=False)
 
 
@@ -149,7 +159,7 @@ class TestUsbMic:
         chunk = mic.read_chunk(1024)
         assert chunk.sample_rate == 16000
         assert chunk.channels == 1
-        assert len(chunk.data) == 1024 * 2     # int16 mono → 2 bytes/sample
+        assert len(chunk.data) == 1024 * 2  # int16 mono → 2 bytes/sample
         assert chunk.device_id == "usb_mic"
 
     def test_transient_read_failure_returns_silence(self, monkeypatch):
@@ -157,7 +167,7 @@ class TestUsbMic:
         _install_fake_sd(monkeypatch, stream)
         mic = UsbMicDriver()
         mic._do_connect()
-        chunk = mic.read_chunk(512)            # first failure → silence, no raise
+        chunk = mic.read_chunk(512)  # first failure → silence, no raise
         assert set(chunk.data) == {0}
 
     def test_sustained_read_failure_raises(self, monkeypatch):

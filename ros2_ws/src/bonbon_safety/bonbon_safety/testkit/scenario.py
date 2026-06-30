@@ -30,6 +30,7 @@ def seed(value: int = DEFAULT_SEED) -> None:
 
 # ── Person / entity signal ────────────────────────────────────────────────────
 
+
 @dataclass
 class Person:
     """A tracked person in robot-frame coordinates, consumed by spatial cores."""
@@ -41,7 +42,7 @@ class Person:
     vx: float = 0.0
     vy: float = 0.0
     entity_type: str = "person"
-    person_category: str = "adult"   # adult|child|elderly|wheelchair|staff
+    person_category: str = "adult"  # adult|child|elderly|wheelchair|staff
     is_approaching_robot: bool = False
     is_moving_away: bool = False
     approach_speed_mps: float = 0.0
@@ -51,20 +52,30 @@ class Person:
         return math.hypot(self.x, self.y)
 
 
-def person(distance_m: float = 2.0, *, category: str = "adult",
-           approaching: bool = False, lateral_m: float = 0.0,
-           entity_id: str = "p1") -> Person:
+def person(
+    distance_m: float = 2.0,
+    *,
+    category: str = "adult",
+    approaching: bool = False,
+    lateral_m: float = 0.0,
+    entity_id: str = "p1",
+) -> Person:
     """Build a Person at ``distance_m`` ahead (optionally approaching)."""
     vx = -0.6 if approaching else 0.0
     return Person(
-        entity_id=entity_id, person_id=entity_id,
-        x=distance_m, y=lateral_m, vx=vx,
-        person_category=category, is_approaching_robot=approaching,
+        entity_id=entity_id,
+        person_id=entity_id,
+        x=distance_m,
+        y=lateral_m,
+        vx=vx,
+        person_category=category,
+        is_approaching_robot=approaching,
         approach_speed_mps=0.6 if approaching else 0.0,
     )
 
 
 # ── Hand-landmark builders (21-pt, image coords) ──────────────────────────────
+
 
 def _fist(cx=320.0, cy=240.0) -> List[Tuple[float, float, float]]:
     pts = []
@@ -110,6 +121,7 @@ def hand(gesture: str, cx=320.0, cy=240.0) -> List[Tuple[float, float, float]]:
 
 # ── Sensor snapshot with injectable faults ────────────────────────────────────
 
+
 def sensor_snapshot(**overrides):
     """Build a :class:`SensorSnapshot` for the safety state machine.
 
@@ -118,16 +130,28 @@ def sensor_snapshot(**overrides):
     ``sensor_snapshot(lidar_stale=True, nearest_human_m=0.3)``.
     """
     from bonbon_safety.core.safety_state_machine import SensorSnapshot
+
     base = dict(
-        nearest_obstacle_m=3.0, nearest_human_m=3.0,
-        cliff_detected_left=False, cliff_detected_right=False,
-        bumper_front=False, bumper_rear=False,
-        lidar_stale=False, camera_stale=False, imu_stale=False,
-        imu_drift_detected=False, battery_percent=80.0,
-        cpu_temp_c=45.0, motor_temp_c=40.0, servo_fault=False,
-        odrive_fault=False, estop_hardware=False,
-        unsafe_command_detected=False, navigation_timeout=False,
-        critical_node_crashed=False, important_node_crashed=False,
+        nearest_obstacle_m=3.0,
+        nearest_human_m=3.0,
+        cliff_detected_left=False,
+        cliff_detected_right=False,
+        bumper_front=False,
+        bumper_rear=False,
+        lidar_stale=False,
+        camera_stale=False,
+        imu_stale=False,
+        imu_drift_detected=False,
+        battery_percent=80.0,
+        cpu_temp_c=45.0,
+        motor_temp_c=40.0,
+        servo_fault=False,
+        odrive_fault=False,
+        estop_hardware=False,
+        unsafe_command_detected=False,
+        navigation_timeout=False,
+        critical_node_crashed=False,
+        important_node_crashed=False,
     )
     base.update(overrides)
     # SensorSnapshot may require timestamp; provide if the field exists.
@@ -135,21 +159,24 @@ def sensor_snapshot(**overrides):
         return SensorSnapshot(**base)
     except TypeError:
         import time as _t
+
         base["timestamp"] = _t.monotonic()
         return SensorSnapshot(**base)
 
 
 # ── Assertion helpers ──────────────────────────────────────────────────────────
 
+
 def assert_at_least(level: FallbackLevel, minimum: FallbackLevel, msg: str = "") -> None:
     """Assert a fallback level is at least as severe as ``minimum``."""
-    assert int(level) >= int(minimum), (
-        f"{msg}: expected ≥ {minimum.name}, got {FallbackLevel(level).name}"
-    )
+    assert int(level) >= int(
+        minimum
+    ), f"{msg}: expected ≥ {minimum.name}, got {FallbackLevel(level).name}"
 
 
-def assert_safe_response(response, *, must_pause: bool = False,
-                         must_escalate: bool = False) -> None:
+def assert_safe_response(
+    response, *, must_pause: bool = False, must_escalate: bool = False
+) -> None:
     """Assert a SpatialResponse is appropriately conservative."""
     if must_pause:
         assert response.pause_navigation, "expected navigation to pause"

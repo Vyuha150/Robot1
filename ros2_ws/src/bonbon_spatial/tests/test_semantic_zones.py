@@ -8,8 +8,8 @@ from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZone
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _square(zone_id: str, zone_type: str = "restricted",
-            side: float = 4.0) -> SemanticZone:
+
+def _square(zone_id: str, zone_type: str = "restricted", side: float = 4.0) -> SemanticZone:
     """Create a square zone centred at the origin."""
     h = side / 2.0
     return SemanticZone(
@@ -22,6 +22,7 @@ def _square(zone_id: str, zone_type: str = "restricted",
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
+
 
 class TestZoneRegistration:
     def test_add_and_retrieve_zone(self):
@@ -43,8 +44,8 @@ class TestZoneRegistration:
 
     def test_overwrite_existing_zone(self):
         mgr = SemanticZoneManager()
-        mgr.add_zone(SemanticZone("z", "restricted", [(0,0),(1,0),(1,1),(0,1)]))
-        mgr.add_zone(SemanticZone("z", "public", [(0,0),(2,0),(2,2),(0,2)]))
+        mgr.add_zone(SemanticZone("z", "restricted", [(0, 0), (1, 0), (1, 1), (0, 1)]))
+        mgr.add_zone(SemanticZone("z", "public", [(0, 0), (2, 0), (2, 2), (0, 2)]))
         zone = mgr.get_zone("z")
         assert zone.zone_type == "public"
 
@@ -62,6 +63,7 @@ class TestZoneRegistration:
 # ---------------------------------------------------------------------------
 # is_restricted
 # ---------------------------------------------------------------------------
+
 
 class TestIsRestricted:
     def test_restricted_zone(self):
@@ -82,6 +84,7 @@ class TestIsRestricted:
 # ---------------------------------------------------------------------------
 # Point-in-polygon
 # ---------------------------------------------------------------------------
+
 
 class TestPointInPolygon:
     def test_centre_of_square_is_inside(self):
@@ -106,7 +109,7 @@ class TestPointInPolygon:
 
     def test_degenerate_polygon_under_3_vertices(self):
         mgr = SemanticZoneManager()
-        mgr.add_zone(SemanticZone("tiny", "public", [(0,0), (1,0)]))  # only 2 points
+        mgr.add_zone(SemanticZone("tiny", "public", [(0, 0), (1, 0)]))  # only 2 points
         # Should not crash and should return None
         assert mgr.find_zone_for_point(0.5, 0.0) is None
 
@@ -125,6 +128,7 @@ class TestPointInPolygon:
 # load_from_config
 # ---------------------------------------------------------------------------
 
+
 class TestLoadFromConfig:
     def test_valid_config_loaded(self):
         mgr = SemanticZoneManager()
@@ -132,8 +136,7 @@ class TestLoadFromConfig:
             {
                 "zone_id": "lobby",
                 "zone_type": "public",
-                "polygon": [{"x": 0, "y": 0}, {"x": 5, "y": 0},
-                            {"x": 5, "y": 5}, {"x": 0, "y": 5}],
+                "polygon": [{"x": 0, "y": 0}, {"x": 5, "y": 0}, {"x": 5, "y": 5}, {"x": 0, "y": 5}],
                 "min_clearance_m": 0.3,
                 "reason": "main entrance area",
             }
@@ -148,9 +151,11 @@ class TestLoadFromConfig:
         mgr = SemanticZoneManager()
         config = [
             {"zone_type": "public"},  # missing zone_id
-            {"zone_id": "ok", "zone_type": "public",
-             "polygon": [{"x": 0, "y": 0}, {"x": 1, "y": 0},
-                         {"x": 1, "y": 1}, {"x": 0, "y": 1}]},
+            {
+                "zone_id": "ok",
+                "zone_type": "public",
+                "polygon": [{"x": 0, "y": 0}, {"x": 1, "y": 0}, {"x": 1, "y": 1}, {"x": 0, "y": 1}],
+            },
         ]
         mgr.load_from_config(config)  # must not raise
         assert mgr.get_zone("ok") is not None

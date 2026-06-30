@@ -46,6 +46,7 @@ except Exception:  # noqa: BLE001
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def emotion_planner():
     return EmotionAwareResponsePlanner()
@@ -84,6 +85,7 @@ def proximity():
 # ══════════════════════════════════════════════════════════════════════════════
 # 1–8: interaction scenarios
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestInteractionScenarios:
     def test_01_happy_greeting(self, emotion_planner):
@@ -173,6 +175,7 @@ class TestInteractionScenarios:
 # 9–14: vulnerable people & proximity scenarios
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestVulnerableAndProximity:
     def test_09_child_runs_near(self, proximity):
         """Purpose: a child very close must freeze arm motion.
@@ -243,6 +246,7 @@ class TestVulnerableAndProximity:
 # ══════════════════════════════════════════════════════════════════════════════
 # 15–21: sensor / hardware fault scenarios (safety state machine)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestSensorFaults:
     def _sm(self):
@@ -335,6 +339,7 @@ class TestSensorFaults:
 # ══════════════════════════════════════════════════════════════════════════════
 # 22–30: AI / system / adversarial scenarios
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestAISystemAdversarial:
     def test_22_llm_hallucinated_movement(self, llm_gate):

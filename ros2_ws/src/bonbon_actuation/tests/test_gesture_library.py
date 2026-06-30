@@ -9,11 +9,21 @@ from bonbon_actuation.core.gesture_library import (
 )
 
 KNOWN_GESTURES = [
-    "rest_pose", "listening_pose", "safe_folded_pose",
-    "nod_yes", "shake_no", "wave", "thinking_pose",
-    "greeting_pose", "apology_pose", "stop_gesture",
-    "invite_gesture", "point_left", "point_right",
-    "idle_scan", "emergency_attention_pose",
+    "rest_pose",
+    "listening_pose",
+    "safe_folded_pose",
+    "nod_yes",
+    "shake_no",
+    "wave",
+    "thinking_pose",
+    "greeting_pose",
+    "apology_pose",
+    "stop_gesture",
+    "invite_gesture",
+    "point_left",
+    "point_right",
+    "idle_scan",
+    "emergency_attention_pose",
 ]
 
 
@@ -66,9 +76,9 @@ class TestGestureDefinitionProperties:
                     f"last keyframe {last_kf_time}"
                 )
             else:
-                assert g.duration_sec > 0.0, (
-                    f"Single-keyframe pose '{name}' must have positive settle duration"
-                )
+                assert (
+                    g.duration_sec > 0.0
+                ), f"Single-keyframe pose '{name}' must have positive settle duration"
 
     def test_stop_gesture_not_interruptible(self):
         assert GestureLibrary.get("stop_gesture").interruptible is False
@@ -95,9 +105,7 @@ class TestServoTargetsWithinLimits:
             for kf in g.keyframes:
                 for t in kf.targets:
                     if t.servo_id not in SERVO_LIMITS:
-                        violations.append(
-                            f"{name}: unknown servo_id={t.servo_id}"
-                        )
+                        violations.append(f"{name}: unknown servo_id={t.servo_id}")
                         continue
                     lo, hi = SERVO_LIMITS[t.servo_id]
                     if not (lo <= t.position_deg <= hi):
@@ -112,6 +120,6 @@ class TestServoTargetsWithinLimits:
             g = GestureLibrary.get(name)
             for kf in g.keyframes:
                 for t in kf.targets:
-                    assert t.velocity_dps > 0, (
-                        f"{name}: servo {t.servo_id} has zero/negative velocity"
-                    )
+                    assert (
+                        t.velocity_dps > 0
+                    ), f"{name}: servo {t.servo_id} has zero/negative velocity"

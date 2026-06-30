@@ -69,6 +69,7 @@ def _standing_pose() -> List[Tuple[float, float, float, float]]:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestBodyGestureClassifier:
 
     def setup_method(self):

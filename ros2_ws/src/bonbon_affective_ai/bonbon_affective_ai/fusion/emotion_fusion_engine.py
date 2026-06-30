@@ -117,9 +117,7 @@ class EmotionFusionEngine:
         self._state_start_time: Dict[str, float] = {}
         self._previous_state: Dict[str, str] = {}
         self._state_change_count: Dict[str, int] = defaultdict(int)
-        self._state_change_window: Dict[str, Deque[float]] = defaultdict(
-            lambda: deque()
-        )
+        self._state_change_window: Dict[str, Deque[float]] = defaultdict(lambda: deque())
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -181,9 +179,8 @@ class EmotionFusionEngine:
         # ── Stability ─────────────────────────────────────────────────────────
         history = self._state_history[person_id]
         history.append(dominant_state)
-        is_stable: bool = (
-            len(history) >= self._config.state_stability_window
-            and all(s == dominant_state for s in history)
+        is_stable: bool = len(history) >= self._config.state_stability_window and all(
+            s == dominant_state for s in history
         )
 
         # Track state duration.
@@ -211,8 +208,9 @@ class EmotionFusionEngine:
         gesture_avail = gesture_state not in ("none", "unknown", "")
 
         # ── Contribution scores (proportional to weight × confidence) ─────────
-        face_contrib, voice_contrib, text_contrib, gesture_contrib = \
-            self._contribution_scores(face, voice, text, gesture_state)
+        face_contrib, voice_contrib, text_contrib, gesture_contrib = self._contribution_scores(
+            face, voice, text, gesture_state
+        )
 
         # ── Populate message ──────────────────────────────────────────────────
         msg.dominant_state = dominant_state
@@ -228,19 +226,11 @@ class EmotionFusionEngine:
         msg.text_available = text_avail
         msg.gesture_available = gesture_avail
 
-        msg.recommended_response_style = STATE_TO_RESPONSE_STYLE.get(
-            dominant_state, "normal"
-        )
-        msg.recommended_distance_m = float(
-            STATE_TO_DISTANCE.get(dominant_state, 1.0)
-        )
+        msg.recommended_response_style = STATE_TO_RESPONSE_STYLE.get(dominant_state, "normal")
+        msg.recommended_distance_m = float(STATE_TO_DISTANCE.get(dominant_state, 1.0))
         msg.requires_operator_alert = requires_alert
-        msg.suggested_tts_emotion = STATE_TO_TTS_EMOTION.get(
-            dominant_state, "neutral"
-        )
-        msg.interaction_patience_multiplier = float(
-            STATE_TO_PATIENCE.get(dominant_state, 1.0)
-        )
+        msg.suggested_tts_emotion = STATE_TO_TTS_EMOTION.get(dominant_state, "neutral")
+        msg.interaction_patience_multiplier = float(STATE_TO_PATIENCE.get(dominant_state, 1.0))
 
         msg.state_duration_sec = state_duration_sec
         msg.state_change_count_last_60s = change_count_60s
@@ -342,9 +332,7 @@ class EmotionFusionEngine:
             else 0.0
         )
         gesture_c: float = (
-            cfg.fusion_gesture_weight * 0.8
-            if gesture_state not in ("none", "unknown", "")
-            else 0.0
+            cfg.fusion_gesture_weight * 0.8 if gesture_state not in ("none", "unknown", "") else 0.0
         )
 
         total = face_c + voice_c + text_c + gesture_c

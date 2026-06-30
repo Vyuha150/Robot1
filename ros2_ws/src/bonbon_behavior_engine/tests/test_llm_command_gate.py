@@ -90,9 +90,17 @@ class TestGestureExtraction:
         # Should not produce an unknown gesture name
         if result.allowed and result.proposal_type == "gesture":
             assert result.gesture_name in (
-                "wave", "nod_yes", "shake_no", "greeting_pose", "apology_pose",
-                "thinking_pose", "listening_pose", "rest_pose", "invite_gesture",
-                "point_left", "point_right",
+                "wave",
+                "nod_yes",
+                "shake_no",
+                "greeting_pose",
+                "apology_pose",
+                "thinking_pose",
+                "listening_pose",
+                "rest_pose",
+                "invite_gesture",
+                "point_left",
+                "point_right",
             )
 
 

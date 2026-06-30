@@ -18,6 +18,7 @@ _logger = logging.getLogger(__name__)
 
 try:  # psutil is optional — present on the robot, often absent in CI/sim.
     import psutil  # type: ignore
+
     _HAS_PSUTIL = True
 except Exception:  # noqa: BLE001
     _HAS_PSUTIL = False
@@ -27,11 +28,11 @@ except Exception:  # noqa: BLE001
 class ResourceSnapshot:
     """One sample of system resource usage."""
 
-    cpu_percent: float          # 0–100 (system-wide)
-    memory_percent: float       # 0–100
-    memory_mb: float            # process RSS, MB
-    disk_free_percent: float    # 0–100 free on the data partition
-    available: bool             # True when real metrics were read
+    cpu_percent: float  # 0–100 (system-wide)
+    memory_percent: float  # 0–100
+    memory_mb: float  # process RSS, MB
+    disk_free_percent: float  # 0–100 free on the data partition
+    available: bool  # True when real metrics were read
 
     # ── derived load-shedding flags ──────────────────────────────────────────
     @property
@@ -91,8 +92,10 @@ class ResourceMonitor:
         try:
             cpu, mem, rss, disk = self._reader()
             self._last = ResourceSnapshot(
-                cpu_percent=float(cpu), memory_percent=float(mem),
-                memory_mb=float(rss), disk_free_percent=float(disk),
+                cpu_percent=float(cpu),
+                memory_percent=float(mem),
+                memory_mb=float(rss),
+                disk_free_percent=float(disk),
                 available=self._real,
             )
         except Exception as exc:  # noqa: BLE001

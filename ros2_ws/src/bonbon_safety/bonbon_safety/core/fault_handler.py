@@ -41,6 +41,7 @@ Clock = Callable[[], float]
 
 # ── Fault event record ──────────────────────────────────────────────────────
 
+
 @dataclass
 class FaultEvent:
     """One occurrence of a fault, as it moves through the pipeline."""
@@ -59,6 +60,7 @@ class FaultEvent:
 
 
 # ── Watchdog: staleness + timeout detection ───────────────────────────────────
+
 
 class Watchdog:
     """Detects a heartbeat/topic going stale, or an operation overrunning.
@@ -80,6 +82,7 @@ class Watchdog:
 
     def __init__(self, timeout_sec: float, clock: Optional[Clock] = None) -> None:
         import time as _time
+
         self._timeout = max(0.0, timeout_sec)
         self._clock = clock or _time.monotonic
         self._last_pet: Optional[float] = None
@@ -118,6 +121,7 @@ class Watchdog:
 
 # ── Recovery policy: bounded retry with backoff ───────────────────────────────
 
+
 @dataclass
 class RecoveryPolicy:
     """Bounded automatic-recovery policy for a fault.
@@ -146,21 +150,23 @@ class RecoveryPolicy:
 
 # ── Fault definition (catalogue entry) ────────────────────────────────────────
 
+
 @dataclass
 class FaultDefinition:
     """Static description of a known failure mode (a catalogue row)."""
 
     fault_id: str
     module: str
-    detection: str           # how it is detected
-    level: FallbackLevel     # fallback level when active
-    recovery: str            # recovery action (human-readable)
-    user_facing: str         # what the user/robot does visibly
-    operator_alert: bool     # whether an operator is alerted
+    detection: str  # how it is detected
+    level: FallbackLevel  # fallback level when active
+    recovery: str  # recovery action (human-readable)
+    user_facing: str  # what the user/robot does visibly
+    operator_alert: bool  # whether an operator is alerted
     policy: RecoveryPolicy = field(default_factory=RecoveryPolicy)
 
 
 # ── Fault handler: the per-fault pipeline ─────────────────────────────────────
+
 
 class FaultHandler:
     """Runs the standard fault pipeline for a set of known fault definitions.
@@ -182,6 +188,7 @@ class FaultHandler:
         escalation_sink: Optional[Callable[[FaultEvent], None]] = None,
     ) -> None:
         import time as _time
+
         self._defs = definitions
         self._clock = clock or _time.monotonic
         self._log_sink = log_sink or self._default_log
@@ -212,8 +219,11 @@ class FaultHandler:
 
         already = fault_id in self._active
         event = FaultEvent(
-            fault_id=fault_id, module=defn.module, level=defn.level,
-            detail=detail or defn.detection, phase="detected",
+            fault_id=fault_id,
+            module=defn.module,
+            level=defn.level,
+            detail=detail or defn.detection,
+            phase="detected",
             recovery_attempt=self._attempts.get(fault_id, 0),
             timestamp=self._clock(),
         )
@@ -243,11 +253,17 @@ class FaultHandler:
         attempt = self._attempts.get(fault_id, 0) + 1
         self._attempts[fault_id] = attempt
 
-        self._log_sink(FaultEvent(
-            fault_id, defn.module, defn.level,
-            f"recovery attempt {attempt}/{defn.policy.max_attempts}",
-            phase="recovering", recovery_attempt=attempt, timestamp=self._clock(),
-        ))
+        self._log_sink(
+            FaultEvent(
+                fault_id,
+                defn.module,
+                defn.level,
+                f"recovery attempt {attempt}/{defn.policy.max_attempts}",
+                phase="recovering",
+                recovery_attempt=attempt,
+                timestamp=self._clock(),
+            )
+        )
 
         succeeded = False
         if fn is not None:
@@ -264,9 +280,13 @@ class FaultHandler:
         if attempt >= defn.policy.max_attempts:
             # Exhausted — escalate to terminal level and require operator.
             term = FaultEvent(
-                fault_id, defn.module, defn.policy.terminal_level,
+                fault_id,
+                defn.module,
+                defn.policy.terminal_level,
                 f"recovery exhausted after {attempt} attempts",
-                phase="escalated", recovery_attempt=attempt, timestamp=self._clock(),
+                phase="escalated",
+                recovery_attempt=attempt,
+                timestamp=self._clock(),
             )
             self._active[fault_id] = term
             self._log_sink(term)
@@ -283,10 +303,16 @@ class FaultHandler:
         defn = self._defs[fault_id]
         self._attempts.pop(fault_id, None)
         del self._active[fault_id]
-        self._log_sink(FaultEvent(
-            fault_id, defn.module, FallbackLevel.NORMAL, "fault cleared",
-            phase="cleared", timestamp=self._clock(),
-        ))
+        self._log_sink(
+            FaultEvent(
+                fault_id,
+                defn.module,
+                FallbackLevel.NORMAL,
+                "fault cleared",
+                phase="cleared",
+                timestamp=self._clock(),
+            )
+        )
 
     # ── queries ───────────────────────────────────────────────────────────────
 
@@ -305,8 +331,7 @@ class FaultHandler:
     @staticmethod
     def _default_log(event: FaultEvent) -> None:
         msg = "[fault:%s] %s/%s %s — %s"
-        args = (event.phase, event.module, event.fault_id,
-                event.level_label, event.detail)
+        args = (event.phase, event.module, event.fault_id, event.level_label, event.detail)
         if event.level >= FallbackLevel.SAFE_STOP:
             _logger.error(msg, *args)
         elif event.level >= FallbackLevel.SAFE_PAUSE:

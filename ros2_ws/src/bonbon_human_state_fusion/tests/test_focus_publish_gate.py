@@ -105,9 +105,15 @@ class TestBackgroundPeopleAreThrottled:
             published_cycles.append("bg" in {r.person_track_id for r in decision.to_publish})
         # bg should publish on cycles 3, 6, 9 (1-indexed) -> indices 2, 5, 8
         assert published_cycles == [
-            False, False, True,
-            False, False, True,
-            False, False, True,
+            False,
+            False,
+            True,
+            False,
+            False,
+            True,
+            False,
+            False,
+            True,
         ]
 
     def test_throttle_counter_resets_after_publish(self):

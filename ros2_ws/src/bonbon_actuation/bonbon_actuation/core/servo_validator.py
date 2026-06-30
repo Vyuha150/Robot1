@@ -93,7 +93,11 @@ class ServoValidator:
                 )
                 _logger.warning(
                     "Servo %d position %.1f° outside [%.1f, %.1f] → clamped to %.1f°",
-                    t.servo_id, t.position_deg, lo, hi, clamped_pos,
+                    t.servo_id,
+                    t.position_deg,
+                    lo,
+                    hi,
+                    clamped_pos,
                 )
             else:
                 clamped_pos = t.position_deg
@@ -107,7 +111,11 @@ class ServoValidator:
                 )
                 _logger.warning(
                     "Servo %d velocity %.1f dps outside [%.1f, %.1f] → clamped to %.1f",
-                    t.servo_id, t.velocity_dps, MIN_VEL_DPS, MAX_VEL_DPS, clamped_vel,
+                    t.servo_id,
+                    t.velocity_dps,
+                    MIN_VEL_DPS,
+                    MAX_VEL_DPS,
+                    clamped_vel,
                 )
             else:
                 clamped_vel = t.velocity_dps

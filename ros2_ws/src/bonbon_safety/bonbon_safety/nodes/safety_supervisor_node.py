@@ -343,9 +343,7 @@ class SafetySupervisorNode(LifecycleNode):
         # Resource sampling runs independently at its own (lower) rate —
         # psutil sampling is too expensive to do at the 10 Hz supervisor rate.
         resource_hz = self.get_parameter("resource_monitor_rate_hz").value
-        self._resource_timer = self.create_timer(
-            1.0 / resource_hz, self._publish_resource_usage
-        )
+        self._resource_timer = self.create_timer(1.0 / resource_hz, self._publish_resource_usage)
 
         # Startup watchdog — fires once to check that all critical sensors came up
         startup_timeout = self.get_parameter("startup_timeout_sec").value

@@ -39,7 +39,7 @@ class _EntityLike(Protocol):
 class ZoneAlert:
     """An edge-triggered restricted-zone event."""
 
-    alert_type: str          # 'entry' | 'exit'
+    alert_type: str  # 'entry' | 'exit'
     entity_id: str
     entity_type: str
     person_id: str
@@ -73,7 +73,7 @@ class RestrictedZoneMonitor:
 
             if in_restricted and not was_inside:
                 self._inside[e.entity_id] = zone_id  # type: ignore[assignment]
-                dist = (e.x ** 2 + e.y ** 2) ** 0.5
+                dist = (e.x**2 + e.y**2) ** 0.5
                 alerts.append(
                     ZoneAlert(
                         alert_type="entry",
@@ -91,7 +91,7 @@ class RestrictedZoneMonitor:
                 _logger.warning(alerts[-1].description)
             elif not in_restricted and was_inside:
                 prev_zone = self._inside.pop(e.entity_id)
-                dist = (e.x ** 2 + e.y ** 2) ** 0.5
+                dist = (e.x**2 + e.y**2) ** 0.5
                 alerts.append(
                     ZoneAlert(
                         alert_type="exit",

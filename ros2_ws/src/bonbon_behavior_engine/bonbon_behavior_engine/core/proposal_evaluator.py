@@ -29,19 +29,19 @@ _logger = logging.getLogger(__name__)
 
 # Safety levels
 _LEVEL_DANGER = 3
-_LEVEL_FAULT  = 6
+_LEVEL_FAULT = 6
 
 # Rate limits (seconds between same proposal type)
 _RATE_LIMITS: Dict[str, float] = {
-    "speak":            1.5,
-    "gesture":          2.0,
-    "navigate":         5.0,
-    "approach":         3.0,
+    "speak": 1.5,
+    "gesture": 2.0,
+    "navigate": 5.0,
+    "approach": 3.0,
     "ask_clarification": 4.0,
-    "alert_operator":   10.0,
-    "ignore":           0.0,
-    "pause":            1.0,
-    "resume":           1.0,
+    "alert_operator": 10.0,
+    "ignore": 0.0,
+    "pause": 1.0,
+    "resume": 1.0,
 }
 
 MAX_TTS_CHARS = 300

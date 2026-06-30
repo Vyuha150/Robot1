@@ -207,7 +207,9 @@ class ActuationNode(LifecycleNode):
 
         self.get_logger().info(
             "ActuationNode active — %d gestures, mode=%s, queue_depth=%d.",
-            len(GestureLibrary.list_names()), mode, depth,
+            len(GestureLibrary.list_names()),
+            mode,
+            depth,
         )
         return TransitionCallbackReturn.SUCCESS
 
@@ -257,7 +259,8 @@ class ActuationNode(LifecycleNode):
                     self._cancel_requested = True
                     self.get_logger().warn(
                         "Safety level %s: cancelling gesture '%s'.",
-                        msg.level_name, self._current_gesture,
+                        msg.level_name,
+                        self._current_gesture,
                     )
             self._queue.clear()
 
@@ -290,7 +293,10 @@ class ActuationNode(LifecycleNode):
 
     def _on_proximity_tick(self) -> None:
         """Clear stale person proximity so derate releases when people leave."""
-        if self._last_person_seen and (time.monotonic() - self._last_person_seen) > _PROXIMITY_TTL_SEC:
+        if (
+            self._last_person_seen
+            and (time.monotonic() - self._last_person_seen) > _PROXIMITY_TTL_SEC
+        ):
             self._proximity.clear_proximity()
             self._last_person_seen = 0.0
 
@@ -338,12 +344,13 @@ class ActuationNode(LifecycleNode):
         decision = self._proximity.evaluate(priority)
         if decision.block_large_motion and gesture_def.requires_clear_space:
             self._gestures_rejected += 1
-            self.get_logger().warn(
-                "Gesture '%s' suppressed: %s", gesture_name, decision.reason
-            )
+            self.get_logger().warn("Gesture '%s' suppressed: %s", gesture_name, decision.reason)
             self._publish_status(
-                event_id, gesture_name, "rejected",
-                f"proximity: {decision.reason}", 0.0,
+                event_id,
+                gesture_name,
+                "rejected",
+                f"proximity: {decision.reason}",
+                0.0,
             )
             return "rejected"
         if decision.speed_scale < 1.0:
@@ -364,7 +371,9 @@ class ActuationNode(LifecycleNode):
         if priority >= 20 or (priority > running_prio and gesture_def.interruptible is not False):
             with self._lock:
                 self._cancel_requested = True
-            self._queue.enqueue(gesture_name, priority, speed_scale, event_id, gesture_def.interruptible)
+            self._queue.enqueue(
+                gesture_name, priority, speed_scale, event_id, gesture_def.interruptible
+            )
             return "queued"
 
         admitted = self._queue.enqueue(
@@ -414,8 +423,11 @@ class ActuationNode(LifecycleNode):
                 with self._lock:
                     if self._cancel_requested:
                         self._publish_status(
-                            event_id, gesture_name, "cancelled",
-                            "cancelled by higher-priority request or e-stop", step.progress,
+                            event_id,
+                            gesture_name,
+                            "cancelled",
+                            "cancelled by higher-priority request or e-stop",
+                            step.progress,
                         )
                         return False
                 wait = step.elapsed_sec - prev_t

@@ -127,12 +127,16 @@ class MotionQueue:
                 if evicted is entry:
                     _logger.warning(
                         "MotionQueue full (%d): request '%s' (prio=%d) rejected.",
-                        self._max_depth, gesture_name, priority,
+                        self._max_depth,
+                        gesture_name,
+                        priority,
                     )
                     return False
                 _logger.warning(
                     "MotionQueue full (%d): evicted '%s' (prio=%d) to admit '%s'.",
-                    self._max_depth, evicted.gesture_name, evicted.priority,
+                    self._max_depth,
+                    evicted.gesture_name,
+                    evicted.priority,
                     gesture_name,
                 )
             return True

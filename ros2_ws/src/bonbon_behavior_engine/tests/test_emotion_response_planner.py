@@ -65,8 +65,10 @@ class TestEmergencyOverride:
 
     def test_emergency_has_alert_text(self):
         plan = self.planner.plan("neutral", is_emergency=True)
-        assert "staff" in plan.acknowledgment_text.lower() or \
-               "emergency" in plan.acknowledgment_text.lower()
+        assert (
+            "staff" in plan.acknowledgment_text.lower()
+            or "emergency" in plan.acknowledgment_text.lower()
+        )
 
 
 class TestLowConfidence:
@@ -76,7 +78,7 @@ class TestLowConfidence:
     def test_low_confidence_falls_back_to_neutral(self):
         # Sad with only 20% confidence → neutral plan
         plan_high = self.planner.plan("sad", emotion_confidence=0.9)
-        plan_low  = self.planner.plan("sad", emotion_confidence=0.2)
+        plan_low = self.planner.plan("sad", emotion_confidence=0.2)
         # Low confidence plan should be less urgent
         assert plan_low.urgency <= plan_high.urgency
 

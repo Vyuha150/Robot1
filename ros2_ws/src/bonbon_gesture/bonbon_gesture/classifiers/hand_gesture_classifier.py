@@ -188,10 +188,7 @@ class HandGestureClassifier:
         thumb_up = lm[4][1] < wrist_y - threshold
 
         # All four fingers (index–pinky) curled.
-        other_curled = all(
-            lm[t][1] > lm[p][1]
-            for t, p in zip([8, 12, 16, 20], [6, 10, 14, 18])
-        )
+        other_curled = all(lm[t][1] > lm[p][1] for t, p in zip([8, 12, 16, 20], [6, 10, 14, 18]))
         return thumb_up and other_curled
 
     def _is_thumbs_down(self, lm: List[Tuple[float, float, float]], is_right: bool) -> bool:
@@ -213,10 +210,7 @@ class HandGestureClassifier:
         threshold = hand_scale * 0.30
         thumb_down = lm[4][1] > wrist_y + threshold
 
-        other_curled = all(
-            lm[t][1] > lm[p][1]
-            for t, p in zip([8, 12, 16, 20], [6, 10, 14, 18])
-        )
+        other_curled = all(lm[t][1] > lm[p][1] for t, p in zip([8, 12, 16, 20], [6, 10, 14, 18]))
         return thumb_down and other_curled
 
     def _is_pointing(self, lm: List[Tuple[float, float, float]], is_right: bool) -> bool:
@@ -231,8 +225,5 @@ class HandGestureClassifier:
         """
         index_up = lm[8][1] < lm[6][1]  # index tip above PIP
         # Middle, ring, pinky must be curled
-        others_curled = all(
-            lm[t][1] > lm[p][1]
-            for t, p in zip([12, 16, 20], [10, 14, 18])
-        )
+        others_curled = all(lm[t][1] > lm[p][1] for t, p in zip([12, 16, 20], [10, 14, 18]))
         return index_up and others_curled

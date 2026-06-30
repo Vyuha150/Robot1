@@ -23,8 +23,8 @@ from typing import List, Optional, Protocol
 _logger = logging.getLogger(__name__)
 
 # Risk thresholds (metres) on the predicted closest approach.
-COLLISION_DISTANCE_M = 0.5    # predicted to come within this → high risk
-NEAR_MISS_DISTANCE_M = 1.0    # predicted to come within this → medium risk
+COLLISION_DISTANCE_M = 0.5  # predicted to come within this → high risk
+NEAR_MISS_DISTANCE_M = 1.0  # predicted to come within this → medium risk
 DEFAULT_HORIZON_SEC = 2.5
 DEFAULT_TIMESTEP_SEC = 0.25
 
@@ -43,12 +43,12 @@ class ObstaclePrediction:
     """Predicted trajectory summary for one entity."""
 
     entity_id: str
-    closest_distance_m: float       # minimum predicted robot–entity distance
-    time_to_closest_sec: float      # when the closest approach occurs
+    closest_distance_m: float  # minimum predicted robot–entity distance
+    time_to_closest_sec: float  # when the closest approach occurs
     current_distance_m: float
-    is_converging: bool             # getting closer (closest < current)
-    risk_level: str                 # 'none' | 'low' | 'medium' | 'high'
-    predicted_path: List[tuple]     # [(t, x, y), …] sampled future positions
+    is_converging: bool  # getting closer (closest < current)
+    risk_level: str  # 'none' | 'low' | 'medium' | 'high'
+    predicted_path: List[tuple]  # [(t, x, y), …] sampled future positions
 
 
 class DynamicObstaclePredictor:
@@ -108,9 +108,7 @@ class DynamicObstaclePredictor:
         preds.sort(key=lambda p: (order[p.risk_level], p.closest_distance_m))
         return preds
 
-    def most_critical(
-        self, predictions: List[ObstaclePrediction]
-    ) -> Optional[ObstaclePrediction]:
+    def most_critical(self, predictions: List[ObstaclePrediction]) -> Optional[ObstaclePrediction]:
         """Return the highest-risk prediction, or ``None`` if list is empty."""
         if not predictions:
             return None

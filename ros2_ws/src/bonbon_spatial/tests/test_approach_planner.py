@@ -12,9 +12,12 @@ from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZone
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _entity(x: float, y: float, tracking_id: int = 1,
-            person_category: str = "adult") -> TrackedEntity:
+
+def _entity(
+    x: float, y: float, tracking_id: int = 1, person_category: str = "adult"
+) -> TrackedEntity:
     import time
+
     return TrackedEntity(
         entity_id=f"person_{tracking_id}",
         entity_type="person",
@@ -38,12 +41,14 @@ def _empty_planner() -> ApproachPosePlanner:
 # Basic planning
 # ---------------------------------------------------------------------------
 
+
 class TestApproachPosePlannerBasic:
     def test_front_approach_along_x_axis(self):
         planner = _empty_planner()
         entity = _entity(5.0, 0.0)
-        success, px, py, yaw, msg = planner.plan(entity, desired_distance_m=1.0,
-                                                   approach_style="front")
+        success, px, py, yaw, msg = planner.plan(
+            entity, desired_distance_m=1.0, approach_style="front"
+        )
         assert success is True
         # Approach pose should be 1 m in front of person at (4, 0)
         assert abs(px - 4.0) < 0.05
@@ -52,8 +57,9 @@ class TestApproachPosePlannerBasic:
     def test_front_approach_yaw_faces_person(self):
         planner = _empty_planner()
         entity = _entity(5.0, 0.0)
-        success, px, py, yaw, msg = planner.plan(entity, desired_distance_m=1.0,
-                                                   approach_style="front")
+        success, px, py, yaw, msg = planner.plan(
+            entity, desired_distance_m=1.0, approach_style="front"
+        )
         assert abs(yaw) < 0.1  # facing east → yaw ≈ 0
 
     def test_side_approach_produces_offset_pose(self):
@@ -71,7 +77,7 @@ class TestApproachPosePlannerBasic:
         success, px, py, yaw, msg = planner.plan(entity, desired_distance_m=0.0)
         assert success is True
         # Verify the approach distance is reasonable (between 0.5 and 2.0 m from person)
-        dist_from_person = math.sqrt((px - 5.0) ** 2 + py ** 2)
+        dist_from_person = math.sqrt((px - 5.0) ** 2 + py**2)
         assert 0.5 <= dist_from_person <= 2.5
 
     def test_any_style_tries_multiple_candidates(self):
@@ -85,12 +91,12 @@ class TestApproachPosePlannerBasic:
 # Restricted zone avoidance
 # ---------------------------------------------------------------------------
 
+
 class TestRestrictedZoneAvoidance:
     def test_unrestricted_zone_does_not_block(self):
         mgr = SemanticZoneManager()
         # Large public zone containing the approach area
-        mgr.add_zone(SemanticZone("lobby", "public",
-                                   [(-10, -10), (10, -10), (10, 10), (-10, 10)]))
+        mgr.add_zone(SemanticZone("lobby", "public", [(-10, -10), (10, -10), (10, 10), (-10, 10)]))
         planner = ApproachPosePlanner(zone_manager=mgr)
         entity = _entity(3.0, 0.0)
         success, _, _, _, _ = planner.plan(entity, 1.0, "front")
@@ -99,8 +105,11 @@ class TestRestrictedZoneAvoidance:
     def test_restricted_zone_blocking_front_triggers_fallback(self):
         mgr = SemanticZoneManager()
         # Restricted zone covering where the front approach pose would be (≈ x=2)
-        mgr.add_zone(SemanticZone("restricted_area", "restricted",
-                                   [(1.5, -2), (3.0, -2), (3.0, 2), (1.5, 2)]))
+        mgr.add_zone(
+            SemanticZone(
+                "restricted_area", "restricted", [(1.5, -2), (3.0, -2), (3.0, 2), (1.5, 2)]
+            )
+        )
         planner = ApproachPosePlanner(zone_manager=mgr)
         entity = _entity(3.0, 0.0)
         # 'any' style tries side approaches too
@@ -112,8 +121,9 @@ class TestRestrictedZoneAvoidance:
         """When every candidate is in a restricted zone, plan returns (False, pose, msg)."""
         mgr = SemanticZoneManager()
         # Gigantic restricted zone
-        mgr.add_zone(SemanticZone("everywhere", "restricted",
-                                   [(-50, -50), (50, -50), (50, 50), (-50, 50)]))
+        mgr.add_zone(
+            SemanticZone("everywhere", "restricted", [(-50, -50), (50, -50), (50, 50), (-50, 50)])
+        )
         planner = ApproachPosePlanner(zone_manager=mgr)
         entity = _entity(3.0, 0.0)
         success, px, py, yaw, msg = planner.plan(entity, 1.0, "any")
@@ -126,6 +136,7 @@ class TestRestrictedZoneAvoidance:
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestApproachPosePlannerEdgeCases:
     def test_person_at_origin_does_not_crash(self):

@@ -76,9 +76,7 @@ class VoiceEmotionAnalyzer:
         # Duration check.
         duration_sec: float = len(audio_array) / max(sample_rate, 1)
         if duration_sec < self._config.voice_segment_min_sec:
-            return self._make_short_segment_msg(
-                tracking_id, person_id, duration_sec
-            )
+            return self._make_short_segment_msg(tracking_id, person_id, duration_sec)
 
         # Privacy gate.
         if self._privacy.should_suppress_voice():
@@ -199,9 +197,7 @@ class VoiceEmotionAnalyzer:
         msg.backend_used = "skipped"
         return msg
 
-    def _make_suppressed_msg(
-        self, tracking_id: int, person_id: str, duration_sec: float
-    ):
+    def _make_suppressed_msg(self, tracking_id: int, person_id: str, duration_sec: float):
         """Return a VoiceEmotion message flagged as suppressed by privacy.
 
         Args:
@@ -228,9 +224,7 @@ class VoiceEmotionAnalyzer:
         msg.backend_used = "suppressed"
         return msg
 
-    def _make_failed_msg(
-        self, tracking_id: int, person_id: str, duration_sec: float
-    ):
+    def _make_failed_msg(self, tracking_id: int, person_id: str, duration_sec: float):
         """Return a VoiceEmotion message indicating backend failure.
 
         Args:

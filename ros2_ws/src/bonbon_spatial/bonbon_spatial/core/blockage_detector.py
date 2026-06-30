@@ -22,9 +22,9 @@ from typing import Callable, List, Optional, Protocol
 _logger = logging.getLogger(__name__)
 
 # Forward corridor geometry (robot faces +x).
-DEFAULT_CORRIDOR_HALF_WIDTH_M = 0.5   # ± lateral half-width
-DEFAULT_CORRIDOR_LENGTH_M = 2.0       # how far ahead we care about
-DEFAULT_PERSISTENCE_SEC = 1.5         # occupancy must persist this long
+DEFAULT_CORRIDOR_HALF_WIDTH_M = 0.5  # ± lateral half-width
+DEFAULT_CORRIDOR_LENGTH_M = 2.0  # how far ahead we care about
+DEFAULT_PERSISTENCE_SEC = 1.5  # occupancy must persist this long
 
 
 class _EntityLike(Protocol):
@@ -65,6 +65,7 @@ class BlockageDetector:
         self._length = corridor_length_m
         self._persistence = persistence_sec
         import time as _time
+
         self._clock = clock or _time.monotonic
         self._occupied_since: Optional[float] = None
 

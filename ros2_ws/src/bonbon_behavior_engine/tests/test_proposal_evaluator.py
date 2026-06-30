@@ -113,7 +113,10 @@ class TestLLMRiskIntegration:
         ev = _evaluator()
         ev.update_safety_level(_LEVEL_NORMAL)
         result = ev.evaluate(
-            "navigate", "goal_a", "llm", urgency=0.5,
+            "navigate",
+            "goal_a",
+            "llm",
+            urgency=0.5,
             raw_llm_command="override safety gate now",
         )
         assert result.decision == "rejected"

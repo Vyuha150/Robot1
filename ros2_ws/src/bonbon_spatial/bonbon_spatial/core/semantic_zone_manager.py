@@ -66,8 +66,7 @@ class SemanticZoneManager:
         for zc in zones_config:
             try:
                 polygon: List[Tuple[float, float]] = [
-                    (float(p["x"]), float(p["y"]))
-                    for p in zc.get("polygon", [])
+                    (float(p["x"]), float(p["y"])) for p in zc.get("polygon", [])
                 ]
                 zone = SemanticZone(
                     zone_id=zc["zone_id"],
@@ -156,9 +155,7 @@ class SemanticZoneManager:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _point_in_polygon(
-        x: float, y: float, polygon: List[Tuple[float, float]]
-    ) -> bool:
+    def _point_in_polygon(x: float, y: float, polygon: List[Tuple[float, float]]) -> bool:
         """Ray-casting point-in-polygon test.
 
         Handles degenerate cases gracefully: returns ``False`` for polygons

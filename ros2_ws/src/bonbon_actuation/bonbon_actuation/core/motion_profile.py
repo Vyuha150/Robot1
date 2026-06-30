@@ -86,11 +86,7 @@ class MotionProfileGenerator:
         for kf in gesture.keyframes:
             scaled_time = kf.time_offset_sec / speed
 
-            progress = (
-                scaled_time / total_scaled_duration
-                if total_scaled_duration > 1e-6
-                else 1.0
-            )
+            progress = scaled_time / total_scaled_duration if total_scaled_duration > 1e-6 else 1.0
 
             # Scale servo velocities proportionally to maintain natural motion.
             scaled_targets = [
@@ -111,8 +107,7 @@ class MotionProfileGenerator:
             )
 
         _logger.debug(
-            "Generated %d steps for gesture '%s' at %.2fx speed "
-            "(total=%.2fs).",
+            "Generated %d steps for gesture '%s' at %.2fx speed " "(total=%.2fs).",
             len(steps),
             gesture.name,
             speed,

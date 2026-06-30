@@ -10,6 +10,7 @@ import numpy as np
 
 # ── ROS2 / bonbon_msgs stubs so tests run without a full ROS2 install ─────────
 
+
 def _make_ros_stubs() -> None:
     """Inject minimal stub modules for rclpy and bonbon_msgs."""
     # rclpy stub
@@ -22,6 +23,7 @@ def _make_ros_stubs() -> None:
                 class _T:
                     def to_msg(self):
                         return None
+
                 return _T()
 
         rclpy_mod.clock.Clock = _Clock
@@ -75,6 +77,7 @@ class _FakeClock:
         class _T:
             def to_msg(self):
                 return None
+
         return _T()
 
 
@@ -92,9 +95,7 @@ class TestFaceEmotionAnalyzer(unittest.TestCase):
         )
         self.privacy = PrivacyGate(self.config)
         self.clock = _FakeClock()
-        self.analyzer = FaceEmotionAnalyzer(
-            self.config, self.backend, self.privacy, self.clock
-        )
+        self.analyzer = FaceEmotionAnalyzer(self.config, self.backend, self.privacy, self.clock)
 
     def _blank_face(self) -> np.ndarray:
         """Return a blank 48×48 BGR face crop."""
@@ -103,6 +104,7 @@ class TestFaceEmotionAnalyzer(unittest.TestCase):
     def test_analyze_returns_face_emotion_message(self) -> None:
         """A FaceEmotion message is returned for a valid face crop."""
         from bonbon_msgs.msg import FaceEmotion
+
         msg = self.analyzer.analyze_face_crop(self._blank_face(), tracking_id=1, person_id="p1")
         self.assertIsNotNone(msg)
         self.assertIsInstance(msg, FaceEmotion)
@@ -132,6 +134,7 @@ class TestFaceEmotionAnalyzer(unittest.TestCase):
         """event_id looks like a UUID string."""
         msg = self.analyzer.analyze_face_crop(self._blank_face(), tracking_id=1, person_id="p1")
         import uuid
+
         # Should not raise.
         uuid.UUID(msg.event_id)
 
@@ -147,7 +150,9 @@ class TestFaceEmotionAnalyzer(unittest.TestCase):
 
     def test_person_id_preserved(self) -> None:
         """person_id matches the input value."""
-        msg = self.analyzer.analyze_face_crop(self._blank_face(), tracking_id=1, person_id="person_99")
+        msg = self.analyzer.analyze_face_crop(
+            self._blank_face(), tracking_id=1, person_id="person_99"
+        )
         self.assertEqual(msg.person_id, "person_99")
 
     def test_privacy_suppression_face_only(self) -> None:
@@ -186,9 +191,7 @@ class TestFaceEmotionAnalyzer(unittest.TestCase):
     def test_backend_not_ready_returns_failed_msg(self) -> None:
         """An unwarmed backend returns a message with low_quality_input=True."""
         fresh_backend = MockFaceBackend()  # not warmed up
-        analyzer = FaceEmotionAnalyzer(
-            self.config, fresh_backend, self.privacy, self.clock
-        )
+        analyzer = FaceEmotionAnalyzer(self.config, fresh_backend, self.privacy, self.clock)
         msg = analyzer.analyze_face_crop(self._blank_face(), tracking_id=1, person_id="p1")
         self.assertIsNotNone(msg)
         self.assertTrue(msg.low_quality_input)
@@ -199,7 +202,9 @@ class TestFaceEmotionAnalyzer(unittest.TestCase):
         for _i in range(10):
             self.backend.analyze(self._blank_face())  # exhaust some cycles
         for i in range(5):
-            msg = self.analyzer.analyze_face_crop(self._blank_face(), tracking_id=100 + i, person_id=f"p{i}")
+            msg = self.analyzer.analyze_face_crop(
+                self._blank_face(), tracking_id=100 + i, person_id=f"p{i}"
+            )
             if msg is not None:
                 seen.add(msg.dominant_emotion)
         # Should have seen more than one emotion across 5 different people.

@@ -23,12 +23,12 @@ from bonbon_gesture.config.gesture_config import GestureConfig
 def _face(nose_x: float = 320.0, nose_y: float = 60.0) -> List[Tuple[float, float, float]]:
     """6-point face mesh with nose at (nose_x, nose_y)."""
     return [
-        (nose_x, nose_y, 0.0),           # 0: nose_tip
-        (nose_x - 20, nose_y - 15, 0.0), # 1: left eye
-        (nose_x + 20, nose_y - 15, 0.0), # 2: right eye
-        (nose_x - 15, nose_y + 20, 0.0), # 3: mouth left
-        (nose_x + 15, nose_y + 20, 0.0), # 4: mouth right
-        (nose_x, nose_y + 40, 0.0),      # 5: chin
+        (nose_x, nose_y, 0.0),  # 0: nose_tip
+        (nose_x - 20, nose_y - 15, 0.0),  # 1: left eye
+        (nose_x + 20, nose_y - 15, 0.0),  # 2: right eye
+        (nose_x - 15, nose_y + 20, 0.0),  # 3: mouth left
+        (nose_x + 15, nose_y + 20, 0.0),  # 4: mouth right
+        (nose_x, nose_y + 40, 0.0),  # 5: chin
     ]
 
 

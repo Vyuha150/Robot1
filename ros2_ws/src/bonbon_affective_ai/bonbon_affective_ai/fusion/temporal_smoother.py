@@ -6,7 +6,13 @@ from collections import defaultdict, deque
 from typing import Dict
 
 _EMOTION_FIELDS: tuple[str, ...] = (
-    "anger", "disgust", "fear", "happiness", "sadness", "surprise", "neutral"
+    "anger",
+    "disgust",
+    "fear",
+    "happiness",
+    "sadness",
+    "surprise",
+    "neutral",
 )
 
 
@@ -30,9 +36,7 @@ class TemporalSmoother:
                 Older frames are evicted automatically once the window is full.
         """
         self._window: int = window
-        self._history: Dict[int, deque] = defaultdict(
-            lambda: deque(maxlen=self._window)
-        )
+        self._history: Dict[int, deque] = defaultdict(lambda: deque(maxlen=self._window))
 
     def smooth(self, tracking_id: int, raw: dict) -> dict:
         """Append *raw* to the window for *tracking_id* and return the mean.

@@ -36,7 +36,7 @@ class _Entity:
 
     @property
     def distance_to_robot(self) -> float:
-        return (self.x ** 2 + self.y ** 2) ** 0.5
+        return (self.x**2 + self.y**2) ** 0.5
 
 
 class _Clock:
@@ -53,7 +53,8 @@ class TestSpatialPipelineConsistency:
         zones = SemanticZoneManager()
         zones.add_zone(
             SemanticZone(
-                "no_go", "restricted",
+                "no_go",
+                "restricted",
                 polygon=[(1.0, -1.0), (3.0, -1.0), (3.0, 1.0), (1.0, 1.0)],
             )
         )

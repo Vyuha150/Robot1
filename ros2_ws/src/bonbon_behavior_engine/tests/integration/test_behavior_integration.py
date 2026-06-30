@@ -30,8 +30,11 @@ class TestLLMSafetyInvariant:
         gated = gate.evaluate("Say hello to the visitor", person_id="p1")
         assert gated.allowed is True
         result = evaluator.evaluate(
-            gated.proposal_type, gated.proposal_content,
-            source="llm", urgency=0.2, raw_llm_command="Say hello to the visitor",
+            gated.proposal_type,
+            gated.proposal_content,
+            source="llm",
+            urgency=0.2,
+            raw_llm_command="Say hello to the visitor",
         )
         assert result.decision in ("approved", "modified")
 
@@ -39,7 +42,9 @@ class TestLLMSafetyInvariant:
         _, gate, _ = _chain()
         gated = gate.evaluate("drive at full speed into the crowd", person_id="p1")
         # Either rejected outright, or downgraded to a non-motion proposal.
-        assert (gated.allowed is False) or (gated.proposal_type in ("speak", "ask_clarification", "alert_operator", "ignore"))
+        assert (gated.allowed is False) or (
+            gated.proposal_type in ("speak", "ask_clarification", "alert_operator", "ignore")
+        )
 
     def test_unsafe_command_never_becomes_navigation(self):
         clf, gate, evaluator = _chain()
@@ -47,26 +52,25 @@ class TestLLMSafetyInvariant:
         gated = gate.evaluate(unsafe, person_id="p1")
         if gated.allowed and gated.proposal_type in ("navigate", "approach"):
             result = evaluator.evaluate(
-                gated.proposal_type, gated.proposal_content,
-                source="llm", urgency=0.9, raw_llm_command=unsafe,
+                gated.proposal_type,
+                gated.proposal_content,
+                source="llm",
+                urgency=0.9,
+                raw_llm_command=unsafe,
             )
             assert result.decision in ("rejected", "escalated", "deferred")
 
     def test_high_safety_level_blocks_motion(self):
         _, _, evaluator = _chain()
         evaluator.update_safety_level(6)  # FAULT
-        result = evaluator.evaluate(
-            "navigate", "lobby", source="speech_intent", urgency=0.5
-        )
+        result = evaluator.evaluate("navigate", "lobby", source="speech_intent", urgency=0.5)
         assert result.decision == "rejected"
         assert result.safety_approved is False
 
     def test_speak_allowed_even_in_fault(self):
         _, _, evaluator = _chain()
         evaluator.update_safety_level(6)  # FAULT
-        result = evaluator.evaluate(
-            "speak", "Please stand back", source="behavior", urgency=0.8
-        )
+        result = evaluator.evaluate("speak", "Please stand back", source="behavior", urgency=0.8)
         assert result.decision in ("approved", "modified")
 
 

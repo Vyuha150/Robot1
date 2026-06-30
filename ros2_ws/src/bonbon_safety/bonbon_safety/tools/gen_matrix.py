@@ -19,8 +19,12 @@ from pathlib import Path
 from bonbon_safety.core.failure_catalog import CATEGORY_RANGES, numbered_catalog
 
 _LEVEL = {
-    0: "L0 normal", 1: "L1 degraded", 2: "L2 safe-pause",
-    3: "L3 safe-stop", 4: "L4 e-stop", 5: "L5 human",
+    0: "L0 normal",
+    1: "L1 degraded",
+    2: "L2 safe-pause",
+    3: "L3 safe-stop",
+    4: "L4 e-stop",
+    5: "L5 human",
 }
 
 

@@ -27,24 +27,24 @@ _logger = logging.getLogger(__name__)
 
 # Safety level constants (mirrors bonbon_msgs/SafetyState.level).
 LEVEL_INITIALIZING: int = 0
-LEVEL_NORMAL:       int = 1
-LEVEL_CAUTION:      int = 2
-LEVEL_DANGER:       int = 3
-LEVEL_DOCKING:      int = 4
-LEVEL_DEGRADED:     int = 5
-LEVEL_FAULT:        int = 6
-LEVEL_SAFE_STOP:    int = 7
+LEVEL_NORMAL: int = 1
+LEVEL_CAUTION: int = 2
+LEVEL_DANGER: int = 3
+LEVEL_DOCKING: int = 4
+LEVEL_DEGRADED: int = 5
+LEVEL_FAULT: int = 6
+LEVEL_SAFE_STOP: int = 7
 
 # Minimum gesture priority required at each safety level.
 _MIN_PRIORITY: dict = {
     LEVEL_INITIALIZING: 999,
-    LEVEL_NORMAL:         0,
-    LEVEL_CAUTION:        5,
-    LEVEL_DANGER:        10,
-    LEVEL_DOCKING:        5,
-    LEVEL_DEGRADED:      10,
-    LEVEL_FAULT:         20,
-    LEVEL_SAFE_STOP:     20,
+    LEVEL_NORMAL: 0,
+    LEVEL_CAUTION: 5,
+    LEVEL_DANGER: 10,
+    LEVEL_DOCKING: 5,
+    LEVEL_DEGRADED: 10,
+    LEVEL_FAULT: 20,
+    LEVEL_SAFE_STOP: 20,
 }
 
 
@@ -98,9 +98,7 @@ class ActuationSafetyGate:
     # Gate evaluation
     # ------------------------------------------------------------------
 
-    def is_allowed(
-        self, gesture_name: str, priority: int
-    ) -> Tuple[bool, str]:
+    def is_allowed(self, gesture_name: str, priority: int) -> Tuple[bool, str]:
         """Determine whether a gesture may execute at the current safety level.
 
         Args:
@@ -113,13 +111,8 @@ class ActuationSafetyGate:
             a human-readable explanation on denial.
         """
         if not self._actuation_enabled:
-            reason = (
-                f"Actuation disabled by safety supervisor "
-                f"(level={self._level_name})."
-            )
-            _logger.debug(
-                "Gesture '%s' DENIED: %s", gesture_name, reason
-            )
+            reason = f"Actuation disabled by safety supervisor " f"(level={self._level_name})."
+            _logger.debug("Gesture '%s' DENIED: %s", gesture_name, reason)
             return False, reason
 
         min_prio = _MIN_PRIORITY.get(self._safety_level, 999)
@@ -129,14 +122,14 @@ class ActuationSafetyGate:
                 f"Priority {priority} is insufficient for safety level "
                 f"{self._level_name} (minimum required: {min_prio})."
             )
-            _logger.debug(
-                "Gesture '%s' DENIED: %s", gesture_name, reason
-            )
+            _logger.debug("Gesture '%s' DENIED: %s", gesture_name, reason)
             return False, reason
 
         _logger.debug(
             "Gesture '%s' APPROVED (priority=%d, level=%s).",
-            gesture_name, priority, self._level_name,
+            gesture_name,
+            priority,
+            self._level_name,
         )
         return True, ""
 

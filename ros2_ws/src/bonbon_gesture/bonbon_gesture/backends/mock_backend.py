@@ -67,7 +67,7 @@ def _standing_pose() -> List[Tuple[float, float, float, float]]:
 
     base: List[Tuple[float, float, float, float]] = []
     for i in range(33):
-        if i == 0:   # nose
+        if i == 0:  # nose
             base.append((cx, nose_y, 0.0, 0.99))
         elif i == 11:  # left shoulder
             base.append((cx - shoulder_spread, shoulder_y, 0.0, 0.99))
@@ -137,13 +137,15 @@ def _pointing_hand(cx: float, cy: float) -> List[Tuple[float, float, float]]:
     """
     pts = _neutral_hand(cx, cy)
     # Override index finger tip (landmark 8) to be above pip (landmark 6)
-    pts[8] = (pts[8][0], cy - 40, 0.0)   # tip high
-    pts[7] = (pts[7][0], cy - 25, 0.0)   # dip
-    pts[6] = (pts[6][0], cy - 12, 0.0)   # pip
+    pts[8] = (pts[8][0], cy - 40, 0.0)  # tip high
+    pts[7] = (pts[7][0], cy - 25, 0.0)  # dip
+    pts[6] = (pts[6][0], cy - 12, 0.0)  # pip
     return pts
 
 
-def _thumbs_up_hand(cx: float, cy: float, is_right: bool = True) -> List[Tuple[float, float, float]]:
+def _thumbs_up_hand(
+    cx: float, cy: float, is_right: bool = True
+) -> List[Tuple[float, float, float]]:
     """21-point hand with only thumb raised.
 
     Returns:
@@ -166,12 +168,12 @@ def _neutral_face(cx: float, cy: float) -> List[Tuple[float, float, float]]:
         List of 6 ``(x_px, y_px, z)`` tuples.
     """
     return [
-        (cx, cy, 0.0),               # 0: nose tip
-        (cx - 20, cy - 15, 0.0),     # 1: left eye
-        (cx + 20, cy - 15, 0.0),     # 2: right eye
-        (cx - 15, cy + 20, 0.0),     # 3: mouth left
-        (cx + 15, cy + 20, 0.0),     # 4: mouth right
-        (cx, cy + 40, 0.0),          # 5: chin
+        (cx, cy, 0.0),  # 0: nose tip
+        (cx - 20, cy - 15, 0.0),  # 1: left eye
+        (cx + 20, cy - 15, 0.0),  # 2: right eye
+        (cx - 15, cy + 20, 0.0),  # 3: mouth left
+        (cx + 15, cy + 20, 0.0),  # 4: mouth right
+        (cx, cy + 40, 0.0),  # 5: chin
     ]
 
 
@@ -208,7 +210,7 @@ class MockBackend(GestureBackendInterface):
         self._test_scenario = test_scenario
         self._scenario_idx: int = 0
         self._call_count: int = 0
-        self._nod_tick: int = 0   # drives nose y oscillation
+        self._nod_tick: int = 0  # drives nose y oscillation
         self._shake_tick: int = 0  # drives nose x oscillation
         self._ready = False
 

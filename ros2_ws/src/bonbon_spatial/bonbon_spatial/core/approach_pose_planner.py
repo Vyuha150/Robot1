@@ -68,9 +68,7 @@ class ApproachPosePlanner:
         """
         # Determine effective approach distance.
         if desired_distance_m <= 0.0:
-            space_est = self._estimator.estimate(
-                entity.distance_to_robot, entity.person_category
-            )
+            space_est = self._estimator.estimate(entity.distance_to_robot, entity.person_category)
             effective_dist = space_est.recommended_approach_dist_m
         else:
             effective_dist = desired_distance_m
@@ -96,7 +94,10 @@ class ApproachPosePlanner:
             if zone_id is None or not self._zones.is_restricted(zone_id):
                 _logger.debug(
                     "Approach pose for entity %s: (%.2f, %.2f, %.3f rad)",
-                    entity.entity_id, cx, cy, cyaw,
+                    entity.entity_id,
+                    cx,
+                    cy,
+                    cyaw,
                 )
                 return (True, cx, cy, cyaw, "Approach pose computed successfully.")
 

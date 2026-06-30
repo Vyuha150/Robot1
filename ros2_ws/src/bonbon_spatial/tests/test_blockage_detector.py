@@ -56,12 +56,12 @@ class TestPersistence:
     def test_sustained_occupancy_triggers_blockage(self):
         clock = _FakeClock()
         det = BlockageDetector(persistence_sec=1.5, clock=clock)
-        det.update([_E("a", 1.0, 0.0)])           # t=0 occupied
+        det.update([_E("a", 1.0, 0.0)])  # t=0 occupied
         clock.advance(1.0)
-        s1 = det.update([_E("a", 1.0, 0.0)])      # t=1.0, < threshold
+        s1 = det.update([_E("a", 1.0, 0.0)])  # t=1.0, < threshold
         assert s1.is_blocked is False
         clock.advance(1.0)
-        s2 = det.update([_E("a", 1.0, 0.0)])      # t=2.0, > threshold
+        s2 = det.update([_E("a", 1.0, 0.0)])  # t=2.0, > threshold
         assert s2.is_blocked is True
         assert "a" in s2.blocking_entity_ids
         assert s2.occupied_duration_sec >= 1.5

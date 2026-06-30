@@ -125,7 +125,9 @@ class MultiPersonBehaviorSelector:
 
     # ── Rule 2: known person speaks -> respond by name ──────────────────────
 
-    def decide_known_person_greeting(self, hs, privacy_allows_name: bool) -> BehaviorCandidate | None:
+    def decide_known_person_greeting(
+        self, hs, privacy_allows_name: bool
+    ) -> BehaviorCandidate | None:
         if not privacy_allows_name or not hs.known_person_id:
             return None
         if hs.active_speaker_status != SPEAKING:
@@ -212,7 +214,9 @@ class MultiPersonBehaviorSelector:
         )
 
 
-def apply_child_safety_modifier(candidate: BehaviorCandidate, is_child_nearby: bool) -> BehaviorCandidate:
+def apply_child_safety_modifier(
+    candidate: BehaviorCandidate, is_child_nearby: bool
+) -> BehaviorCandidate:
     """Rule 9: child near robot -> slow movement, no sudden gestures.
 
     Caps speed_scale and downgrades any gesture proposal to a gentle one —
@@ -222,7 +226,10 @@ def apply_child_safety_modifier(candidate: BehaviorCandidate, is_child_nearby: b
         return candidate
     capped_speed = min(candidate.speed_scale, 0.7)
     content = candidate.content
-    if candidate.proposal_type == "gesture" and candidate.content not in ("rest_pose", "listening_pose"):
+    if candidate.proposal_type == "gesture" and candidate.content not in (
+        "rest_pose",
+        "listening_pose",
+    ):
         content = "listening_pose"  # never a sudden/expressive gesture near a child
     return BehaviorCandidate(
         proposal_type=candidate.proposal_type,

@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 try:
     import numpy as np  # type: ignore[import]
     import sounddevice as sd  # type: ignore[import]
+
     _HAS_SD = True
 except Exception:  # noqa: BLE001
     _HAS_SD = False
@@ -62,7 +63,8 @@ class UsbMicDriver(MicDriver):
         if not _HAS_SD:
             raise DriverFault(
                 "sounddevice not installed — install with: pip install sounddevice",
-                "SDK_MISSING", recoverable=False,
+                "SDK_MISSING",
+                recoverable=False,
             )
         try:
             stream = sd.InputStream(
@@ -76,13 +78,16 @@ class UsbMicDriver(MicDriver):
         except Exception as exc:  # noqa: BLE001
             raise DriverFault(
                 f"could not open microphone {self._device!r}: {exc}",
-                "DEVICE_OPEN_FAILED", recoverable=True,
+                "DEVICE_OPEN_FAILED",
+                recoverable=True,
             ) from exc
         self._stream = stream
         self._consecutive_failures = 0
         logger.info(
-            "USB mic connected: device=%s %d Hz %dch", self._device,
-            self._sample_rate, self._channels,
+            "USB mic connected: device=%s %d Hz %dch",
+            self._device,
+            self._sample_rate,
+            self._channels,
         )
         return True
 
@@ -107,20 +112,29 @@ class UsbMicDriver(MicDriver):
             if self._consecutive_failures >= 5:
                 raise DriverFault(
                     "microphone read failed 5x — likely disconnected",
-                    "READ_FAILED", recoverable=True,
+                    "READ_FAILED",
+                    recoverable=True,
                 ) from exc
             # Return silence on a transient hiccup rather than crashing.
-            silence = (b"\x00\x00" * num_frames * self._channels)
-            return AudioChunk(data=silence, sample_rate=self._sample_rate,
-                              channels=self._channels, device_id="usb_mic")
+            silence = b"\x00\x00" * num_frames * self._channels
+            return AudioChunk(
+                data=silence,
+                sample_rate=self._sample_rate,
+                channels=self._channels,
+                device_id="usb_mic",
+            )
         if overflowed:
             logger.debug("USB mic input overflow (dropped samples)")
         self._consecutive_failures = 0
         # data is an (frames, channels) int16 ndarray → interleaved bytes.
         pcm = np.ascontiguousarray(data, dtype=np.int16).tobytes()
         return AudioChunk(
-            data=pcm, sample_rate=self._sample_rate, channels=self._channels,
-            bit_depth=16, device_id="usb_mic", timestamp=time.monotonic(),
+            data=pcm,
+            sample_rate=self._sample_rate,
+            channels=self._channels,
+            bit_depth=16,
+            device_id="usb_mic",
+            timestamp=time.monotonic(),
         )
 
     def set_led_angle(self, angle_deg: float) -> None:

@@ -81,8 +81,7 @@ class PrivacyGate:
         """
         if level not in _VALID_LEVELS:
             raise ValueError(
-                f"Invalid privacy level '{level}'.  "
-                f"Must be one of: {sorted(_VALID_LEVELS)}"
+                f"Invalid privacy level '{level}'.  " f"Must be one of: {sorted(_VALID_LEVELS)}"
             )
         self._level = level
 

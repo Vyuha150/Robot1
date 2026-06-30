@@ -44,8 +44,10 @@ def generate_launch_description() -> LaunchDescription:
         output="screen",
     )
 
-    return LaunchDescription([
-        config_arg,
-        backend_arg,
-        gesture_node,
-    ])
+    return LaunchDescription(
+        [
+            config_arg,
+            backend_arg,
+            gesture_node,
+        ]
+    )

@@ -88,16 +88,29 @@ def generate_launch_description() -> LaunchDescription:
     log_level = LaunchConfiguration("log_level")
 
     args = [
-        DeclareLaunchArgument("simulation", default_value="false",
-                              description="Use mock HAL drivers / simulated sensors."),
-        DeclareLaunchArgument("enable_navigation", default_value="true",
-                              description="Bring up the navigation stack."),
-        DeclareLaunchArgument("enable_ai", default_value="true",
-                              description="Bring up spatial/affective/gesture/perception_ai/llm."),
-        DeclareLaunchArgument("enable_operator_api", default_value="true",
-                              description="Bring up the operator/dashboard backend."),
-        DeclareLaunchArgument("log_level", default_value="info",
-                              description="ROS2 logger level for the bring-up group."),
+        DeclareLaunchArgument(
+            "simulation",
+            default_value="false",
+            description="Use mock HAL drivers / simulated sensors.",
+        ),
+        DeclareLaunchArgument(
+            "enable_navigation", default_value="true", description="Bring up the navigation stack."
+        ),
+        DeclareLaunchArgument(
+            "enable_ai",
+            default_value="true",
+            description="Bring up spatial/affective/gesture/perception_ai/llm.",
+        ),
+        DeclareLaunchArgument(
+            "enable_operator_api",
+            default_value="true",
+            description="Bring up the operator/dashboard backend.",
+        ),
+        DeclareLaunchArgument(
+            "log_level",
+            default_value="info",
+            description="ROS2 logger level for the bring-up group.",
+        ),
     ]
 
     log_args = {"log_level": log_level}
@@ -129,9 +142,7 @@ def generate_launch_description() -> LaunchDescription:
         actions=[
             LogInfo(msg="bonbon_bringup: starting AI reasoning subsystems"),
             _include("bonbon_spatial", "spatial.launch.py", args=log_args),
-            _include(
-                "bonbon_object_intelligence", "object_intelligence.launch.py", args=log_args
-            ),
+            _include("bonbon_object_intelligence", "object_intelligence.launch.py", args=log_args),
             _include(
                 "bonbon_multi_person_tracker", "multi_person_tracker.launch.py", args=log_args
             ),
@@ -140,9 +151,7 @@ def generate_launch_description() -> LaunchDescription:
             _include(
                 "bonbon_speaker_intelligence", "speaker_intelligence.launch.py", args=log_args
             ),
-            _include(
-                "bonbon_human_state_fusion", "human_state_fusion.launch.py", args=log_args
-            ),
+            _include("bonbon_human_state_fusion", "human_state_fusion.launch.py", args=log_args),
             _include("bonbon_perception_ai", "perception.launch.py", args=log_args),
             _include("bonbon_llm", "llm.launch.py", args=log_args),
         ],
@@ -183,22 +192,30 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
-    return LaunchDescription([
-        *args,
-        LogInfo(msg=PythonExpression([
-            "'bonbon_bringup: simulation=' + '", simulation, "'",
-        ])),
-        data_stores,
-        safety,
-        hal,
-        vision,
-        speech,
-        ai_group,
-        behavior,
-        perception_efficiency,
-        data_feedback,
-        actuation,
-        navigation,
-        tts,
-        operator_api,
-    ])
+    return LaunchDescription(
+        [
+            *args,
+            LogInfo(
+                msg=PythonExpression(
+                    [
+                        "'bonbon_bringup: simulation=' + '",
+                        simulation,
+                        "'",
+                    ]
+                )
+            ),
+            data_stores,
+            safety,
+            hal,
+            vision,
+            speech,
+            ai_group,
+            behavior,
+            perception_efficiency,
+            data_feedback,
+            actuation,
+            navigation,
+            tts,
+            operator_api,
+        ]
+    )

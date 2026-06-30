@@ -26,6 +26,7 @@ import types
 
 # ── Permissive message / request stand-in ──────────────────────────────────
 
+
 class _StubMsg:
     """A permissive ROS2 message stand-in.
 
@@ -83,14 +84,24 @@ def _install_stubs() -> None:
                 class _Now:
                     def to_msg(self_inner):
                         return _Stamp()
+
                 return _Now()
 
         class _Logger:
-            def info(self, *a, **k): pass
-            def warn(self, *a, **k): pass
-            def warning(self, *a, **k): pass
-            def error(self, *a, **k): pass
-            def debug(self, *a, **k): pass
+            def info(self, *a, **k):
+                pass
+
+            def warn(self, *a, **k):
+                pass
+
+            def warning(self, *a, **k):
+                pass
+
+            def error(self, *a, **k):
+                pass
+
+            def debug(self, *a, **k):
+                pass
 
         class _Pub:
             def __init__(self):
@@ -100,11 +111,15 @@ def _install_stubs() -> None:
             def publish(self, msg):
                 self.published.append(msg)
 
-            def on_activate(self, *a, **k): pass
-            def on_deactivate(self, *a, **k): pass
+            def on_activate(self, *a, **k):
+                pass
+
+            def on_deactivate(self, *a, **k):
+                pass
 
         class _Timer:
-            def cancel(self): pass
+            def cancel(self):
+                pass
 
         class _Param:
             def __init__(self, value=None):
@@ -136,23 +151,48 @@ def _install_stubs() -> None:
                 self._logger = _Logger()
                 self._params = {}
 
-            def get_clock(self): return _Clock()
-            def get_logger(self): return self._logger
+            def get_clock(self):
+                return _Clock()
+
+            def get_logger(self):
+                return self._logger
+
             def declare_parameter(self, name, default=None, *a, **k):
                 self._params[name] = default
                 return _Param(default)
+
             def get_parameter(self, name):
                 return _Param(self._params.get(name))
-            def create_publisher(self, *a, **k): return _Pub()
-            def create_lifecycle_publisher(self, *a, **k): return _Pub()
-            def create_subscription(self, *a, **k): return object()
-            def create_service(self, *a, **k): return object()
-            def create_timer(self, *a, **k): return _Timer()
-            def destroy_node(self): pass
-            def destroy_publisher(self, *a, **k): pass
-            def destroy_subscription(self, *a, **k): pass
-            def destroy_service(self, *a, **k): pass
-            def destroy_timer(self, *a, **k): pass
+
+            def create_publisher(self, *a, **k):
+                return _Pub()
+
+            def create_lifecycle_publisher(self, *a, **k):
+                return _Pub()
+
+            def create_subscription(self, *a, **k):
+                return object()
+
+            def create_service(self, *a, **k):
+                return object()
+
+            def create_timer(self, *a, **k):
+                return _Timer()
+
+            def destroy_node(self):
+                pass
+
+            def destroy_publisher(self, *a, **k):
+                pass
+
+            def destroy_subscription(self, *a, **k):
+                pass
+
+            def destroy_service(self, *a, **k):
+                pass
+
+            def destroy_timer(self, *a, **k):
+                pass
 
         class _TransitionCallbackReturn:
             SUCCESS = "SUCCESS"
@@ -171,23 +211,47 @@ def _install_stubs() -> None:
         rclpy_mod.spin = lambda node: None
         rclpy_mod.ok = lambda: True
 
-        clock_mod = types.ModuleType("rclpy.clock"); clock_mod.Clock = _Clock
-        node_mod = types.ModuleType("rclpy.node"); node_mod.Node = _FakeNode
+        clock_mod = types.ModuleType("rclpy.clock")
+        clock_mod.Clock = _Clock
+        node_mod = types.ModuleType("rclpy.node")
+        node_mod.Node = _FakeNode
         logging_mod = types.ModuleType("rclpy.logging")
         logging_mod.get_logger = lambda name="": _Logger()
 
         qos_mod = types.ModuleType("rclpy.qos")
 
         class _QoSProfile:
-            def __init__(self, *a, **k): pass
+            def __init__(self, *a, **k):
+                pass
 
-        for cls in ("QoSProfile", "ReliabilityPolicy", "DurabilityPolicy",
-                    "HistoryPolicy", "QoSReliabilityPolicy", "QoSDurabilityPolicy",
-                    "QoSHistoryPolicy"):
-            setattr(qos_mod, cls, _QoSProfile if cls == "QoSProfile"
-                    else type(cls, (), {"RELIABLE": 1, "BEST_EFFORT": 2,
-                                        "VOLATILE": 1, "TRANSIENT_LOCAL": 2,
-                                        "KEEP_LAST": 1}))
+        for cls in (
+            "QoSProfile",
+            "ReliabilityPolicy",
+            "DurabilityPolicy",
+            "HistoryPolicy",
+            "QoSReliabilityPolicy",
+            "QoSDurabilityPolicy",
+            "QoSHistoryPolicy",
+        ):
+            setattr(
+                qos_mod,
+                cls,
+                (
+                    _QoSProfile
+                    if cls == "QoSProfile"
+                    else type(
+                        cls,
+                        (),
+                        {
+                            "RELIABLE": 1,
+                            "BEST_EFFORT": 2,
+                            "VOLATILE": 1,
+                            "TRANSIENT_LOCAL": 2,
+                            "KEEP_LAST": 1,
+                        },
+                    )
+                ),
+            )
 
         lc_mod = types.ModuleType("rclpy.lifecycle")
         lc_mod.LifecycleNode = _LifecycleNode
@@ -236,10 +300,20 @@ def _install_stubs() -> None:
         bm = types.ModuleType("bonbon_msgs")
         bm_msg = types.ModuleType("bonbon_msgs.msg")
         for name in (
-            "FaceEmotion", "VoiceEmotion", "TextEmotion", "HumanEmotionState",
-            "PersonState", "PersonStateArray", "AudioChunk", "GestureEvent",
-            "SafetyState", "SpeechCommand", "ModuleHealth", "RiskEvent",
-            "SpatialEntity", "SocialNavigationHint",
+            "FaceEmotion",
+            "VoiceEmotion",
+            "TextEmotion",
+            "HumanEmotionState",
+            "PersonState",
+            "PersonStateArray",
+            "AudioChunk",
+            "GestureEvent",
+            "SafetyState",
+            "SpeechCommand",
+            "ModuleHealth",
+            "RiskEvent",
+            "SpatialEntity",
+            "SocialNavigationHint",
         ):
             setattr(bm_msg, name, _msg_class(name))
         bm.msg = bm_msg

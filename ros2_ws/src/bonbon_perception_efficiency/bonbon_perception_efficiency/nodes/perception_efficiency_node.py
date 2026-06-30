@@ -316,9 +316,7 @@ class PerceptionEfficiencyNode(LifecycleNode):
     def _run_cycle(self) -> None:
         res = self._latest_resource
         thermal = self._latest_thermal
-        temp_caution_c = (
-            self.get_parameter("cpu_temp_caution_c").get_parameter_value().double_value
-        )
+        temp_caution_c = self.get_parameter("cpu_temp_caution_c").get_parameter_value().double_value
         inputs = BudgetInputs(
             cpu_overloaded=bool(res.cpu_overloaded) if res else False,
             memory_pressure=bool(res.memory_pressure) if res else False,

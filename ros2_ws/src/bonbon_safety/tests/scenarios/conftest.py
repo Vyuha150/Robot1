@@ -14,8 +14,11 @@ import pytest
 
 _SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 for _pkg in (
-    "bonbon_safety", "bonbon_behavior_engine", "bonbon_actuation",
-    "bonbon_gesture", "bonbon_spatial",
+    "bonbon_safety",
+    "bonbon_behavior_engine",
+    "bonbon_actuation",
+    "bonbon_gesture",
+    "bonbon_spatial",
 ):
     _p = os.path.join(_SRC, _pkg)
     if _p not in sys.path:
@@ -26,4 +29,5 @@ for _pkg in (
 def _deterministic():
     """Seed RNG before every scenario for reproducibility (no flaky tests)."""
     from bonbon_safety.testkit.scenario import seed
+
     seed()

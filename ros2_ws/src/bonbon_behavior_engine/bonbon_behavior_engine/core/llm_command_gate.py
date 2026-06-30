@@ -69,35 +69,45 @@ class GatedCommand:
 
 
 # Patterns for intent extraction from LLM text.
-_SAY_PAT     = re.compile(
+_SAY_PAT = re.compile(
     r'(?:say|speak|tell|announce)\s*[:\-]?\s*["\']?(.+?)["\']?(?:\.|$)',
     re.IGNORECASE,
 )
 _GESTURE_PAT = re.compile(
-    r'\b(wave|nod|nod_yes|shake_no|bow|greet|point_left|point_right|'
-    r'point_forward|invite_gesture|greeting_pose|apology_pose|thinking_pose|'
-    r'listening_pose|rest_pose|stop_gesture)\b',
+    r"\b(wave|nod|nod_yes|shake_no|bow|greet|point_left|point_right|"
+    r"point_forward|invite_gesture|greeting_pose|apology_pose|thinking_pose|"
+    r"listening_pose|rest_pose|stop_gesture)\b",
     re.IGNORECASE,
 )
-_NAV_PAT     = re.compile(
-    r'\b(?:go|navigate|move|travel|head)\s+to\s+(?:the\s+)?(.+?)(?:\.|,|$)',
+_NAV_PAT = re.compile(
+    r"\b(?:go|navigate|move|travel|head)\s+to\s+(?:the\s+)?(.+?)(?:\.|,|$)",
     re.IGNORECASE,
 )
 _APPROACH_PAT = re.compile(
-    r'\b(?:approach|walk\s+up\s+to)\s+(?:the\s+)?(?:person|user|visitor|guest)',
+    r"\b(?:approach|walk\s+up\s+to)\s+(?:the\s+)?(?:person|user|visitor|guest)",
     re.IGNORECASE,
 )
 _CLARIFY_PAT = re.compile(
-    r'\b(?:clarif|unclear|didn\'?t\s+understand|repeat|pardon|come\s+again)\b',
+    r"\b(?:clarif|unclear|didn\'?t\s+understand|repeat|pardon|come\s+again)\b",
     re.IGNORECASE,
 )
 
 # Allowed gesture names (must exist in GestureLibrary)
-_ALLOWED_GESTURES = frozenset({
-    "wave", "nod_yes", "shake_no", "greeting_pose", "apology_pose",
-    "thinking_pose", "listening_pose", "rest_pose", "invite_gesture",
-    "point_left", "point_right",
-})
+_ALLOWED_GESTURES = frozenset(
+    {
+        "wave",
+        "nod_yes",
+        "shake_no",
+        "greeting_pose",
+        "apology_pose",
+        "thinking_pose",
+        "listening_pose",
+        "rest_pose",
+        "invite_gesture",
+        "point_left",
+        "point_right",
+    }
+)
 
 
 class LLMCommandGate:
@@ -155,32 +165,24 @@ class LLMCommandGate:
         if risk.risk_level == "critical":
             self._stats["critical"] += 1
             self._stats["rejected"] += 1
-            _logger.error(
-                "LLM command BLOCKED (critical risk): '%s…'", llm_text[:80]
-            )
+            _logger.error("LLM command BLOCKED (critical risk): '%s…'", llm_text[:80])
             return GatedCommand(
                 allowed=False,
                 proposal_type="alert_operator",
                 proposal_content="LLM produced a forbidden command",
                 risk=risk,
-                rejection_reason=(
-                    f"Critical risk: {'; '.join(risk.reasons[:2])}"
-                ),
+                rejection_reason=(f"Critical risk: {'; '.join(risk.reasons[:2])}"),
             )
 
         if risk.risk_level == "high":
             self._stats["rejected"] += 1
-            _logger.warning(
-                "LLM command BLOCKED (high risk): '%s…'", llm_text[:80]
-            )
+            _logger.warning("LLM command BLOCKED (high risk): '%s…'", llm_text[:80])
             return GatedCommand(
                 allowed=False,
                 proposal_type="ask_clarification",
                 proposal_content="Command requires human operator approval",
                 risk=risk,
-                rejection_reason=(
-                    f"High risk: {'; '.join(risk.reasons[:2])}"
-                ),
+                rejection_reason=(f"High risk: {'; '.join(risk.reasons[:2])}"),
             )
 
         # Attempt intent extraction
@@ -191,7 +193,9 @@ class LLMCommandGate:
         self._stats["approved"] += 1
         _logger.debug(
             "LLM command APPROVED: type=%s risk=%s text='%s…'",
-            proposal_type, risk.risk_level, llm_text[:60],
+            proposal_type,
+            risk.risk_level,
+            llm_text[:60],
         )
 
         return GatedCommand(
@@ -250,7 +254,7 @@ class LLMCommandGate:
         # 5. Fallback — treat whole text as TTS if risk is low/none
         if risk.risk_level in ("none", "low"):
             # Strip surrounding quotes, trim length
-            tts = text.strip('"\'').strip()[: self._max_tts]
+            tts = text.strip("\"'").strip()[: self._max_tts]
             return "speak", tts, tts, ""
 
         return "ask_clarification", "I'm not sure how to help with that.", "", ""

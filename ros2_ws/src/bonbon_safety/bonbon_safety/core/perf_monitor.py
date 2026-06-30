@@ -114,6 +114,7 @@ class LatencyTimer:
 
     def __init__(self, tracker: LatencyTracker, clock: Optional[Clock] = None) -> None:
         import time as _time
+
         self._tracker = tracker
         self._clock = clock or _time.perf_counter
         self._start = 0.0
@@ -131,12 +132,15 @@ class LatencyTimer:
     @classmethod
     def wrap(cls, tracker: LatencyTracker, clock: Optional[Clock] = None):
         """Decorator form: time every call of the wrapped function."""
+
         def deco(fn):
             @functools.wraps(fn)
             def inner(*a, **k):
                 with cls(tracker, clock):
                     return fn(*a, **k)
+
             return inner
+
         return deco
 
 
@@ -174,16 +178,29 @@ def check_budget(tracker: LatencyTracker, budget: PerfBudget) -> BudgetReport:
     """Compare a tracker's measured percentile against its budget."""
     st = tracker.stats()
     observed = {
-        "p50": st.p50_ms, "p95": st.p95_ms, "p99": st.p99_ms,
-        "max": st.max_ms, "mean": st.mean_ms,
+        "p50": st.p50_ms,
+        "p95": st.p95_ms,
+        "p99": st.p99_ms,
+        "max": st.max_ms,
+        "mean": st.mean_ms,
     }.get(budget.metric, st.p95_ms)
     passed = st.count == 0 or observed <= budget.budget_ms
     if not passed:
         log = _logger.error if budget.critical else _logger.warning
-        log("PERF BUDGET EXCEEDED: %s %s=%.1fms > %.1fms (n=%d)",
-            budget.name, budget.metric, observed, budget.budget_ms, st.count)
+        log(
+            "PERF BUDGET EXCEEDED: %s %s=%.1fms > %.1fms (n=%d)",
+            budget.name,
+            budget.metric,
+            observed,
+            budget.budget_ms,
+            st.count,
+        )
     return BudgetReport(
-        name=budget.name, budget_ms=budget.budget_ms, metric=budget.metric,
-        observed_ms=round(observed, 3), passed=passed,
-        critical=budget.critical, samples=st.count,
+        name=budget.name,
+        budget_ms=budget.budget_ms,
+        metric=budget.metric,
+        observed_ms=round(observed, 3),
+        passed=passed,
+        critical=budget.critical,
+        samples=st.count,
     )

@@ -75,8 +75,12 @@ class TestMultiModalFusion:
     def test_no_modalities_produces_neutral_state(self):
         eng = _engine()
         msg = eng.fuse(
-            face=None, voice=None, text=None,
-            gesture_state="none", person_id="p3", tracking_id=3,
+            face=None,
+            voice=None,
+            text=None,
+            gesture_state="none",
+            person_id="p3",
+            tracking_id=3,
         )
         # Should not crash and should not raise an operator alert.
         assert msg.requires_operator_alert is False
@@ -98,9 +102,12 @@ class TestEmergencyOverride:
     def test_fallen_gesture_is_high_priority(self):
         eng = _engine()
         msg = eng.fuse(
-            face=None, voice=None, text=None,
+            face=None,
+            voice=None,
+            text=None,
             gesture_state="fallen_posture",
-            person_id="p5", tracking_id=5,
+            person_id="p5",
+            tracking_id=5,
         )
         # A fallen posture must not be silently ignored — engine should flag it.
         assert msg.recommended_response_style

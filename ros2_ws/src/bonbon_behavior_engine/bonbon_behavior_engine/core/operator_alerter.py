@@ -63,6 +63,7 @@ class OperatorAlerter:
     ) -> None:
         self._cooldown = cooldown_sec
         import time as _time
+
         self._clock = clock or _time.monotonic
         # key → (last_sent_time, last_severity)
         self._last: Dict[Tuple[str, str], Tuple[float, int]] = {}

@@ -69,9 +69,7 @@ class DeepFaceBackend(FaceBackendInterface):
             RuntimeError: If the backend is not ready or DeepFace fails.
         """
         if not self._ready or self._model is None:
-            raise RuntimeError(
-                "DeepFace backend is not ready.  Call warmup() first."
-            )
+            raise RuntimeError("DeepFace backend is not ready.  Call warmup() first.")
 
         try:
             result = self._model.analyze(

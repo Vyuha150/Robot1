@@ -155,10 +155,7 @@ class MediaPipeBackend(GestureBackendInterface):
         """
         if pose_landmarks is None:
             return None
-        return [
-            (lm.x * w, lm.y * h, lm.z, lm.visibility)
-            for lm in pose_landmarks.landmark
-        ]
+        return [(lm.x * w, lm.y * h, lm.z, lm.visibility) for lm in pose_landmarks.landmark]
 
     def _extract_hand(
         self,
@@ -178,10 +175,7 @@ class MediaPipeBackend(GestureBackendInterface):
         """
         if hand_landmarks is None:
             return None
-        return [
-            (lm.x * w, lm.y * h, lm.z)
-            for lm in hand_landmarks.landmark
-        ]
+        return [(lm.x * w, lm.y * h, lm.z) for lm in hand_landmarks.landmark]
 
     def _extract_face(
         self,
@@ -207,9 +201,5 @@ class MediaPipeBackend(GestureBackendInterface):
             return None
         pts = face_landmarks.landmark
         n = len(pts)
-        result = [
-            (pts[i].x * w, pts[i].y * h, pts[i].z)
-            for i in _FACE_KEY_INDICES
-            if i < n
-        ]
+        result = [(pts[i].x * w, pts[i].y * h, pts[i].z) for i in _FACE_KEY_INDICES if i < n]
         return result if result else None

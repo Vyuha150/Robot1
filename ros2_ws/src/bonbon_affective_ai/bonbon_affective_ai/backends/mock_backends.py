@@ -21,24 +21,49 @@ _FACE_EMOTION_CYCLE: list[str] = [
 
 _FACE_SCORES: dict[str, dict] = {
     "neutral": {
-        "anger": 0.02, "disgust": 0.01, "fear": 0.01,
-        "happiness": 0.05, "sadness": 0.03, "surprise": 0.02, "neutral": 0.86,
+        "anger": 0.02,
+        "disgust": 0.01,
+        "fear": 0.01,
+        "happiness": 0.05,
+        "sadness": 0.03,
+        "surprise": 0.02,
+        "neutral": 0.86,
     },
     "happiness": {
-        "anger": 0.02, "disgust": 0.01, "fear": 0.01,
-        "happiness": 0.88, "sadness": 0.02, "surprise": 0.04, "neutral": 0.02,
+        "anger": 0.02,
+        "disgust": 0.01,
+        "fear": 0.01,
+        "happiness": 0.88,
+        "sadness": 0.02,
+        "surprise": 0.04,
+        "neutral": 0.02,
     },
     "sadness": {
-        "anger": 0.03, "disgust": 0.02, "fear": 0.05,
-        "happiness": 0.02, "sadness": 0.82, "surprise": 0.02, "neutral": 0.04,
+        "anger": 0.03,
+        "disgust": 0.02,
+        "fear": 0.05,
+        "happiness": 0.02,
+        "sadness": 0.82,
+        "surprise": 0.02,
+        "neutral": 0.04,
     },
     "anger": {
-        "anger": 0.85, "disgust": 0.05, "fear": 0.02,
-        "happiness": 0.01, "sadness": 0.03, "surprise": 0.02, "neutral": 0.02,
+        "anger": 0.85,
+        "disgust": 0.05,
+        "fear": 0.02,
+        "happiness": 0.01,
+        "sadness": 0.03,
+        "surprise": 0.02,
+        "neutral": 0.02,
     },
     "surprise": {
-        "anger": 0.02, "disgust": 0.01, "fear": 0.05,
-        "happiness": 0.10, "sadness": 0.02, "surprise": 0.76, "neutral": 0.04,
+        "anger": 0.02,
+        "disgust": 0.01,
+        "fear": 0.05,
+        "happiness": 0.10,
+        "sadness": 0.02,
+        "surprise": 0.76,
+        "neutral": 0.04,
     },
 }
 
@@ -120,9 +145,7 @@ class MockVoiceBackend(VoiceBackendInterface):
         if not self._ready:
             raise RuntimeError("MockVoiceBackend not warmed up — call warmup() first.")
 
-        silence: bool = bool(
-            len(audio_array) > 0 and float(np.max(np.abs(audio_array))) < 1e-6
-        )
+        silence: bool = bool(len(audio_array) > 0 and float(np.max(np.abs(audio_array))) < 1e-6)
 
         return {
             "dominant_emotion": "neutral",

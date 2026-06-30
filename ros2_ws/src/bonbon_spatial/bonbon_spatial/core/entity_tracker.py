@@ -24,7 +24,7 @@ class TrackedEntity:
     """Snapshot of a single tracked entity in robot-centric coordinates."""
 
     entity_id: str
-    entity_type: str        # 'person', 'object', 'robot', 'unknown'
+    entity_type: str  # 'person', 'object', 'robot', 'unknown'
     person_id: str
     tracking_id: int
     x: float
@@ -43,7 +43,7 @@ class TrackedEntity:
     @property
     def distance_to_robot(self) -> float:
         """Euclidean distance from entity to robot (robot at frame origin)."""
-        return math.sqrt(self.x ** 2 + self.y ** 2)
+        return math.sqrt(self.x**2 + self.y**2)
 
 
 class EntityTracker:
@@ -90,14 +90,14 @@ class EntityTracker:
         # SpatialEntity.
         if track_id.startswith("person_"):
             try:
-                numeric_id = int(track_id[len("person_"):])
+                numeric_id = int(track_id[len("person_") :])
             except ValueError:
-                numeric_id = abs(hash(track_id)) % (2 ** 31)
+                numeric_id = abs(hash(track_id)) % (2**31)
         else:
             try:
                 numeric_id = int(track_id)
             except ValueError:
-                numeric_id = abs(hash(track_id)) % (2 ** 31)
+                numeric_id = abs(hash(track_id)) % (2**31)
 
         entity_id = f"person_{numeric_id}"
 
@@ -109,15 +109,13 @@ class EntityTracker:
         # PersonState carries a scalar velocity_mps and bearing_deg; decompose
         # into Cartesian components relative to the robot's forward axis (x).
         speed: float = float(getattr(person_state, "velocity_mps", 0.0))
-        bearing_rad: float = math.radians(
-            float(getattr(person_state, "bearing_deg", 0.0))
-        )
+        bearing_rad: float = math.radians(float(getattr(person_state, "bearing_deg", 0.0)))
         # Velocity components in robot frame (x forward, y left).
         vx: float = speed * math.cos(bearing_rad)
         vy: float = speed * math.sin(bearing_rad)
 
         # Approach speed: positive when entity moves toward origin (robot).
-        dist: float = math.sqrt(px ** 2 + py ** 2) or 1e-6
+        dist: float = math.sqrt(px**2 + py**2) or 1e-6
         approach_speed: float = -(px * vx + py * vy) / dist
 
         face_id: str = getattr(person_state, "face_id", "")
@@ -151,11 +149,7 @@ class EntityTracker:
             List of entity_ids that were removed.
         """
         now = time.monotonic()
-        stale = [
-            eid
-            for eid, e in self._entities.items()
-            if now - e.last_seen > self._timeout_sec
-        ]
+        stale = [eid for eid, e in self._entities.items() if now - e.last_seen > self._timeout_sec]
         for eid in stale:
             del self._entities[eid]
             _logger.debug("Evicted stale entity %s", eid)

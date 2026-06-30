@@ -24,13 +24,13 @@ class ProxemicZones:
     extends from the previous threshold up to this value).
     """
 
-    intimate_m: float = 0.45       # 0 – 0.45 m  : intimate zone
-    personal_m: float = 1.2        # 0.45 – 1.2 m: personal zone
-    social_m: float = 3.6          # 1.2 – 3.6 m : social zone
-    public_m: float = 7.6          # 3.6 – 7.6 m : public zone
+    intimate_m: float = 0.45  # 0 – 0.45 m  : intimate zone
+    personal_m: float = 1.2  # 0.45 – 1.2 m: personal zone
+    social_m: float = 3.6  # 1.2 – 3.6 m : social zone
+    public_m: float = 7.6  # 3.6 – 7.6 m : public zone
     # Robot-specific operational distances
-    stop_distance_m: float = 0.6   # must stop when closer than this
-    slow_distance_m: float = 1.5   # reduce speed when closer than this
+    stop_distance_m: float = 0.6  # must stop when closer than this
+    slow_distance_m: float = 1.5  # reduce speed when closer than this
     approach_target_m: float = 1.0  # ideal robot–person interaction distance
 
 
@@ -39,11 +39,11 @@ class SpaceEstimate:
     """Result of a personal-space estimation for a single observed distance."""
 
     distance_m: float
-    zone_name: str            # 'intimate', 'personal', 'social', 'public', 'distant'
+    zone_name: str  # 'intimate', 'personal', 'social', 'public', 'distant'
     is_too_close: bool
     should_slow: bool
     recommended_approach_dist_m: float
-    hint_type: str            # 'stop', 'slow_down', 'keep_distance', 'approach_allowed'
+    hint_type: str  # 'stop', 'slow_down', 'keep_distance', 'approach_allowed'
 
 
 # Multiplier applied to all thresholds for vulnerable person categories.
@@ -70,9 +70,7 @@ class PersonalSpaceEstimator:
         """
         self._zones: ProxemicZones = zones or ProxemicZones()
 
-    def estimate(
-        self, distance_m: float, person_category: str = "adult"
-    ) -> SpaceEstimate:
+    def estimate(self, distance_m: float, person_category: str = "adult") -> SpaceEstimate:
         """Classify a robot–person distance and produce a navigation hint.
 
         Args:
@@ -83,11 +81,7 @@ class PersonalSpaceEstimator:
         Returns:
             A :class:`SpaceEstimate` describing the zone, flags and hint.
         """
-        multiplier = (
-            _VULNERABLE_MULTIPLIER
-            if person_category in _VULNERABLE_CATEGORIES
-            else 1.0
-        )
+        multiplier = _VULNERABLE_MULTIPLIER if person_category in _VULNERABLE_CATEGORIES else 1.0
         stop_d = self._zones.stop_distance_m * multiplier
         slow_d = self._zones.slow_distance_m * multiplier
         approach_d = self._zones.approach_target_m * multiplier
@@ -120,7 +114,10 @@ class PersonalSpaceEstimator:
 
         _logger.debug(
             "Proxemics: dist=%.2f zone=%s hint=%s (category=%s)",
-            distance_m, zone, hint, person_category,
+            distance_m,
+            zone,
+            hint,
+            person_category,
         )
         return SpaceEstimate(
             distance_m=distance_m,
@@ -152,7 +149,7 @@ class PersonalSpaceEstimator:
             A tuple ``(x, y, yaw)`` for the approach pose.  Returns
             ``(0.0, 0.0, 0.0)`` when the person is at the origin.
         """
-        dist = math.sqrt(person_x ** 2 + person_y ** 2)
+        dist = math.sqrt(person_x**2 + person_y**2)
         if dist < 1e-6:
             _logger.debug("compute_approach_pose: person at origin, returning fallback")
             return (0.0, 0.0, 0.0)
@@ -170,6 +167,11 @@ class PersonalSpaceEstimator:
 
         _logger.debug(
             "Approach pose: person=(%.2f,%.2f) target_dist=%.2f -> pose=(%.2f,%.2f,%.3f rad)",
-            person_x, person_y, target_dist_m, target_x, target_y, yaw,
+            person_x,
+            person_y,
+            target_dist_m,
+            target_x,
+            target_y,
+            yaw,
         )
         return (target_x, target_y, yaw)

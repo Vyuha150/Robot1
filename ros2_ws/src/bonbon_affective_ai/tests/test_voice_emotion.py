@@ -69,6 +69,7 @@ class _FakeClock:
         class _T:
             def to_msg(self):
                 return None
+
         return _T()
 
 
@@ -86,9 +87,7 @@ class TestVoiceEmotionAnalyzer(unittest.TestCase):
             voice_confidence_threshold=0.5,
         )
         self.privacy = PrivacyGate(self.config)
-        self.analyzer = VoiceEmotionAnalyzer(
-            self.config, self.backend, self.privacy, _FakeClock()
-        )
+        self.analyzer = VoiceEmotionAnalyzer(self.config, self.backend, self.privacy, _FakeClock())
 
     def _silent_audio(self, duration_sec: float = 1.0) -> np.ndarray:
         """Return a silent (zero) PCM array of the given duration."""
@@ -104,6 +103,7 @@ class TestVoiceEmotionAnalyzer(unittest.TestCase):
     def test_returns_voice_emotion_message(self) -> None:
         """A VoiceEmotion message is returned for a 1-second silent array."""
         from bonbon_msgs.msg import VoiceEmotion
+
         msg = self.analyzer.analyze_segment(self._silent_audio(1.0), self._SR)
         self.assertIsNotNone(msg)
         self.assertIsInstance(msg, VoiceEmotion)
@@ -157,6 +157,7 @@ class TestVoiceEmotionAnalyzer(unittest.TestCase):
     def test_event_id_is_uuid(self) -> None:
         """event_id is a valid UUID."""
         import uuid
+
         msg = self.analyzer.analyze_segment(self._noisy_audio(1.0), self._SR)
         uuid.UUID(msg.event_id)
 
@@ -194,9 +195,7 @@ class TestVoiceEmotionAnalyzer(unittest.TestCase):
     def test_unwarmed_backend_returns_failed_msg(self) -> None:
         """Unwarmed backend produces model_failed=True."""
         fresh = MockVoiceBackend()
-        analyzer = VoiceEmotionAnalyzer(
-            self.config, fresh, self.privacy, _FakeClock()
-        )
+        analyzer = VoiceEmotionAnalyzer(self.config, fresh, self.privacy, _FakeClock())
         msg = analyzer.analyze_segment(self._noisy_audio(1.0), self._SR)
         self.assertIsNotNone(msg)
         self.assertTrue(msg.model_failed)
@@ -207,8 +206,14 @@ class TestVoiceEmotionAnalyzer(unittest.TestCase):
         """Individual score fields are float values in [0.0, 1.0]."""
         msg = self.analyzer.analyze_segment(self._noisy_audio(1.0), self._SR)
         for field in (
-            "neutral_score", "happy_score", "sad_score", "angry_score",
-            "fearful_score", "stressed_score", "calm_score", "urgent_score",
+            "neutral_score",
+            "happy_score",
+            "sad_score",
+            "angry_score",
+            "fearful_score",
+            "stressed_score",
+            "calm_score",
+            "urgent_score",
             "confused_score",
         ):
             val = getattr(msg, field)

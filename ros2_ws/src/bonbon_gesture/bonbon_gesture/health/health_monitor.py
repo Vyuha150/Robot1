@@ -102,11 +102,7 @@ class GestureHealthMonitor:
     @property
     def is_healthy(self) -> bool:
         """True when no critical fault conditions are active."""
-        return (
-            self._backend_ready
-            and self._enabled
-            and self._consecutive_failures < 5
-        )
+        return self._backend_ready and self._enabled and self._consecutive_failures < 5
 
     @property
     def warnings(self) -> List[str]:

@@ -75,8 +75,8 @@ class TestEscalation:
 class TestTelemetry:
     def test_counters(self):
         a = OperatorAlerter(cooldown_sec=100.0)
-        a.request("t", SEVERITY_MEDIUM, "s", "d")   # sent
-        a.request("t", SEVERITY_MEDIUM, "s", "d")   # suppressed
+        a.request("t", SEVERITY_MEDIUM, "s", "d")  # sent
+        a.request("t", SEVERITY_MEDIUM, "s", "d")  # suppressed
         assert a.total_requested == 2
         assert a.total_sent == 1
         assert a.total_suppressed == 1

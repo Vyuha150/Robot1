@@ -294,7 +294,9 @@ class MultiPersonTrackerNode(LifecycleNode):
         # Not trustworthy once the underlying detection is gone — the raw
         # vision-pipeline ID may already have been reassigned to someone else.
         msg.raw_track_id = (
-            "" if rec.lifecycle_state in (PersonLifecycleState.TEMPORARILY_LOST, PersonLifecycleState.LEFT_SCENE)
+            ""
+            if rec.lifecycle_state
+            in (PersonLifecycleState.TEMPORARILY_LOST, PersonLifecycleState.LEFT_SCENE)
             else rec.raw_track_id
         )
 

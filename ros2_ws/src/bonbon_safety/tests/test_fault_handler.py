@@ -21,6 +21,7 @@ class _Clock:
 
 # ── Watchdog ─────────────────────────────────────────────────────────────────
 
+
 class TestWatchdog:
     def test_unpetted_is_stale(self):
         wd = Watchdog(timeout_sec=1.0, clock=_Clock())
@@ -52,29 +53,39 @@ class TestWatchdog:
 
 # ── RecoveryPolicy ─────────────────────────────────────────────────────────────
 
+
 class TestRecoveryPolicy:
     def test_backoff_grows_and_caps(self):
         p = RecoveryPolicy(backoff_sec=0.5, backoff_mult=2.0, max_backoff_sec=3.0)
         assert p.delay_for_attempt(1) == 0.5
         assert p.delay_for_attempt(2) == 1.0
         assert p.delay_for_attempt(3) == 2.0
-        assert p.delay_for_attempt(4) == 3.0   # capped
+        assert p.delay_for_attempt(4) == 3.0  # capped
         assert p.delay_for_attempt(0) == 0.0
 
 
 # ── FaultHandler pipeline ──────────────────────────────────────────────────────
 
+
 def _defs():
     return {
         "X": FaultDefinition(
-            fault_id="X", module="m", detection="d",
-            level=FallbackLevel.DEGRADED, recovery="r", user_facing="u",
+            fault_id="X",
+            module="m",
+            detection="d",
+            level=FallbackLevel.DEGRADED,
+            recovery="r",
+            user_facing="u",
             operator_alert=False,
             policy=RecoveryPolicy(max_attempts=2, terminal_level=FallbackLevel.SAFE_STOP),
         ),
         "CRIT": FaultDefinition(
-            fault_id="CRIT", module="m", detection="d",
-            level=FallbackLevel.SAFE_STOP, recovery="r", user_facing="u",
+            fault_id="CRIT",
+            module="m",
+            detection="d",
+            level=FallbackLevel.SAFE_STOP,
+            recovery="r",
+            user_facing="u",
             operator_alert=True,
         ),
     }
@@ -119,14 +130,14 @@ class TestFaultHandler:
     def test_failed_recovery_escalates_after_attempts(self):
         escalations = []
         diags = []
-        h = FaultHandler(_defs(), escalation_sink=escalations.append,
-                         diagnostic_sink=diags.append)
+        h = FaultHandler(_defs(), escalation_sink=escalations.append, diagnostic_sink=diags.append)
         h.raise_fault("X")
         h.register_recovery("X", lambda: False)
-        assert h.attempt_recovery("X") is False   # attempt 1
-        assert h.attempt_recovery("X") is False   # attempt 2 (== max) → escalate
-        assert any(e.phase == "escalated" and e.level == FallbackLevel.SAFE_STOP
-                   for e in escalations)
+        assert h.attempt_recovery("X") is False  # attempt 1
+        assert h.attempt_recovery("X") is False  # attempt 2 (== max) → escalate
+        assert any(
+            e.phase == "escalated" and e.level == FallbackLevel.SAFE_STOP for e in escalations
+        )
 
     def test_recovery_exception_counts_as_failure(self):
         h = FaultHandler(_defs())
@@ -137,8 +148,8 @@ class TestFaultHandler:
 
     def test_current_level_is_most_severe(self):
         h = FaultHandler(_defs())
-        h.raise_fault("X")       # DEGRADED
-        h.raise_fault("CRIT")    # SAFE_STOP
+        h.raise_fault("X")  # DEGRADED
+        h.raise_fault("CRIT")  # SAFE_STOP
         assert h.current_level() == FallbackLevel.SAFE_STOP
         h.clear_fault("CRIT")
         assert h.current_level() == FallbackLevel.DEGRADED

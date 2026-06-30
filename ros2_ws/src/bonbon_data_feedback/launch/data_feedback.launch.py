@@ -60,10 +60,12 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
-    return LaunchDescription([
-        log_level_arg,
-        debug_mode_arg,
-        feedback_node,
-        configure_event,
-        on_configured,
-    ])
+    return LaunchDescription(
+        [
+            log_level_arg,
+            debug_mode_arg,
+            feedback_node,
+            configure_event,
+            on_configured,
+        ]
+    )

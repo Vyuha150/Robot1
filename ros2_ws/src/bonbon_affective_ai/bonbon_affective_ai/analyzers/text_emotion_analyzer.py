@@ -14,55 +14,159 @@ logger = logging.getLogger(__name__)
 
 # ── Keyword sets ──────────────────────────────────────────────────────────────
 
-EMERGENCY_KEYWORDS: frozenset[str] = frozenset({
-    "help", "emergency", "fallen", "fall", "fell", "hurt", "pain",
-    "call nurse", "call doctor", "i need help", "dying", "can't breathe",
-    "chest pain", "unconscious",
-})
+EMERGENCY_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "help",
+        "emergency",
+        "fallen",
+        "fall",
+        "fell",
+        "hurt",
+        "pain",
+        "call nurse",
+        "call doctor",
+        "i need help",
+        "dying",
+        "can't breathe",
+        "chest pain",
+        "unconscious",
+    }
+)
 
-DISTRESS_KEYWORDS: frozenset[str] = frozenset({
-    "upset", "worried", "scared", "frightened", "anxious", "terrible",
-    "awful", "miserable", "crying", "sobbing", "desperate", "hopeless",
-})
+DISTRESS_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "upset",
+        "worried",
+        "scared",
+        "frightened",
+        "anxious",
+        "terrible",
+        "awful",
+        "miserable",
+        "crying",
+        "sobbing",
+        "desperate",
+        "hopeless",
+    }
+)
 
-ANGER_KEYWORDS: frozenset[str] = frozenset({
-    "angry", "furious", "ridiculous", "unacceptable", "complaint",
-    "awful service", "outraged", "disgusting", "infuriated", "incompetent",
-    "demand", "demanding",
-})
+ANGER_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "angry",
+        "furious",
+        "ridiculous",
+        "unacceptable",
+        "complaint",
+        "awful service",
+        "outraged",
+        "disgusting",
+        "infuriated",
+        "incompetent",
+        "demand",
+        "demanding",
+    }
+)
 
-CONFUSION_KEYWORDS: frozenset[str] = frozenset({
-    "confused", "don't understand", "what do you mean", "how do i",
-    "i don't know", "unclear", "lost", "bewildered", "not sure",
-    "could you explain", "what is", "which way",
-})
+CONFUSION_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "confused",
+        "don't understand",
+        "what do you mean",
+        "how do i",
+        "i don't know",
+        "unclear",
+        "lost",
+        "bewildered",
+        "not sure",
+        "could you explain",
+        "what is",
+        "which way",
+    }
+)
 
-GRATITUDE_KEYWORDS: frozenset[str] = frozenset({
-    "thank you", "thanks", "appreciate", "grateful", "wonderful",
-    "excellent", "brilliant", "fantastic", "so kind", "lovely",
-    "great job", "well done",
-})
+GRATITUDE_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "thank you",
+        "thanks",
+        "appreciate",
+        "grateful",
+        "wonderful",
+        "excellent",
+        "brilliant",
+        "fantastic",
+        "so kind",
+        "lovely",
+        "great job",
+        "well done",
+    }
+)
 
-MEDICAL_KEYWORDS: frozenset[str] = frozenset({
-    "doctor", "nurse", "medicine", "hospital", "ward", "prescription",
-    "pill", "pills", "injection", "sick", "ill", "medication", "dosage",
-    "treatment", "symptom", "symptoms",
-})
+MEDICAL_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "doctor",
+        "nurse",
+        "medicine",
+        "hospital",
+        "ward",
+        "prescription",
+        "pill",
+        "pills",
+        "injection",
+        "sick",
+        "ill",
+        "medication",
+        "dosage",
+        "treatment",
+        "symptom",
+        "symptoms",
+    }
+)
 
-SAFETY_KEYWORDS: frozenset[str] = frozenset({
-    "fire", "smoke", "flood", "gas leak", "alarm", "evacuation",
-    "call police", "intruder", "danger", "unsafe",
-})
+SAFETY_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "fire",
+        "smoke",
+        "flood",
+        "gas leak",
+        "alarm",
+        "evacuation",
+        "call police",
+        "intruder",
+        "danger",
+        "unsafe",
+    }
+)
 
-COMPLAINT_KEYWORDS: frozenset[str] = frozenset({
-    "complaint", "complain", "not happy", "disappointed", "broken",
-    "not working", "problem with", "issue with", "should be", "poor",
-})
+COMPLAINT_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "complaint",
+        "complain",
+        "not happy",
+        "disappointed",
+        "broken",
+        "not working",
+        "problem with",
+        "issue with",
+        "should be",
+        "poor",
+    }
+)
 
-REQUEST_KEYWORDS: frozenset[str] = frozenset({
-    "please", "can you", "could you", "would you", "i need", "i want",
-    "bring me", "show me", "help me", "find me", "take me",
-})
+REQUEST_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "please",
+        "can you",
+        "could you",
+        "would you",
+        "i need",
+        "i want",
+        "bring me",
+        "show me",
+        "help me",
+        "find me",
+        "take me",
+    }
+)
 
 
 def _score_keywords(text_lower: str, keywords: frozenset[str]) -> float:
@@ -143,10 +247,7 @@ class TextEmotionAnalyzer:
 
         scores: Dict[str, float] = self._score_rules(text)
 
-        if (
-            self._config.text_backend == "transformer"
-            and self._transformer_pipeline is not None
-        ):
+        if self._config.text_backend == "transformer" and self._transformer_pipeline is not None:
             scores = self._merge_transformer(text, scores)
 
         return self._build_msg(text, scores, person_id, tracking_id)
@@ -196,17 +297,14 @@ class TextEmotionAnalyzer:
             self._backend_label = "transformer"
         except ImportError:
             logger.warning(
-                "transformers package not installed.  "
-                "Falling back to rule-based text analysis."
+                "transformers package not installed.  " "Falling back to rule-based text analysis."
             )
             self._backend_label = "rules"
         except Exception as exc:
             logger.warning("Transformer load failed: %s.  Using rules.", exc)
             self._backend_label = "rules"
 
-    def _merge_transformer(
-        self, text: str, rule_scores: Dict[str, float]
-    ) -> Dict[str, float]:
+    def _merge_transformer(self, text: str, rule_scores: Dict[str, float]) -> Dict[str, float]:
         """Merge transformer output into rule scores with equal weighting.
 
         Args:
@@ -227,13 +325,9 @@ class TextEmotionAnalyzer:
                     if label in rule_scores:
                         rule_scores[label] = (rule_scores[label] + score) / 2.0
                     elif label == "joy":
-                        rule_scores["gratitude"] = max(
-                            rule_scores.get("gratitude", 0.0), score
-                        )
+                        rule_scores["gratitude"] = max(rule_scores.get("gratitude", 0.0), score)
                     elif label == "sadness":
-                        rule_scores["distress"] = max(
-                            rule_scores.get("distress", 0.0), score
-                        )
+                        rule_scores["distress"] = max(rule_scores.get("distress", 0.0), score)
         except Exception as exc:
             logger.debug("Transformer inference failed: %s", exc)
         return rule_scores
@@ -263,8 +357,15 @@ class TextEmotionAnalyzer:
         # Determine dominant category.
         # Emergency always wins if its score is > 0.
         score_order: list[str] = [
-            "emergency", "distress", "safety", "medical",
-            "anger", "confusion", "complaint", "gratitude", "request",
+            "emergency",
+            "distress",
+            "safety",
+            "medical",
+            "anger",
+            "confusion",
+            "complaint",
+            "gratitude",
+            "request",
         ]
         dominant: str = "neutral"
         dominant_conf: float = 0.0

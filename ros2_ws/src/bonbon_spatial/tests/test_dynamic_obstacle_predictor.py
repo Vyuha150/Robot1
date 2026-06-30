@@ -62,9 +62,9 @@ class TestPredictAllOrdering:
     def test_highest_risk_first(self):
         pred = DynamicObstaclePredictor(horizon_sec=3.0)
         entities = [
-            _E("far", 5.0, 0.0, 0.0, 0.0),          # none
-            _E("approach", 2.0, 0.0, -1.0, 0.0),    # high
-            _E("cross", 1.5, 0.8, -0.4, 0.0),       # medium
+            _E("far", 5.0, 0.0, 0.0, 0.0),  # none
+            _E("approach", 2.0, 0.0, -1.0, 0.0),  # high
+            _E("cross", 1.5, 0.8, -0.4, 0.0),  # medium
         ]
         preds = pred.predict_all(entities)
         assert preds[0].entity_id == "approach"

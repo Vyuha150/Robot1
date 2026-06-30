@@ -65,8 +65,12 @@ class TestRegistryUsableByHandler:
     def test_handler_accepts_full_catalog(self):
         handler = FaultHandler(build_catalog())
         # A representative fault from each category can be raised + cleared.
-        for fid in ("SENSOR_LIDAR_DISCONNECT", "AI_LLM_UNSAFE_PROPOSAL",
-                    "ACT_SERVO_STUCK", "SYS_NODE_CRASH"):
+        for fid in (
+            "SENSOR_LIDAR_DISCONNECT",
+            "AI_LLM_UNSAFE_PROPOSAL",
+            "ACT_SERVO_STUCK",
+            "SYS_NODE_CRASH",
+        ):
             handler.raise_fault(fid, "test")
             assert handler.is_active(fid)
             handler.clear_fault(fid)

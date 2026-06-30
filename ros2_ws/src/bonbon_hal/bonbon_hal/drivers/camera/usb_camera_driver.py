@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import cv2  # type: ignore[import]
+
     _HAS_CV2 = True
 except Exception:  # noqa: BLE001
     _HAS_CV2 = False
@@ -64,7 +65,8 @@ class UsbCameraDriver(CameraDriver):
         if not _HAS_CV2:
             raise DriverFault(
                 "OpenCV (cv2) not installed — install with: pip install opencv-python-headless",
-                "SDK_MISSING", recoverable=False,
+                "SDK_MISSING",
+                recoverable=False,
             )
         # Prefer the V4L2 backend on Linux (Raspberry Pi); fall back to ANY.
         backend = getattr(cv2, "CAP_V4L2", 0)
@@ -74,7 +76,8 @@ class UsbCameraDriver(CameraDriver):
         if not cap or not cap.isOpened():
             raise DriverFault(
                 f"could not open camera device {self._device!r}",
-                "DEVICE_OPEN_FAILED", recoverable=True,
+                "DEVICE_OPEN_FAILED",
+                recoverable=True,
             )
         try:
             if self._fourcc:
@@ -102,8 +105,11 @@ class UsbCameraDriver(CameraDriver):
         self._cap = cap
         self._consecutive_failures = 0
         logger.info(
-            "USB camera connected: device=%s %dx%d @ %d fps", self._device,
-            self.width, self.height, self.fps,
+            "USB camera connected: device=%s %dx%d @ %d fps",
+            self._device,
+            self.width,
+            self.height,
+            self.fps,
         )
         return True
 
@@ -126,13 +132,17 @@ class UsbCameraDriver(CameraDriver):
             if self._consecutive_failures >= 5:
                 raise DriverFault(
                     "camera returned no frame 5x — likely disconnected",
-                    "FRAME_READ_FAILED", recoverable=True,
+                    "FRAME_READ_FAILED",
+                    recoverable=True,
                 )
             return (None, None)
         self._consecutive_failures = 0
         h, w = frame.shape[0], frame.shape[1]
         color = ColorFrame(
-            width=w, height=h, data=frame.tobytes(), encoding="bgr8",
+            width=w,
+            height=h,
+            data=frame.tobytes(),
+            encoding="bgr8",
             timestamp=time.monotonic(),
         )
         return (color, None)  # monocular USB cam → no depth
@@ -143,7 +153,10 @@ class UsbCameraDriver(CameraDriver):
         fx = (self.width / 2.0) / math.tan(math.radians(self._hfov_deg) / 2.0)
         fy = fx  # assume square pixels
         return {
-            "fx": fx, "fy": fy,
-            "cx": self.width / 2.0, "cy": self.height / 2.0,
-            "width": self.width, "height": self.height,
+            "fx": fx,
+            "fy": fy,
+            "cx": self.width / 2.0,
+            "cy": self.height / 2.0,
+            "width": self.width,
+            "height": self.height,
         }

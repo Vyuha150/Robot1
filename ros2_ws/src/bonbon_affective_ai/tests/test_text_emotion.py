@@ -64,6 +64,7 @@ class _FakeClock:
         class _T:
             def to_msg(self):
                 return None
+
         return _T()
 
 
@@ -185,6 +186,7 @@ class TestTextEmotionAnalyzer(unittest.TestCase):
     def test_event_id_is_uuid(self) -> None:
         """event_id is a valid UUID."""
         import uuid
+
         msg = self._analyze("Hello")
         uuid.UUID(msg.event_id)
 

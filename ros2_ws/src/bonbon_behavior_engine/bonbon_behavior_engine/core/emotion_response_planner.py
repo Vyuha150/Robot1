@@ -129,12 +129,12 @@ _DEFAULT_PLAN = ResponsePlan(
 # Operating mode adjustments
 _MODE_GESTURE_OVERRIDE: Dict[str, str] = {
     "child_safe": "greeting_pose",
-    "elderly":    "listening_pose",
-    "demo":       "wave",
+    "elderly": "listening_pose",
+    "demo": "wave",
 }
 _MODE_SPEED_OVERRIDE: Dict[str, float] = {
     "child_safe": 0.85,
-    "elderly":    0.8,
+    "elderly": 0.8,
 }
 
 
@@ -179,7 +179,8 @@ class EmotionAwareResponsePlanner:
         if emotion_confidence < 0.35:
             _logger.debug(
                 "Low confidence (%.2f) for emotion '%s' — using neutral plan.",
-                emotion_confidence, dominant_emotion,
+                emotion_confidence,
+                dominant_emotion,
             )
             base = _EMOTION_PLANS["neutral"]
         else:
@@ -187,7 +188,7 @@ class EmotionAwareResponsePlanner:
 
         # Apply operating mode overrides
         gesture = _MODE_GESTURE_OVERRIDE.get(operating_mode, base.gesture_name)
-        speed   = _MODE_SPEED_OVERRIDE.get(operating_mode, base.tts_speed_scale)
+        speed = _MODE_SPEED_OVERRIDE.get(operating_mode, base.tts_speed_scale)
 
         return ResponsePlan(
             gesture_name=gesture,

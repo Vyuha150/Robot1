@@ -32,9 +32,9 @@ from dataclasses import dataclass
 _logger = logging.getLogger(__name__)
 
 # Distance bands (metres) at which arm motion is derated.
-STOP_DISTANCE_M = 0.45      # closer than this → freeze large motion
-SLOW_DISTANCE_M = 1.0       # closer than this → heavily derate
-CAUTION_DISTANCE_M = 2.0    # closer than this → mild derate
+STOP_DISTANCE_M = 0.45  # closer than this → freeze large motion
+SLOW_DISTANCE_M = 1.0  # closer than this → heavily derate
+CAUTION_DISTANCE_M = 2.0  # closer than this → mild derate
 
 # Per-mode global speed caps.
 _MODE_SPEED_CAP = {
@@ -56,9 +56,9 @@ _VULNERABLE_STOP_MULT = 1.4
 class ProximityDecision:
     """Result of a proximity evaluation."""
 
-    speed_scale: float          # multiplier in (0, 1]
-    block_large_motion: bool    # True → suppress arm-sweeping gestures
-    reason: str                 # explanation for logs / diagnostics
+    speed_scale: float  # multiplier in (0, 1]
+    block_large_motion: bool  # True → suppress arm-sweeping gestures
+    reason: str  # explanation for logs / diagnostics
 
 
 class ProximityGovernor:

@@ -51,12 +51,8 @@ class HeadGestureClassifier:
     def __init__(self, config: GestureConfig) -> None:
         self._config = config
         history_len = max(6, config.temporal_window * 2)
-        self._nose_y_history: Dict[int, deque] = defaultdict(
-            lambda: deque(maxlen=history_len)
-        )
-        self._nose_x_history: Dict[int, deque] = defaultdict(
-            lambda: deque(maxlen=history_len)
-        )
+        self._nose_y_history: Dict[int, deque] = defaultdict(lambda: deque(maxlen=history_len))
+        self._nose_x_history: Dict[int, deque] = defaultdict(lambda: deque(maxlen=history_len))
 
     # ------------------------------------------------------------------
     # Public API
@@ -147,10 +143,6 @@ class HeadGestureClassifier:
         """
         vals = list(history)
         diffs = [vals[i + 1] - vals[i] for i in range(len(vals) - 1)]
-        sign_changes = sum(
-            1
-            for i in range(len(diffs) - 1)
-            if diffs[i] * diffs[i + 1] < -0.5
-        )
+        sign_changes = sum(1 for i in range(len(diffs) - 1) if diffs[i] * diffs[i + 1] < -0.5)
         total_range = max(vals) - min(vals)
         return sign_changes >= _MIN_SIGN_CHANGES and total_range > _SHAKE_AMPLITUDE_PX

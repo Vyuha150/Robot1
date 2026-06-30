@@ -22,10 +22,11 @@ class TestSnapshot:
     def test_read_failure_is_safe(self):
         def boom():
             raise RuntimeError("sensor gone")
+
         m = ResourceMonitor(reader=boom)
         s = m.sample()
         assert s.available is False
-        assert s.cpu_percent == 0.0   # safe fallback, no crash
+        assert s.cpu_percent == 0.0  # safe fallback, no crash
 
 
 class TestFlags:

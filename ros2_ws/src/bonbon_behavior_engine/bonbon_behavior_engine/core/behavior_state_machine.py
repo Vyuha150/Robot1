@@ -28,57 +28,71 @@ _logger = logging.getLogger(__name__)
 
 
 class BehaviorState(IntEnum):
-    IDLE        = 0
-    GREETING    = 1
+    IDLE = 0
+    GREETING = 1
     INTERACTING = 2
-    NAVIGATING  = 3
-    SERVING     = 4
-    ALERTING    = 5
-    RETURNING   = 6
+    NAVIGATING = 3
+    SERVING = 4
+    ALERTING = 5
+    RETURNING = 6
 
 
 # Legal transitions: from → {allowed targets}
 _TRANSITIONS: Dict[BehaviorState, FrozenSet[BehaviorState]] = {
-    BehaviorState.IDLE:        frozenset({
-        BehaviorState.GREETING,
-        BehaviorState.NAVIGATING,
-        BehaviorState.SERVING,
-        BehaviorState.ALERTING,
-        BehaviorState.RETURNING,
-    }),
-    BehaviorState.GREETING:    frozenset({
-        BehaviorState.IDLE,
-        BehaviorState.INTERACTING,
-        BehaviorState.ALERTING,
-    }),
-    BehaviorState.INTERACTING: frozenset({
-        BehaviorState.IDLE,
-        BehaviorState.NAVIGATING,
-        BehaviorState.SERVING,
-        BehaviorState.ALERTING,
-    }),
-    BehaviorState.NAVIGATING:  frozenset({
-        BehaviorState.IDLE,
-        BehaviorState.INTERACTING,
-        BehaviorState.SERVING,
-        BehaviorState.ALERTING,
-        BehaviorState.RETURNING,
-    }),
-    BehaviorState.SERVING:     frozenset({
-        BehaviorState.IDLE,
-        BehaviorState.INTERACTING,
-        BehaviorState.NAVIGATING,
-        BehaviorState.ALERTING,
-        BehaviorState.RETURNING,
-    }),
-    BehaviorState.ALERTING:    frozenset({
-        BehaviorState.IDLE,
-        BehaviorState.RETURNING,
-    }),
-    BehaviorState.RETURNING:   frozenset({
-        BehaviorState.IDLE,
-        BehaviorState.ALERTING,
-    }),
+    BehaviorState.IDLE: frozenset(
+        {
+            BehaviorState.GREETING,
+            BehaviorState.NAVIGATING,
+            BehaviorState.SERVING,
+            BehaviorState.ALERTING,
+            BehaviorState.RETURNING,
+        }
+    ),
+    BehaviorState.GREETING: frozenset(
+        {
+            BehaviorState.IDLE,
+            BehaviorState.INTERACTING,
+            BehaviorState.ALERTING,
+        }
+    ),
+    BehaviorState.INTERACTING: frozenset(
+        {
+            BehaviorState.IDLE,
+            BehaviorState.NAVIGATING,
+            BehaviorState.SERVING,
+            BehaviorState.ALERTING,
+        }
+    ),
+    BehaviorState.NAVIGATING: frozenset(
+        {
+            BehaviorState.IDLE,
+            BehaviorState.INTERACTING,
+            BehaviorState.SERVING,
+            BehaviorState.ALERTING,
+            BehaviorState.RETURNING,
+        }
+    ),
+    BehaviorState.SERVING: frozenset(
+        {
+            BehaviorState.IDLE,
+            BehaviorState.INTERACTING,
+            BehaviorState.NAVIGATING,
+            BehaviorState.ALERTING,
+            BehaviorState.RETURNING,
+        }
+    ),
+    BehaviorState.ALERTING: frozenset(
+        {
+            BehaviorState.IDLE,
+            BehaviorState.RETURNING,
+        }
+    ),
+    BehaviorState.RETURNING: frozenset(
+        {
+            BehaviorState.IDLE,
+            BehaviorState.ALERTING,
+        }
+    ),
 }
 
 
@@ -104,7 +118,7 @@ class BehaviorStateMachine:
     def __init__(self) -> None:
         self._state: BehaviorState = BehaviorState.IDLE
         self._history: List[StateEntry] = [StateEntry(BehaviorState.IDLE, reason="init")]
-        self._listeners: List = []   # callbacks(new_state, old_state, reason)
+        self._listeners: List = []  # callbacks(new_state, old_state, reason)
 
     # ------------------------------------------------------------------
     # Transitions
@@ -127,7 +141,9 @@ class BehaviorStateMachine:
         if target not in allowed:
             _logger.warning(
                 "Illegal state transition: %s → %s (reason: %s)",
-                self._state.name, target.name, reason,
+                self._state.name,
+                target.name,
+                reason,
             )
             return False
 
@@ -138,7 +154,9 @@ class BehaviorStateMachine:
 
         _logger.info(
             "Behavior state: %s → %s (%s)",
-            old.name, target.name, reason or "—",
+            old.name,
+            target.name,
+            reason or "—",
         )
 
         for cb in self._listeners:
@@ -156,7 +174,9 @@ class BehaviorStateMachine:
         self._history.append(StateEntry(state=target, reason=f"[FORCED] {reason}"))
         _logger.warning(
             "Forced behavior state: %s → %s (%s)",
-            old.name, target.name, reason,
+            old.name,
+            target.name,
+            reason,
         )
 
     # ------------------------------------------------------------------

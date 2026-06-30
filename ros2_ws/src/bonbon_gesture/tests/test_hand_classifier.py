@@ -24,6 +24,7 @@ from bonbon_gesture.classifiers.hand_gesture_classifier import HandGestureClassi
 # Landmark builders
 # ---------------------------------------------------------------------------
 
+
 def _closed_fist(cx: float = 320.0, cy: float = 240.0) -> List[Tuple[float, float, float]]:
     """21-point closed fist: all fingertips below PIPs."""
     pts: List[Tuple[float, float, float]] = []
@@ -63,26 +64,30 @@ def _pointing_hand(cx: float = 320.0, cy: float = 240.0) -> List[Tuple[float, fl
     return pts
 
 
-def _thumbs_up_hand(cx: float = 320.0, cy: float = 240.0, is_right: bool = True) -> List[Tuple[float, float, float]]:
+def _thumbs_up_hand(
+    cx: float = 320.0, cy: float = 240.0, is_right: bool = True
+) -> List[Tuple[float, float, float]]:
     """Thumb extended upward, all four fingers curled (realistic thumbs-up)."""
     pts = _closed_fist(cx, cy)
-    pts[0] = (cx, cy, 0.0)                                       # wrist
-    pts[9] = (cx, cy - 18, 0.0)                                  # middle_mcp (palm-size ref)
-    pts[3] = (cx - 12 if is_right else cx + 12, cy - 20, 0.0)    # thumb IP
-    pts[4] = (cx - 20 if is_right else cx + 20, cy - 50, 0.0)    # thumb tip well above wrist
+    pts[0] = (cx, cy, 0.0)  # wrist
+    pts[9] = (cx, cy - 18, 0.0)  # middle_mcp (palm-size ref)
+    pts[3] = (cx - 12 if is_right else cx + 12, cy - 20, 0.0)  # thumb IP
+    pts[4] = (cx - 20 if is_right else cx + 20, cy - 50, 0.0)  # thumb tip well above wrist
     # All four fingers (incl. middle) curled: tip below its PIP.
     for tip, pip_idx in [(8, 6), (12, 10), (16, 14), (20, 18)]:
         pts[tip] = (pts[tip][0], pts[pip_idx][1] + 12, 0.0)
     return pts
 
 
-def _thumbs_down_hand(cx: float = 320.0, cy: float = 240.0, is_right: bool = True) -> List[Tuple[float, float, float]]:
+def _thumbs_down_hand(
+    cx: float = 320.0, cy: float = 240.0, is_right: bool = True
+) -> List[Tuple[float, float, float]]:
     """Thumb pointing downward, all four fingers curled (realistic thumbs-down)."""
     pts = _closed_fist(cx, cy)
-    pts[0] = (cx, cy, 0.0)                                       # wrist
-    pts[9] = (cx, cy - 18, 0.0)                                  # middle_mcp (palm-size ref)
-    pts[3] = (cx - 10 if is_right else cx + 10, cy + 20, 0.0)    # thumb IP
-    pts[4] = (cx - 18 if is_right else cx + 18, cy + 55, 0.0)    # thumb tip well below wrist
+    pts[0] = (cx, cy, 0.0)  # wrist
+    pts[9] = (cx, cy - 18, 0.0)  # middle_mcp (palm-size ref)
+    pts[3] = (cx - 10 if is_right else cx + 10, cy + 20, 0.0)  # thumb IP
+    pts[4] = (cx - 18 if is_right else cx + 18, cy + 55, 0.0)  # thumb tip well below wrist
     for tip, pip_idx in [(8, 6), (12, 10), (16, 14), (20, 18)]:
         pts[tip] = (pts[tip][0], pts[pip_idx][1] + 12, 0.0)
     return pts
@@ -91,6 +96,7 @@ def _thumbs_down_hand(cx: float = 320.0, cy: float = 240.0, is_right: bool = Tru
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestHandGestureClassifier:
 
@@ -165,8 +171,12 @@ class TestHandGestureClassifier:
 
     def test_confidence_range(self):
         """All returned confidences should be in [0.0, 1.0]."""
-        for lm_fn in [_closed_fist, _open_palm, _pointing_hand,
-                      lambda: _thumbs_up_hand(is_right=True),
-                      lambda: _thumbs_down_hand(is_right=True)]:
+        for lm_fn in [
+            _closed_fist,
+            _open_palm,
+            _pointing_hand,
+            lambda: _thumbs_up_hand(is_right=True),
+            lambda: _thumbs_down_hand(is_right=True),
+        ]:
             _, conf = self.clf.classify(lm_fn(), is_right=True)
             assert 0.0 <= conf <= 1.0, f"Confidence out of range: {conf}"

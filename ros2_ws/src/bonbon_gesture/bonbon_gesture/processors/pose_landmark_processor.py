@@ -63,10 +63,7 @@ class PoseLandmarkProcessor:
             A new list of the same length with low-visibility landmarks
             zeroed out.
         """
-        return [
-            lm if lm[3] >= self._vis_min else (0.0, 0.0, 0.0, 0.0)
-            for lm in pose
-        ]
+        return [lm if lm[3] >= self._vis_min else (0.0, 0.0, 0.0, 0.0) for lm in pose]
 
     # ------------------------------------------------------------------
     # Spatial helpers

@@ -111,8 +111,8 @@ class BehaviorEngineNode(LifecycleNode):
         super().__init__(node_name)
 
         # Core components
-        self._fsm      = BehaviorStateMachine()
-        self._clf      = CommandRiskClassifier()
+        self._fsm = BehaviorStateMachine()
+        self._clf = CommandRiskClassifier()
         self._llm_gate = LLMCommandGate(risk_classifier=self._clf)
         self._evaluator = ProposalEvaluator(risk_classifier=self._clf)
         self._emotion_planner = EmotionAwareResponsePlanner()
@@ -143,30 +143,26 @@ class BehaviorEngineNode(LifecycleNode):
         self._pubs: dict = {}
         self._srvs: list = []
         self._idle_timer = None
-        self._executor = ThreadPoolExecutor(
-            max_workers=2, thread_name_prefix="behavior_engine"
-        )
+        self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="behavior_engine")
         self._node_start = time.monotonic()
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("BehaviorEngineNode configuring …")
-        self.declare_parameter("operating_mode",         "normal")
-        self.declare_parameter("idle_period_sec",        _IDLE_PERIOD_SEC)
-        self.declare_parameter("max_tts_chars",          200)
-        self.declare_parameter("enable_llm_proposals",   True)
+        self.declare_parameter("operating_mode", "normal")
+        self.declare_parameter("idle_period_sec", _IDLE_PERIOD_SEC)
+        self.declare_parameter("max_tts_chars", 200)
+        self.declare_parameter("enable_llm_proposals", True)
         self.declare_parameter("operator_alert_cooldown_sec", 10.0)
-        self.declare_parameter("privacy_mode",           False)
+        self.declare_parameter("privacy_mode", False)
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("BehaviorEngineNode activating …")
 
         p = self.get_parameter
-        self._operating_mode = (
-            p("operating_mode").get_parameter_value().string_value
-        )
+        self._operating_mode = p("operating_mode").get_parameter_value().string_value
         self._evaluator.set_operating_mode(self._operating_mode)
         self._privacy_mode = p("privacy_mode").get_parameter_value().bool_value
         idle_period = p("idle_period_sec").get_parameter_value().double_value
@@ -196,38 +192,32 @@ class BehaviorEngineNode(LifecycleNode):
             return self.create_subscription(msg_type, topic, cb, qos)
 
         self._subs = [
-            sub(SafetyState,         "/bonbon/safety/state",
-                self._on_safety_state, _QOS_TRANSIENT),
-            sub(HumanEmotionState,   "/bonbon/affective/human_state",
-                self._on_emotion_state),
-            sub(GestureEvent,        "/bonbon/gesture/events",
-                self._on_gesture_event),
-            sub(SocialNavigationHint, "/bonbon/spatial/hints",
-                self._on_spatial_hint),
-            sub(SpatialEntity,       "/bonbon/spatial/entities",
-                self._on_spatial_entity),
-            sub(RiskEvent,           "/bonbon/spatial/alerts",
-                self._on_spatial_alert, _QOS_DEFAULT),
-            sub(SpeechCommand,       "/speech/command",
-                self._on_speech_command),
-            sub(HumanState,          "/bonbon/human/state",
-                self._on_human_state),
-            sub(PersonTrack,         "/bonbon/persons/tracks",
-                self._on_person_track),
+            sub(SafetyState, "/bonbon/safety/state", self._on_safety_state, _QOS_TRANSIENT),
+            sub(HumanEmotionState, "/bonbon/affective/human_state", self._on_emotion_state),
+            sub(GestureEvent, "/bonbon/gesture/events", self._on_gesture_event),
+            sub(SocialNavigationHint, "/bonbon/spatial/hints", self._on_spatial_hint),
+            sub(SpatialEntity, "/bonbon/spatial/entities", self._on_spatial_entity),
+            sub(RiskEvent, "/bonbon/spatial/alerts", self._on_spatial_alert, _QOS_DEFAULT),
+            sub(SpeechCommand, "/speech/command", self._on_speech_command),
+            sub(HumanState, "/bonbon/human/state", self._on_human_state),
+            sub(PersonTrack, "/bonbon/persons/tracks", self._on_person_track),
         ]
 
         # ── Services ─────────────────────────────────────────────────────
         self._srvs = [
             self.create_service(
-                EvaluateCommand, "~/evaluate_command",
+                EvaluateCommand,
+                "~/evaluate_command",
                 self._handle_evaluate_command,
             ),
             self.create_service(
-                SetMode, "~/set_mode",
+                SetMode,
+                "~/set_mode",
                 self._handle_set_mode,
             ),
             self.create_service(
-                HealthCheck, "~/health_check",
+                HealthCheck,
+                "~/health_check",
                 self._handle_health_check,
             ),
         ]
@@ -235,9 +225,7 @@ class BehaviorEngineNode(LifecycleNode):
         # ── Idle behaviour timer ─────────────────────────────────────────
         self._idle_timer = self.create_timer(idle_period, self._on_idle_tick)
 
-        self.get_logger().info(
-            "BehaviorEngineNode active (mode=%s).", self._operating_mode
-        )
+        self.get_logger().info("BehaviorEngineNode active (mode=%s).", self._operating_mode)
         return TransitionCallbackReturn.SUCCESS
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
@@ -274,10 +262,10 @@ class BehaviorEngineNode(LifecycleNode):
 
     def _on_safety_state(self, msg: SafetyState) -> None:
         with self._lock:
-            self._safety_level      = msg.level
+            self._safety_level = msg.level
             self._safety_level_name = msg.level_name
             self._actuation_enabled = msg.actuation_enabled
-            self._tts_enabled       = msg.tts_enabled
+            self._tts_enabled = msg.tts_enabled
         self._evaluator.update_safety_level(msg.level)
 
         # Force ALERTING state on DANGER or above
@@ -291,8 +279,8 @@ class BehaviorEngineNode(LifecycleNode):
 
     def _on_emotion_state(self, msg: HumanEmotionState) -> None:
         with self._lock:
-            self._last_emotion     = msg
-            self._last_person_id   = msg.person_id
+            self._last_emotion = msg
+            self._last_person_id = msg.person_id
             self._last_tracking_id = msg.tracking_id
 
         # Emergency keyword check
@@ -321,7 +309,8 @@ class BehaviorEngineNode(LifecycleNode):
         if is_safety and gesture in ("raised_hand", "stop_palm"):
             self.get_logger().warn(
                 "Safety gesture '%s' from person '%s'.",
-                gesture, getattr(msg, "person_id", "?"),
+                gesture,
+                getattr(msg, "person_id", "?"),
             )
             self._executor.submit(self._dispatch_gesture_ack, gesture, msg)
             return
@@ -329,7 +318,8 @@ class BehaviorEngineNode(LifecycleNode):
         if gesture in ("wave", "thumbs_up"):
             self._executor.submit(
                 self._dispatch_proposal,
-                "gesture", "wave",
+                "gesture",
+                "wave",
                 "gesture",
                 getattr(msg, "person_id", ""),
                 getattr(msg, "tracking_id", -1),
@@ -364,13 +354,16 @@ class BehaviorEngineNode(LifecycleNode):
 
         if response.gesture and self._actuation_enabled:
             self._dispatch_actuation_gesture(
-                response.gesture, self._last_person_id, self._last_tracking_id,
+                response.gesture,
+                self._last_person_id,
+                self._last_tracking_id,
                 priority=response.gesture_priority,
             )
 
         if response.say and self._tts_enabled:
-            self._dispatch_tts(response.say, response.tts_emotion,
-                               self._last_person_id, self._last_tracking_id)
+            self._dispatch_tts(
+                response.say, response.tts_emotion, self._last_person_id, self._last_tracking_id
+            )
 
         if response.escalate_to_operator:
             self._raise_operator_alert(
@@ -385,13 +378,13 @@ class BehaviorEngineNode(LifecycleNode):
     ) -> None:
         """Deduplicate then publish an operator alert as a RiskEvent."""
         decision = self._operator_alerter.request(
-            alert_type=alert_type, severity=severity,
-            subject_id=subject_id, description=description,
+            alert_type=alert_type,
+            severity=severity,
+            subject_id=subject_id,
+            description=description,
         )
         if not decision.should_send:
-            self.get_logger().debug(
-                "Operator alert suppressed: %s", decision.suppressed_reason
-            )
+            self.get_logger().debug("Operator alert suppressed: %s", decision.suppressed_reason)
             return
         pub = self._pubs.get("operator_alert")
         if pub is None:
@@ -420,8 +413,8 @@ class BehaviorEngineNode(LifecycleNode):
             was_present = self._person_present
             person_id = getattr(msg, "person_id", "")
             with self._lock:
-                self._person_present   = True
-                self._last_person_id   = person_id
+                self._person_present = True
+                self._last_person_id = person_id
                 self._last_tracking_id = getattr(msg, "tracking_id", -1)
                 # Bridges bonbon_human_state_fusion's person_track_id (via
                 # raw_track_id, cached in _on_person_track) to SpatialEntity's
@@ -432,9 +425,7 @@ class BehaviorEngineNode(LifecycleNode):
             if not was_present:
                 # New person detected → greet
                 if self._fsm.can_transition_to(BehaviorState.GREETING):
-                    self._fsm.transition(
-                        BehaviorState.GREETING, "new person detected"
-                    )
+                    self._fsm.transition(BehaviorState.GREETING, "new person detected")
                     self._executor.submit(
                         self._dispatch_greeting,
                         self._last_person_id,
@@ -444,10 +435,10 @@ class BehaviorEngineNode(LifecycleNode):
     # ── Speech command callback ────────────────────────────────────────────
 
     def _on_speech_command(self, msg: SpeechCommand) -> None:
-        intent  = getattr(msg, "intent",  "unknown")
-        text    = getattr(msg, "text",    "")
-        pid     = getattr(msg, "person_id", "")
-        tid     = getattr(msg, "tracking_id", -1)
+        intent = getattr(msg, "intent", "unknown")
+        text = getattr(msg, "text", "")
+        pid = getattr(msg, "person_id", "")
+        tid = getattr(msg, "tracking_id", -1)
 
         self.get_logger().debug("Speech intent: '%s' text: '%s…'", intent, text[:40])
 
@@ -455,14 +446,22 @@ class BehaviorEngineNode(LifecycleNode):
             self._fsm.transition(BehaviorState.INTERACTING, f"speech intent: {intent}")
             self._executor.submit(
                 self._dispatch_proposal,
-                "speak", "",
-                "speech_intent", pid, tid, 0.3,
+                "speak",
+                "",
+                "speech_intent",
+                pid,
+                tid,
+                0.3,
             )
         elif intent == "farewell":
             self._executor.submit(
                 self._dispatch_proposal,
-                "gesture", "wave",
-                "speech_intent", pid, tid, 0.2,
+                "gesture",
+                "wave",
+                "speech_intent",
+                pid,
+                tid,
+                0.2,
             )
 
     # ── Multi-person state callbacks (bonbon_multi_person_tracker / fusion) ──
@@ -496,7 +495,9 @@ class BehaviorEngineNode(LifecycleNode):
             with self._lock:
                 self._human_states.pop(msg.person_track_id, None)
 
-    def _decide_multi_person_behavior(self, msg: HumanState, snapshot: dict, privacy_mode: bool) -> None:
+    def _decide_multi_person_behavior(
+        self, msg: HumanState, snapshot: dict, privacy_mode: bool
+    ) -> None:
         """Runs the rule chain (highest priority first) and dispatches at
         most one candidate for this HumanState update."""
         all_states = list(snapshot.values())
@@ -512,7 +513,9 @@ class BehaviorEngineNode(LifecycleNode):
                 return
             candidate = (
                 self._behavior_selector.decide_arrival_greeting(msg)
-                or self._behavior_selector.decide_known_person_greeting(msg, privacy_allows_name=not privacy_mode)
+                or self._behavior_selector.decide_known_person_greeting(
+                    msg, privacy_allows_name=not privacy_mode
+                )
                 or self._behavior_selector.decide_confused_question_response(msg)
                 or self._behavior_selector.decide_calm_supportive_response(msg)
                 or self._behavior_selector.decide_pointing_confirmation(msg)
@@ -538,13 +541,21 @@ class BehaviorEngineNode(LifecycleNode):
             # request) — actual motion pausing is enforced by the Safety
             # Supervisor independently of this proposal.
             self._dispatch_proposal(
-                "speak", candidate.content, candidate.source,
-                candidate.person_track_id, -1, candidate.urgency,
+                "speak",
+                candidate.content,
+                candidate.source,
+                candidate.person_track_id,
+                -1,
+                candidate.urgency,
             )
             return
         self._dispatch_proposal(
-            candidate.proposal_type, candidate.content, candidate.source,
-            candidate.person_track_id, -1, candidate.urgency,
+            candidate.proposal_type,
+            candidate.content,
+            candidate.source,
+            candidate.person_track_id,
+            -1,
+            candidate.urgency,
         )
 
     # ── Idle tick ─────────────────────────────────────────────────────────
@@ -567,7 +578,9 @@ class BehaviorEngineNode(LifecycleNode):
         if self._tts_enabled:
             self._dispatch_tts(
                 "Hello! I'm BonBon. How can I help you today?",
-                "warm", person_id, tracking_id,
+                "warm",
+                person_id,
+                tracking_id,
             )
         # Transition to INTERACTING after greeting
         time.sleep(2.0)
@@ -576,9 +589,9 @@ class BehaviorEngineNode(LifecycleNode):
     def _dispatch_emotion_response(self, emotion_msg: HumanEmotionState) -> None:
         """Send gesture and TTS response to detected emotion."""
         dominant = getattr(emotion_msg, "dominant_emotion", "neutral")
-        conf     = getattr(emotion_msg, "emotion_confidence", 0.5)
-        pid      = getattr(emotion_msg, "person_id", "")
-        tid      = getattr(emotion_msg, "tracking_id", -1)
+        conf = getattr(emotion_msg, "emotion_confidence", 0.5)
+        pid = getattr(emotion_msg, "person_id", "")
+        tid = getattr(emotion_msg, "tracking_id", -1)
 
         plan = self._emotion_planner.plan(
             dominant_emotion=dominant,
@@ -587,18 +600,14 @@ class BehaviorEngineNode(LifecycleNode):
         )
 
         if plan.gesture_name and self._actuation_enabled:
-            self._dispatch_actuation_gesture(
-                plan.gesture_name, pid, tid, priority=7
-            )
+            self._dispatch_actuation_gesture(plan.gesture_name, pid, tid, priority=7)
 
         if plan.acknowledgment_text and self._tts_enabled:
             self._dispatch_tts(plan.acknowledgment_text, plan.tts_emotion, pid, tid)
 
     def _dispatch_emergency_response(self, person_id: str, tracking_id: int) -> None:
         """Handle emergency keyword detection."""
-        self.get_logger().error(
-            "Emergency keyword detected from person '%s'!", person_id
-        )
+        self.get_logger().error("Emergency keyword detected from person '%s'!", person_id)
         self._fsm.force_transition(BehaviorState.ALERTING, "emergency keyword detected")
 
         if self._actuation_enabled:
@@ -608,7 +617,9 @@ class BehaviorEngineNode(LifecycleNode):
         if self._tts_enabled:
             self._dispatch_tts(
                 "Emergency detected! I'm alerting staff immediately.",
-                "urgent", person_id, tracking_id,
+                "urgent",
+                person_id,
+                tracking_id,
             )
         # Publish alert decision + escalate to the operator console.
         self._publish_decision(
@@ -684,18 +695,18 @@ class BehaviorEngineNode(LifecycleNode):
         if "actuation" not in self._pubs:
             return
         msg = ActuationGesture()
-        msg.header            = Header()
-        msg.header.stamp      = self.get_clock().now().to_msg()
-        msg.event_id          = str(uuid.uuid4())[:8]
-        msg.requested_at      = self.get_clock().now().to_msg()
-        msg.source_module     = "bonbon_behavior_engine"
-        msg.person_id         = person_id
-        msg.tracking_id       = tracking_id
-        msg.gesture_name      = gesture_name
-        msg.priority          = priority
-        msg.speed_scale       = speed_scale
-        msg.interruptible     = priority < 15
-        msg.timeout_sec       = 10.0
+        msg.header = Header()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.event_id = str(uuid.uuid4())[:8]
+        msg.requested_at = self.get_clock().now().to_msg()
+        msg.source_module = "bonbon_behavior_engine"
+        msg.person_id = person_id
+        msg.tracking_id = tracking_id
+        msg.gesture_name = gesture_name
+        msg.priority = priority
+        msg.speed_scale = speed_scale
+        msg.interruptible = priority < 15
+        msg.timeout_sec = 10.0
         self._pubs["actuation"].publish(msg)
 
     def _dispatch_tts(
@@ -708,13 +719,13 @@ class BehaviorEngineNode(LifecycleNode):
         if "tts" not in self._pubs:
             return
         msg = TTSRequest()
-        msg.header        = Header()
-        msg.header.stamp  = self.get_clock().now().to_msg()
-        msg.text          = text
-        msg.emotion       = emotion
-        msg.person_id     = person_id
-        msg.tracking_id   = tracking_id
-        msg.priority      = 5
+        msg.header = Header()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.text = text
+        msg.emotion = emotion
+        msg.person_id = person_id
+        msg.tracking_id = tracking_id
+        msg.priority = 5
         self._pubs["tts"].publish(msg)
 
     def _publish_decision(
@@ -730,19 +741,19 @@ class BehaviorEngineNode(LifecycleNode):
         if "decision" not in self._pubs:
             return
         msg = BehaviorDecision()
-        msg.header           = Header()
-        msg.header.stamp     = self.get_clock().now().to_msg()
-        msg.event_id         = event_id
-        msg.decided_at       = self.get_clock().now().to_msg()
-        msg.source_module    = "bonbon_behavior_engine"
-        msg.person_id        = person_id
-        msg.decision         = decision
-        msg.approved_action  = action
+        msg.header = Header()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.event_id = event_id
+        msg.decided_at = self.get_clock().now().to_msg()
+        msg.source_module = "bonbon_behavior_engine"
+        msg.person_id = person_id
+        msg.decision = decision
+        msg.approved_action = action
         msg.approved_content = content
-        msg.safety_approved  = True
-        msg.confidence       = float(confidence)
+        msg.safety_approved = True
+        msg.confidence = float(confidence)
         msg.operator_alerted = operator_alerted
-        msg.logged           = True
+        msg.logged = True
         self._pubs["decision"].publish(msg)
 
     # ── Service handlers ───────────────────────────────────────────────────────
@@ -754,16 +765,17 @@ class BehaviorEngineNode(LifecycleNode):
     ) -> EvaluateCommand.Response:
         """Evaluate a command from an operator, speech, or LLM source."""
         risk = self._clf.classify(request.command_text, source=request.source)
-        response.safe             = risk.is_safe
-        response.risk_level       = risk.risk_level
-        response.reasons          = risk.reasons
+        response.safe = risk.is_safe
+        response.risk_level = risk.risk_level
+        response.reasons = risk.reasons
         response.recommended_action = risk.recommended_action
         response.modified_command = ""
 
         if not risk.is_safe:
             self.get_logger().warn(
                 "EvaluateCommand: CRITICAL risk from '%s': '%s…'",
-                request.source, request.command_text[:60],
+                request.source,
+                request.command_text[:60],
             )
 
         return response
@@ -777,7 +789,7 @@ class BehaviorEngineNode(LifecycleNode):
         allowed_modes = {"normal", "child_safe", "elderly", "degraded", "demo", "emergency"}
 
         if request.mode not in allowed_modes:
-            response.success       = False
+            response.success = False
             response.previous_mode = prev
             response.error_message = f"Unknown mode '{request.mode}'."
             return response
@@ -788,9 +800,11 @@ class BehaviorEngineNode(LifecycleNode):
 
         self.get_logger().info(
             "Operating mode changed: '%s' → '%s' by operator '%s'.",
-            prev, request.mode, request.operator_id,
+            prev,
+            request.mode,
+            request.operator_id,
         )
-        response.success       = True
+        response.success = True
         response.previous_mode = prev
         response.error_message = ""
         return response
@@ -801,20 +815,21 @@ class BehaviorEngineNode(LifecycleNode):
         response: HealthCheck.Response,
     ) -> HealthCheck.Response:
         gate_stats = self._llm_gate.stats()
-        response.healthy   = True
-        response.status    = (
+        response.healthy = True
+        response.status = (
             f"active; state={self._fsm.current_state_name}; "
             f"mode={self._operating_mode}; "
             f"safety={self._safety_level_name}; "
             f"llm_gate: {gate_stats['approved']}/{gate_stats['total']} approved"
         )
-        response.warnings  = []
-        response.errors    = []
+        response.warnings = []
+        response.errors = []
         response.uptime_sec = time.monotonic() - self._node_start
         return response
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main(args=None) -> None:
     """ROS2 entry point."""

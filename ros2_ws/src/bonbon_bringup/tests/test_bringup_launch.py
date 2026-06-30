@@ -15,9 +15,7 @@ import os
 
 import pytest
 
-_LAUNCH_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "launch", "bringup.launch.py"
-)
+_LAUNCH_FILE = os.path.join(os.path.dirname(__file__), "..", "launch", "bringup.launch.py")
 
 # Every subsystem that MUST be part of system bring-up.
 _REQUIRED_SUBSYSTEMS = [

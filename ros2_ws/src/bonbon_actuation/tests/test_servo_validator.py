@@ -38,9 +38,9 @@ class TestValidPosition:
     def test_multiple_valid_servos(self):
         val = ServoValidator()
         targets = [
-            _target(SERVO_HEAD_PAN,    45.0),
-            _target(SERVO_HEAD_TILT,   10.0),
-            _target(SERVO_HEAD_ROLL,    5.0),
+            _target(SERVO_HEAD_PAN, 45.0),
+            _target(SERVO_HEAD_TILT, 10.0),
+            _target(SERVO_HEAD_ROLL, 5.0),
         ]
         result = val.validate(targets)
         assert result.valid is True
@@ -104,10 +104,12 @@ class TestUnknownServo:
 
     def test_unknown_mixed_with_valid(self):
         val = ServoValidator()
-        result = val.validate([
-            _target(99, 45.0),           # unknown
-            _target(SERVO_HEAD_PAN, 0.0),  # valid
-        ])
+        result = val.validate(
+            [
+                _target(99, 45.0),  # unknown
+                _target(SERVO_HEAD_PAN, 0.0),  # valid
+            ]
+        )
         assert result.valid is False
         assert len(result.clamped_targets) == 1  # valid one kept
 
