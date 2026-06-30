@@ -324,7 +324,10 @@ class SpeakerIntelligenceNode(LifecycleNode):
             return _HEALTH_WARN, f"{self._error_count} cycle error(s)"
         if self._builder is None:
             return _HEALTH_WARN, "not configured"
-        return _HEALTH_OK, "nominal"
+        return _HEALTH_OK, (
+            f"nominal (diarization_ambiguous_rate="
+            f"{self._builder.diarization_ambiguous_rate:.2f})"
+        )
 
     def _cb_health_timer(self) -> None:
         if self._pub_health is None or not self._pub_health.is_activated:

@@ -68,6 +68,28 @@ class SpeakerTurnBuilder:
         self._short_segment_threshold = short_segment_threshold_sec
         self._max_bearing_delta = max_bearing_delta_deg
 
+        # Diarization-error metric (evaluation-metrics audit, check #9): with
+        # no ground truth available at runtime, a true Diarization Error
+        # Rate can't be computed. This counts utterances where >1 segment
+        # was diarized (is_overlapping=True) -- the system's own honest
+        # self-assessed signal of diarization difficulty, consistent with
+        # this module's existing "only the dominant segment gets real
+        # identity continuity" handling above.
+        self._diarization_calls = 0
+        self._diarization_ambiguous_count = 0
+
+    @property
+    def diarization_ambiguous_count(self) -> int:
+        """Cumulative count of utterances diarized into >1 overlapping
+        segment (is_overlapping=True) -- see __init__."""
+        return self._diarization_ambiguous_count
+
+    @property
+    def diarization_ambiguous_rate(self) -> float:
+        if self._diarization_calls == 0:
+            return 0.0
+        return self._diarization_ambiguous_count / self._diarization_calls
+
     def build_turns(
         self,
         segments: list[DiarizationSegment],
@@ -81,10 +103,13 @@ class SpeakerTurnBuilder:
         if not segments:
             return []
 
+        self._diarization_calls += 1
         attributed = attribute_transcript_to_segments(
             segments, words, full_text, full_text_confidence
         )
         is_overlapping = len(segments) > 1
+        if is_overlapping:
+            self._diarization_ambiguous_count += 1
         voice_emotion, emotion_conf = self._voice_cache.get_if_fresh()
 
         results: list[SpeakerTurnResult] = []

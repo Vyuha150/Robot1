@@ -130,6 +130,52 @@ class TestOverlappingSpeech:
         assert overlapping.association_confidence < single.association_confidence
 
 
+class TestDiarizationAmbiguousMetric:
+    """Compliance audit, check #9: a speaker diarization-error metric must
+    exist. With no ground truth at runtime, a true Diarization Error Rate
+    can't be computed -- this counts utterances diarized into >1 overlapping
+    segment, the system's own honest self-assessed signal of diarization
+    difficulty."""
+
+    def test_starts_at_zero(self):
+        builder, _, _ = _builder()
+        assert builder.diarization_ambiguous_count == 0
+        assert builder.diarization_ambiguous_rate == 0.0
+
+    def test_single_speaker_utterance_does_not_count(self):
+        builder, _, _ = _builder()
+        builder.build_turns(
+            [DiarizationSegment("S0", 0.0, 1.0)], [], "hi", 0.9, doa_deg=10.0, tracked_persons=[]
+        )
+        assert builder.diarization_ambiguous_count == 0
+
+    def test_overlapping_utterance_increments_the_counter(self):
+        builder, _, _ = _builder()
+        segs = [
+            DiarizationSegment("SPEAKER_00", 0.0, 1.0),
+            DiarizationSegment("SPEAKER_01", 1.0, 2.0),
+        ]
+        builder.build_turns(segs, [], "a b", 0.9, doa_deg=10.0, tracked_persons=[])
+        assert builder.diarization_ambiguous_count == 1
+
+    def test_rate_reflects_fraction_of_ambiguous_utterances(self):
+        builder, _, _ = _builder()
+        seg1 = [DiarizationSegment("S0", 0.0, 1.0)]
+        seg2 = [DiarizationSegment("S0", 0.0, 1.0), DiarizationSegment("S1", 1.0, 2.0)]
+        builder.build_turns(seg1, [], "a", 0.9, doa_deg=10.0, tracked_persons=[])
+        builder.build_turns(seg1, [], "b", 0.9, doa_deg=10.0, tracked_persons=[])
+        builder.build_turns(seg2, [], "c d", 0.9, doa_deg=10.0, tracked_persons=[])
+        builder.build_turns(seg2, [], "e f", 0.9, doa_deg=10.0, tracked_persons=[])
+        assert builder.diarization_ambiguous_rate == 0.5
+
+    def test_empty_segments_call_does_not_count_as_a_call(self):
+        """build_turns([]) returns early without diarizing anything -- must
+        not be counted in either numerator or denominator."""
+        builder, _, _ = _builder()
+        builder.build_turns([], [], "", 0.0, doa_deg=10.0, tracked_persons=[])
+        assert builder.diarization_ambiguous_rate == 0.0
+
+
 class TestVoiceEmotionAttachment:
     def test_fresh_voice_emotion_attached(self):
         builder, clock, voice_cache = _builder()
