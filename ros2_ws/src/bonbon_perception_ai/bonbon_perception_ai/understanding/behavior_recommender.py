@@ -83,7 +83,15 @@ class BehaviorRecommender:
                 return rec
 
         # 2. User intent
-        if intent is not None and intent.intent_class not in ("silence", "unknown"):
+        # "silence" (genuinely nothing to respond to) skips intent handling
+        # entirely. "unknown" must NOT be excluded here: an unknown intent
+        # with is_ambiguous=True is exactly what _from_intent's ambiguous
+        # branch exists to handle (speak_clarification) -- excluding it
+        # meant a classifier producing "unknown, ambiguous=True" silently
+        # fell through to idle instead of asking for clarification. A
+        # non-ambiguous "unknown" intent still safely falls through to
+        # scene/idle, since _from_intent has no per-class handler for it.
+        if intent is not None and intent.intent_class != "silence":
             rec = self._from_intent(intent, scene)
             if rec is not None:
                 return rec

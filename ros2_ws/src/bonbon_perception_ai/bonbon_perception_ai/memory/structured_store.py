@@ -220,6 +220,13 @@ class StructuredStore:
     # ── Scene episodes ────────────────────────────────────────────────────────
 
     def log_scene(self, snap: SceneSnapshot) -> None:
+        # NOTE: snap.timestamp is time.monotonic()-based (set by
+        # MultimodalFusion.fuse(), deliberately immune to clock jumps for
+        # in-process staleness comparisons) -- NOT suitable for a persisted,
+        # multi-day retention record: it resets to ~0 on every process
+        # restart and is not comparable to purge_stale()'s wall-clock
+        # cutoff. Record wall-clock time at the point of persistence
+        # instead, so day-scale TTL retention means what it says.
         with self._lock:
             self._conn.execute(  # type: ignore[union-attr]
                 """
@@ -230,7 +237,7 @@ class StructuredStore:
                 """,
                 (
                     snap.scene_id,
-                    snap.timestamp,
+                    time.time(),
                     snap.dominant_activity,
                     len(snap.present_person_ids),
                     json.dumps(snap.present_object_classes),
