@@ -1,0 +1,12 @@
+data_feedback_node:
+  ros__parameters:
+    db_path: "data/bonbon_data_feedback/feedback.db"
+    export_dir: "data/bonbon_data_feedback/exports"
+
+    # Hard rule: raw face/audio snapshot paths are only ever persisted when
+    # this is explicitly true. Never enable in production deployments.
+    debug_mode_enabled: false
+
+    hard_negative_confidence_threshold: 0.7
+    retention_sweep_rate_hz: 0.000277  # ~hourly
+    health_rate_hz: 1.0

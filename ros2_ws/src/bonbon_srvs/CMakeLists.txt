@@ -20,6 +20,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/PerformGesture.srv"
   "srv/SetMode.srv"
   "srv/HealthCheck.srv"
+  "srv/ReportFailureCase.srv"
   DEPENDENCIES std_msgs geometry_msgs bonbon_msgs
 )
 

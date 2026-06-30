@@ -140,6 +140,9 @@ def generate_launch_description() -> LaunchDescription:
         "bonbon_perception_efficiency", "perception_efficiency.launch.py"
     )
 
+    # ── 6c. Data feedback (failure-case logging, privacy-safe retention) ─────
+    data_feedback = _include("bonbon_data_feedback", "data_feedback.launch.py")
+
     # ── 7. Actuation (expressive motion, safety-gated) ───────────────────────
     actuation = _include("bonbon_actuation", "actuation.launch.py")
 
@@ -177,6 +180,7 @@ def generate_launch_description() -> LaunchDescription:
         ai_group,
         behavior,
         perception_efficiency,
+        data_feedback,
         actuation,
         navigation,
         tts,

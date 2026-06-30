@@ -33,10 +33,25 @@ class SchemaMigrator:
         migrator = SchemaMigrator(conn)
         migrator.migrate()          # idempotent; only applies missing versions
         print(migrator.current_version())
+
+    Args:
+        conn: The target database's connection.
+        migrations: Optional override of the (version, description, sql)
+            list to apply — defaults to this package's own MIGRATIONS.
+            Other packages with their own SQLite database (e.g.
+            bonbon_data_feedback, which deliberately uses a separate file
+            from this package's operational data for retention/privacy
+            reasons) pass their own list here rather than reimplementing
+            this same generic apply-pending-migrations logic.
     """
 
-    def __init__(self, conn: SQLiteConnection) -> None:
+    def __init__(
+        self,
+        conn: SQLiteConnection,
+        migrations: list[tuple[int, str, str]] | None = None,
+    ) -> None:
         self._conn = conn
+        self._migrations = migrations if migrations is not None else MIGRATIONS
 
     # ------------------------------------------------------------------
     # Public API
@@ -54,7 +69,7 @@ class SchemaMigrator:
         db.commit()
 
         current = self._get_version(db)
-        pending = [(v, d, s) for v, d, s in MIGRATIONS if v > current]
+        pending = [(v, d, s) for v, d, s in self._migrations if v > current]
 
         if not pending:
             logger.debug("Schema is up to date at version %d", current)

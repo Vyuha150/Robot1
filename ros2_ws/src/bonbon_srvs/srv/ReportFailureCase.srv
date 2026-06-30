@@ -1,0 +1,20 @@
+# ReportFailureCase.srv
+# General-purpose explicit failure/hard-negative report, callable by any
+# node (e.g. bonbon_behavior_engine noticing a correction, an operator UI).
+# bonbon_data_feedback is the only server for this service — it routes the
+# request through PrivacySafeDataPolicy before persisting anything.
+
+string category            # 'object'|'gesture'|'speaker'|'face'|'emotion'|...
+string signal_name
+string expected_label      # "" if unknown
+string actual_label
+float32 confidence
+string person_track_id     # "" if not person-scoped
+string context_json        # small JSON object; forbidden keys are stripped server-side
+bool   was_correct         # used to decide hard-negative classification
+string raw_snapshot_path   # only honored if the server's debug mode is enabled
+---
+bool   accepted
+string case_id
+bool   is_hard_negative
+string message
