@@ -1,0 +1,59 @@
+# model_runtime.yaml — canonical vision-model runtime mapping.
+# Consumed by bonbon_ai_runtime.RuntimeSelector (RuntimeSpec). Per-model
+# runtime_priority lists the order RuntimeSelector tries; the first runtime
+# that is available + format-compatible + loads wins. Anything past the first
+# entry sets fallback_active (surfaced on the dashboard).
+#
+# Paths are relative to the deployment models root (e.g. /opt/bonbon/models
+# on the Pi). `mock` needs no file and is the guaranteed final fallback.
+
+runtime:
+  mode: auto                       # auto | cpu | hailo | tensorrt | mock
+  preferred_accelerator: hailo
+  fallback_runtime: cpu
+  fail_open_to_degraded_mode: true # never crash vision; fall open to mock
+
+hailo:
+  enabled: true
+  require_device_for_production: true   # validate_boot_topology-style hard gate
+  device_detection_command: "hailortcli scan"
+  max_inference_timeout_ms: 300
+  warmup_runs: 5
+
+models:
+  object_detection:
+    runtime_priority: [hailo, cpu, mock]
+    hailo_hef_path: "models/hailo/yolo_object_detection.hef"
+    cpu_onnx_path: "models/onnx/yolo_object_detection.onnx"
+    labels_path: "models/labels/objects.txt"
+    input_size: [640, 640]
+    max_fps_pi: 10
+
+  person_detection:
+    runtime_priority: [hailo, cpu, mock]
+    hailo_hef_path: "models/hailo/person_detection.hef"
+    cpu_onnx_path: "models/onnx/person_detection.onnx"
+    labels_path: "models/labels/person.txt"
+    input_size: [640, 640]
+    max_fps_pi: 12
+
+  pose_gesture_backbone:
+    # Pose backbone for gesture; Hailo support depends on the compiled model.
+    runtime_priority: [hailo, cpu, mock]
+    hailo_hef_path: "models/hailo/pose_backbone.hef"
+    cpu_onnx_path: "models/onnx/pose_backbone.onnx"
+    input_size: [256, 256]
+    max_fps_pi: 8
+
+  face_detection:
+    runtime_priority: [hailo, cpu, mock]
+    hailo_hef_path: "models/hailo/face_detection.hef"
+    cpu_onnx_path: "models/onnx/face_detection.onnx"
+    input_size: [320, 320]
+    max_fps_pi: 5
+
+  # Always-present test model — selects MockRuntime, needs no files.
+  mock_test_model:
+    runtime_priority: [mock]
+    input_size: [640, 640]
+    max_fps_pi: 30

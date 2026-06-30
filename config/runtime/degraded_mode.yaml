@@ -1,0 +1,40 @@
+# degraded_mode.yaml — what "degraded perception" means and what it
+# preserves. Consumed by the vision/perception nodes and surfaced on the
+# dashboard's Pi-efficiency / degraded-mode card.
+#
+# Degraded mode is entered when the selected runtime cannot run the real
+# model (Hailo absent AND CPU model missing), when inference times out
+# repeatedly, or when the CPU/thermal budget managers demand it. It NEVER
+# disables safety — it only reduces optional AI.
+
+degraded_mode:
+  # The MockRuntime fallback keeps the vision node alive (publishing empty
+  # detections) rather than crashing, so downstream nodes degrade cleanly.
+  fallback_runtime: mock
+
+  # Consecutive inference failures before a runtime is flagged degraded
+  # (mirrors ModelRuntimeHealthMonitor default).
+  degrade_after_consecutive_failures: 3
+
+  # When degraded, drop these optional consumers first (highest number =
+  # dropped first). Matches the Pi efficiency priority order: safety and
+  # active-person tracking are NEVER in this list.
+  shed_order:
+    - background_emotion_analysis
+    - face_emotion
+    - voice_emotion
+    - gesture_recognition
+    - object_detection_extra_classes   # keep person, drop the rest
+    # person_detection, lidar safety, navigation safety, e-stop: NEVER shed
+
+  # Always preserved, regardless of degraded depth.
+  never_disable:
+    - safety_supervisor
+    - emergency_stop
+    - hal
+    - lidar_obstacle_safety
+    - navigation_safety
+    - active_person_tracking
+
+  # Recovery: N consecutive good inferences restore full mode.
+  recover_after_consecutive_ok: 5

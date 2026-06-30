@@ -1,0 +1,24 @@
+# pi_cpu_fallback.yaml — Raspberry Pi 5 WITHOUT an AI HAT (or with Hailo
+# disabled). Runs vision on the ARM CPU via ONNX Runtime. Lower FPS caps to
+# protect the CPU (see config/pi_efficiency_profile.yaml).
+
+runtime:
+  mode: cpu
+  preferred_accelerator: cpu
+  fallback_runtime: mock
+  fail_open_to_degraded_mode: true
+
+hailo:
+  enabled: false
+  require_device_for_production: false
+
+models_default_runtime_priority: [cpu, mock]
+
+# CPU is much slower than the HAT — halve the per-model FPS caps so a Pi 5
+# CPU isn't pinned at 100% by vision alone. The CPU/thermal budget managers
+# (bonbon_perception_efficiency) throttle further under live load.
+pi_cpu_fps_caps:
+  object_detection: 5
+  person_detection: 6
+  pose_gesture_backbone: 4
+  face_detection: 2

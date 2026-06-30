@@ -1,0 +1,22 @@
+# pi_ai_hat.yaml — Raspberry Pi 5 + AI HAT (Hailo) runtime profile.
+# Prefer Hailo for every supported vision model; require the device in
+# production; fall back to CPU only if Hailo is genuinely unavailable.
+
+runtime:
+  mode: auto
+  preferred_accelerator: hailo
+  fallback_runtime: cpu
+  fail_open_to_degraded_mode: true
+
+hailo:
+  enabled: true
+  require_device_for_production: true
+  device_detection_command: "hailortcli scan"
+  max_inference_timeout_ms: 250        # tighter on the HAT (it's fast)
+  warmup_runs: 5
+  # If true, a production deploy that cannot reach the Hailo device is
+  # marked NOT ready (dashboard deployment-readiness), rather than silently
+  # running on CPU. CPU fallback still happens so the robot keeps perceiving.
+  block_production_if_absent: true
+
+models_default_runtime_priority: [hailo, cpu, mock]
