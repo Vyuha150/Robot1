@@ -9,20 +9,30 @@ honored when debug_mode_enabled is an explicit launch parameter).
 Two ways failure cases reach this node:
   1. Automatic: GestureEvent confidence below the live recommended floor
      published by bonbon_perception_efficiency (falls back to a static
-     default if that package isn't running) is logged automatically.
+     default if that package isn't running) is logged automatically. The
+     SQLite write happens off the ROS callback thread (ThreadPoolExecutor +
+     BoundedInferenceQueue gate, same pattern as bonbon_affective_ai's
+     voice/text analysis dispatch) so a slow disk write never delays
+     processing of the next gesture event.
   2. Explicit: any node can call ~/report_failure_case (ReportFailureCase
      service) — the general mechanism, so this node never needs bespoke
-     per-signal-type subscription wiring for object/face/voice/text.
+     per-signal-type subscription wiring for object/face/voice/text. This
+     stays synchronous: a service is request-response by nature, and the
+     caller needs the real case_id/accepted outcome in its response, not a
+     placeholder — unlike the automatic path, there is no "next event" this
+     blocks.
 """
 
 from __future__ import annotations
 
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import rclpy
 from bonbon_msgs.msg import GestureEvent, ModuleHealth, PerceptionPolicy
+from bonbon_perception_efficiency.core.bounded_inference_queue import BoundedInferenceQueue
 from bonbon_srvs.srv import HealthCheck, ReportFailureCase
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -66,6 +76,15 @@ class DataFeedbackNode(LifecycleNode):
         self._eval_store: ModelEvaluationStore | None = None
 
         self._gesture_floor = _DEFAULT_GESTURE_FLOOR
+
+        # Non-blocking automatic write path: the gesture-event callback only
+        # ever admits to this queue and submits to this executor — it never
+        # blocks on disk I/O itself. drop-newest is correct here exactly as
+        # it is for affective_ai_node's queues: a fresh gesture event is more
+        # useful than one that has been waiting, and an already-admitted
+        # write should be allowed to finish rather than be discarded.
+        self._gesture_log_queue = BoundedInferenceQueue(max_depth=8)
+        self._write_executor: ThreadPoolExecutor | None = None
 
         self._subs: list = []
         self._pub_health = None
@@ -119,6 +138,10 @@ class DataFeedbackNode(LifecycleNode):
             health_hz = self.get_parameter("health_rate_hz").get_parameter_value().double_value
             sweep_hz = (
                 self.get_parameter("retention_sweep_rate_hz").get_parameter_value().double_value
+            )
+
+            self._write_executor = ThreadPoolExecutor(
+                max_workers=2, thread_name_prefix="data_feedback_write"
             )
 
             self._subs.append(
@@ -182,23 +205,53 @@ class DataFeedbackNode(LifecycleNode):
                 self._gesture_floor = float(threshold)
 
     def _cb_gesture_event(self, msg: GestureEvent) -> None:
-        if self._failure_logger is None:
+        if self._failure_logger is None or self._write_executor is None:
             return
         if msg.confidence >= self._gesture_floor:
             return
+        admit = self._gesture_log_queue.try_admit()
+        if not admit.admitted:
+            self.get_logger().debug(
+                "Failure-case write queue full (depth=%d) — dropping gesture case.",
+                admit.queue_depth,
+            )
+            return
+        self._write_executor.submit(
+            self._write_gesture_failure_case,
+            msg.gesture_type,
+            msg.confidence,
+            msg.person_track_id,
+            msg.hand_side,
+            msg.body_part,
+        )
+
+    def _write_gesture_failure_case(
+        self,
+        gesture_type: str,
+        confidence: float,
+        person_track_id: str,
+        hand_side: str,
+        body_part: str,
+    ) -> None:
+        """Runs off the ROS callback thread — the actual SQLite write for
+        the automatic gesture-confidence failure-case path. SQLiteConnection
+        is thread-local by design (see bonbon_data_stores), so writing from
+        a worker thread here is safe."""
         try:
             self._failure_logger.log(
                 category="gesture",
                 signal_name="gesture_below_confidence_floor",
-                actual_label=msg.gesture_type,
-                confidence=msg.confidence,
-                person_track_id=msg.person_track_id,
-                context={"hand_side": msg.hand_side, "body_part": msg.body_part},
+                actual_label=gesture_type,
+                confidence=confidence,
+                person_track_id=person_track_id,
+                context={"hand_side": hand_side, "body_part": body_part},
             )
             self._cases_logged += 1
         except Exception as exc:  # noqa: BLE001
             self._error_count += 1
             self.get_logger().error("Failed to log gesture failure case: %s", str(exc))
+        finally:
+            self._gesture_log_queue.mark_complete()
 
     # ── Service handlers ─────────────────────────────────────────────────────
 
@@ -302,6 +355,9 @@ class DataFeedbackNode(LifecycleNode):
     # ── Teardown ─────────────────────────────────────────────────────────────
 
     def _destroy_active_resources(self) -> None:
+        if self._write_executor is not None:
+            self._write_executor.shutdown(wait=False)
+            self._write_executor = None
         for timer_attr in ("_retention_timer", "_health_timer"):
             t = getattr(self, timer_attr, None)
             if t is not None:

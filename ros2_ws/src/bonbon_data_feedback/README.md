@@ -47,9 +47,16 @@ to resemble detection logic creeping into a logging package):
 
 1. **Automatic**: subscribes to `/bonbon/gesture/events` and
    `/bonbon/perception_efficiency/policy` (for the live confidence floor);
-   logs automatically when a gesture's confidence is below the floor.
+   logs automatically when a gesture's confidence is below the floor. The
+   SQLite write happens off the ROS callback thread (`ThreadPoolExecutor` +
+   `BoundedInferenceQueue` admission gate, reused from
+   `bonbon_perception_efficiency` rather than a second ad-hoc backpressure
+   mechanism — same pattern as `bonbon_affective_ai`'s voice/text dispatch)
+   so a slow disk write never delays processing of the next gesture event.
 2. **Explicit**: `~/report_failure_case` (`bonbon_srvs/ReportFailureCase`)
-   — any node can call this directly.
+   — any node can call this directly. Stays synchronous: a service is
+   request-response by nature and the caller needs the real
+   `case_id`/`accepted` outcome, not a placeholder.
 
 Publishes `/bonbon/data_feedback/data_feedback_node/health`.
 
@@ -60,5 +67,7 @@ See [`config/data_feedback_params.yaml`](bonbon_data_feedback/config/data_feedba
 
 ## Tests
 
-55 tests across 7 core modules, run against a real temp-file SQLite
-database (not mocked). Run: `python -m pytest tests/ -q`.
+62 tests: 55 across 7 core modules (run against a real temp-file SQLite
+database, not mocked), plus 7 node-level tests verifying the automatic
+write path's non-blocking dispatch, backpressure, and slot-release-on-
+failure behavior. Run: `python -m pytest tests/ -q`.

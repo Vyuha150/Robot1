@@ -19,6 +19,10 @@
   <exec_depend>bonbon_msgs</exec_depend>
   <exec_depend>bonbon_srvs</exec_depend>
   <exec_depend>bonbon_data_stores</exec_depend>
+  <!-- Reuses BoundedInferenceQueue directly rather than a second ad-hoc
+       backpressure mechanism in front of the automatic failure-case write
+       path's thread pool. -->
+  <exec_depend>bonbon_perception_efficiency</exec_depend>
   <exec_depend>python3-pyyaml</exec_depend>
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
