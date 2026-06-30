@@ -1,6 +1,9 @@
 [Unit]
-Description=BonBon Speech Runtime
-After=bonbon-core.service
+Description=BonBon Speech Runtime (modular mode only)
+After=docker.service network-online.target bonbon-safety.service bonbon-hal.service
+Wants=docker.service network-online.target
+Requires=bonbon-safety.service
+Conflicts=bonbon-core.service
 
 [Service]
 Type=oneshot

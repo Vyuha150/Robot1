@@ -1,6 +1,9 @@
 [Unit]
-Description=BonBon Perception Runtime
-After=bonbon-core.service
+Description=BonBon Perception Runtime (modular mode only)
+After=docker.service network-online.target bonbon-safety.service bonbon-hal.service
+Wants=docker.service network-online.target
+Requires=bonbon-safety.service
+Conflicts=bonbon-core.service
 
 [Service]
 Type=oneshot

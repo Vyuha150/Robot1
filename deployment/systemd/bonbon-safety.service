@@ -1,7 +1,13 @@
 [Unit]
-Description=BonBon Safety Supervisor Runtime
+Description=BonBon Safety Supervisor Runtime (modular mode only)
 After=docker.service network-online.target
 Wants=docker.service network-online.target
+# HARD GUARD against the duplicate-safety-supervisor bug: systemd refuses to
+# run this standalone safety service at the same time as bonbon-core (which
+# runs the full bringup, including its own safety supervisor). Starting one
+# stops the other. See docs/DUPLICATE_PIPELINE_RISK_REPORT.md and
+# scripts/validate_boot_topology.py.
+Conflicts=bonbon-core.service
 
 [Service]
 Type=oneshot

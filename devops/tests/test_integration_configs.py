@@ -59,12 +59,29 @@ def test_systemd_units_map_to_robot_compose_services(root: Path):
 
 
 def test_safety_related_units_order_after_safety(root: Path):
-    navigation = (root / "deployment" / "systemd" / "bonbon-navigation.service").read_text(
-        encoding="utf-8"
-    )
-    tts = (root / "deployment" / "systemd" / "bonbon-tts.service").read_text(encoding="utf-8")
+    # Singleton-safe topology (see docs/SAFETY_SUPERVISOR_SINGLETON_POLICY.md):
+    # safety-gated modular units must Require/order-after bonbon-safety AND
+    # Conflict with the monolithic bonbon-core so the two can never co-run.
+    sysd = root / "deployment" / "systemd"
+    navigation = (sysd / "bonbon-navigation.service").read_text(encoding="utf-8")
+    tts = (sysd / "bonbon-tts.service").read_text(encoding="utf-8")
     assert "Requires=bonbon-safety.service" in navigation
-    assert "After=bonbon-core.service bonbon-safety.service" in tts
+    assert "Conflicts=bonbon-core.service" in navigation
+    assert "After=" in tts and "bonbon-safety.service" in tts
+    assert "Conflicts=bonbon-core.service" in tts
+    # Every per-subsystem unit must conflict with the monolith.
+    for unit in (
+        "bonbon-safety",
+        "bonbon-hal",
+        "bonbon-perception",
+        "bonbon-speech",
+        "bonbon-behavior",
+        "bonbon-navigation",
+        "bonbon-actuation",
+        "bonbon-tts",
+    ):
+        text = (sysd / f"{unit}.service").read_text(encoding="utf-8")
+        assert "Conflicts=bonbon-core.service" in text, f"{unit} missing Conflicts=bonbon-core"
 
 
 def test_robot_compose_uses_read_only_sensitive_mounts(root: Path):

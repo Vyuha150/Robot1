@@ -102,6 +102,59 @@ services:
     oom_score_adj: -900
     cpu_shares: 4096
 
+  # ── Modular-mode-only subsystem services ───────────────────────────────────
+  # These are used ONLY in modular_pi mode (bonbon-core disabled). Enabling
+  # any of them alongside `core` is the duplicate-pipeline bug that
+  # scripts/validate_boot_topology.py refuses. The HAL service owns the
+  # hardware device passthrough in modular mode (in monolithic mode `core`
+  # owns it).
+  hal:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    devices:
+      - "/dev/video0:/dev/video0"     # USB camera (V4L2)
+      - "/dev/snd:/dev/snd"           # USB mic + speaker (ALSA)
+      - "/dev/i2c-1:/dev/i2c-1"       # IMU + battery monitor
+      - "/dev/gpiomem:/dev/gpiomem"   # e-stop GPIO
+      - "/dev/ttyUSB0:/dev/ttyUSB0"   # LIDAR (USB serial)
+      - "/dev/ttyUSB1:/dev/ttyUSB1"   # servos (USB serial)
+    group_add: ["audio", "video", "i2c", "dialout", "gpio"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_hal hal.launch.py"
+    security_opt: ["no-new-privileges:true"]
+    # HAL owns the e-stop driver path too — protect it like safety.
+    oom_score_adj: -800
+    cpu_shares: 2048
+
+  behavior:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_behavior_engine behavior_engine.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  actuation:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    devices:
+      - "/dev/ttyUSB1:/dev/ttyUSB1"   # servos (USB serial)
+    group_add: ["dialout"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_actuation actuation.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
   dashboard-api:
     image: bonbon/dashboard:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
     network_mode: host

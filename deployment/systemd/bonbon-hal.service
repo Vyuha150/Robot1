@@ -1,0 +1,21 @@
+[Unit]
+Description=BonBon Hardware Abstraction Layer (modular mode only)
+# HAL must come up after the safety supervisor so the e-stop/safety state is
+# already being published before sensors/actuator drivers start reacting.
+After=docker.service network-online.target bonbon-safety.service
+Wants=docker.service network-online.target
+Requires=bonbon-safety.service
+# Mutually exclusive with the monolithic service — see SYSTEMD_DEPLOYMENT_MODES.md.
+Conflicts=bonbon-core.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.robot.yml up -d hal
+ExecStop=/usr/bin/docker compose -f docker-compose.robot.yml stop hal
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
