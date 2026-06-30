@@ -137,6 +137,18 @@ def test_robot_battery(client: TestClient, viewer_token: str):
     assert "percentage" in resp.json()["data"]
 
 
+def test_robot_performance(client: TestClient, viewer_token: str):
+    resp = client.get(
+        "/api/v1/robot/status/performance",
+        headers={"Authorization": f"Bearer {viewer_token}"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert "cpu_percent" in data
+    assert "memory_percent" in data
+    assert "load_level" in data
+
+
 # Scenario 14: Full robot status
 def test_full_robot_status(client: TestClient, viewer_token: str):
     resp = client.get(
@@ -175,6 +187,21 @@ def test_module_update_reflected(aggregator):
 def test_safety_state_update(aggregator):
     aggregator.update_safety({"state": "safety_stop", "active_faults": ["fault_1"]})
     assert aggregator.get_safety_state() == "safety_stop"
+
+
+# Scenario 19b: Performance update reflected
+def test_performance_update(aggregator):
+    aggregator.update_performance(
+        {
+            "cpu_percent": 42.0,
+            "memory_percent": 60.0,
+            "load_level": "reduced",
+            "degraded_mode_active": False,
+        }
+    )
+    status = aggregator.get_status()
+    assert status.performance.cpu_percent == 42.0
+    assert status.performance.load_level == "reduced"
 
 
 # Scenario 19: Navigation state update reflected

@@ -175,6 +175,12 @@ class OperatorAPIConfig(BaseModel):
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
     users_db_path: Path = Field(default=Path("/tmp/bonbon/operator_api/users.db"))
     config_store_path: Path = Field(default=Path("/tmp/bonbon/operator_api/robot_config.json"))
+    # Repo-relative by default (this dev/CI environment's CWD is the repo
+    # root). Override via BONBON_PROJECT_STATUS_DIR in a deployment where
+    # devops/ isn't co-located with the running process.
+    project_status_dir: Path = Field(
+        default_factory=lambda: Path(os.environ.get("BONBON_PROJECT_STATUS_DIR", "devops"))
+    )
     log_level: str = "INFO"
 
     @classmethod

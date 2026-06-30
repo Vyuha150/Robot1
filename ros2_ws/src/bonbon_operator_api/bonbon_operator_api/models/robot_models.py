@@ -58,6 +58,24 @@ class ModuleStatus(BaseModel):
     message: str = ""
 
 
+class PerformanceData(BaseModel):
+    """System performance snapshot. Sourced from bonbon_safety's
+    ResourceUsage (always-on baseline) and bonbon_perception_efficiency's
+    PerceptionEfficiencyMetrics (richer overlay, only present while that
+    package is running) -- see ros2_bridge.py."""
+
+    cpu_percent: float = 0.0
+    memory_percent: float = 0.0
+    disk_free_percent: float = 100.0
+    resource_data_available: bool = False  # false = psutil unavailable (sim/CI)
+    load_level: str = "unknown"  # normal | reduced | minimal | critical | unknown
+    recommended_load_shed: float = 1.0
+    degraded_mode_active: bool = False
+    avg_module_latency_ms: float | None = None
+    max_module_latency_ms: float | None = None
+    total_module_errors: int | None = None
+
+
 class RobotStatus(BaseModel):
     """Aggregated snapshot of the full robot state."""
 
@@ -69,6 +87,7 @@ class RobotStatus(BaseModel):
     perception: PerceptionData = Field(default_factory=PerceptionData)
     tts: TTSData = Field(default_factory=TTSData)
     actuation: ActuationData = Field(default_factory=ActuationData)
+    performance: PerformanceData = Field(default_factory=PerformanceData)
     modules: dict[str, ModuleStatus] = Field(default_factory=dict)
     active_task: str | None = None
     last_updated: float = 0.0

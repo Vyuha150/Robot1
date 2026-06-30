@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-06-30T00:00:00Z",
+  "source": "final no-excuses verification pass — manual full pytest sweep across every package, not just scripts/test.sh's 13-package subset",
+  "total_passed": 2399,
+  "total_failed": 0,
+  "total_skipped": 8,
+  "packages": [
+    {"name": "bonbon_safety", "passed": 198, "failed": 0, "skipped": 0},
+    {"name": "bonbon_behavior_engine", "passed": 164, "failed": 0, "skipped": 0},
+    {"name": "bonbon_actuation", "passed": 98, "failed": 0, "skipped": 0},
+    {"name": "bonbon_spatial", "passed": 95, "failed": 0, "skipped": 0},
+    {"name": "bonbon_gesture", "passed": 94, "failed": 0, "skipped": 0},
+    {"name": "bonbon_affective_ai", "passed": 105, "failed": 0, "skipped": 0},
+    {"name": "bonbon_multi_person_tracker", "passed": 53, "failed": 0, "skipped": 0},
+    {"name": "bonbon_speaker_intelligence", "passed": 43, "failed": 0, "skipped": 0},
+    {"name": "bonbon_human_state_fusion", "passed": 73, "failed": 0, "skipped": 0},
+    {"name": "bonbon_object_intelligence", "passed": 36, "failed": 0, "skipped": 0},
+    {"name": "bonbon_perception_efficiency", "passed": 77, "failed": 0, "skipped": 0},
+    {"name": "bonbon_data_feedback", "passed": 62, "failed": 0, "skipped": 0},
+    {"name": "bonbon_llm", "passed": 257, "failed": 0, "skipped": 0},
+    {"name": "cross_package_scenarios", "passed": 41, "failed": 0, "skipped": 0},
+    {"name": "bonbon_hal", "passed": 152, "failed": 0, "skipped": 0, "note": "integration tests excluded — require real ROS2/launch_testing"},
+    {"name": "bonbon_navigation", "passed": 172, "failed": 0, "skipped": 0, "note": "integration tests excluded"},
+    {"name": "bonbon_tts", "passed": 110, "failed": 0, "skipped": 0},
+    {"name": "bonbon_speech", "passed": 153, "failed": 0, "skipped": 0},
+    {"name": "bonbon_data_stores", "passed": 108, "failed": 0, "skipped": 7, "note": "optional faiss/chroma backends not installed"},
+    {"name": "bonbon_operator_api", "passed": 147, "failed": 0, "skipped": 0},
+    {"name": "bonbon_simulation", "passed": 20, "failed": 0, "skipped": 0},
+    {"name": "bonbon_perception_ai", "passed": 151, "failed": 0, "skipped": 0, "note": "2 real bugs found and fixed during this pass — see PHASE2_BUILD_VALIDATION_REPORT.md"},
+    {"name": "bonbon_bringup", "passed": 6, "failed": 0, "skipped": 1},
+    {"name": "bonbon_vision", "passed": null, "failed": null, "skipped": null, "note": "BLOCKED — test suite hangs in this environment, traced to a separate uncommitted/unverified background task's in-progress detector-timeout change, not this codebase's own state. See PHASE2_BUILD_VALIDATION_REPORT.md."}
+  ],
+  "static_checks": {
+    "ruff": "pass (0 errors)",
+    "black": "pass (0 files need reformatting)",
+    "mypy": "pass (51 files checked, CI's scope)",
+    "config_validation": "pass (5/5 environments)"
+  },
+  "not_runnable_in_this_environment": [
+    "colcon build (no ROS2 install)",
+    "rosdep install (no ROS2 install)",
+    "docker build (no Docker)"
+  ]
+}

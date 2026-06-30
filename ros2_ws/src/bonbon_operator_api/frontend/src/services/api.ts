@@ -106,15 +106,22 @@ export class ApiClient {
   }
 
   async getSafetyState() {
-    return this.request<Record<string, unknown>>("/api/v1/robot/safety-state");
+    // Was calling /api/v1/robot/safety-state, which matches no real route
+    // (found during a final verification pass -- unused by the UI, so
+    // never surfaced as a visible bug, but still wrong).
+    return this.request<Record<string, unknown>>("/api/v1/robot/status/safety");
   }
 
   async getBatteryStatus() {
-    return this.request<Record<string, unknown>>("/api/v1/robot/battery");
+    return this.request<Record<string, unknown>>("/api/v1/robot/status/battery");
   }
 
   async getNavigationStatus() {
-    return this.request<Record<string, unknown>>("/api/v1/robot/navigation-status");
+    return this.request<Record<string, unknown>>("/api/v1/robot/status/navigation");
+  }
+
+  async getPerformanceStatus() {
+    return this.request<Record<string, unknown>>("/api/v1/robot/status/performance");
   }
 
   // ── Diagnostics ────────────────────────────────────────────────────────────
@@ -123,7 +130,21 @@ export class ApiClient {
   }
 
   async getHealthSummary() {
-    return this.request<Record<string, unknown>>("/api/v1/diagnostics/health");
+    // Was calling /api/v1/diagnostics/health -- the real route lives under
+    // the /robot/status prefix, not /diagnostics (found during the same pass).
+    return this.request<Record<string, unknown>>("/api/v1/robot/status/health");
+  }
+
+  async getTestResults() {
+    return this.request<Record<string, unknown>>("/api/v1/diagnostics/test-results");
+  }
+
+  async getKnownIssues() {
+    return this.request<Record<string, unknown>>("/api/v1/diagnostics/known-issues");
+  }
+
+  async getDeploymentReadiness() {
+    return this.request<Record<string, unknown>>("/api/v1/diagnostics/deployment-readiness");
   }
 
   // ── Commands ───────────────────────────────────────────────────────────────

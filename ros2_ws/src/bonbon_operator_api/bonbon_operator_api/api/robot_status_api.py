@@ -67,6 +67,21 @@ async def get_navigation_status(
     return APIResponse.ok(status.navigation.model_dump())
 
 
+@status_router.get("/status/performance", response_model=APIResponse)
+async def get_performance_status(
+    request: Request,
+    current_user: TokenPayload = Depends(require_permission("robot:read")),
+) -> APIResponse:
+    """Return system performance metrics (CPU/memory/load/latency).
+
+    Sourced from bonbon_safety's ResourceUsage (always-on baseline) and
+    bonbon_perception_efficiency's PerceptionEfficiencyMetrics (richer
+    overlay, only present while that package is running)."""
+    aggregator = request.app.state.status_aggregator
+    status = aggregator.get_status()
+    return APIResponse.ok(status.performance.model_dump())
+
+
 @status_router.get("/status/health", response_model=APIResponse)
 async def get_health_summary(
     request: Request,

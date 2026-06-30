@@ -1498,8 +1498,21 @@ function SystemTab(p: TabProps) {
   const [eventStatus, setEventStatus] = useState<SessionEventStatus>("pass"); const [moduleName, setModuleName] = useState("integration"); const [failLabel, setFailLabel] = useState("");
   const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
 
+  const [projectData, setProjectData] = useState<Record<string, unknown> | null>(null);
+
   const load = async (kind: "status" | "diagnostics") => {
     try { const r = kind === "status" ? await p.api.robotStatus() : await p.api.diagnostics(); setSysData(r); p.addLog("ok", `Loaded ${kind}`); } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
+  };
+
+  const loadProjectStatus = async (kind: "performance" | "test-results" | "known-issues" | "deployment-readiness") => {
+    try {
+      const r = kind === "performance" ? await p.api.getPerformanceStatus()
+        : kind === "test-results" ? await p.api.getTestResults()
+        : kind === "known-issues" ? await p.api.getKnownIssues()
+        : await p.api.getDeploymentReadiness();
+      setProjectData(r);
+      p.addLog("ok", `Loaded ${kind}`);
+    } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
   };
 
   // Auto-load robot status when the tab becomes accessible (user logs in)
@@ -1540,6 +1553,17 @@ function SystemTab(p: TabProps) {
               <button onClick={p.connectWs} disabled={p.wsStatus === "connected"}>Connect WS</button>
             </div>
             <pre className="json-view">{sysData ? JSON.stringify(sysData, null, 2) : "No data loaded."}</pre>
+          </section>
+
+          <section className="panel">
+            <div className="section-title"><span>Project Status</span><small>performance · tests · known issues · deployment</small></div>
+            <div className="btn-row">
+              <button onClick={() => void loadProjectStatus("performance")} disabled={p.disabled}>Performance</button>
+              <button onClick={() => void loadProjectStatus("test-results")} disabled={p.disabled}>Test results</button>
+              <button onClick={() => void loadProjectStatus("known-issues")} disabled={p.disabled}>Known issues</button>
+              <button onClick={() => void loadProjectStatus("deployment-readiness")} disabled={p.disabled}>Deployment readiness</button>
+            </div>
+            <pre className="json-view">{projectData ? JSON.stringify(projectData, null, 2) : "No data loaded."}</pre>
           </section>
 
           <section className="panel">

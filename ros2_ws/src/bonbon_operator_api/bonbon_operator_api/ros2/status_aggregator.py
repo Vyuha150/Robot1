@@ -17,6 +17,7 @@ from bonbon_operator_api.models.robot_models import (
     ModuleStatus,
     NavigationData,
     PerceptionData,
+    PerformanceData,
     RobotStatus,
     SafetyStateData,
     TTSData,
@@ -83,6 +84,7 @@ class RobotStatusAggregator:
             angular_velocity_rps=0.0,
             motors_enabled=False,
         )
+        self._performance = PerformanceData()
         self._modules: dict[str, ModuleStatus] = {}
         self._active_task: str | None = None
         self._last_updated: float = 0.0  # epoch seconds; 0 = never heard from robot
@@ -108,6 +110,7 @@ class RobotStatusAggregator:
                 perception=self._perception.model_copy(),
                 tts=self._tts.model_copy(),
                 actuation=self._actuation.model_copy(),
+                performance=self._performance.model_copy(),
                 modules={k: v.model_copy() for k, v in self._modules.items()},
                 active_task=self._active_task,
                 last_updated=self._last_updated,
@@ -195,6 +198,36 @@ class RobotStatusAggregator:
                     "angular_velocity_rps", self._actuation.angular_velocity_rps
                 ),
                 motors_enabled=data.get("motors_enabled", self._actuation.motors_enabled),
+            )
+            self._touch()
+
+    def update_performance(self, data: dict[str, Any]) -> None:
+        with self._lock:
+            self._performance = PerformanceData(
+                cpu_percent=data.get("cpu_percent", self._performance.cpu_percent),
+                memory_percent=data.get("memory_percent", self._performance.memory_percent),
+                disk_free_percent=data.get(
+                    "disk_free_percent", self._performance.disk_free_percent
+                ),
+                resource_data_available=data.get(
+                    "resource_data_available", self._performance.resource_data_available
+                ),
+                load_level=data.get("load_level", self._performance.load_level),
+                recommended_load_shed=data.get(
+                    "recommended_load_shed", self._performance.recommended_load_shed
+                ),
+                degraded_mode_active=data.get(
+                    "degraded_mode_active", self._performance.degraded_mode_active
+                ),
+                avg_module_latency_ms=data.get(
+                    "avg_module_latency_ms", self._performance.avg_module_latency_ms
+                ),
+                max_module_latency_ms=data.get(
+                    "max_module_latency_ms", self._performance.max_module_latency_ms
+                ),
+                total_module_errors=data.get(
+                    "total_module_errors", self._performance.total_module_errors
+                ),
             )
             self._touch()
 

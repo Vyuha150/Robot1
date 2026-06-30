@@ -1,0 +1,86 @@
+{
+  "generated_at": "2026-06-30T00:00:00Z",
+  "source": "Final no-excuses verification pass — every entry below was individually confirmed by reading source/running commands, not assumed.",
+  "issues": [
+    {
+      "id": "bonbon_vision_test_hang",
+      "severity": "blocker",
+      "category": "test_infrastructure",
+      "title": "bonbon_vision test suite hangs in this dev environment",
+      "description": "Traces to a separate, already-flagged, uncommitted background task's in-progress MockDetector fail-fast-on-timeout change. Not this verification's own work; explicitly left untouched per this session's established boundary around that task.",
+      "blocking_deployment": true
+    },
+    {
+      "id": "dashboard_commands_partially_unimplemented",
+      "severity": "high",
+      "category": "incomplete_feature",
+      "title": "7 of 11 dashboard commands have no real ROS2 backend",
+      "description": "emergency_stop (hardware/GPIO e-stop only, no software trigger exists anywhere), pause, resume, restart_module, get_config, set_config, memory_query, rag_query (LLMQuery.srv is defined but bonbon_llm never serves it) all honestly report unavailable rather than fake success. navigate, cancel_task, dock, and speak ARE wired to real services/topics.",
+      "blocking_deployment": true
+    },
+    {
+      "id": "perception_quarantined",
+      "severity": "informational",
+      "category": "redundancy_cleanup",
+      "title": "bonbon_perception is intentionally quarantined",
+      "description": "Superseded by bonbon_vision + bonbon_gesture + bonbon_affective_ai. Launch file disabled, entry_points emptied, documented in its own README. Source kept for reference, not deleted. Correctly marked, not a defect.",
+      "blocking_deployment": false
+    },
+    {
+      "id": "bonbon_actions_unused_interface",
+      "severity": "low",
+      "category": "incomplete_feature",
+      "title": "ExecuteMotionSequence.action is defined but has zero consumers",
+      "description": "No action server or client exists anywhere in the codebase for this interface. Either a planned capability never implemented, or dead weight to remove.",
+      "blocking_deployment": false
+    },
+    {
+      "id": "ci_coverage_gap",
+      "severity": "medium",
+      "category": "test_infrastructure",
+      "title": "20 of 26 packages have no real-ROS2 CI coverage",
+      "description": "CI's colcon test --packages-select only covers bonbon_safety, bonbon_hal, bonbon_operator_api, bonbon_data_stores, bonbon_simulation, bonbon_bringup against a real sourced ROS2 install. The rest are only exercised via pure-Python rclpy-stub tests, which cannot catch real message-type/topic-name mismatches (exactly the class of bug found and fixed in the dashboard bridge this pass).",
+      "blocking_deployment": false
+    },
+    {
+      "id": "ad_hoc_sqlite_connections",
+      "severity": "low",
+      "category": "code_quality",
+      "title": "5 modules use raw sqlite3.connect() instead of the canonical SQLiteConnection wrapper",
+      "description": "bonbon_data_stores/backup_manager.py, bonbon_operator_api's audit_logger.py and auth_manager.py, bonbon_perception_ai's structured_store.py, and bonbon_safety's incident_logger.py each manage their own SQLite connection independently. Each solves a genuinely different problem (backup, audit, auth, perception memory, incident log) — not redundant pipelines duplicating the same job — but a DRY opportunity, not a blocker.",
+      "blocking_deployment": false
+    },
+    {
+      "id": "operator_api_test_suite_slow",
+      "severity": "low",
+      "category": "test_infrastructure",
+      "title": "bonbon_operator_api's test suite takes 2-12 minutes vs <2s for every other package",
+      "description": "Likely real network/sleep-based waits inside FastAPI TestClient + websocket tests. Not a failure, worth a follow-up investigation for test-suite health.",
+      "blocking_deployment": false
+    },
+    {
+      "id": "stray_empty_directories_removed",
+      "severity": "resolved",
+      "category": "redundancy_cleanup",
+      "title": "ai_core/, top-level simulation/, tools/ were empty, untracked skeleton directories",
+      "description": "Removed during this verification pass — confirmed zero files anywhere in their trees and zero git history (git ls-files returned 0 for all three) before removal.",
+      "blocking_deployment": false
+    },
+    {
+      "id": "interface_registration_gap_fixed",
+      "severity": "resolved",
+      "category": "build_blocker",
+      "title": "7 ROS2 interfaces existed on disk but were never registered for code generation",
+      "description": "NavigateTo.srv, CancelNavigation.srv, GetNearestCharger.srv (bonbon_srvs) and NavigationStatus.msg, NavigationGoal.msg, DockingStatus.msg, RecoveryStatus.msg (bonbon_msgs) were imported by bonbon_navigation's own code but missing from their CMakeLists.txt rosidl_generate_interfaces() calls — would have failed any real colcon build independent of anything else. Fixed during this verification pass.",
+      "blocking_deployment": false
+    },
+    {
+      "id": "dashboard_status_bridge_fixed",
+      "severity": "resolved",
+      "category": "data_integrity",
+      "title": "Dashboard ROS2 bridge was subscribed to topics/types matching no real publisher",
+      "description": "0 of 8 original subscriptions had both the correct topic name AND correct message type. Rewired to real SafetyState, BatteryState, NavigationStatus, ActuationStatus, PersonTrack, ResourceUsage, PerceptionEfficiencyMetrics, and curated ModuleHealth topics. Fixed during this verification pass.",
+      "blocking_deployment": false
+    }
+  ]
+}

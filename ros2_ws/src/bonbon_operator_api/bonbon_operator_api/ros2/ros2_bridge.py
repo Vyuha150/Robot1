@@ -49,7 +49,9 @@ try:
         ActuationStatus,
         ModuleHealth,
         NavigationStatus,
+        PerceptionEfficiencyMetrics,
         PersonTrack,
+        ResourceUsage,
         SafetyState,
         TTSRequest,
     )
@@ -74,6 +76,8 @@ _TOPIC_NAV_STATUS = "/navigation/status"  # bonbon_navigation/navigation_node, N
 _TOPIC_TTS_HEALTH = "/bonbon/tts/health"  # bonbon_tts/tts_node, std_msgs/String (JSON)
 _TOPIC_ACTUATION_STATUS = "/bonbon/actuation/status"  # bonbon_actuation, ActuationStatus
 _TOPIC_PERSON_TRACKS = "/bonbon/persons/tracks"  # bonbon_multi_person_tracker, PersonTrack
+_TOPIC_RESOURCE_USAGE = "/bonbon/system/resource_usage"  # bonbon_safety, ResourceUsage
+_TOPIC_PERCEPTION_METRICS = "/bonbon/perception_efficiency/metrics"  # bonbon_perception_efficiency
 
 # Curated set of ModuleHealth topics surfaced as dashboard module cards.
 # There is no single aggregate "/bonbon/modules/status" topic anywhere in
@@ -370,6 +374,15 @@ if _ROS2_AVAILABLE:
             self.create_subscription(
                 PersonTrack, _TOPIC_PERSON_TRACKS, self._on_person_track, _best_effort
             )
+            self.create_subscription(
+                ResourceUsage, _TOPIC_RESOURCE_USAGE, self._on_resource_usage, _best_effort
+            )
+            self.create_subscription(
+                PerceptionEfficiencyMetrics,
+                _TOPIC_PERCEPTION_METRICS,
+                self._on_perception_metrics,
+                _best_effort,
+            )
             for module_key, topic in _MODULE_HEALTH_TOPICS.items():
                 self.create_subscription(
                     ModuleHealth,
@@ -469,6 +482,36 @@ if _ROS2_AVAILABLE:
                     "lidar_active": None,
                     "persons_detected": len(self._person_track_ids),
                     "obstacle_distance_m": None,
+                }
+            )
+
+        def _on_resource_usage(self, msg: ResourceUsage) -> None:
+            self._agg.update_performance(
+                {
+                    "cpu_percent": msg.cpu_percent,
+                    "memory_percent": msg.memory_percent,
+                    "disk_free_percent": msg.disk_free_percent,
+                    "resource_data_available": msg.available,
+                    "recommended_load_shed": msg.recommended_load_shed,
+                }
+            )
+
+        def _on_perception_metrics(self, msg: PerceptionEfficiencyMetrics) -> None:
+            # Richer overlay on top of ResourceUsage -- only present while
+            # bonbon_perception_efficiency is running. cpu/memory here
+            # mirror ResourceUsage (see that message's own docstring) so
+            # update_performance's partial dict merge keeps both consistent
+            # whichever arrives most recently.
+            self._agg.update_performance(
+                {
+                    "cpu_percent": msg.cpu_percent,
+                    "memory_percent": msg.memory_percent,
+                    "recommended_load_shed": msg.recommended_load_shed,
+                    "load_level": msg.load_level,
+                    "degraded_mode_active": msg.degraded_mode_active,
+                    "avg_module_latency_ms": msg.avg_latency_ms,
+                    "max_module_latency_ms": msg.max_latency_ms,
+                    "total_module_errors": msg.total_errors,
                 }
             )
 
