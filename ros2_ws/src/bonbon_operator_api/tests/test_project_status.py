@@ -114,3 +114,18 @@ def test_real_known_issues_file_has_expected_shape(tmp_path):
         assert "id" in issue
         assert "severity" in issue
         assert "blocking_deployment" in issue
+
+
+def test_known_issues_contains_the_real_pi_blockers():
+    """The two real Pi deployment blockers found in the verification passes
+    must be present and flagged — guards against someone quietly dropping
+    them to make the dashboard look green."""
+    import pathlib
+
+    repo_root = pathlib.Path(__file__).resolve()
+    while not (repo_root / "devops").is_dir():
+        repo_root = repo_root.parent
+    data = json.loads((repo_root / "devops" / "project-status" / "known_issues.json").read_text())
+    ids = {i["id"] for i in data["issues"]}
+    assert "systemd_duplicate_safety_supervisor" in ids
+    assert "no_hailo_ai_hat_backend" in ids

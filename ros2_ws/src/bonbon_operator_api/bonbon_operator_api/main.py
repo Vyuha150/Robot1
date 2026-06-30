@@ -26,9 +26,9 @@ from fastapi.responses import JSONResponse
 from bonbon_operator_api.api.auth_api import auth_router
 from bonbon_operator_api.api.command_api import cmd_router
 from bonbon_operator_api.api.config_api import _ConfigStore, config_router
+from bonbon_operator_api.api.deployment_api import deployment_router
 from bonbon_operator_api.api.diagnostics_api import diag_router
 from bonbon_operator_api.api.llm_test_api import llm_router
-from bonbon_operator_api.api.deployment_api import deployment_router
 from bonbon_operator_api.api.memory_api import memory_router
 from bonbon_operator_api.api.project_status_api import project_status_router
 from bonbon_operator_api.api.robot_status_api import status_router
