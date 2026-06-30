@@ -147,6 +147,35 @@ export class ApiClient {
     return this.request<Record<string, unknown>>("/api/v1/diagnostics/deployment-readiness");
   }
 
+  // ── Raspberry Pi deployment (boot topology / AI runtime / efficiency) ──────
+  async getBootTopology() {
+    return this.request<Record<string, unknown>>("/api/v1/deployment/boot-topology");
+  }
+
+  async getDuplicateNodeCheck() {
+    return this.request<Record<string, unknown>>("/api/v1/deployment/duplicate-node-check");
+  }
+
+  async getAiRuntimeStatus() {
+    return this.request<Record<string, unknown>>("/api/v1/ai-runtime/status");
+  }
+
+  async getAiRuntimeModels() {
+    return this.request<Record<string, unknown>>("/api/v1/ai-runtime/models");
+  }
+
+  async getAiRuntimeBenchmark() {
+    return this.request<Record<string, unknown>>("/api/v1/ai-runtime/benchmark");
+  }
+
+  async getPiEfficiency() {
+    return this.request<Record<string, unknown>>("/api/v1/pi/efficiency");
+  }
+
+  async getPiDegradedMode() {
+    return this.request<Record<string, unknown>>("/api/v1/pi/degraded-mode");
+  }
+
   // ── Commands ───────────────────────────────────────────────────────────────
   async speak(text: string, emotion = "neutral", language = "en", priority = "normal") {
     return this.request<Record<string, unknown>>("/api/v1/robot/commands/speak", {

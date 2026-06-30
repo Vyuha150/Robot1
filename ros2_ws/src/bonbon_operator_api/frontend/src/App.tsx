@@ -1499,6 +1499,7 @@ function SystemTab(p: TabProps) {
   const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null);
 
   const [projectData, setProjectData] = useState<Record<string, unknown> | null>(null);
+  const [piData, setPiData] = useState<Record<string, unknown> | null>(null);
 
   const load = async (kind: "status" | "diagnostics") => {
     try { const r = kind === "status" ? await p.api.robotStatus() : await p.api.diagnostics(); setSysData(r); p.addLog("ok", `Loaded ${kind}`); } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
@@ -1511,6 +1512,18 @@ function SystemTab(p: TabProps) {
         : kind === "known-issues" ? await p.api.getKnownIssues()
         : await p.api.getDeploymentReadiness();
       setProjectData(r);
+      p.addLog("ok", `Loaded ${kind}`);
+    } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
+  };
+
+  const loadPi = async (kind: "boot-topology" | "ai-runtime" | "ai-benchmark" | "efficiency" | "degraded") => {
+    try {
+      const r = kind === "boot-topology" ? await p.api.getBootTopology()
+        : kind === "ai-runtime" ? await p.api.getAiRuntimeStatus()
+        : kind === "ai-benchmark" ? await p.api.getAiRuntimeBenchmark()
+        : kind === "efficiency" ? await p.api.getPiEfficiency()
+        : await p.api.getPiDegradedMode();
+      setPiData(r);
       p.addLog("ok", `Loaded ${kind}`);
     } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
   };
@@ -1564,6 +1577,18 @@ function SystemTab(p: TabProps) {
               <button onClick={() => void loadProjectStatus("deployment-readiness")} disabled={p.disabled}>Deployment readiness</button>
             </div>
             <pre className="json-view">{projectData ? JSON.stringify(projectData, null, 2) : "No data loaded."}</pre>
+          </section>
+
+          <section className="panel">
+            <div className="section-title"><span>Raspberry Pi Deployment</span><small>boot topology · AI HAT · efficiency</small></div>
+            <div className="btn-row">
+              <button onClick={() => void loadPi("boot-topology")} disabled={p.disabled}>Boot topology</button>
+              <button onClick={() => void loadPi("ai-runtime")} disabled={p.disabled}>AI runtime</button>
+              <button onClick={() => void loadPi("ai-benchmark")} disabled={p.disabled}>AI benchmark</button>
+              <button onClick={() => void loadPi("efficiency")} disabled={p.disabled}>Pi efficiency</button>
+              <button onClick={() => void loadPi("degraded")} disabled={p.disabled}>Degraded mode</button>
+            </div>
+            <pre className="json-view">{piData ? JSON.stringify(piData, null, 2) : "No data loaded."}</pre>
           </section>
 
           <section className="panel">
