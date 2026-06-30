@@ -35,6 +35,7 @@ from bonbon_msgs.msg import (
     BumperState,
     ModuleHealth,
     PersonStateArray,
+    ResourceUsage,
     ServoStateArray,
     ThermalReadings,
 )
@@ -59,6 +60,7 @@ from sensor_msgs.msg import BatteryState, Imu, LaserScan
 from std_msgs.msg import Bool
 
 from bonbon_safety.core.incident_logger import IncidentLogger
+from bonbon_safety.core.resource_monitor import ResourceMonitor
 from bonbon_safety.core.safety_policy import PolicyAction, SafetyPolicy
 
 # Core logic (no ROS2 dependency)
@@ -122,14 +124,17 @@ class SafetySupervisorNode(LifecycleNode):
         self._assessor: ThreatAssessor | None = None
         self._policy: SafetyPolicy | None = None
         self._incident_logger: IncidentLogger | None = None
+        self._resource_monitor: ResourceMonitor | None = None
 
         self._supervisor_timer: Timer | None = None
         self._heartbeat_timer: Timer | None = None
+        self._resource_timer: Timer | None = None
 
         # Publishers (created in on_activate)
         self._pub_safety_state = None
         self._pub_safety_event = None
         self._pub_cmd_vel_zero = None
+        self._pub_resource_usage = None
 
         # Subscribers
         self._subs: list = []
@@ -149,6 +154,7 @@ class SafetySupervisorNode(LifecycleNode):
 
     def _declare_parameters(self) -> None:
         self.declare_parameter("supervisor_rate_hz", 10.0)
+        self.declare_parameter("resource_monitor_rate_hz", 1.0)
         self.declare_parameter("policy_file", "")
         self.declare_parameter("incident_db_path", "/var/lib/bonbon/safety_incidents.db")
         self.declare_parameter("robot_id", "bonbon-01")
@@ -217,6 +223,11 @@ class SafetySupervisorNode(LifecycleNode):
             robot_id = p("robot_id").value
             self._incident_logger = IncidentLogger(db_path, robot_id=robot_id)
 
+            # System resource monitor (CPU/memory/disk) — drives
+            # /bonbon/system/resource_usage, consumed by
+            # bonbon_perception_efficiency for load-shedding decisions.
+            self._resource_monitor = ResourceMonitor()
+
             self.get_logger().info("Safety supervisor configured successfully")
             return TransitionCallbackReturn.SUCCESS
 
@@ -253,6 +264,8 @@ class SafetySupervisorNode(LifecycleNode):
             self._supervisor_timer.cancel()
         if self._heartbeat_timer:
             self._heartbeat_timer.cancel()
+        if self._resource_timer:
+            self._resource_timer.cancel()
         for sub in self._subs:
             self.destroy_subscription(sub)
         self._subs.clear()
@@ -279,6 +292,9 @@ class SafetySupervisorNode(LifecycleNode):
         # Zero-velocity publisher — used to override cmd_vel on danger
         self._pub_cmd_vel_zero = self.create_lifecycle_publisher(
             Twist, "/bonbon/cmd_vel/safe", RELIABLE_D5
+        )
+        self._pub_resource_usage = self.create_lifecycle_publisher(
+            ResourceUsage, "/bonbon/system/resource_usage", RELIABLE_D5
         )
 
     def _create_subscribers(self) -> None:
@@ -323,6 +339,13 @@ class SafetySupervisorNode(LifecycleNode):
         rate_hz = self.get_parameter("supervisor_rate_hz").value
         period_sec = 1.0 / rate_hz
         self._supervisor_timer = self.create_timer(period_sec, self._supervisor_cycle)
+
+        # Resource sampling runs independently at its own (lower) rate —
+        # psutil sampling is too expensive to do at the 10 Hz supervisor rate.
+        resource_hz = self.get_parameter("resource_monitor_rate_hz").value
+        self._resource_timer = self.create_timer(
+            1.0 / resource_hz, self._publish_resource_usage
+        )
 
         # Startup watchdog — fires once to check that all critical sensors came up
         startup_timeout = self.get_parameter("startup_timeout_sec").value
@@ -562,6 +585,29 @@ class SafetySupervisorNode(LifecycleNode):
         msg.requires_manual_reset = props.requires_manual_reset
 
         self._pub_safety_state.publish(msg)
+
+    def _publish_resource_usage(self) -> None:
+        if self._pub_resource_usage is None or self._resource_monitor is None:
+            return
+        if not self._pub_resource_usage.is_activated:
+            return
+
+        snap = self._resource_monitor.sample()
+
+        msg = ResourceUsage()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "base_link"
+        msg.cpu_percent = float(snap.cpu_percent)
+        msg.memory_percent = float(snap.memory_percent)
+        msg.memory_mb = float(snap.memory_mb)
+        msg.disk_free_percent = float(snap.disk_free_percent)
+        msg.available = snap.available
+        msg.cpu_overloaded = snap.cpu_overloaded
+        msg.memory_pressure = snap.memory_pressure
+        msg.disk_low = snap.disk_low
+        msg.recommended_load_shed = float(self._resource_monitor.recommended_load_shed())
+
+        self._pub_resource_usage.publish(msg)
 
     def _publish_safety_event(self, transition: StateTransition, actions: list) -> None:
         if self._pub_safety_event is None:

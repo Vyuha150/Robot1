@@ -1,6 +1,10 @@
 """
 bonbon_perception.nodes.face_node
 ===================================
+⚠️ QUARANTINED — see ../../README.md. This is an orphaned duplicate of
+bonbon_vision's face_pipeline.py (zero dependents, not in bonbon_bringup,
+launch file disabled). Do not launch. Reference only.
+
 CLASS-D AUXILIARY: Face recognition node.
 
 Subscribes (from detection_node + HAL camera_node)

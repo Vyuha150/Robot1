@@ -9,6 +9,8 @@ safety_supervisor_node:
   ros__parameters:
     # Core timing
     supervisor_rate_hz: 10.0          # FSM evaluation rate (do not lower below 5.0)
+    resource_monitor_rate_hz: 1.0     # CPU/memory/disk sampling rate — too
+                                       # expensive to sample at supervisor_rate_hz
     startup_timeout_sec: 15.0         # time to wait for all sensors before FAULT
 
     # Policy

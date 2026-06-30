@@ -1,6 +1,10 @@
 """
 bonbon_perception.nodes.detection_node
 =======================================
+⚠️ QUARANTINED — see ../../README.md. This is an orphaned duplicate of
+bonbon_vision's vision_node (zero dependents, not in bonbon_bringup, launch
+file disabled). Do not launch. Reference only.
+
 CLASS-C IMPORTANT: Person detection and tracking node.
 
 Subscribes (from HAL camera_node)

@@ -48,6 +48,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PersonTrack.msg"
   "msg/SpeakerTurn.msg"
   "msg/HumanState.msg"
+  "msg/ResourceUsage.msg"
   DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 
