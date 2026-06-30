@@ -8,14 +8,19 @@ consistent with every other test suite in this project (see
 test_multi_person_perception_scenarios.py for the established convention
 this file follows).
 
-Two scenarios are deliberately scoped to what is actually true rather than
-the brief's literal wording, and say so in their docstring:
+One scenario is deliberately scoped to what is actually true rather than the
+brief's literal wording, and says so in its docstring:
   - Scenario 10 (LLM calls reduced by intent stability) tests the reusable
     TemporalSmoothingManager primitive a stability gate would be built on —
     no node currently wires it in front of an LLM call.
-  - Scenario 11 (repeated-question caching) verifies the LLM call itself is
-    skipped on a cache hit; RAG retrieval still runs every cycle (a known,
-    documented limitation, not silently glossed over).
+
+Scenario 11 (repeated-question caching) originally only skipped the LLM
+call on a cache hit, with RAG retrieval still running every cycle — that
+gap was found during a later compliance audit and fixed: the cache is now
+checked BEFORE RAG retrieval (keyed on question + scene/safety context, not
+RAG results), so a hit skips both. See
+ros2_ws/src/bonbon_llm/tests/test_llm_orchestrator.py::TestProcessIntentCacheSkipsRagAndLlm
+for the test that exercises the real _process_intent method end-to-end.
 """
 
 from __future__ import annotations
@@ -280,18 +285,19 @@ class TestScenario10IntentStabilityPrimitive:
         assert result.stable_label == "order_item"
 
 
-# ── 11: Repeated LLM query is served from cache, RAG limitation noted ──────
+# ── 11: Repeated LLM query is served from cache, RAG included ──────────────
 
 
 class TestScenario11RepeatedQueryCached:
     """Purpose: an identical question asked again within the same scene/
-    safety context must not re-run the expensive LLM inference call.
-    Honest scope note: only the LLM inference call is skipped on a cache
-    hit. RAG retrieval still runs every cycle to build the context string
-    used as part of the cache key (so a context change is correctly
-    detected) — full RAG-call elimination on a hit is a documented
-    limitation of this implementation, not a silent gap.
-    Setup: ResponseCache.
+    safety context must not re-run RAG retrieval or the expensive LLM
+    inference call.
+    Setup: ResponseCache, keyed on (question, scene+safety context) — RAG
+    results are deliberately NOT part of the key, since the cache is
+    checked in llm_orchestrator_node BEFORE RAG retrieval runs (see
+    test_llm_orchestrator.py::TestProcessIntentCacheSkipsRagAndLlm for the
+    end-to-end test against the real _process_intent method; this test
+    covers the cache primitive itself).
     Input: put() a successful ("ok") response, then get() the same
     (question, context) pair.
     Expected: get() returns the cached text without needing a second LLM

@@ -87,12 +87,19 @@ def _stub_ros():
             return MagicMock()
 
     lifecycle_mod.LifecycleNode = FakeLifecycleNode
+    lifecycle_mod.State = MagicMock
+    lifecycle_mod.TransitionCallbackReturn = MagicMock(SUCCESS="SUCCESS", FAILURE="FAILURE")
+
+    qos_mod = types.ModuleType("rclpy.qos")
+    for _cls_name in ("QoSProfile", "DurabilityPolicy", "HistoryPolicy", "ReliabilityPolicy"):
+        setattr(qos_mod, _cls_name, MagicMock())
 
     for name, mod in [
         ("rclpy", fake_rclpy),
         ("rclpy.node", node_mod),
         ("rclpy.lifecycle", lifecycle_mod),
         ("rclpy.lifecycle.node", lifecycle_mod),
+        ("rclpy.qos", qos_mod),
         ("lifecycle_msgs", types.ModuleType("lifecycle_msgs")),
         ("lifecycle_msgs.msg", types.ModuleType("lifecycle_msgs.msg")),
         ("bonbon_msgs", types.ModuleType("bonbon_msgs")),
@@ -334,3 +341,104 @@ class TestConfigDefaults:
 
         cfg = SafetyFilterConfig()
         assert len(cfg.blocked_patterns) > 0
+
+
+# ── Full _process_intent: cache hit skips RAG + LLM, not just LLM ──────────────
+
+
+class TestProcessIntentCacheSkipsRagAndLlm:
+    """Exercises the REAL _process_intent method (not a re-implementation) on
+    a minimally-wired node, to verify the actual fix: a cache hit must skip
+    RAG retrieval too, not just the LLM call -- this is what regressed before
+    response_cache.py's key was changed from (question, full_context-with-RAG)
+    to (question, scene+safety-context-only) and the cache check was moved
+    before RAG retrieval in _process_intent."""
+
+    def _make_node(self):
+        from bonbon_llm.config.llm_config import (
+            AuthorizationConfig,
+            HallucinationConfig,
+            PersonalityConfig,
+            SafetyFilterConfig,
+        )
+        from bonbon_llm.core.response_cache import ResponseCache
+        from bonbon_llm.nodes.llm_orchestrator_node import LLMOrchestratorNode
+        from bonbon_llm.personality.personality_layer import PersonalityLayer
+        from bonbon_llm.safety.authorization import CommandAuthorizer
+        from bonbon_llm.safety.command_filter import SafetyCommandFilter
+        from bonbon_llm.safety.hallucination_guard import HallucinationGuard
+
+        node = LLMOrchestratorNode("test_llm_orchestrator")
+        node._response_cache = ResponseCache()
+        node._rag = MagicMock()
+        node._rag.retrieve_with_scores.return_value = []
+        node._rag.build_context_string.return_value = ""
+        node._filter = SafetyCommandFilter(SafetyFilterConfig())
+        node._guard = HallucinationGuard(HallucinationConfig(enabled=False))
+        node._authorizer = CommandAuthorizer(AuthorizationConfig())
+        node._personality = PersonalityLayer(PersonalityConfig())
+        node._logger_svc = MagicMock()
+        node._tool_reg = None
+        node._cfg = None
+        node._pub_response = MagicMock()
+        node._pub_tts = MagicMock()
+        node._pub_behavior = MagicMock()
+        node._last_scene = None
+        node._last_safety = None
+        node._last_risks = []
+        node._call_llm = MagicMock(return_value=("A real answer.", None))
+        return node
+
+    def _make_intent(self, text="what time is it"):
+        intent = MagicMock()
+        intent.is_ambiguous = False
+        intent.raw_text = text
+        intent.intent_class = "general_query"
+        intent.confidence = 0.9
+        intent.speaker_id = ""
+        intent.slot_names = []
+        intent.slot_values = []
+        intent.intent_id = "intent-1"
+        return intent
+
+    def test_first_call_runs_rag_and_llm(self):
+        node = self._make_node()
+        node._process_intent(self._make_intent())
+        assert node._rag.retrieve_with_scores.call_count == 1
+        assert node._call_llm.call_count == 1
+
+    def test_repeated_identical_question_skips_second_rag_and_llm_call(self):
+        node = self._make_node()
+        node._process_intent(self._make_intent())
+        node._process_intent(self._make_intent())
+        assert node._rag.retrieve_with_scores.call_count == 1, (
+            "RAG retrieval ran twice -- the cache check must happen BEFORE "
+            "RAG retrieval, not just before the LLM call"
+        )
+        assert node._call_llm.call_count == 1
+
+    def test_different_question_does_not_skip_rag(self):
+        node = self._make_node()
+        node._process_intent(self._make_intent("what time is it"))
+        node._process_intent(self._make_intent("where is the bathroom"))
+        assert node._rag.retrieve_with_scores.call_count == 2
+        assert node._call_llm.call_count == 2
+
+    def test_changed_safety_context_does_not_skip_rag(self):
+        node = self._make_node()
+        node._process_intent(self._make_intent())
+        assert node._rag.retrieve_with_scores.call_count == 1
+
+        node._last_safety = MagicMock(
+            state=2,  # CAUTION
+            state_name="CAUTION",
+            actuation_permitted=True,
+            navigation_permitted=True,
+            max_velocity_mps=0.5,
+            requires_manual_reset=False,
+        )
+        node._process_intent(self._make_intent())
+        assert node._rag.retrieve_with_scores.call_count == 2, (
+            "a changed safety context must miss the cache, not reuse a "
+            "response computed under different safety conditions"
+        )

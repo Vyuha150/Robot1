@@ -23,16 +23,20 @@ Pipeline (per UserIntent)
 --------------------------
 1. Receive UserIntent from /perception/intent
 2. Build scene + safety context string
-3. Retrieve RAG documents for the query text
-4. Build full prompt: system + context + RAG + tool schema
-5. Call Ollama via LangChain chain (with timeout + retry)
-6. Safety-filter raw LLM output (BLOCKED → fallback immediately)
-7. Hallucination guard check (flag → use safe_response)
-8. Apply personality layer (length cap, TTS format, affirmation)
-9. Authorize any behavior commands against live SafetyState
-10. Dispatch TTS and/or BehaviorRecommendation
-11. Log full request/response via ResponseLogger
-12. Publish LLMResponse on /llm/response
+3. ResponseCache check, keyed on (question, scene+safety context) — a hit
+   skips RAG retrieval AND the LLM call entirely; a miss retrieves RAG
+   documents, builds the full prompt, and calls Ollama via LangChain
+   (with timeout + retry); the cache key never includes RAG results, so a
+   change to scene/safety always misses correctly
+4. Safety-filter raw LLM output (BLOCKED → fallback immediately) — runs on
+   every cycle, cached or not
+5. Hallucination guard check (flag → use safe_response) — runs on every
+   cycle, cached or not
+6. Apply personality layer (length cap, TTS format, affirmation)
+7. Dispatch TTS
+8. Authorize any behavior commands against live SafetyState, then dispatch
+9. Publish LLMResponse on /llm/response
+10. Log full request/response via ResponseLogger
 
 Lifecycle
 ---------
@@ -339,46 +343,49 @@ class LLMOrchestratorNode(LifecycleNode):
             from bonbon_llm.prompts.system_prompt import build_context_string
 
             context_str = build_context_string(scene, safety_snap)
-
-            # 3. RAG retrieval
-            t_rag = time.perf_counter()
-            rag_results = []
-            if self._rag:
-                try:
-                    rag_results = self._rag.retrieve_with_scores(intent_msg.raw_text)
-                    rag_context = self._rag.build_context_string(rag_results)
-                    full_context = context_str + "\n\n" + rag_context
-                except Exception as exc:
-                    self.get_logger().debug("RAG error (non-fatal): %s", exc)
-                    full_context = context_str
-            else:
-                full_context = context_str
-            rag_latency = (time.perf_counter() - t_rag) * 1000.0
-
-            # 4. Build user-facing prompt
             prompt = self._build_prompt(intent_msg)
 
-            # 5. LLM call — cache check first. Keyed on (question, full_context),
-            # where full_context already includes RAG results, so any change to
-            # scene, safety state, or retrieved documents naturally misses the
-            # cache rather than serving something stale. The safety filter and
-            # hallucination guard below still run on every cache hit too — a
-            # cache hit only ever skips the inference call itself.
+            # 3. Cache check — BEFORE RAG retrieval, so a hit skips RAG AND the
+            # LLM call, not just the LLM call. Keyed on (question, context_str)
+            # — scene+safety only, not RAG results: within the cache's short
+            # TTL (30s default) the local knowledge base is static enough that
+            # re-retrieving identical RAG results for a repeated question is
+            # pure waste. Any scene/safety change still correctly misses the
+            # cache. The safety filter and hallucination guard below still run
+            # on every cache hit too — a hit only ever skips RAG + inference.
+            t_rag = time.perf_counter()
             t_llm = time.perf_counter()
             cached = (
-                self._response_cache.get(intent_msg.raw_text, full_context)
+                self._response_cache.get(intent_msg.raw_text, context_str)
                 if self._response_cache
                 else None
             )
+            rag_results: list = []
             if cached is not None:
                 raw_llm_out, llm_error = cached.text, None
+                full_context = context_str
+                rag_latency = 0.0
             else:
+                # 3a. RAG retrieval
+                if self._rag:
+                    try:
+                        rag_results = self._rag.retrieve_with_scores(intent_msg.raw_text)
+                        rag_context = self._rag.build_context_string(rag_results)
+                        full_context = context_str + "\n\n" + rag_context
+                    except Exception as exc:
+                        self.get_logger().debug("RAG error (non-fatal): %s", exc)
+                        full_context = context_str
+                else:
+                    full_context = context_str
+                rag_latency = (time.perf_counter() - t_rag) * 1000.0
+
+                # 3b. LLM call
                 raw_llm_out, llm_error = self._call_llm(prompt, full_context)
                 if raw_llm_out and not llm_error and self._response_cache:
-                    self._response_cache.put(intent_msg.raw_text, full_context, raw_llm_out, "ok")
+                    self._response_cache.put(intent_msg.raw_text, context_str, raw_llm_out, "ok")
             llm_latency = (time.perf_counter() - t_llm) * 1000.0
 
-            # 6. Safety filter
+            # 4. Safety filter
             filter_result = self._filter.filter_text(raw_llm_out) if raw_llm_out else None
             safety_status = "SAFE"
             safety_reason = ""
@@ -398,7 +405,7 @@ class LLMOrchestratorNode(LifecycleNode):
             else:
                 sanitized = filter_result.sanitized_text if filter_result else raw_llm_out
 
-                # 7. Hallucination guard
+                # 5. Hallucination guard
                 guard_result = self._guard.check(
                     sanitized,
                     rag_results,
@@ -411,16 +418,16 @@ class LLMOrchestratorNode(LifecycleNode):
                 else:
                     status = "ok"
 
-                # 8. Personality layer
+                # 6. Personality layer
                 use_aff = intent_msg.intent_class in ("greeting", "order_item")
                 final_text = self._personality.apply(
                     sanitized, user_text=intent_msg.raw_text, use_affirmation=use_aff
                 )
 
-                # 9. Dispatch TTS
+                # 7. Dispatch TTS
                 self._dispatch_tts(final_text, priority=5)
 
-                # 10. Behavior dispatch (from tool calls or intent mapping)
+                # 8. Behavior dispatch (from tool calls or intent mapping)
                 behavior_class = self._resolve_behavior(intent_msg, safety_snap)
                 if behavior_class:
                     auth = self._authorizer.authorize(
@@ -443,7 +450,7 @@ class LLMOrchestratorNode(LifecycleNode):
                             )
                             self._dispatch_tts(denial_text, priority=5)
 
-            # 11. Publish LLMResponse
+            # 9. Publish LLMResponse
             self._publish_response(
                 response_id=response_id,
                 intent_msg=intent_msg,
@@ -456,7 +463,7 @@ class LLMOrchestratorNode(LifecycleNode):
                 behavior_class=self._resolve_behavior(intent_msg, safety_snap) or "",
             )
 
-            # 12. Log
+            # 10. Log
             total_latency = (time.perf_counter() - t_total) * 1000.0
             self._logger_svc.record(
                 response_id=response_id,

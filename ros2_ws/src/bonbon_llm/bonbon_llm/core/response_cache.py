@@ -1,21 +1,33 @@
-"""ResponseCache — bounded, TTL'd cache for repeated LLM queries.
+"""ResponseCache — bounded, TTL'd cache for repeated LLM/RAG queries.
 
-Addresses a real gap (no LLM/RAG response caching exists anywhere in this
+Addresses a real gap (no LLM/RAG response caching existed anywhere in this
 project): identical (question, context) pairs arriving within a short
-window currently re-run the full RAG retrieval + LLM call every time.
+window used to re-run the full RAG retrieval + LLM call every time.
+
+llm_orchestrator_node checks this cache BEFORE running RAG retrieval
+(see _process_intent step 3), keyed on (question, scene+safety context —
+not RAG results). A hit skips RAG retrieval and the LLM call entirely; a
+miss runs both, as before. This means a cache hit genuinely reduces both
+LLM and RAG calls, not just the LLM call.
 
 Safety-first design, not a generic cache:
-  - The key includes the FULL context string (scene + safety snapshot), not
-    just the question text. The same question can warrant a different
-    answer when the scene or safety state has changed, so any change to
-    either automatically misses the cache rather than serving something
-    stale.
-  - Short default TTL (30s) bounds how stale a hit can ever be.
+  - The key is (question, scene+safety context), not RAG results. The same
+    question can warrant a different answer when the scene or safety state
+    has changed, so either automatically misses the cache. RAG results are
+    deliberately excluded from the key — the local knowledge base is static
+    enough within the cache's short TTL that re-deriving identical RAG
+    results for a repeated question is pure waste, not a meaningful
+    correctness signal the way scene/safety are.
+  - Short default TTL (30s) bounds how stale a hit can ever be — including
+    how out-of-date a skipped RAG retrieval could be.
   - Only "ok" responses are cacheable. llm_error / safety_block /
     hallucination outcomes are never cached — a transient failure or a
     blocked/flagged response must always be retried, never repeated from
     cache.
   - Bounded size (LRU eviction) — never grows unbounded.
+  - The safety filter and hallucination guard still run on every cache hit
+    too — caching never bypasses safety scrutiny, it only skips RAG +
+    inference.
 """
 
 from __future__ import annotations
