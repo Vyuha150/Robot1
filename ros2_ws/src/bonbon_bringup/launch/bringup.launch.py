@@ -135,6 +135,11 @@ def generate_launch_description() -> LaunchDescription:
     # ── 6. Central decision engine ───────────────────────────────────────────
     behavior = _include("bonbon_behavior_engine", "behavior_engine.launch.py")
 
+    # ── 6b. Perception efficiency coordination (advisory only) ───────────────
+    perception_efficiency = _include(
+        "bonbon_perception_efficiency", "perception_efficiency.launch.py"
+    )
+
     # ── 7. Actuation (expressive motion, safety-gated) ───────────────────────
     actuation = _include("bonbon_actuation", "actuation.launch.py")
 
@@ -171,6 +176,7 @@ def generate_launch_description() -> LaunchDescription:
         speech,
         ai_group,
         behavior,
+        perception_efficiency,
         actuation,
         navigation,
         tts,

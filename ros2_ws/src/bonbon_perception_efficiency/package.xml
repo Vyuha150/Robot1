@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_perception_efficiency</name>
+  <version>1.0.0</version>
+  <description>
+    Central coordination layer for perception efficiency: confidence policy,
+    temporal smoothing, frame sampling, stale-frame dropping, bounded
+    inference queues, active-person focus, perception budget, load shedding,
+    degraded mode, and metrics. Coordinates existing perception modules —
+    does not detect anything itself, no new camera/microphone pipeline.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>bonbon_msgs</exec_depend>
+  <exec_depend>bonbon_srvs</exec_depend>
+  <!-- Reuses select_focus_person() directly rather than re-deriving the
+       same active-speaker priority rule a second time. -->
+  <exec_depend>bonbon_behavior_engine</exec_depend>
+  <exec_depend>python3-pyyaml</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

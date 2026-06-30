@@ -40,6 +40,7 @@
   <exec_depend>bonbon_human_state_fusion</exec_depend>
   <exec_depend>bonbon_actuation</exec_depend>
   <exec_depend>bonbon_behavior_engine</exec_depend>
+  <exec_depend>bonbon_perception_efficiency</exec_depend>
   <exec_depend>bonbon_operator_api</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

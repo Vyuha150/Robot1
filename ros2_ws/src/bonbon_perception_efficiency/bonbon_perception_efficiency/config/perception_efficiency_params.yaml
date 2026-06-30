@@ -1,0 +1,12 @@
+perception_efficiency_node:
+  ros__parameters:
+    publish_rate_hz: 2.0          # budget/policy/degraded_mode recompute rate
+    health_rate_hz: 1.0
+
+    # LoadSheddingController hysteresis — cycles of sustained improvement
+    # required before de-escalating (escalation is always immediate).
+    hysteresis_cycles: 3
+
+    # DegradedModeManager — how long load must stay at minimal/critical
+    # before the system-wide degraded flag activates.
+    degraded_sustained_threshold_sec: 10.0

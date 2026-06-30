@@ -39,6 +39,7 @@ if [[ "${1:-}" == "--no-ros2" ]]; then
   run_pkg bonbon_speaker_intelligence
   run_pkg bonbon_human_state_fusion
   run_pkg bonbon_object_intelligence
+  run_pkg bonbon_perception_efficiency
   echo "==> pytest tests/scenarios (cross-package multi-person perception)"
   python -m pytest tests/scenarios -q -p no:cacheprovider
   echo "### All pure-Python suites passed ###"

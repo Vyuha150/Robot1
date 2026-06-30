@@ -49,6 +49,10 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SpeakerTurn.msg"
   "msg/HumanState.msg"
   "msg/ResourceUsage.msg"
+  "msg/PerceptionPolicy.msg"
+  "msg/PerceptionBudget.msg"
+  "msg/DegradedModeStatus.msg"
+  "msg/PerceptionEfficiencyMetrics.msg"
   DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 
