@@ -4,13 +4,9 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from bonbon_spatial.core.approach_pose_planner import ApproachPosePlanner
 from bonbon_spatial.core.entity_tracker import TrackedEntity
-from bonbon_spatial.core.personal_space_estimator import PersonalSpaceEstimator
 from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZoneManager
-
 
 # ---------------------------------------------------------------------------
 # Helpers

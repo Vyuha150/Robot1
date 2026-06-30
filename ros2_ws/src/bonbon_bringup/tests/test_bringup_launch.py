@@ -49,7 +49,7 @@ _REQUIRED_ARGS = [
 
 @pytest.fixture(scope="module")
 def source() -> str:
-    with open(_LAUNCH_FILE, "r", encoding="utf-8") as f:
+    with open(_LAUNCH_FILE, encoding="utf-8") as f:
         return f.read()
 
 

@@ -43,11 +43,6 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import rclpy
-from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
-from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-
-from std_msgs.msg import Bool, Header
-
 from bonbon_msgs.msg import (
     ActuationGesture,
     ActuationStatus,
@@ -58,6 +53,9 @@ from bonbon_msgs.msg import (
     SpatialEntity,
 )
 from bonbon_srvs.srv import HealthCheck, PerformGesture, SetMode
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from std_msgs.msg import Bool, Header
 
 from bonbon_actuation.core.actuation_safety_gate import ActuationSafetyGate
 from bonbon_actuation.core.gesture_library import GestureLibrary

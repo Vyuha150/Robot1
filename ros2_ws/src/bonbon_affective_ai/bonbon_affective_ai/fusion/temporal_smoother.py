@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Dict
 
-
 _EMOTION_FIELDS: tuple[str, ...] = (
     "anger", "disgust", "fear", "happiness", "sadness", "surprise", "neutral"
 )

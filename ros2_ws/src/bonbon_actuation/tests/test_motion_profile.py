@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
 from bonbon_actuation.core.gesture_library import GestureLibrary
-from bonbon_actuation.core.motion_profile import MotionProfileGenerator, MotionStep
+from bonbon_actuation.core.motion_profile import MotionProfileGenerator
 
 
 class TestStepGeneration:

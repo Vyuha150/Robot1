@@ -10,7 +10,6 @@ import numpy as np
 from .face_backend_interface import FaceBackendInterface
 from .voice_backend_interface import VoiceBackendInterface
 
-
 # Cycle of emotions returned by MockFaceBackend, one per call.
 _FACE_EMOTION_CYCLE: list[str] = [
     "neutral",

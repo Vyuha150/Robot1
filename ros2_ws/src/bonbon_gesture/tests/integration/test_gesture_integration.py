@@ -10,8 +10,8 @@ that safety-relevant gestures bypass the cooldown.
 from __future__ import annotations
 
 import math
-import sys
 import os
+import sys
 from typing import List, Tuple
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))

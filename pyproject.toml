@@ -9,13 +9,17 @@ line-length = 100
 target-version = ["py311"]
 include = '\.py$'
 extend-exclude = '''
-/(build|install|log|\.venv|\.git)/
+/(build|install|log|\.venv|\.git|founder_command_center)/
 '''
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-exclude = ["build", "install", "log", ".venv"]
+# founder_command_center is a separate, unrelated project (an AI Founder
+# Command Center for personal/business use) that happens to live in this
+# repository — it is not BonBon robot software and should not be subject to
+# this codebase's lint/format/type gates.
+exclude = ["build", "install", "log", ".venv", "founder_command_center"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -27,6 +31,18 @@ ignore = [
     "E402",   # module-level import not at top — required by test setup and ROS2 stub injection
     "B905",   # zip() without strict= — Python 3.11 compat, not always needed
     "SIM",    # SIM rules off — too opinionated for embedded / ROS2 style code
+    # Typing-modernization rules (List[X] -> list[X], Optional[X] -> X | None,
+    # quoted annotations). Left off deliberately: this codebase predates
+    # adopting PEP 585/604 syntax throughout, the change is purely cosmetic
+    # (Python 3.11 supports both forms identically), and a prior blanket
+    # `ruff --fix` pass across these rules swept unrelated typing-style
+    # changes into large, actively-developed shared files and had to be
+    # reverted. Re-enable per-file as files are touched for other reasons,
+    # not via a repo-wide sweep.
+    "UP006",  # non-pep585-annotation
+    "UP035",  # deprecated-import (typing.List/Dict/Optional etc.)
+    "UP037",  # quoted-annotation
+    "UP045",  # non-pep604-annotation-optional
 ]
 
 [tool.ruff.lint.per-file-ignores]

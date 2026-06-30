@@ -6,10 +6,7 @@ import math
 import time
 from types import SimpleNamespace
 
-import pytest
-
-from bonbon_spatial.core.entity_tracker import EntityTracker, TrackedEntity
-
+from bonbon_spatial.core.entity_tracker import EntityTracker
 
 # ---------------------------------------------------------------------------
 # Helpers

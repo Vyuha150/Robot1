@@ -10,17 +10,15 @@ Tests use synthetic 21-point hand landmarks constructed in image coordinates
 from __future__ import annotations
 
 import math
-from typing import List, Tuple
-
-import pytest
+import os
 
 # Avoid importing bonbon_gesture as a package path — adjust sys.path for standalone pytest
 import sys
-import os
+from typing import List, Tuple
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from bonbon_gesture.classifiers.hand_gesture_classifier import HandGestureClassifier
-
 
 # ---------------------------------------------------------------------------
 # Landmark builders

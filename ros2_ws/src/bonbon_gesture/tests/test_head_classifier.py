@@ -9,12 +9,10 @@ shake patterns are correctly detected.
 
 from __future__ import annotations
 
-import sys
-import os
 import math
+import os
+import sys
 from typing import List, Tuple
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -52,7 +50,7 @@ class TestHeadGestureClassifier:
 
     def test_no_detection_before_history_fills(self):
         """Before 6 samples, classifier should not fire."""
-        for i in range(5):
+        for _i in range(5):
             gesture, _ = self.clf.update(tracking_id=0, face_pts=_face(nose_y=60.0))
         assert gesture == "none"
 

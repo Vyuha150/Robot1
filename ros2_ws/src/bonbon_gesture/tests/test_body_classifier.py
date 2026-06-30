@@ -9,16 +9,13 @@ Each landmark is (x_px, y_px, z_relative, visibility).
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 from typing import List, Tuple
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from bonbon_gesture.classifiers.body_gesture_classifier import BodyGestureClassifier
-
 
 # ---------------------------------------------------------------------------
 # Landmark builders

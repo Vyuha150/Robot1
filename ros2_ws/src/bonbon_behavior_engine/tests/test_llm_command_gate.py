@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from bonbon_behavior_engine.core.llm_command_gate import LLMCommandGate, GatedCommand
+from bonbon_behavior_engine.core.llm_command_gate import LLMCommandGate
 
 
 class TestCriticalRejection:

@@ -50,10 +50,10 @@ logger = logging.getLogger(__name__)
 
 try:
     import rclpy
+    from bonbon_msgs.msg import TTSRequest
     from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
     from std_msgs.msg import String
     from std_srvs.srv import Empty
-    from bonbon_msgs.msg import TTSRequest
 
     _ROS2_AVAILABLE = True
 except ImportError:

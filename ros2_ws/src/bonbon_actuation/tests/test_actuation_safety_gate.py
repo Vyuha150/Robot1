@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import pytest
-
 from bonbon_actuation.core.actuation_safety_gate import (
-    ActuationSafetyGate,
-    LEVEL_INITIALIZING,
-    LEVEL_NORMAL,
     LEVEL_CAUTION,
     LEVEL_DANGER,
     LEVEL_DOCKING,
-    LEVEL_DEGRADED,
     LEVEL_FAULT,
+    LEVEL_INITIALIZING,
+    LEVEL_NORMAL,
     LEVEL_SAFE_STOP,
+    ActuationSafetyGate,
 )
 
 

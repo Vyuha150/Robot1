@@ -58,10 +58,10 @@ def _make_ros_stubs() -> None:
 
 _make_ros_stubs()
 
+from bonbon_affective_ai.analyzers.voice_emotion_analyzer import VoiceEmotionAnalyzer
 from bonbon_affective_ai.backends.mock_backends import MockVoiceBackend
 from bonbon_affective_ai.config.affective_config import AffectiveConfig
 from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
-from bonbon_affective_ai.analyzers.voice_emotion_analyzer import VoiceEmotionAnalyzer
 
 
 class _FakeClock:

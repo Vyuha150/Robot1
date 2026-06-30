@@ -5,8 +5,7 @@ from __future__ import annotations
 import sys
 import types
 import unittest
-from unittest.mock import MagicMock, patch
-
+from unittest.mock import MagicMock
 
 # ── Comprehensive ROS2 / bonbon_msgs stubs ─────────────────────────────────────
 
@@ -265,8 +264,8 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
 
     def test_text_analyzer_emergency(self) -> None:
         """TextEmotionAnalyzer detects emergency in 'I fell and need help'."""
-        from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
         from bonbon_affective_ai.analyzers.text_emotion_analyzer import TextEmotionAnalyzer
+        from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
 
         class _FC:
             def now(self):
@@ -315,29 +314,29 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
 
     def test_node_factory_mock_face_backend(self) -> None:
         """_create_face_backend('mock') returns a MockFaceBackend instance."""
-        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         from bonbon_affective_ai.backends.mock_backends import MockFaceBackend
+        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         backend = AffectiveAINode._create_face_backend("mock")
         self.assertIsInstance(backend, MockFaceBackend)
 
     def test_node_factory_mock_voice_backend(self) -> None:
         """_create_voice_backend('mock') returns a MockVoiceBackend instance."""
-        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         from bonbon_affective_ai.backends.mock_backends import MockVoiceBackend
+        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         backend = AffectiveAINode._create_voice_backend("mock")
         self.assertIsInstance(backend, MockVoiceBackend)
 
     def test_node_factory_unknown_face_backend_falls_back(self) -> None:
         """Unknown face backend name falls back to MockFaceBackend."""
-        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         from bonbon_affective_ai.backends.mock_backends import MockFaceBackend
+        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         backend = AffectiveAINode._create_face_backend("nonexistent_backend_xyz")
         self.assertIsInstance(backend, MockFaceBackend)
 
     def test_node_factory_unknown_voice_backend_falls_back(self) -> None:
         """Unknown voice backend name falls back to MockVoiceBackend."""
-        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         from bonbon_affective_ai.backends.mock_backends import MockVoiceBackend
+        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
         backend = AffectiveAINode._create_voice_backend("nonexistent_backend_xyz")
         self.assertIsInstance(backend, MockVoiceBackend)
 

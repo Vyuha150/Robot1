@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZoneManager
-
 
 # ---------------------------------------------------------------------------
 # Helpers

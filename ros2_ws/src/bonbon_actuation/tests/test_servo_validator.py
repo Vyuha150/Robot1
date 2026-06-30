@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import pytest
-
 from bonbon_actuation.core.gesture_library import (
-    SERVO_HEAD_PAN, SERVO_HEAD_TILT, SERVO_HEAD_ROLL,
-    SERVO_RIGHT_SHOULDER, SERVO_RIGHT_ELBOW,
+    SERVO_HEAD_PAN,
+    SERVO_HEAD_ROLL,
+    SERVO_HEAD_TILT,
     ServoTarget,
 )
 from bonbon_actuation.core.servo_validator import (
-    ServoValidator,
-    MIN_VEL_DPS,
     MAX_VEL_DPS,
-    ValidationResult,
+    MIN_VEL_DPS,
+    ServoValidator,
 )
 
 

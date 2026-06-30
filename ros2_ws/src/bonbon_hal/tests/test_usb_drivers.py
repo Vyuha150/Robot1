@@ -11,13 +11,11 @@ import sys
 import types
 
 import pytest
-
 from bonbon_hal.base.driver_base import DriverFault
 from bonbon_hal.drivers.camera import usb_camera_driver as ucd
-from bonbon_hal.drivers.microphone import usb_mic_driver as umd
 from bonbon_hal.drivers.camera.usb_camera_driver import UsbCameraDriver
+from bonbon_hal.drivers.microphone import usb_mic_driver as umd
 from bonbon_hal.drivers.microphone.usb_mic_driver import UsbMicDriver
-
 
 # ── Camera ─────────────────────────────────────────────────────────────────────
 

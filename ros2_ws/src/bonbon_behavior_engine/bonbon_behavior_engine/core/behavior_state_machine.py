@@ -22,7 +22,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Dict, FrozenSet, List, Optional, Set
+from typing import Dict, FrozenSet, List
 
 _logger = logging.getLogger(__name__)
 

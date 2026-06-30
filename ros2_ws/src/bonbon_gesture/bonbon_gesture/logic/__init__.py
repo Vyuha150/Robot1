@@ -1,8 +1,8 @@
 """bonbon_gesture.logic — temporal smoothing, intent mapping, safety classification."""
 
+from .intent_mapper import GESTURE_TO_INTENT, GestureIntentMapper
+from .safety_classifier import SAFETY_RELEVANT_GESTURES, GestureSafetyClassifier
 from .temporal_smoother import GestureTemporalSmoother
-from .intent_mapper import GestureIntentMapper, GESTURE_TO_INTENT
-from .safety_classifier import GestureSafetyClassifier, SAFETY_RELEVANT_GESTURES
 
 __all__ = [
     "GestureTemporalSmoother",

@@ -54,9 +54,9 @@ def _make_ros_stubs() -> None:
 
 _make_ros_stubs()
 
+from bonbon_affective_ai.analyzers.text_emotion_analyzer import TextEmotionAnalyzer
 from bonbon_affective_ai.config.affective_config import AffectiveConfig
 from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
-from bonbon_affective_ai.analyzers.text_emotion_analyzer import TextEmotionAnalyzer
 
 
 class _FakeClock:

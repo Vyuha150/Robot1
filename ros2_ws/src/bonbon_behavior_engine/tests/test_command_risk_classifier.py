@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bonbon_behavior_engine.core.command_risk_classifier import (
     CommandRiskClassifier,
-    RiskAssessment,
 )
 
 

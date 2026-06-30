@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bonbon_behavior_engine.core.behavior_state_machine import (
     BehaviorState,
     BehaviorStateMachine,

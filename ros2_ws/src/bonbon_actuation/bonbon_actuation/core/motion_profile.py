@@ -20,7 +20,6 @@ from typing import List
 
 from bonbon_actuation.core.gesture_library import (
     GestureDefinition,
-    GestureKeyframe,
     ServoTarget,
 )
 

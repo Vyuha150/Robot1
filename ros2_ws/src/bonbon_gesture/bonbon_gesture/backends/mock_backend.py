@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 

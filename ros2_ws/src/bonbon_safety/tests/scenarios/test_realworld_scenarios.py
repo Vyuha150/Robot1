@@ -14,6 +14,13 @@ scenario YAMLs in bonbon_simulation.
 from __future__ import annotations
 
 import pytest
+from bonbon_actuation.core.proximity_governor import ProximityGovernor
+from bonbon_behavior_engine.core.command_risk_classifier import CommandRiskClassifier
+from bonbon_behavior_engine.core.emotion_response_planner import EmotionAwareResponsePlanner
+from bonbon_behavior_engine.core.llm_command_gate import LLMCommandGate
+from bonbon_behavior_engine.core.spatial_response_planner import SpatialResponsePlanner
+from bonbon_gesture.classifiers.hand_gesture_classifier import HandGestureClassifier
+from bonbon_gesture.logic.safety_classifier import GestureSafetyClassifier
 
 # Decision/safety cores (imported via tests/scenarios/conftest.py sys.path setup)
 from bonbon_safety.core.failure_catalog import build_catalog
@@ -26,24 +33,12 @@ from bonbon_safety.testkit.scenario import (
     person,
     sensor_snapshot,
 )
-
-from bonbon_behavior_engine.core.command_risk_classifier import CommandRiskClassifier
-from bonbon_behavior_engine.core.emotion_response_planner import EmotionAwareResponsePlanner
-from bonbon_behavior_engine.core.llm_command_gate import LLMCommandGate
-from bonbon_behavior_engine.core.spatial_response_planner import SpatialResponsePlanner
-
-from bonbon_actuation.core.proximity_governor import ProximityGovernor
-from bonbon_gesture.classifiers.hand_gesture_classifier import HandGestureClassifier
-from bonbon_gesture.logic.safety_classifier import GestureSafetyClassifier
-
 from bonbon_spatial.core.blockage_detector import BlockageDetector
 from bonbon_spatial.core.personal_space_estimator import PersonalSpaceEstimator
 
 # Zone modules are used only by scenario 14; guard so the suite still runs if
 # they are ever refactored.
 try:  # pragma: no cover
-    from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZoneManager
-    from bonbon_spatial.core.restricted_zone_monitor import RestrictedZoneMonitor
     _HAS_ZONES = True
 except Exception:  # noqa: BLE001
     _HAS_ZONES = False

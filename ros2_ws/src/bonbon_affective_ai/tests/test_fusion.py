@@ -78,9 +78,9 @@ def _make_ros_stubs() -> None:
 
 _make_ros_stubs()
 
-from bonbon_msgs.msg import FaceEmotion, VoiceEmotion, TextEmotion  # type: ignore[import]
 from bonbon_affective_ai.config.affective_config import AffectiveConfig
 from bonbon_affective_ai.fusion.emotion_fusion_engine import EmotionFusionEngine
+from bonbon_msgs.msg import FaceEmotion, TextEmotion, VoiceEmotion  # type: ignore[import]
 
 
 def _make_angry_face() -> FaceEmotion:

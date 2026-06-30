@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from bonbon_behavior_engine.core.operator_alerter import (
+    SEVERITY_CRITICAL,
     SEVERITY_HIGH,
     SEVERITY_LOW,
     SEVERITY_MEDIUM,
-    SEVERITY_CRITICAL,
     OperatorAlerter,
 )
 

@@ -24,7 +24,6 @@ from __future__ import annotations
 import sys
 import types
 
-
 # ── Permissive message / request stand-in ──────────────────────────────────
 
 class _StubMsg:

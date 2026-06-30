@@ -2,19 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bonbon_actuation.core.gesture_library import (
-    GestureDefinition,
-    GestureKeyframe,
-    GestureLibrary,
-    ServoTarget,
-    SERVO_HEAD_PAN,
-    SERVO_HEAD_TILT,
-    SERVO_RIGHT_SHOULDER,
     SERVO_LIMITS,
+    GestureDefinition,
+    GestureLibrary,
 )
-
 
 KNOWN_GESTURES = [
     "rest_pose", "listening_pose", "safe_folded_pose",

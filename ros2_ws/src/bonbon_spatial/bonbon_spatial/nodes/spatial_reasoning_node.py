@@ -25,39 +25,35 @@ import uuid
 from typing import List, Optional
 
 import rclpy
-from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
-from rclpy.lifecycle import Publisher as LifecyclePublisher
-from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
-
-# ROS2 message types
-from std_msgs.msg import Header
-from geometry_msgs.msg import (
-    Point,
-    Pose,
-    PoseStamped,
-    Quaternion,
-    Vector3,
-    Polygon,
-    Point32,
-)
-from builtin_interfaces.msg import Time as BuiltinTime
-
 from bonbon_msgs.msg import (
     ModuleHealth,
     PersonStateArray,
     RiskEvent,
     SafetyState,
+    SocialNavigationHint,
     SpatialEntity,
     SpatialRelation,
-    SocialNavigationHint,
 )
 from bonbon_srvs.srv import (
-    GetWorldModel,
-    GetApproachPose,
     AddRestrictedZone,
-    RemoveRestrictedZone,
+    GetApproachPose,
+    GetWorldModel,
     HealthCheck,
+    RemoveRestrictedZone,
 )
+from builtin_interfaces.msg import Time as BuiltinTime
+from geometry_msgs.msg import (
+    Pose,
+    PoseStamped,
+    Quaternion,
+    Vector3,
+)
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from rclpy.lifecycle import Publisher as LifecyclePublisher
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+
+# ROS2 message types
+from std_msgs.msg import Header
 
 # ModuleHealth status constants (mirror bonbon_msgs/ModuleHealth.msg)
 _HEALTH_OK = 0
@@ -66,17 +62,17 @@ _HEALTH_ERROR = 2
 _HEALTH_STALE = 3
 
 # Core components
+from bonbon_spatial.core.approach_pose_planner import ApproachPosePlanner
+from bonbon_spatial.core.blockage_detector import BlockageDetector
+from bonbon_spatial.core.dynamic_obstacle_predictor import DynamicObstaclePredictor
 from bonbon_spatial.core.entity_tracker import EntityTracker, TrackedEntity
 from bonbon_spatial.core.personal_space_estimator import (
     PersonalSpaceEstimator,
     ProxemicZones,
 )
-from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZoneManager
-from bonbon_spatial.core.social_navigation_hints import SocialNavigationHints, HintSummary
-from bonbon_spatial.core.approach_pose_planner import ApproachPosePlanner
 from bonbon_spatial.core.restricted_zone_monitor import RestrictedZoneMonitor
-from bonbon_spatial.core.blockage_detector import BlockageDetector
-from bonbon_spatial.core.dynamic_obstacle_predictor import DynamicObstaclePredictor
+from bonbon_spatial.core.semantic_zone_manager import SemanticZone, SemanticZoneManager
+from bonbon_spatial.core.social_navigation_hints import HintSummary, SocialNavigationHints
 
 # RiskEvent severity constants (mirror bonbon_msgs/RiskEvent.msg)
 _SEV_INFO = 0

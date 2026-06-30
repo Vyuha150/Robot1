@@ -100,58 +100,74 @@ def generate_launch_description() -> LaunchDescription:
                               description="ROS2 logger level for the bring-up group."),
     ]
 
-    sim_args = {"simulation": simulation}
+    log_args = {"log_level": log_level}
+    sim_log_args = {"simulation": simulation, "log_level": log_level}
+
+    # Sub-launch files confirmed to declare a `log_level` argument are passed
+    # it here, so the top-level bring-up `log_level` argument actually takes
+    # effect instead of being silently dropped. A handful of sub-launch files
+    # (data_stores, vision, affective_ai, gesture, tts, operator_api) don't
+    # yet declare `log_level` themselves and are left as-is rather than
+    # passed an argument they don't accept.
 
     # ── 1. Persistence ───────────────────────────────────────────────────────
     data_stores = _include("bonbon_data_stores", "data_stores.launch.py")
 
     # ── 2. Safety (always first among control paths) ─────────────────────────
-    safety = _include("bonbon_safety", "safety.launch.py", args=sim_args)
+    safety = _include("bonbon_safety", "safety.launch.py", args=sim_log_args)
 
     # ── 3. Hardware abstraction ──────────────────────────────────────────────
-    hal = _include("bonbon_hal", "hal.launch.py", args=sim_args)
+    hal = _include("bonbon_hal", "hal.launch.py", args=sim_log_args)
 
     # ── 4. Perception (sensing) ──────────────────────────────────────────────
     vision = _include("bonbon_vision", "vision.launch.py")
-    speech = _include("bonbon_speech", "speech.launch.py")
+    speech = _include("bonbon_speech", "speech.launch.py", args=log_args)
 
     # ── 5. AI reasoning group ────────────────────────────────────────────────
     ai_group = GroupAction(
         condition=IfCondition(enable_ai),
         actions=[
             LogInfo(msg="bonbon_bringup: starting AI reasoning subsystems"),
-            _include("bonbon_spatial", "spatial.launch.py"),
-            _include("bonbon_object_intelligence", "object_intelligence.launch.py"),
-            _include("bonbon_multi_person_tracker", "multi_person_tracker.launch.py"),
+            _include("bonbon_spatial", "spatial.launch.py", args=log_args),
+            _include(
+                "bonbon_object_intelligence", "object_intelligence.launch.py", args=log_args
+            ),
+            _include(
+                "bonbon_multi_person_tracker", "multi_person_tracker.launch.py", args=log_args
+            ),
             _include("bonbon_affective_ai", "affective_ai.launch.py"),
             _include("bonbon_gesture", "gesture.launch.py"),
-            _include("bonbon_speaker_intelligence", "speaker_intelligence.launch.py"),
-            _include("bonbon_human_state_fusion", "human_state_fusion.launch.py"),
-            _include("bonbon_perception_ai", "perception.launch.py"),
-            _include("bonbon_llm", "llm.launch.py"),
+            _include(
+                "bonbon_speaker_intelligence", "speaker_intelligence.launch.py", args=log_args
+            ),
+            _include(
+                "bonbon_human_state_fusion", "human_state_fusion.launch.py", args=log_args
+            ),
+            _include("bonbon_perception_ai", "perception.launch.py", args=log_args),
+            _include("bonbon_llm", "llm.launch.py", args=log_args),
         ],
     )
 
     # ── 6. Central decision engine ───────────────────────────────────────────
-    behavior = _include("bonbon_behavior_engine", "behavior_engine.launch.py")
+    behavior = _include("bonbon_behavior_engine", "behavior_engine.launch.py", args=log_args)
 
     # ── 6b. Perception efficiency coordination (advisory only) ───────────────
     perception_efficiency = _include(
-        "bonbon_perception_efficiency", "perception_efficiency.launch.py"
+        "bonbon_perception_efficiency", "perception_efficiency.launch.py", args=log_args
     )
 
     # ── 6c. Data feedback (failure-case logging, privacy-safe retention) ─────
-    data_feedback = _include("bonbon_data_feedback", "data_feedback.launch.py")
+    data_feedback = _include("bonbon_data_feedback", "data_feedback.launch.py", args=log_args)
 
     # ── 7. Actuation (expressive motion, safety-gated) ───────────────────────
-    actuation = _include("bonbon_actuation", "actuation.launch.py")
+    actuation = _include("bonbon_actuation", "actuation.launch.py", args=log_args)
 
     # ── 8. Navigation (autonomous motion, safety-gated) ──────────────────────
     navigation = GroupAction(
         condition=IfCondition(enable_navigation),
         actions=[
             LogInfo(msg="bonbon_bringup: starting navigation stack"),
-            _include("bonbon_navigation", "navigation.launch.py"),
+            _include("bonbon_navigation", "navigation.launch.py", args=log_args),
         ],
     )
 

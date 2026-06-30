@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from bonbon_behavior_engine.core.command_risk_classifier import CommandRiskClassifier
 from bonbon_behavior_engine.core.llm_command_gate import LLMCommandGate
-from bonbon_behavior_engine.core.operator_alerter import OperatorAlerter, SEVERITY_HIGH
+from bonbon_behavior_engine.core.operator_alerter import OperatorAlerter
 from bonbon_behavior_engine.core.proposal_evaluator import ProposalEvaluator
 from bonbon_behavior_engine.core.spatial_response_planner import SpatialResponsePlanner
 

@@ -4,14 +4,10 @@ from __future__ import annotations
 
 import math
 
-import pytest
-
 from bonbon_spatial.core.personal_space_estimator import (
     PersonalSpaceEstimator,
     ProxemicZones,
-    SpaceEstimate,
 )
-
 
 # ---------------------------------------------------------------------------
 # Zone classification

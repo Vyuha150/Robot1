@@ -62,10 +62,10 @@ def _make_ros_stubs() -> None:
 
 _make_ros_stubs()
 
+from bonbon_affective_ai.analyzers.face_emotion_analyzer import FaceEmotionAnalyzer
 from bonbon_affective_ai.backends.mock_backends import MockFaceBackend
 from bonbon_affective_ai.config.affective_config import AffectiveConfig
 from bonbon_affective_ai.privacy.privacy_gate import PrivacyGate
-from bonbon_affective_ai.analyzers.face_emotion_analyzer import FaceEmotionAnalyzer
 
 
 class _FakeClock:
@@ -196,7 +196,7 @@ class TestFaceEmotionAnalyzer(unittest.TestCase):
     def test_cycles_through_emotions(self) -> None:
         """Mock backend cycles through different dominant emotions."""
         seen: set = set()
-        for i in range(10):
+        for _i in range(10):
             self.backend.analyze(self._blank_face())  # exhaust some cycles
         for i in range(5):
             msg = self.analyzer.analyze_face_crop(self._blank_face(), tracking_id=100 + i, person_id=f"p{i}")

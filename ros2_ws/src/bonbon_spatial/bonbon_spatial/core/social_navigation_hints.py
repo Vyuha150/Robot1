@@ -9,7 +9,7 @@ to produce :class:`HintSummary` objects that the node converts into
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 
 from bonbon_spatial.core.entity_tracker import TrackedEntity

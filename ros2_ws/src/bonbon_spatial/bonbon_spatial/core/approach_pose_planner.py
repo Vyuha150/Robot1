@@ -11,9 +11,9 @@ import logging
 import math
 from typing import Optional, Tuple
 
-from bonbon_spatial.core.personal_space_estimator import PersonalSpaceEstimator, ProxemicZones
-from bonbon_spatial.core.semantic_zone_manager import SemanticZoneManager
 from bonbon_spatial.core.entity_tracker import TrackedEntity
+from bonbon_spatial.core.personal_space_estimator import PersonalSpaceEstimator
+from bonbon_spatial.core.semantic_zone_manager import SemanticZoneManager
 
 _logger = logging.getLogger(__name__)
 

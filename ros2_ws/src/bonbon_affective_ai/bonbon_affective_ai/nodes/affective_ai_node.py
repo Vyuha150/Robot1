@@ -7,11 +7,10 @@ import logging
 import time
 import uuid
 from collections import defaultdict
-from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-
 from bonbon_perception_efficiency.core.bounded_inference_queue import BoundedInferenceQueue
 
 try:
@@ -20,9 +19,9 @@ try:
     from rclpy.lifecycle.node import LifecycleState
     from rclpy.qos import (
         QoSDurabilityPolicy,
+        QoSHistoryPolicy,
         QoSProfile,
         QoSReliabilityPolicy,
-        QoSHistoryPolicy,
     )
     from std_msgs.msg import String
     _ROS2_AVAILABLE = True
@@ -219,13 +218,13 @@ class AffectiveAINode(LifecycleNode):
 
     def _do_configure(self) -> None:
         """Internal: create all sub-systems and I/O handles."""
-        from ..config.affective_config import AffectiveConfig
-        from ..privacy.privacy_gate import PrivacyGate
-        from ..health.health_monitor import AffectiveAIHealthMonitor
-        from ..fusion.emotion_fusion_engine import EmotionFusionEngine
-        from ..analyzers.text_emotion_analyzer import TextEmotionAnalyzer
         from ..analyzers.face_emotion_analyzer import FaceEmotionAnalyzer
+        from ..analyzers.text_emotion_analyzer import TextEmotionAnalyzer
         from ..analyzers.voice_emotion_analyzer import VoiceEmotionAnalyzer
+        from ..config.affective_config import AffectiveConfig
+        from ..fusion.emotion_fusion_engine import EmotionFusionEngine
+        from ..health.health_monitor import AffectiveAIHealthMonitor
+        from ..privacy.privacy_gate import PrivacyGate
 
         # ── Parameters & config ───────────────────────────────────────────────
         self._config = AffectiveConfig.from_node(self)
@@ -251,7 +250,10 @@ class AffectiveAINode(LifecycleNode):
 
         # ── Publishers ────────────────────────────────────────────────────────
         from bonbon_msgs.msg import (  # type: ignore[import]
-            FaceEmotion, VoiceEmotion, TextEmotion, HumanEmotionState
+            FaceEmotion,
+            HumanEmotionState,
+            TextEmotion,
+            VoiceEmotion,
         )
         self._pub_face_emotion = self.create_publisher(
             FaceEmotion, "/bonbon/affective/face_emotion", _RELIABLE_QOS
@@ -273,9 +275,13 @@ class AffectiveAINode(LifecycleNode):
         )
 
         # ── Subscribers ───────────────────────────────────────────────────────
-        from bonbon_msgs.msg import PersonStateArray, AudioChunk, GestureEvent  # type: ignore[import]
-        from bonbon_msgs.msg import SafetyState  # type: ignore[import]
-        from bonbon_msgs.msg import SpeechCommand  # type: ignore[import]
+        from bonbon_msgs.msg import (  # type: ignore[import]
+            AudioChunk,
+            GestureEvent,
+            PersonStateArray,
+            SafetyState,  # type: ignore[import]
+            SpeechCommand,  # type: ignore[import]
+        )
 
         self._sub_persons = self.create_subscription(
             PersonStateArray,
@@ -343,7 +349,6 @@ class AffectiveAINode(LifecycleNode):
             self._executor.submit(self._warmup_backends)
 
         # Fusion timer.
-        fusion_period_ns: int = int(1e9 / max(self._config.fusion_update_hz, 0.1))
         self._fusion_timer = self.create_timer(
             1.0 / max(self._config.fusion_update_hz, 0.1),
             self._run_fusion,

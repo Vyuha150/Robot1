@@ -92,7 +92,7 @@ class TestFaultHandler:
         h = FaultHandler(_defs())
         try:
             h.raise_fault("NOPE")
-            assert False, "expected KeyError"
+            raise AssertionError("expected KeyError")
         except KeyError:
             pass
 

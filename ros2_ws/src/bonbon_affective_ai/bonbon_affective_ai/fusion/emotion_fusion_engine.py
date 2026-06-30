@@ -5,10 +5,9 @@ from __future__ import annotations
 import time
 import uuid
 from collections import defaultdict, deque
-from typing import Deque, Dict, Optional, Tuple
+from typing import Deque, Dict, Tuple
 
 from ..config.affective_config import AffectiveConfig
-
 
 # ── Mapping tables ────────────────────────────────────────────────────────────
 

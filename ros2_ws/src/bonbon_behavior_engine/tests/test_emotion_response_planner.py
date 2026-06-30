@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bonbon_behavior_engine.core.emotion_response_planner import (
     EmotionAwareResponsePlanner,
     ResponsePlan,
@@ -93,9 +91,11 @@ class TestOperatingModes:
 
     def test_child_safe_mode_overrides_gesture(self):
         plan_normal = self.planner.plan("neutral", operating_mode="normal")
-        plan_child  = self.planner.plan("neutral", operating_mode="child_safe")
-        # Child safe should use greeting_pose override
+        plan_child = self.planner.plan("neutral", operating_mode="child_safe")
+        # Normal mode uses the baseline neutral gesture; child_safe overrides it.
+        assert plan_normal.gesture_name == "listening_pose"
         assert plan_child.gesture_name == "greeting_pose"
+        assert plan_child.gesture_name != plan_normal.gesture_name
 
     def test_elderly_mode_slows_speech(self):
         plan = self.planner.plan("neutral", operating_mode="elderly")
