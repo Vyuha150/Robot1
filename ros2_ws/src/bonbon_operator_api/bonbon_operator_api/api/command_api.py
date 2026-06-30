@@ -65,6 +65,21 @@ def _gate_and_dispatch(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
+def _check_bridge_result(
+    request: Request, command_type: str, result: dict, default_message: str
+) -> str:
+    """Raise HTTP 503 if the ROS2 bridge reports failure instead of silently
+    returning accepted=True regardless of what actually happened — every
+    command handler used to discard the bridge's return value entirely.
+    Returns a message to use in the success response (bridge-provided if
+    present, otherwise the handler's default)."""
+    if result.get("success") is False:
+        request.app.state.metrics.record_command(command_type, "dispatch_failed")
+        detail = result.get("message") or result.get("error") or "command dispatch failed"
+        raise HTTPException(status_code=503, detail=detail)
+    return result.get("message") or default_message
+
+
 @cmd_router.post("/emergency_stop", response_model=APIResponse)
 async def emergency_stop(
     request: Request,
@@ -78,14 +93,15 @@ async def emergency_stop(
     with metrics.time_command("emergency_stop"):
         _gate_and_dispatch(request, current_user, "emergency_stop", body, command_id)
         bridge = request.app.state.ros2_bridge
-        bridge.call_emergency_stop(body.reason)
+        result = bridge.call_emergency_stop(body.reason)
+        message = _check_bridge_result(request, "emergency_stop", result, "Emergency stop issued")
 
     metrics.record_command("emergency_stop", "accepted")
     return APIResponse.ok(
         CommandResponse(
             accepted=True,
             command_id=command_id,
-            message="Emergency stop issued",
+            message=message,
             queued_at=time.time(),
         )
     )
@@ -104,18 +120,19 @@ async def speak(
     with metrics.time_command("speak"):
         _gate_and_dispatch(request, current_user, "speak", body, command_id)
         bridge = request.app.state.ros2_bridge
-        bridge.call_speak(
+        result = bridge.call_speak(
             text=body.text,
             language=body.language or "en",
             priority=body.priority or "normal",
         )
+        message = _check_bridge_result(request, "speak", result, "Speak command queued")
 
     metrics.record_command("speak", "accepted")
     return APIResponse.ok(
         CommandResponse(
             accepted=True,
             command_id=command_id,
-            message="Speak command queued",
+            message=message,
             queued_at=time.time(),
         )
     )
@@ -134,12 +151,18 @@ async def navigate(
     with metrics.time_command("navigate"):
         _gate_and_dispatch(request, current_user, "navigate", body, command_id)
         bridge = request.app.state.ros2_bridge
-        bridge.call_navigate(
+        result = bridge.call_navigate(
             goal_x=body.goal_x,
             goal_y=body.goal_y,
             goal_yaw=body.goal_yaw,
             map_id=body.map_id,
             speed_limit_mps=body.speed_limit_mps,
+        )
+        message = _check_bridge_result(
+            request,
+            "navigate",
+            result,
+            f"Navigate to ({body.goal_x}, {body.goal_y}) accepted",
         )
 
     metrics.record_command("navigate", "accepted")
@@ -147,7 +170,7 @@ async def navigate(
         CommandResponse(
             accepted=True,
             command_id=command_id,
-            message=f"Navigate to ({body.goal_x}, {body.goal_y}) accepted",
+            message=message,
             queued_at=time.time(),
         )
     )
@@ -166,14 +189,15 @@ async def pause(
     with metrics.time_command("pause"):
         _gate_and_dispatch(request, current_user, "pause", body, command_id)
         bridge = request.app.state.ros2_bridge
-        bridge.call_pause()
+        result = bridge.call_pause()
+        message = _check_bridge_result(request, "pause", result, "Pause command accepted")
 
     metrics.record_command("pause", "accepted")
     return APIResponse.ok(
         CommandResponse(
             accepted=True,
             command_id=command_id,
-            message="Pause command accepted",
+            message=message,
             queued_at=time.time(),
         )
     )
@@ -192,14 +216,15 @@ async def resume(
     with metrics.time_command("resume"):
         _gate_and_dispatch(request, current_user, "resume", body, command_id)
         bridge = request.app.state.ros2_bridge
-        bridge.call_resume()
+        result = bridge.call_resume()
+        message = _check_bridge_result(request, "resume", result, "Resume command accepted")
 
     metrics.record_command("resume", "accepted")
     return APIResponse.ok(
         CommandResponse(
             accepted=True,
             command_id=command_id,
-            message="Resume command accepted",
+            message=message,
             queued_at=time.time(),
         )
     )
@@ -218,14 +243,15 @@ async def dock(
     with metrics.time_command("dock"):
         _gate_and_dispatch(request, current_user, "dock", body, command_id)
         bridge = request.app.state.ros2_bridge
-        bridge.call_dock(station_id=body.station_id)
+        result = bridge.call_dock(station_id=body.station_id)
+        message = _check_bridge_result(request, "dock", result, "Dock command accepted")
 
     metrics.record_command("dock", "accepted")
     return APIResponse.ok(
         CommandResponse(
             accepted=True,
             command_id=command_id,
-            message="Dock command accepted",
+            message=message,
             queued_at=time.time(),
         )
     )
@@ -244,14 +270,15 @@ async def cancel_task(
     with metrics.time_command("cancel_task"):
         _gate_and_dispatch(request, current_user, "cancel_task", body, command_id)
         bridge = request.app.state.ros2_bridge
-        bridge.call_cancel_task(task_id=body.task_id)
+        result = bridge.call_cancel_task(task_id=body.task_id)
+        message = _check_bridge_result(request, "cancel_task", result, "Cancel task accepted")
 
     metrics.record_command("cancel_task", "accepted")
     return APIResponse.ok(
         CommandResponse(
             accepted=True,
             command_id=command_id,
-            message="Cancel task accepted",
+            message=message,
             queued_at=time.time(),
         )
     )

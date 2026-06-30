@@ -21,6 +21,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetMode.srv"
   "srv/HealthCheck.srv"
   "srv/ReportFailureCase.srv"
+  "srv/NavigateTo.srv"
+  "srv/CancelNavigation.srv"
+  "srv/GetNearestCharger.srv"
   DEPENDENCIES std_msgs geometry_msgs bonbon_msgs
 )
 

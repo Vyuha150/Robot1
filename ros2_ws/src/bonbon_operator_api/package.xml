@@ -16,6 +16,15 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
+  <!-- ros2_bridge.py subscribes/calls real BonBon topics and services
+       (SafetyState, NavigationStatus, ActuationStatus, TTSRequest,
+       NavigateTo, CancelNavigation, GetNearestCharger) and the standard
+       sensor_msgs/BatteryState + geometry_msgs/PoseStamped messages those
+       interfaces use. -->
+  <exec_depend>bonbon_msgs</exec_depend>
+  <exec_depend>bonbon_srvs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>python3-pydantic</exec_depend>
 
   <!-- pip install fastapi uvicorn[standard] PyJWT passlib[bcrypt] prometheus-client -->

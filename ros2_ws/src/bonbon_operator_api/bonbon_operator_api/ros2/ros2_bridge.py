@@ -11,9 +11,21 @@ Design
 
 Safety contract
 ---------------
-This bridge NEVER bypasses the Safety Supervisor.  It publishes commands only
-after the SafetyCommandGate has approved them.  The bridge does not implement
+This bridge NEVER bypasses the Safety Supervisor. It publishes commands only
+after the SafetyCommandGate has approved them. The bridge does not implement
 its own safety logic — it only relays already-approved messages.
+
+Topics and services below were corrected during a final verification pass:
+the bridge originally subscribed to topic names/types that did not match any
+real BonBon publisher (verified by grep against every node in the
+workspace), and every command dispatch method was a hardcoded stub that
+always reported success without calling anything. Real targets that
+verifiably exist are now wired for real (navigate, cancel_task, dock,
+speak); commands with no real backing service anywhere in the codebase
+(emergency_stop — e-stop is hardware/GPIO-only with no software trigger
+today, pause, resume, restart_module, get_config, set_config, memory_query,
+rag_query) now honestly report unavailable rather than silently lying about
+success — see `_NOT_IMPLEMENTED` below.
 """
 
 from __future__ import annotations
@@ -22,6 +34,7 @@ import asyncio
 import logging
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -32,41 +45,90 @@ logger = logging.getLogger(__name__)
 # Try to import rclpy; fall back gracefully when not available
 try:
     import rclpy
+    from bonbon_msgs.msg import (
+        ActuationStatus,
+        ModuleHealth,
+        NavigationStatus,
+        PersonTrack,
+        SafetyState,
+        TTSRequest,
+    )
+    from bonbon_srvs.srv import CancelNavigation, GetNearestCharger, NavigateTo
+    from geometry_msgs.msg import PoseStamped
     from rclpy.executors import MultiThreadedExecutor
     from rclpy.node import Node
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-    from std_msgs.msg import Bool, Float32, String
+    from sensor_msgs.msg import BatteryState
+    from std_msgs.msg import String
 
     _ROS2_AVAILABLE = True
 except ImportError:
     _ROS2_AVAILABLE = False
     logger.warning("rclpy not available — ROS2 bridge running in stub mode")
 
-# Topic names (mirror the rest of BonBon ROS2 architecture)
-_TOPIC_SAFETY_STATE = "/bonbon/safety/state"
-_TOPIC_BATTERY = "/bonbon/battery/status"
-_TOPIC_NAV_STATE = "/bonbon/navigation/state"
-_TOPIC_PERCEPTION = "/bonbon/perception/status"
-_TOPIC_TTS_STATE = "/bonbon/tts/state"
-_TOPIC_ACTUATION = "/bonbon/actuation/state"
-_TOPIC_MODULE_STATUS = "/bonbon/modules/status"
-_TOPIC_HEARTBEAT = "/bonbon/heartbeat"
+# Topic names — verified against the actual publisher in each owning
+# package, not guessed. See module docstring.
+_TOPIC_SAFETY_STATE = "/bonbon/safety/state"  # bonbon_safety/safety_supervisor_node, SafetyState
+_TOPIC_BATTERY = "/bonbon/battery/state"  # bonbon_hal/battery_node, sensor_msgs/BatteryState
+_TOPIC_NAV_STATUS = "/navigation/status"  # bonbon_navigation/navigation_node, NavigationStatus
+_TOPIC_TTS_HEALTH = "/bonbon/tts/health"  # bonbon_tts/tts_node, std_msgs/String (JSON)
+_TOPIC_ACTUATION_STATUS = "/bonbon/actuation/status"  # bonbon_actuation, ActuationStatus
+_TOPIC_PERSON_TRACKS = "/bonbon/persons/tracks"  # bonbon_multi_person_tracker, PersonTrack
 
-# Service names
-_SVC_EMERGENCY_STOP = "/bonbon/safety/emergency_stop"
-_SVC_SPEAK = "/bonbon/tts/speak"
-_SVC_NAVIGATE = "/bonbon/navigation/navigate"
-_SVC_PAUSE = "/bonbon/navigation/pause"
-_SVC_RESUME = "/bonbon/navigation/resume"
-_SVC_DOCK = "/bonbon/navigation/dock"
-_SVC_CANCEL_TASK = "/bonbon/task/cancel"
-_SVC_RESTART_MODULE = "/bonbon/modules/restart"
-_SVC_GET_CONFIG = "/bonbon/config/get"
-_SVC_SET_CONFIG = "/bonbon/config/set"
-_SVC_MEMORY_QUERY = "/bonbon/memory/query"
-_SVC_RAG_QUERY = "/bonbon/rag/query"
+# Curated set of ModuleHealth topics surfaced as dashboard module cards.
+# There is no single aggregate "/bonbon/modules/status" topic anywhere in
+# the codebase (verified) — every node publishes its own health
+# independently. Subscribing to literally all of them would mean keeping
+# this list in lockstep with every package; this curated set covers the
+# subsystems an operator actually needs at a glance.
+_MODULE_HEALTH_TOPICS = {
+    "safety_supervisor": "/bonbon/safety/safety_supervisor_node/health",
+    "navigation": "/health/navigation",
+    "actuation": "/bonbon/actuation/actuation_node/health",
+    "vision": "/bonbon/vision/vision_node/health",
+    "speech": "/health/speech",
+    "tts": "/bonbon/tts/health",
+    "llm": "/health/llm",
+    "perception_efficiency": "/bonbon/perception_efficiency/perception_efficiency_node/health",
+}
+
+# Service names — only created for commands with a confirmed real target.
+_SVC_NAVIGATE = "/navigation/navigate_to"
+_SVC_CANCEL_NAVIGATION = "/navigation/cancel"
+_SVC_GET_NEAREST_CHARGER = "/navigation/get_nearest_charger"
+_TOPIC_TTS_REQUEST = "/bonbon/tts/request"
 
 _SERVICE_TIMEOUT_SEC = 5.0
+# NavigateTo blocks server-side until arrival or failure (default 120s) —
+# the future-wait timeout for this one call must exceed that, or the bridge
+# gives up on a goal that is still actually running.
+_NAVIGATE_SERVICE_TIMEOUT_SEC = 130.0
+
+# Commands with no real backing service/topic anywhere in the codebase
+# (verified by grep — not a guess). Honestly report unavailable instead of
+# the previous hardcoded "success": True, which actively lied to an
+# operator about whether e.g. emergency_stop did anything.
+_NOT_IMPLEMENTED = {
+    "emergency_stop": (
+        "No software e-stop trigger exists in this codebase — emergency stop "
+        "is hardware/GPIO-only (see bonbon_safety/estop_node). Use the "
+        "physical e-stop."
+    ),
+    "pause": "No pause service exists yet — only navigate/cancel are implemented.",
+    "resume": "No resume service exists yet — only navigate/cancel are implemented.",
+    "restart_module": (
+        "Generic module restart is not implemented — ROS2 lifecycle "
+        "transitions for an arbitrary node require state-aware sequencing "
+        "this bridge does not yet provide."
+    ),
+    "get_config": "No config service exists in this codebase yet.",
+    "set_config": "No config service exists in this codebase yet.",
+    "memory_query": "No memory query service exists in this codebase yet.",
+    "rag_query": (
+        "LLMQuery.srv is defined for this purpose but bonbon_llm's "
+        "llm_orchestrator_node does not yet create a server for it."
+    ),
+}
 
 
 class BridgeError(Exception):
@@ -174,12 +236,12 @@ class ROS2DashboardBridge:
     # ------------------------------------------------------------------
 
     def call_emergency_stop(self, reason: str) -> dict[str, Any]:
-        return self._call_service_stub("emergency_stop", {"reason": reason})
+        return self._not_implemented("emergency_stop")
 
     def call_speak(self, text: str, language: str, priority: str) -> dict[str, Any]:
-        return self._call_service_stub(
-            "speak", {"text": text, "language": language, "priority": priority}
-        )
+        if not self._ready():
+            return {"success": False, "error": "bridge not ready"}
+        return self._node.publish_speak(text, language, priority)
 
     def call_navigate(
         self,
@@ -189,59 +251,58 @@ class ROS2DashboardBridge:
         map_id: str | None,
         speed_limit_mps: float | None,
     ) -> dict[str, Any]:
-        return self._call_service_stub(
-            "navigate",
-            {
-                "goal_x": goal_x,
-                "goal_y": goal_y,
-                "goal_yaw": goal_yaw,
-                "map_id": map_id,
-                "speed_limit_mps": speed_limit_mps,
-            },
+        if not self._ready():
+            return {"success": False, "error": "bridge not ready"}
+        return self._node.call_navigate(
+            goal_x, goal_y, goal_yaw, timeout_sec=_NAVIGATE_SERVICE_TIMEOUT_SEC
         )
 
     def call_pause(self) -> dict[str, Any]:
-        return self._call_service_stub("pause", {})
+        return self._not_implemented("pause")
 
     def call_resume(self) -> dict[str, Any]:
-        return self._call_service_stub("resume", {})
+        return self._not_implemented("resume")
 
     def call_dock(self, station_id: str | None) -> dict[str, Any]:
-        return self._call_service_stub("dock", {"station_id": station_id})
+        if not self._ready():
+            return {"success": False, "error": "bridge not ready"}
+        return self._node.call_dock(station_id, timeout_sec=_NAVIGATE_SERVICE_TIMEOUT_SEC)
 
     def call_cancel_task(self, task_id: str | None) -> dict[str, Any]:
-        return self._call_service_stub("cancel_task", {"task_id": task_id})
+        if not self._ready():
+            return {"success": False, "error": "bridge not ready"}
+        return self._node.call_cancel(task_id)
 
     def call_restart_module(self, module_name: str) -> dict[str, Any]:
-        return self._call_service_stub("restart_module", {"module": module_name})
+        return self._not_implemented("restart_module")
 
     def call_get_config(self, key: str) -> dict[str, Any]:
-        return self._call_service_stub("get_config", {"key": key})
+        return self._not_implemented("get_config")
 
     def call_set_config(self, key: str, value: Any) -> dict[str, Any]:
-        return self._call_service_stub("set_config", {"key": key, "value": value})
+        return self._not_implemented("set_config")
 
     def call_memory_query(self, query: str, limit: int) -> dict[str, Any]:
-        return self._call_service_stub("memory_query", {"query": query, "limit": limit})
+        return self._not_implemented("memory_query")
 
     def call_rag_query(self, query: str, collection: str, top_k: int) -> dict[str, Any]:
-        return self._call_service_stub(
-            "rag_query", {"query": query, "collection": collection, "top_k": top_k}
-        )
+        return self._not_implemented("rag_query")
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _call_service_stub(self, name: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Stub implementation used when ROS2 is unavailable."""
-        if not _ROS2_AVAILABLE or not self._running:
-            logger.debug("ROS2 stub call: %s %s", name, params)
-            return {"success": True, "stub": True, "service": name}
-        # When ROS2 is available, delegate to the node's service client
-        if self._node:
-            return self._node.call_service(name, params)
-        return {"success": False, "error": "bridge not ready"}
+    def _ready(self) -> bool:
+        return _ROS2_AVAILABLE and self._running and self._node is not None
+
+    def _not_implemented(self, name: str) -> dict[str, Any]:
+        logger.warning("Command '%s' has no real backing service — rejecting honestly", name)
+        return {
+            "success": False,
+            "error": "NOT_IMPLEMENTED",
+            "message": _NOT_IMPLEMENTED.get(name, "Not implemented."),
+            "service": name,
+        }
 
     def _emit_event(self, channel: str, event: str, data: dict[str, Any]) -> None:
         """Push an event onto the asyncio queue (called from ROS2 thread)."""
@@ -261,6 +322,13 @@ class ROS2DashboardBridge:
 if _ROS2_AVAILABLE:
     import json as _json
 
+    _HEALTH_TO_LABEL = {
+        ModuleHealth.OK: "healthy",
+        ModuleHealth.WARN: "degraded",
+        ModuleHealth.ERROR: "critical",
+        ModuleHealth.STALE: "critical",
+    }
+
     class _DashboardNode(Node):
         """Internal ROS2 node that subscribes to all relevant topics."""
 
@@ -273,72 +341,227 @@ if _ROS2_AVAILABLE:
             super().__init__(name)
             self._agg = aggregator
             self._emit = emit_cb
+            self._person_track_ids: set[str] = set()
 
             _best_effort = QoSProfile(
                 depth=10,
                 reliability=ReliabilityPolicy.BEST_EFFORT,
                 durability=DurabilityPolicy.VOLATILE,
             )
+            _reliable_transient = QoSProfile(
+                depth=1,
+                reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            )
 
-            # Subscriptions
-            self.create_subscription(String, _TOPIC_SAFETY_STATE, self._on_safety, _best_effort)
-            self.create_subscription(String, _TOPIC_BATTERY, self._on_battery, _best_effort)
-            self.create_subscription(String, _TOPIC_NAV_STATE, self._on_navigation, _best_effort)
-            self.create_subscription(String, _TOPIC_PERCEPTION, self._on_perception, _best_effort)
-            self.create_subscription(String, _TOPIC_TTS_STATE, self._on_tts, _best_effort)
-            self.create_subscription(String, _TOPIC_ACTUATION, self._on_actuation, _best_effort)
-            self.create_subscription(String, _TOPIC_MODULE_STATUS, self._on_module, _best_effort)
-            self.create_subscription(Bool, _TOPIC_HEARTBEAT, self._on_heartbeat, _best_effort)
+            # Subscriptions — real topics/types, verified against each
+            # owning package's actual publisher.
+            self.create_subscription(
+                SafetyState, _TOPIC_SAFETY_STATE, self._on_safety, _reliable_transient
+            )
+            self.create_subscription(BatteryState, _TOPIC_BATTERY, self._on_battery, _best_effort)
+            self.create_subscription(
+                NavigationStatus, _TOPIC_NAV_STATUS, self._on_navigation, _best_effort
+            )
+            self.create_subscription(String, _TOPIC_TTS_HEALTH, self._on_tts, _best_effort)
+            self.create_subscription(
+                ActuationStatus, _TOPIC_ACTUATION_STATUS, self._on_actuation, _best_effort
+            )
+            self.create_subscription(
+                PersonTrack, _TOPIC_PERSON_TRACKS, self._on_person_track, _best_effort
+            )
+            for module_key, topic in _MODULE_HEALTH_TOPICS.items():
+                self.create_subscription(
+                    ModuleHealth,
+                    topic,
+                    lambda msg, key=module_key: self._on_module_health(key, msg),
+                    _best_effort,
+                )
+
+            # Service clients — only for commands with a confirmed real target.
+            self._cli_navigate = self.create_client(NavigateTo, _SVC_NAVIGATE)
+            self._cli_cancel = self.create_client(CancelNavigation, _SVC_CANCEL_NAVIGATION)
+            self._cli_get_charger = self.create_client(GetNearestCharger, _SVC_GET_NEAREST_CHARGER)
+            self._pub_tts_request = self.create_publisher(
+                TTSRequest, _TOPIC_TTS_REQUEST, _best_effort
+            )
 
         # -- Subscription callbacks --
 
-        def _parse(self, msg: String) -> dict[str, Any]:
-            try:
-                return _json.loads(msg.data)
-            except Exception:
-                return {}
-
-        def _on_safety(self, msg: String) -> None:
-            data = self._parse(msg)
+        def _on_safety(self, msg: SafetyState) -> None:
+            data = {
+                "state": (msg.state_name or "unknown").lower(),
+                "active_faults": list(msg.degraded_modules),
+                "last_event_ts": None,
+                "watchdog_ok": not msg.requires_manual_reset,
+            }
             self._agg.update_safety(data)
             self._emit("safety-events", "safety_state_changed", data)
 
-        def _on_battery(self, msg: String) -> None:
-            data = self._parse(msg)
+        def _on_battery(self, msg: BatteryState) -> None:
+            # sensor_msgs/BatteryState.percentage is a 0.0-1.0 fraction (or
+            # NaN if unknown); BatteryData.percentage is 0-100.
+            pct = msg.percentage
+            pct = 0.0 if pct != pct else max(0.0, min(1.0, pct)) * 100.0  # NaN-safe
+            data = {
+                "voltage_v": msg.voltage,
+                "percentage": pct,
+                "is_charging": msg.power_supply_status == BatteryState.POWER_SUPPLY_STATUS_CHARGING,
+                "estimated_runtime_min": None,
+            }
             self._agg.update_battery(data)
 
-        def _on_navigation(self, msg: String) -> None:
-            data = self._parse(msg)
+        def _on_navigation(self, msg: NavigationStatus) -> None:
+            _STATE_LABELS = {
+                NavigationStatus.STATE_IDLE: "idle",
+                NavigationStatus.STATE_PLANNING: "navigating",
+                NavigationStatus.STATE_EXECUTING: "navigating",
+                NavigationStatus.STATE_RECOVERING: "navigating",
+                NavigationStatus.STATE_DOCKING: "navigating",
+                NavigationStatus.STATE_ARRIVED: "succeeded",
+                NavigationStatus.STATE_BLOCKED: "paused",
+                NavigationStatus.STATE_FAILED: "failed",
+                NavigationStatus.STATE_CANCELLED: "idle",
+                NavigationStatus.STATE_SAFETY_STOPPED: "paused",
+            }
+            data = {
+                "state": _STATE_LABELS.get(msg.state, "idle"),
+                "current_x": msg.current_pose.pose.position.x,
+                "current_y": msg.current_pose.pose.position.y,
+                "current_yaw": 0.0,
+                "goal_x": None,
+                "goal_y": None,
+                "progress_pct": msg.progress_pct if msg.active_goal_id else None,
+                "active_map": None,
+            }
             self._agg.update_navigation(data)
             self._emit("navigation-events", "navigation_state_changed", data)
-
-        def _on_perception(self, msg: String) -> None:
-            data = self._parse(msg)
-            self._agg.update_perception(data)
+            self._agg.update_active_task(msg.active_goal_id or None)
 
         def _on_tts(self, msg: String) -> None:
-            data = self._parse(msg)
+            try:
+                payload = _json.loads(msg.data)
+            except Exception:
+                payload = {}
+            data = {
+                "is_speaking": payload.get("status") == "speaking",
+                "current_text": payload.get("current_text"),
+                "queue_depth": payload.get("queue_depth", 0),
+            }
             self._agg.update_tts(data)
 
-        def _on_actuation(self, msg: String) -> None:
-            data = self._parse(msg)
+        def _on_actuation(self, msg: ActuationStatus) -> None:
+            data = {
+                "linear_velocity_mps": 0.0,
+                "angular_velocity_rps": 0.0,
+                "motors_enabled": msg.status in ("queued", "executing") and not msg.safety_blocked,
+            }
             self._agg.update_actuation(data)
 
-        def _on_module(self, msg: String) -> None:
-            data = self._parse(msg)
-            name = data.get("module", "unknown")
-            self._agg.update_module(name, data)
-            self._emit("diagnostics", "module_status_changed", data)
+        def _on_person_track(self, msg: PersonTrack) -> None:
+            if msg.lifecycle_state == "left_scene":
+                self._person_track_ids.discard(msg.person_track_id)
+            else:
+                self._person_track_ids.add(msg.person_track_id)
+            self._agg.update_perception(
+                {
+                    "camera_active": True,  # we are receiving PersonTrack updates at all
+                    "lidar_active": None,
+                    "persons_detected": len(self._person_track_ids),
+                    "obstacle_distance_m": None,
+                }
+            )
 
-        def _on_heartbeat(self, msg: Bool) -> None:
-            self._agg.mark_heartbeat()
+        def _on_module_health(self, module_key: str, msg: ModuleHealth) -> None:
+            data = {
+                "state": "active" if msg.status == ModuleHealth.OK else "degraded",
+                "health": _HEALTH_TO_LABEL.get(msg.status, "unknown"),
+                "message": msg.status_text,
+            }
+            self._agg.update_module(module_key, data)
+            self._emit("diagnostics", "module_status_changed", {"module": module_key, **data})
 
-        # -- Service calls --
+        # -- Command dispatch (real service/topic clients) --
 
-        def call_service(self, name: str, params: dict[str, Any]) -> dict[str, Any]:
-            """Synchronous service call with timeout (called from thread pool)."""
-            # For ROS2 service clients, we'd set up clients per service.
-            # This is a simplified dispatch — production would use typed services.
-            logger.debug("ROS2 service call: %s %s", name, params)
-            # Return stub until typed service interfaces are wired
-            return {"success": True, "service": name, "params": params}
+        def publish_speak(self, text: str, language: str, priority: str) -> dict[str, Any]:
+            _PRIORITY_MAP = {"low": 1, "normal": 5, "high": 10}
+            msg = TTSRequest()
+            msg.text = text
+            msg.priority = _PRIORITY_MAP.get((priority or "normal").lower(), 5)
+            msg.language = language or ""
+            msg.request_id = str(uuid.uuid4())
+            msg.speed_factor = 1.0
+            self._pub_tts_request.publish(msg)
+            return {"success": True, "service": "speak", "request_id": msg.request_id}
+
+        def call_navigate(
+            self, goal_x: float, goal_y: float, goal_yaw: float | None, timeout_sec: float
+        ) -> dict[str, Any]:
+            if not self._cli_navigate.wait_for_service(timeout_sec=2.0):
+                return {"success": False, "error": "navigate_to service unavailable"}
+            req = NavigateTo.Request()
+            req.goal_id = str(uuid.uuid4())
+            req.named_location = ""
+            req.target_pose = PoseStamped()
+            req.target_pose.pose.position.x = goal_x
+            req.target_pose.pose.position.y = goal_y
+            req.timeout_sec = float(timeout_sec)
+            req.enqueue = False
+            req.requester_id = "dashboard"
+            return self._call_sync(self._cli_navigate, req, timeout_sec)
+
+        def call_cancel(self, task_id: str | None) -> dict[str, Any]:
+            if not self._cli_cancel.wait_for_service(timeout_sec=2.0):
+                return {"success": False, "error": "cancel service unavailable"}
+            req = CancelNavigation.Request()
+            req.goal_id = task_id or ""
+            req.reason = "operator dashboard cancel"
+            return self._call_sync(self._cli_cancel, req, _SERVICE_TIMEOUT_SEC)
+
+        def call_dock(self, station_id: str | None, timeout_sec: float) -> dict[str, Any]:
+            if not self._cli_get_charger.wait_for_service(timeout_sec=2.0):
+                return {"success": False, "error": "get_nearest_charger service unavailable"}
+            charger_req = GetNearestCharger.Request()
+            charger_req.prefer_available_only = True
+            charger_result = self._call_sync(
+                self._cli_get_charger, charger_req, _SERVICE_TIMEOUT_SEC
+            )
+            if not charger_result.get("found"):
+                return {
+                    "success": False,
+                    "error": charger_result.get("message", "no charger found"),
+                }
+            if station_id and charger_result.get("charger_id") != station_id:
+                return {
+                    "success": False,
+                    "error": f"requested charger '{station_id}' is not the nearest available",
+                }
+            pose = charger_result["_charger_pose"]
+            return self.call_navigate(pose.pose.position.x, pose.pose.position.y, None, timeout_sec)
+
+        def _call_sync(self, client, request, timeout_sec: float) -> dict[str, Any]:
+            future = client.call_async(request)
+            deadline = time.monotonic() + timeout_sec
+            while not future.done():
+                if time.monotonic() > deadline:
+                    return {"success": False, "error": "service call timed out"}
+                time.sleep(0.02)
+            try:
+                response = future.result()
+            except Exception as exc:
+                return {"success": False, "error": str(exc)}
+            return self._response_to_dict(response)
+
+        @staticmethod
+        def _response_to_dict(response) -> dict[str, Any]:
+            result: dict[str, Any] = {}
+            for field_name in response.get_fields_and_field_types():
+                value = getattr(response, field_name)
+                if hasattr(value, "get_fields_and_field_types"):
+                    # Keep complex fields (e.g. charger_pose) accessible to
+                    # internal callers (call_dock) without flattening them
+                    # into the JSON-safe response.
+                    result[f"_{field_name}"] = value
+                    continue
+                result[field_name] = value
+            return result

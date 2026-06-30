@@ -270,3 +270,60 @@ def test_speak_passes_in_unknown_safety_state(client: TestClient, operator_token
     )
     assert resp.status_code == 200
     aggregator.update_safety({"state": "normal"})
+
+
+# ---------------------------------------------------------------------------
+# Scenario 21: Bridge dispatch failure is NOT silently reported as accepted
+# ---------------------------------------------------------------------------
+# Every command handler used to call bridge.call_X(...) and discard the
+# return value entirely, then unconditionally return accepted=True -- a
+# command that passed the safety gate but failed (or was never implemented)
+# at the ROS2 dispatch layer looked identical to a real success. These
+# tests pin the fix: a bridge result with success=False must surface as an
+# HTTP error, never a fake 200 "accepted".
+def test_navigate_reports_bridge_dispatch_failure(
+    client: TestClient, operator_token: str, mock_bridge
+):
+    mock_bridge.call_navigate.return_value = {
+        "success": False,
+        "message": "navigate_to service unavailable",
+    }
+    resp = client.post(
+        "/api/v1/robot/commands/navigate",
+        json={"goal_x": 1.0, "goal_y": 1.0},
+        headers={"Authorization": f"Bearer {operator_token}"},
+    )
+    assert resp.status_code == 503
+    assert "unavailable" in resp.json()["detail"]
+
+
+def test_emergency_stop_reports_bridge_not_implemented(
+    client: TestClient, operator_token: str, mock_bridge
+):
+    """Mirrors the real bridge's honest behavior for emergency_stop, which
+    has no software trigger anywhere in the codebase (hardware e-stop
+    only) -- the dashboard must never claim this succeeded."""
+    mock_bridge.call_emergency_stop.return_value = {
+        "success": False,
+        "error": "NOT_IMPLEMENTED",
+        "message": "No software e-stop trigger exists in this codebase.",
+    }
+    resp = client.post(
+        "/api/v1/robot/commands/emergency_stop",
+        json={"reason": "test"},
+        headers={"Authorization": f"Bearer {operator_token}"},
+    )
+    assert resp.status_code == 503
+    assert "No software e-stop trigger" in resp.json()["detail"]
+
+
+def test_dock_reports_bridge_success_message(client: TestClient, operator_token: str, mock_bridge):
+    """A successful bridge result's message is propagated, not discarded."""
+    mock_bridge.call_dock.return_value = {"success": True, "message": "docked at charger_a"}
+    resp = client.post(
+        "/api/v1/robot/commands/dock",
+        json={},
+        headers={"Authorization": f"Bearer {operator_token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["message"] == "docked at charger_a"
