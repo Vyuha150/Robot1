@@ -176,6 +176,47 @@ export class ApiClient {
     return this.request<Record<string, unknown>>("/api/v1/pi/degraded-mode");
   }
 
+  // ── Behavior validation framework ───────────────────────────────────────────
+  async getScenarioFamilies() {
+    return this.request<Record<string, unknown>>("/api/v1/validation/scenario-families");
+  }
+
+  async getGeneratedScenarios() {
+    return this.request<Record<string, unknown>>("/api/v1/validation/generated-scenarios");
+  }
+
+  async getValidationTestResults() {
+    return this.request<Record<string, unknown>>("/api/v1/validation/test-results");
+  }
+
+  async getProductionScore() {
+    return this.request<Record<string, unknown>>("/api/v1/validation/production-score");
+  }
+
+  async getFieldLearningFailureCases() {
+    return this.request<Record<string, unknown>>("/api/v1/field-learning/failure-cases");
+  }
+
+  async getFieldLearningRegressionTests() {
+    return this.request<Record<string, unknown>>("/api/v1/field-learning/regression-tests");
+  }
+
+  async getDatasetsStatus() {
+    return this.request<Record<string, unknown>>("/api/v1/datasets/status");
+  }
+
+  async getDatasetsLicenseChecklist() {
+    return this.request<Record<string, unknown>>("/api/v1/datasets/license-checklist");
+  }
+
+  async getModelsEvaluation() {
+    return this.request<Record<string, unknown>>("/api/v1/models/evaluation");
+  }
+
+  async getPrivacyDataCollectionStatus() {
+    return this.request<Record<string, unknown>>("/api/v1/privacy/data-collection-status");
+  }
+
   // ── Commands ───────────────────────────────────────────────────────────────
   async speak(text: string, emotion = "neutral", language = "en", priority = "normal") {
     return this.request<Record<string, unknown>>("/api/v1/robot/commands/speak", {

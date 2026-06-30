@@ -1,0 +1,35 @@
+# Per-capability dataset license checklist state (docs/DATASET_LICENSE_CHECKLIST.md).
+# Honest current state of THIS repo: no external dataset has been sourced
+# or cleared yet -- every category starts NOT_SOURCED. Update a category's
+# `status` to CLEARED / CLEARED_WITH_ATTRIBUTION / BLOCKED only once the
+# 8-item checklist has actually been run against a specific dataset, and
+# record which dataset + version in `notes`.
+
+categories:
+  - capability: object_detection
+    status: NOT_SOURCED
+    notes: ""
+  - capability: person_detection
+    status: NOT_SOURCED
+    notes: ""
+  - capability: pose_gesture_recognition
+    status: NOT_SOURCED
+    notes: ""
+  - capability: speech_recognition
+    status: NOT_SOURCED
+    notes: ""
+  - capability: speaker_diarization
+    status: NOT_SOURCED
+    notes: ""
+  - capability: voice_emotion
+    status: NOT_SOURCED
+    notes: ""
+  - capability: face_emotion
+    status: NOT_SOURCED
+    notes: ""
+  - capability: navigation_spatial_reasoning
+    status: NOT_SOURCED
+    notes: ""
+  - capability: behavior_validation
+    status: NOT_APPLICABLE
+    notes: "no external dataset applies -- see docs/ONLINE_DATASET_STRATEGY.md category 9"

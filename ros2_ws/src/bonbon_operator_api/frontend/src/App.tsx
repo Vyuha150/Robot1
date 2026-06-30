@@ -1500,6 +1500,7 @@ function SystemTab(p: TabProps) {
 
   const [projectData, setProjectData] = useState<Record<string, unknown> | null>(null);
   const [piData, setPiData] = useState<Record<string, unknown> | null>(null);
+  const [validationData, setValidationData] = useState<Record<string, unknown> | null>(null);
 
   const load = async (kind: "status" | "diagnostics") => {
     try { const r = kind === "status" ? await p.api.robotStatus() : await p.api.diagnostics(); setSysData(r); p.addLog("ok", `Loaded ${kind}`); } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
@@ -1524,6 +1525,27 @@ function SystemTab(p: TabProps) {
         : kind === "efficiency" ? await p.api.getPiEfficiency()
         : await p.api.getPiDegradedMode();
       setPiData(r);
+      p.addLog("ok", `Loaded ${kind}`);
+    } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
+  };
+
+  const loadValidation = async (
+    kind: "scenario-families" | "generated-scenarios" | "test-results" | "production-score"
+      | "failure-cases" | "regression-tests" | "datasets-status" | "license-checklist"
+      | "model-evaluation" | "privacy-status",
+  ) => {
+    try {
+      const r = kind === "scenario-families" ? await p.api.getScenarioFamilies()
+        : kind === "generated-scenarios" ? await p.api.getGeneratedScenarios()
+        : kind === "test-results" ? await p.api.getValidationTestResults()
+        : kind === "production-score" ? await p.api.getProductionScore()
+        : kind === "failure-cases" ? await p.api.getFieldLearningFailureCases()
+        : kind === "regression-tests" ? await p.api.getFieldLearningRegressionTests()
+        : kind === "datasets-status" ? await p.api.getDatasetsStatus()
+        : kind === "license-checklist" ? await p.api.getDatasetsLicenseChecklist()
+        : kind === "model-evaluation" ? await p.api.getModelsEvaluation()
+        : await p.api.getPrivacyDataCollectionStatus();
+      setValidationData(r);
       p.addLog("ok", `Loaded ${kind}`);
     } catch (e) { p.addLog("error", `${kind}: ${e instanceof Error ? e.message : String(e)}`); }
   };
@@ -1589,6 +1611,23 @@ function SystemTab(p: TabProps) {
               <button onClick={() => void loadPi("degraded")} disabled={p.disabled}>Degraded mode</button>
             </div>
             <pre className="json-view">{piData ? JSON.stringify(piData, null, 2) : "No data loaded."}</pre>
+          </section>
+
+          <section className="panel">
+            <div className="section-title"><span>Behavior Validation Framework</span><small>scenarios · production score · field learning · datasets · privacy</small></div>
+            <div className="btn-row">
+              <button onClick={() => void loadValidation("scenario-families")} disabled={p.disabled}>Scenario families</button>
+              <button onClick={() => void loadValidation("generated-scenarios")} disabled={p.disabled}>Generated scenarios</button>
+              <button onClick={() => void loadValidation("test-results")} disabled={p.disabled}>Test results</button>
+              <button onClick={() => void loadValidation("production-score")} disabled={p.disabled}>Production score</button>
+              <button onClick={() => void loadValidation("failure-cases")} disabled={p.disabled}>Field failure cases</button>
+              <button onClick={() => void loadValidation("regression-tests")} disabled={p.disabled}>Regression tests</button>
+              <button onClick={() => void loadValidation("datasets-status")} disabled={p.disabled}>Dataset version</button>
+              <button onClick={() => void loadValidation("license-checklist")} disabled={p.disabled}>License checklist</button>
+              <button onClick={() => void loadValidation("model-evaluation")} disabled={p.disabled}>Model evaluation</button>
+              <button onClick={() => void loadValidation("privacy-status")} disabled={p.disabled}>Privacy status</button>
+            </div>
+            <pre className="json-view">{validationData ? JSON.stringify(validationData, null, 2) : "No data loaded."}</pre>
           </section>
 
           <section className="panel">
