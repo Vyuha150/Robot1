@@ -62,6 +62,7 @@ from bonbon_msgs.msg import (
 )
 from bonbon_msgs.msg import (
     ModuleHealth,
+    PerceptionBudget,
 )
 from bonbon_msgs.msg import (
     PersonState as PersonStateMsg,
@@ -400,6 +401,19 @@ class VisionNode(LifecycleNode):
             self._on_depth_image,
             BEST_EFFORT_D2,
         )
+        # Dynamic FPS control: bonbon_perception_efficiency recommends a
+        # sample-every-Nth-frame rate under CPU/memory pressure. This only
+        # adjusts FrameThrottler's existing runtime-tunable rate (its
+        # documented purpose) — the detection cycle itself, and its fixed
+        # timer cadence, are unchanged. Advisory only: if that package isn't
+        # running, the throttler simply stays at its configured static rate.
+        self._base_detection_hz = max(1.0, self._cfg.detection_rate_hz)
+        self._sub_perception_budget = self.create_subscription(
+            PerceptionBudget,
+            "/bonbon/perception_efficiency/budget",
+            self._on_perception_budget,
+            BEST_EFFORT_D2,
+        )
 
         # Timers
         det_period = 1.0 / max(1.0, self._cfg.detection_rate_hz)
@@ -473,6 +487,24 @@ class VisionNode(LifecycleNode):
         except Exception as exc:
             self._errors += 1
             self.get_logger().debug(f"[{NODE_NAME}] depth decode error: {exc}")
+
+    def _on_perception_budget(self, msg: PerceptionBudget) -> None:
+        """Advisory dynamic FPS control. Looks up this node's own consumer
+        entry ("vision") in the recommendation; ignores the message entirely
+        if that entry isn't present, so a budget message scoped to other
+        consumers never changes this node's rate."""
+        if self._throttler is None:
+            return
+        for consumer, every_n in zip(msg.sample_consumers, msg.sample_every_n_frames):
+            if consumer != "vision":
+                continue
+            every_n = max(1, every_n)
+            target_hz = max(0.5, self._base_detection_hz / every_n)
+            try:
+                self._throttler.set_rate(target_hz)
+            except ValueError:
+                pass
+            return
 
     # ── Detection cycle ───────────────────────────────────────────────────────
 

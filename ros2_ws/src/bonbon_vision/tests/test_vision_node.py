@@ -164,6 +164,7 @@ def _ensure_ros_stubs():
         ModuleHealth=_msg_cls("ModuleHealth"),
         PersonState=_msg_cls("PersonState"),
         PersonStateArray=_msg_cls("PersonStateArray"),
+        PerceptionBudget=_msg_cls("PerceptionBudget"),
     )
 
 

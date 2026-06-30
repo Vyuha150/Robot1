@@ -369,5 +369,47 @@ class TestAffectiveNodeWithMockBackends(unittest.TestCase):
         self.assertGreater(len(emotions), 1)
 
 
+class TestAffectiveNodeBackpressure(unittest.TestCase):
+    """Verifies the BoundedInferenceQueue wiring in front of the thread pool
+    (audit finding: voice/text analysis were submitted with no admission
+    control, risking unbounded queue growth under sustained input)."""
+
+    def _make_node(self):
+        from bonbon_affective_ai.nodes.affective_ai_node import AffectiveAINode
+        return AffectiveAINode()
+
+    def test_node_creates_bounded_voice_and_text_queues(self) -> None:
+        node = self._make_node()
+        from bonbon_perception_efficiency.core.bounded_inference_queue import (
+            BoundedInferenceQueue,
+        )
+        self.assertIsInstance(node._voice_queue, BoundedInferenceQueue)
+        self.assertIsInstance(node._text_queue, BoundedInferenceQueue)
+
+    def test_voice_queue_rejects_once_full(self) -> None:
+        node = self._make_node()
+        for _ in range(node._voice_queue._max_depth):
+            result = node._voice_queue.try_admit()
+            self.assertTrue(result.admitted)
+        overflow = node._voice_queue.try_admit()
+        self.assertFalse(overflow.admitted)
+
+    def test_voice_queue_frees_slot_on_mark_complete(self) -> None:
+        node = self._make_node()
+        for _ in range(node._voice_queue._max_depth):
+            node._voice_queue.try_admit()
+        self.assertFalse(node._voice_queue.try_admit().admitted)
+        node._voice_queue.mark_complete()
+        self.assertTrue(node._voice_queue.try_admit().admitted)
+
+    def test_text_queue_independent_of_voice_queue(self) -> None:
+        node = self._make_node()
+        for _ in range(node._text_queue._max_depth):
+            node._text_queue.try_admit()
+        self.assertFalse(node._text_queue.try_admit().admitted)
+        # Voice queue is unaffected by text queue saturation.
+        self.assertTrue(node._voice_queue.try_admit().admitted)
+
+
 if __name__ == "__main__":
     unittest.main()

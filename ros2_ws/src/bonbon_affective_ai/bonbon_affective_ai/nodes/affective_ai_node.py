@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from bonbon_perception_efficiency.core.bounded_inference_queue import BoundedInferenceQueue
+
 try:
     import rclpy
     from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
@@ -114,6 +116,15 @@ class AffectiveAINode(LifecycleNode):
         # Thread pool for backend inference.
         self._executor: Optional[ThreadPoolExecutor] = None
         self._pending_face_futures: Dict[int, Future] = {}
+
+        # Backpressure gates in front of the thread pool — addresses the
+        # audit finding that voice/text analysis were submitted with no
+        # admission control, so a slow backend under load would let queued
+        # work grow unbounded inside the executor. Drop-newest: a fresh
+        # audio/text sample is generally more useful than one that's been
+        # waiting, and completing in-flight work beats discarding it.
+        self._voice_queue = BoundedInferenceQueue(max_depth=4)
+        self._text_queue = BoundedInferenceQueue(max_depth=4)
 
         self._start_time: float = time.time()
 
@@ -416,7 +427,14 @@ class AffectiveAINode(LifecycleNode):
             sr = self._audio_sample_rate
 
             if self._executor is not None:
-                self._executor.submit(self._run_voice_analysis, audio_snapshot, sr)
+                admit = self._voice_queue.try_admit()
+                if admit.admitted:
+                    self._executor.submit(self._run_voice_analysis, audio_snapshot, sr)
+                else:
+                    self.get_logger().debug(
+                        "Voice analysis queue full (depth=%d) — dropping segment.",
+                        admit.queue_depth,
+                    )
 
     def _cb_transcript(self, msg: Any) -> None:
         """Handle SpeechCommand messages and run text analysis.
@@ -433,9 +451,16 @@ class AffectiveAINode(LifecycleNode):
 
         person_id: str = getattr(msg, "speaker_id", "") or ""
         if self._executor is not None:
-            self._executor.submit(
-                self._run_text_analysis, msg.text, person_id, 0
-            )
+            admit = self._text_queue.try_admit()
+            if admit.admitted:
+                self._executor.submit(
+                    self._run_text_analysis, msg.text, person_id, 0
+                )
+            else:
+                self.get_logger().debug(
+                    "Text analysis queue full (depth=%d) — dropping transcript.",
+                    admit.queue_depth,
+                )
 
     def _cb_safety(self, msg: Any) -> None:
         """Handle SafetyState messages and disable processing on FAULT/SAFE_STOP.
@@ -495,6 +520,8 @@ class AffectiveAINode(LifecycleNode):
         except Exception as exc:
             self._health_monitor.record_voice_failure(str(exc))
             self.get_logger().debug("Voice analysis error: %s", exc)
+        finally:
+            self._voice_queue.mark_complete()
 
     def _run_text_analysis(
         self, text: str, person_id: str, tracking_id: int
@@ -524,6 +551,8 @@ class AffectiveAINode(LifecycleNode):
         except Exception as exc:
             self._health_monitor.record_text_failure(str(exc))
             self.get_logger().debug("Text analysis error: %s", exc)
+        finally:
+            self._text_queue.mark_complete()
 
     def _run_face_analysis_for_person(
         self,
