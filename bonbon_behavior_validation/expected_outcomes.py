@@ -71,13 +71,17 @@ class ExpectedOutcome:
 
 def derive_expected_outcome(scenario: Scenario) -> ExpectedOutcome:
     ic = scenario.input_conditions
+    unsafe_command_proposed = ic.extra.get("trigger") == "unsafe_command_proposed"
     return ExpectedOutcome(
         requires_safety_halt=ic.gesture in _SAFETY_CRITICAL_GESTURES
-        or ic.speech in _EMERGENCY_SPEECH,
+        or ic.speech in _EMERGENCY_SPEECH
+        or unsafe_command_proposed,
         requires_clarification=ic.gesture in _AMBIGUOUS_GESTURES or ic.speech in _AMBIGUOUS_SPEECH,
         requires_degraded_mode=ic.sensor in _DEGRADING_SENSORS or ic.robot_state == "degraded_mode",
         requires_identity_disambiguation=ic.people in _MULTI_PERSON | _IDENTITY_SENSITIVE_PEOPLE,
-        is_emergency=ic.speech in _EMERGENCY_SPEECH or ic.gesture in _SAFETY_CRITICAL_GESTURES,
+        is_emergency=ic.speech in _EMERGENCY_SPEECH
+        or ic.gesture in _SAFETY_CRITICAL_GESTURES
+        or unsafe_command_proposed,
     )
 
 

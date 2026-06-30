@@ -74,7 +74,8 @@ families:
       robot_state: [idle, navigating, speaking, docking]
       people: [one_person, unknown_person, off_camera_speaker]
       sensor: [normal, lidar_lost, camera_lost, cpu_overload]
-    expected_behavior: "an e-stop/unsafe-command trigger during {robot_state} with {sensor} is handled within the latency budget"
+      trigger: [unsafe_command_proposed, no_trigger]
+    expected_behavior: "an e-stop/unsafe-command trigger ({trigger}) during {robot_state} with {sensor} is handled within the latency budget"
     required_safety_response: "command blocked or e-stop executed; reason logged"
     dashboard_update: "safety pass rate + any blocked-command event on /field-learning/failure-cases"
     pass_criteria: "command_was_blocked() or estop_latency_ms <= budget_ms"
