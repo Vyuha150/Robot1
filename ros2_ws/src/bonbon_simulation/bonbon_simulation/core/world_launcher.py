@@ -25,6 +25,7 @@ class WorldLauncher:
         world_path = self.world_dir / f"{world_name}.world"
         if not world_path.exists():
             raise FileNotFoundError(f"World file not found: {world_path}")
+        command: tuple[str, ...]
         if use_ignition:
             command = (
                 "ign",

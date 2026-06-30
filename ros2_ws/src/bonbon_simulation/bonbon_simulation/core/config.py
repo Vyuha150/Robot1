@@ -163,30 +163,32 @@ def _parse_yaml_block(lines: list[tuple[int, str]], index: int, indent: int) -> 
     if index >= len(lines):
         return {}, index
     if lines[index][1].startswith("- "):
-        result = []
+        items: list[Any] = []
         while index < len(lines) and lines[index][0] == indent and lines[index][1].startswith("- "):
             item_text = lines[index][1][2:].strip()
             index += 1
+            item: Any
             if not item_text:
                 item, index = _parse_yaml_block(lines, index, indent + 2)
             elif ":" in item_text and not item_text.startswith("{"):
                 key, value = item_text.split(":", 1)
-                item = {key.strip(): _parse_scalar(value.strip())}
+                item_dict: dict[str, Any] = {key.strip(): _parse_scalar(value.strip())}
                 while index < len(lines) and lines[index][0] > indent:
                     child_indent, child_text = lines[index]
                     if child_indent < indent + 2 or child_text.startswith("- "):
                         break
                     child_key, child_value = child_text.split(":", 1)
                     if child_value.strip():
-                        item[child_key.strip()] = _parse_scalar(child_value.strip())
+                        item_dict[child_key.strip()] = _parse_scalar(child_value.strip())
                         index += 1
                     else:
                         nested, index = _parse_yaml_block(lines, index + 1, child_indent + 2)
-                        item[child_key.strip()] = nested
+                        item_dict[child_key.strip()] = nested
+                item = item_dict
             else:
                 item = _parse_scalar(item_text)
-            result.append(item)
-        return result, index
+            items.append(item)
+        return items, index
 
     result: dict[str, Any] = {}
     while index < len(lines) and lines[index][0] == indent:

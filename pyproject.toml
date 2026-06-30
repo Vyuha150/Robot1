@@ -64,6 +64,14 @@ python_version = "3.11"
 ignore_missing_imports = true
 warn_unused_configs = true
 exclude = "(build|install|log|\\.venv)"
+# devops/ and ros2_ws/src/bonbon_simulation/ are unrelated package trees
+# checked in one invocation (see .github/workflows/ci.yml); both have their
+# own tests/conftest.py with no __init__.py chain tying them to a common
+# root, so without this mypy collapses them to the same "conftest" module
+# and refuses to proceed. explicit_package_bases tells mypy to resolve each
+# path's package identity independently instead of assuming a single shared
+# namespace.
+explicit_package_bases = true
 
 [tool.coverage.run]
 branch = true

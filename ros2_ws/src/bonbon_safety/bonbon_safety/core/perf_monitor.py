@@ -22,7 +22,7 @@ import logging
 import math
 from collections import deque
 from dataclasses import dataclass
-from typing import Callable, Deque, Optional
+from typing import Callable, Deque, Literal, Optional
 
 _logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ class LatencyTimer:
         self._start = self._clock()
         return self
 
-    def __exit__(self, *exc) -> bool:
+    def __exit__(self, *exc) -> Literal[False]:
         self.last_ms = (self._clock() - self._start) * 1000.0
         self._tracker.record_ms(self.last_ms)
         return False  # never suppress exceptions
