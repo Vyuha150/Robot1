@@ -1,0 +1,762 @@
+family: sensor_failure
+scenarios:
+- scenario_id: BB-SENS-NOCAM-1P-IDLE-001
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: losing camera_lost during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOCAM-1P-NAV-002
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: losing camera_lost during navigating sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOCAM-1P-SPEAK-003
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: losing camera_lost during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOCAM-MP-IDLE-004
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: losing camera_lost during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOCAM-MP-NAV-005
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: losing camera_lost during navigating sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOCAM-MP-SPEAK-006
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: losing camera_lost during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOLIDAR-1P-IDLE-007
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: losing lidar_lost during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOLIDAR-1P-NAV-008
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: losing lidar_lost during navigating sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOLIDAR-1P-SPEAK-009
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: losing lidar_lost during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOLIDAR-MP-IDLE-010
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: losing lidar_lost during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOLIDAR-MP-NAV-011
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: losing lidar_lost during navigating sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOLIDAR-MP-SPEAK-012
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: losing lidar_lost during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOMIC-1P-IDLE-013
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: losing mic_lost during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOMIC-1P-NAV-014
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: losing mic_lost during navigating sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOMIC-1P-SPEAK-015
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: losing mic_lost during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOMIC-MP-IDLE-016
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: losing mic_lost during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOMIC-MP-NAV-017
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: losing mic_lost during navigating sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOMIC-MP-SPEAK-018
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: losing mic_lost during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-IMUDRIFT-1P-IDLE-019
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: losing imu_drift during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-IMUDRIFT-1P-NAV-020
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: losing imu_drift during navigating sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-IMUDRIFT-1P-SPEAK-021
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: losing imu_drift during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-IMUDRIFT-MP-IDLE-022
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: losing imu_drift during idle sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-IMUDRIFT-MP-NAV-023
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: losing imu_drift during navigating sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-IMUDRIFT-MP-SPEAK-024
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: losing imu_drift during speaking sheds only the dependent capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOHAT-1P-IDLE-025
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: losing ai_hat_unavailable during idle sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOHAT-1P-NAV-026
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: losing ai_hat_unavailable during navigating sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOHAT-1P-SPEAK-027
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: losing ai_hat_unavailable during speaking sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOHAT-MP-IDLE-028
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: losing ai_hat_unavailable during idle sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOHAT-MP-NAV-029
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: losing ai_hat_unavailable during navigating sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate
+- scenario_id: BB-SENS-NOHAT-MP-SPEAK-030
+  family: sensor_failure
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: losing ai_hat_unavailable during speaking sheds only the dependent
+    capability
+  required_safety_response: never_disable modules stay up; SAFE_STOP if a safety-relevant
+    sensor is lost
+  dashboard_update: /pi/efficiency sensor health updated per-sensor
+  pass_criteria: modules_to_shed matches the sensor->capability map; safety-critical
+    sensors force SAFE_STOP
+  fail_criteria: robot continues an unsafe action using stale/absent sensor data
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+  - field_failure_rate

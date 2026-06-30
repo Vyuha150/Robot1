@@ -1,0 +1,302 @@
+family: power_and_thermal
+scenarios:
+- scenario_id: BB-THERM-NORMAL-IDLE-001
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under normal while
+    idle
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-NORMAL-NAV-002
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under normal while
+    navigating
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-NORMAL-LOWBATT-003
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: normal
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under normal while
+    low_battery
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-NORMAL-DOCK-004
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: normal
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under normal while
+    docking
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-HOT-IDLE-005
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under high_temperature
+    while idle
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-HOT-NAV-006
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: high_temperature
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under high_temperature
+    while navigating
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-HOT-LOWBATT-007
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: high_temperature
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under high_temperature
+    while low_battery
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-HOT-DOCK-008
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: high_temperature
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under high_temperature
+    while docking
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-CPUOVER-IDLE-009
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under cpu_overload
+    while idle
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-CPUOVER-NAV-010
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under cpu_overload
+    while navigating
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-CPUOVER-LOWBATT-011
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under cpu_overload
+    while low_battery
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate
+- scenario_id: BB-THERM-CPUOVER-DOCK-012
+  family: power_and_thermal
+  category: degraded_mode
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: compute/behavior scale down before throttling under cpu_overload
+    while docking
+  required_safety_response: never_disable (safety) is never shed regardless of thermal/battery
+    pressure
+  dashboard_update: /pi/efficiency live CPU/mem/temp
+  pass_criteria: shedding occurs at configured thresholds, in shed_order
+  fail_criteria: thermal throttle or brownout reached without prior shedding
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - cpu_memory_temperature_stability
+  - degraded_mode_recovery_rate

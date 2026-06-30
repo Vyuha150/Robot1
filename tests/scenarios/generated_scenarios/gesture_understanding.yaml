@@ -1,0 +1,1463 @@
+family: gesture_understanding
+scenarios:
+- scenario_id: BB-GEST-1P-BRIGHT-NONE-IDLE-001
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: none from one_person under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-BRIGHT-STOPPALM-SPEAK-002
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: stop_palm
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: stop_palm from one_person under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-BRIGHT-THUMBSDOWN-NAV-003
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: thumbs_down
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_down from one_person under bright maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-LOWLIGHT-NONE-IDLE-004
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: none from one_person under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-LOWLIGHT-STOPPALM-NAV-005
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: one_person
+    gesture: stop_palm
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: stop_palm from one_person under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-LOWLIGHT-COMEHERE-IDLE-006
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: one_person
+    gesture: come_here
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: come_here from one_person under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-BACKLIT-NONE-SPEAK-007
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: none from one_person under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-BACKLIT-STOPPALM-NAV-008
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: one_person
+    gesture: stop_palm
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: stop_palm from one_person under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-BACKLIT-COMEHERE-IDLE-009
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: one_person
+    gesture: come_here
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: come_here from one_person under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-FLICKER-NONE-SPEAK-010
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: none from one_person under flickering maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-FLICKER-POINT-IDLE-011
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: one_person
+    gesture: pointing
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: pointing from one_person under flickering maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-FLICKER-COMEHERE-SPEAK-012
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: one_person
+    gesture: come_here
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: come_here from one_person under flickering maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-NIGHT-NONE-NAV-013
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: none from one_person under night_mode maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-NIGHT-POINT-IDLE-014
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: one_person
+    gesture: pointing
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: pointing from one_person under night_mode maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-1P-NIGHT-COMEHERE-SPEAK-015
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: one_person
+    gesture: come_here
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: come_here from one_person under night_mode maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-NONE-NAV-016
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: none from two_people under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-POINT-IDLE-017
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: pointing
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: pointing from two_people under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-COMEHERE-NAV-018
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: come_here
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: come_here from two_people under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-WAVE-IDLE-019
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: two_people
+    gesture: wave
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: wave from two_people under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-POINT-SPEAK-020
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: two_people
+    gesture: pointing
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: pointing from two_people under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-COMEHERE-NAV-021
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: two_people
+    gesture: come_here
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: come_here from two_people under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-WAVE-IDLE-022
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: two_people
+    gesture: wave
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: wave from two_people under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-POINT-SPEAK-023
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: two_people
+    gesture: pointing
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: pointing from two_people under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-GOAWAY-IDLE-024
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: two_people
+    gesture: go_away
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: go_away from two_people under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-WAVE-SPEAK-025
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: two_people
+    gesture: wave
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: wave from two_people under flickering maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-POINT-NAV-026
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: two_people
+    gesture: pointing
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: pointing from two_people under flickering maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-GOAWAY-IDLE-027
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: two_people
+    gesture: go_away
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: go_away from two_people under flickering maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-WAVE-SPEAK-028
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: two_people
+    gesture: wave
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: wave from two_people under night_mode maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-POINT-NAV-029
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: two_people
+    gesture: pointing
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: pointing from two_people under night_mode maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-GOAWAY-IDLE-030
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: two_people
+    gesture: go_away
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: go_away from two_people under night_mode maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-WAVE-NAV-031
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: five_people
+    gesture: wave
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: wave from five_people under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-THUMBSUP-IDLE-032
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: five_people
+    gesture: thumbs_up
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_up from five_people under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-GOAWAY-SPEAK-033
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: five_people
+    gesture: go_away
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: go_away from five_people under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-WAVE-NAV-034
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: five_people
+    gesture: wave
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: wave from five_people under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-THUMBSUP-IDLE-035
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: five_people
+    gesture: thumbs_up
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_up from five_people under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-GOAWAY-SPEAK-036
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: five_people
+    gesture: go_away
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: go_away from five_people under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-WAVE-NAV-037
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: five_people
+    gesture: wave
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: wave from five_people under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-THUMBSUP-SPEAK-038
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: five_people
+    gesture: thumbs_up
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_up from five_people under backlit maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-GOAWAY-NAV-039
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: five_people
+    gesture: go_away
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: go_away from five_people under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-RAISEDHAND-IDLE-040
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: five_people
+    gesture: raised_hand
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: raised_hand from five_people under flickering maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-THUMBSUP-SPEAK-041
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: five_people
+    gesture: thumbs_up
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_up from five_people under flickering maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-GOAWAY-NAV-042
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: five_people
+    gesture: go_away
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: go_away from five_people under flickering maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-RAISEDHAND-IDLE-043
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: five_people
+    gesture: raised_hand
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: raised_hand from five_people under night_mode maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-THUMBSUP-NAV-044
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: five_people
+    gesture: thumbs_up
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_up from five_people under night_mode maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-CONFLICT-IDLE-045
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: five_people
+    gesture: conflicting_gestures
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: conflicting_gestures from five_people under night_mode maps to
+    the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-RAISEDHAND-SPEAK-046
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: crowd
+    gesture: raised_hand
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: raised_hand from crowd under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-THUMBSUP-NAV-047
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: crowd
+    gesture: thumbs_up
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_up from crowd under bright maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BRIGHT-CONFLICT-IDLE-048
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: crowd
+    gesture: conflicting_gestures
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: conflicting_gestures from crowd under bright maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-RAISEDHAND-SPEAK-049
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: crowd
+    gesture: raised_hand
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: raised_hand from crowd under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-THUMBSUP-NAV-050
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: crowd
+    gesture: thumbs_up
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_up from crowd under low maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-LOWLIGHT-CONFLICT-SPEAK-051
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: crowd
+    gesture: conflicting_gestures
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: conflicting_gestures from crowd under low maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-RAISEDHAND-NAV-052
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: crowd
+    gesture: raised_hand
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: raised_hand from crowd under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-THUMBSDOWN-IDLE-053
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: crowd
+    gesture: thumbs_down
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_down from crowd under backlit maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-BACKLIT-CONFLICT-SPEAK-054
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: crowd
+    gesture: conflicting_gestures
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: conflicting_gestures from crowd under backlit maps to the correct
+    behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-RAISEDHAND-NAV-055
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: crowd
+    gesture: raised_hand
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: raised_hand from crowd under flickering maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-THUMBSDOWN-IDLE-056
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: crowd
+    gesture: thumbs_down
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_down from crowd under flickering maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-FLICKER-CONFLICT-NAV-057
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: flickering
+    people: crowd
+    gesture: conflicting_gestures
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: conflicting_gestures from crowd under flickering maps to the
+    correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-STOPPALM-IDLE-058
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: crowd
+    gesture: stop_palm
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stop_palm from crowd under night_mode maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-THUMBSDOWN-SPEAK-059
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: crowd
+    gesture: thumbs_down
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: thumbs_down from crowd under night_mode maps to the correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate
+- scenario_id: BB-GEST-MP-NIGHT-CONFLICT-NAV-060
+  family: gesture_understanding
+  category: hri
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: crowd
+    gesture: conflicting_gestures
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: conflicting_gestures from crowd under night_mode maps to the
+    correct behavior
+  required_safety_response: stop_palm always halts immediately regardless of context
+  dashboard_update: gesture false trigger rate on /validation/production-score
+  pass_criteria: correct mapped behavior for unambiguous gestures; clarification for
+    conflicting/low-confidence
+  fail_criteria: wrong action taken, or stop_palm not honored within the latency budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - gesture_false_trigger_rate
+  - behavior_correctness_rate

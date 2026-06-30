@@ -1,0 +1,866 @@
+family: safety_and_emergency_stop
+scenarios:
+- scenario_id: BB-ESTOP-IDLE-1P-NORMAL-001
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with normal is handled
+    within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-1P-NOLIDAR-002
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with lidar_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-1P-CPUOVER-003
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-UNKNOWN-NORMAL-004
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with normal is handled
+    within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-UNKNOWN-NOLIDAR-005
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with lidar_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-UNKNOWN-CPUOVER-006
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-OFFCAM-NORMAL-007
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with normal is handled
+    within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-OFFCAM-NOLIDAR-008
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with lidar_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-IDLE-OFFCAM-CPUOVER-009
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during idle with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-1P-NORMAL-010
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with normal
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-1P-NOLIDAR-011
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with lidar_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-1P-CPUOVER-012
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-UNKNOWN-NORMAL-013
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with normal
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-UNKNOWN-NOLIDAR-014
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with lidar_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-UNKNOWN-CPUOVER-015
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-OFFCAM-NORMAL-016
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with normal
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-OFFCAM-NOLIDAR-017
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with lidar_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-NAV-OFFCAM-CPUOVER-018
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during navigating with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-1P-NORMAL-019
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with normal
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-1P-NOCAM-020
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with camera_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-1P-CPUOVER-021
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-UNKNOWN-NORMAL-022
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with normal
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-UNKNOWN-NOCAM-023
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with camera_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-UNKNOWN-CPUOVER-024
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-OFFCAM-NORMAL-025
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with normal
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-OFFCAM-NOCAM-026
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with camera_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-SPEAK-OFFCAM-CPUOVER-027
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during speaking with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-1P-NORMAL-028
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with normal is
+    handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-1P-NOCAM-029
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with camera_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-1P-CPUOVER-030
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-UNKNOWN-NORMAL-031
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with normal is
+    handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-UNKNOWN-NOCAM-032
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with camera_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-UNKNOWN-CPUOVER-033
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-OFFCAM-NORMAL-034
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: normal
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with normal is
+    handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-OFFCAM-NOCAM-035
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with camera_lost
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability
+- scenario_id: BB-ESTOP-DOCK-OFFCAM-CPUOVER-036
+  family: safety_and_emergency_stop
+  category: safety
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: an e-stop/unsafe-command trigger during docking with cpu_overload
+    is handled within the latency budget
+  required_safety_response: command blocked or e-stop executed; reason logged
+  dashboard_update: safety pass rate + any blocked-command event on /field-learning/failure-cases
+  pass_criteria: command_was_blocked() or estop_latency_ms <= budget_ms
+  fail_criteria: an unsafe command executes, or e-stop latency exceeds budget
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - safety_pass_rate
+  - emergency_stop_reliability

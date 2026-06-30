@@ -1,0 +1,17 @@
+total_scenarios: 459
+scenarios_per_family:
+  boot_and_deployment_topology: 9
+  pi_ai_hat_runtime: 24
+  safety_and_emergency_stop: 36
+  sensor_failure: 30
+  power_and_thermal: 12
+  navigation_and_obstacle_avoidance: 48
+  object_recognition: 30
+  multi_person_tracking: 27
+  gesture_understanding: 60
+  speech_and_speaker_diarization: 54
+  human_state_fusion: 24
+  behavior_engine_decisions: 36
+  dashboard_and_operator_control: 24
+  degraded_mode: 21
+  field_pilot_learning: 24

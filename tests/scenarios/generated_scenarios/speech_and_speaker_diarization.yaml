@@ -1,0 +1,1298 @@
+family: speech_and_speaker_diarization
+scenarios:
+- scenario_id: BB-SPCH-SILENT-1P-IDLE-001
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: silent from one_person is transcribed and attributed correctly
+    while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-SILENT-1P-SPEAK-002
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: silent from one_person is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-SILENT-MP-SPEAK-003
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: silent from two_people is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-SILENT-OFFCAM-IDLE-004
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: silent from off_camera_speaker is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-SILENT-OFFCAM-SPEAK-005
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: silent from off_camera_speaker is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-SILENT-UNKNOWN-SPEAK-006
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: silent from unknown_person is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CLEAR-1P-IDLE-007
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: clear_speech from one_person is transcribed and attributed correctly
+    while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CLEAR-1P-SPEAK-008
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: clear_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: clear_speech from one_person is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CLEAR-MP-SPEAK-009
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: clear_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: clear_speech from two_people is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CLEAR-OFFCAM-IDLE-010
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: clear_speech from off_camera_speaker is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CLEAR-OFFCAM-SPEAK-011
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: clear_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: clear_speech from off_camera_speaker is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CLEAR-UNKNOWN-SPEAK-012
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: clear_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: clear_speech from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-NOISYSPEECH-1P-IDLE-013
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: noisy_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: noisy_speech from one_person is transcribed and attributed correctly
+    while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-NOISYSPEECH-1P-SPEAK-014
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: noisy_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: noisy_speech from one_person is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-NOISYSPEECH-MP-SPEAK-015
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: noisy_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: noisy_speech from two_people is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-NOISYSPEECH-OFFCAM-IDLE-016
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: noisy_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: noisy_speech from off_camera_speaker is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-NOISYSPEECH-OFFCAM-SPEAK-017
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: noisy_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: noisy_speech from off_camera_speaker is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-NOISYSPEECH-UNKNOWN-SPEAK-018
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: noisy_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: noisy_speech from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-OVERLAP-1P-IDLE-019
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: overlapping_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: overlapping_speech from one_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-OVERLAP-1P-SPEAK-020
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: overlapping_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: overlapping_speech from one_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-OVERLAP-MP-SPEAK-021
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: overlapping_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: overlapping_speech from two_people is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-OVERLAP-OFFCAM-IDLE-022
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: overlapping_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: overlapping_speech from off_camera_speaker is transcribed and
+    attributed correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-OVERLAP-OFFCAM-SPEAK-023
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: overlapping_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: overlapping_speech from off_camera_speaker is transcribed and
+    attributed correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-OVERLAP-UNKNOWN-SPEAK-024
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: overlapping_speech
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: overlapping_speech from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ACCENT-1P-IDLE-025
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: different_accent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: different_accent from one_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ACCENT-1P-SPEAK-026
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: different_accent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: different_accent from one_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ACCENT-MP-SPEAK-027
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: different_accent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: different_accent from two_people is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ACCENT-OFFCAM-IDLE-028
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: different_accent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: different_accent from off_camera_speaker is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ACCENT-UNKNOWN-IDLE-029
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: different_accent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: different_accent from unknown_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ACCENT-UNKNOWN-SPEAK-030
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: different_accent
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: different_accent from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-MULTILANG-1P-IDLE-031
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: telugu_hindi_english
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: telugu_hindi_english from one_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-MULTILANG-MP-IDLE-032
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: telugu_hindi_english
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: telugu_hindi_english from two_people is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-MULTILANG-MP-SPEAK-033
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: telugu_hindi_english
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: telugu_hindi_english from two_people is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-MULTILANG-OFFCAM-IDLE-034
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: telugu_hindi_english
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: telugu_hindi_english from off_camera_speaker is transcribed and
+    attributed correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-MULTILANG-UNKNOWN-IDLE-035
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: telugu_hindi_english
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: telugu_hindi_english from unknown_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-MULTILANG-UNKNOWN-SPEAK-036
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: telugu_hindi_english
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: telugu_hindi_english from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-EMERGENCY-1P-IDLE-037
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: emergency_phrase
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: emergency_phrase from one_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-EMERGENCY-MP-IDLE-038
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: emergency_phrase
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: emergency_phrase from two_people is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-EMERGENCY-MP-SPEAK-039
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: emergency_phrase
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: emergency_phrase from two_people is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-EMERGENCY-OFFCAM-IDLE-040
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: emergency_phrase
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: emergency_phrase from off_camera_speaker is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-EMERGENCY-UNKNOWN-IDLE-041
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: emergency_phrase
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: emergency_phrase from unknown_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-EMERGENCY-UNKNOWN-SPEAK-042
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: emergency_phrase
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: emergency_phrase from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ANGRY-1P-IDLE-043
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: angry_tone from one_person is transcribed and attributed correctly
+    while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ANGRY-MP-IDLE-044
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: angry_tone from two_people is transcribed and attributed correctly
+    while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ANGRY-MP-SPEAK-045
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: angry_tone
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: angry_tone from two_people is transcribed and attributed correctly
+    while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ANGRY-OFFCAM-IDLE-046
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: angry_tone from off_camera_speaker is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ANGRY-UNKNOWN-IDLE-047
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: angry_tone from unknown_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-ANGRY-UNKNOWN-SPEAK-048
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: angry_tone
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: angry_tone from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CONFUSED-1P-IDLE-049
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: confused_question from one_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CONFUSED-MP-IDLE-050
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: confused_question from two_people is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CONFUSED-MP-SPEAK-051
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: confused_question
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: confused_question from two_people is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CONFUSED-OFFCAM-IDLE-052
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: confused_question from off_camera_speaker is transcribed and
+    attributed correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CONFUSED-UNKNOWN-IDLE-053
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: confused_question from unknown_person is transcribed and attributed
+    correctly while idle
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy
+- scenario_id: BB-SPCH-CONFUSED-UNKNOWN-SPEAK-054
+  family: speech_and_speaker_diarization
+  category: speech
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: confused_question
+    robot_state: speaking
+    sensor: normal
+    extra: {}
+  expected_behavior: confused_question from unknown_person is transcribed and attributed
+    correctly while speaking
+  required_safety_response: emergency_phrase always escalated even mid-utterance/mid-TTS
+  dashboard_update: speaker diarization error rate, active speaker assignment accuracy
+  pass_criteria: transcript_matches() within WER budget; emergency phrase always escalated
+  fail_criteria: missed emergency phrase, or wrong-speaker attribution
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - speaker_diarization_error_rate
+  - active_speaker_assignment_accuracy

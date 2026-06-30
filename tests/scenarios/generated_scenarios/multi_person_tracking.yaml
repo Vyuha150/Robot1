@@ -1,0 +1,659 @@
+family: multi_person_tracking
+scenarios:
+- scenario_id: BB-MPT-MP-BRIGHT-NORMAL-001
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for two_people under bright through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BRIGHT-NOCAM-002
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for two_people under bright through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-LOWLIGHT-NOCAM-003
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for two_people under low through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BACKLIT-NORMAL-004
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for two_people under backlit through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BACKLIT-NOCAM-005
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for two_people under backlit through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BRIGHT-NOCAM-006
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: five_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for five_people under bright through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-LOWLIGHT-NORMAL-007
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: five_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for five_people under low through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-LOWLIGHT-NOCAM-008
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: five_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for five_people under low through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BACKLIT-NOCAM-009
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: five_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for five_people under backlit through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BRIGHT-NORMAL-010
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for crowd under bright through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BRIGHT-NOCAM-011
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for crowd under bright through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-LOWLIGHT-NOCAM-012
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for crowd under low through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-MP-BACKLIT-NORMAL-013
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for crowd under backlit through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-KNOWN-BRIGHT-NORMAL-014
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for known_person under bright through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-KNOWN-BRIGHT-NOCAM-015
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for known_person under bright through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-KNOWN-LOWLIGHT-NORMAL-016
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: known_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for known_person under low through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-KNOWN-BACKLIT-NORMAL-017
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: known_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for known_person under backlit through brief
+    occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-KNOWN-BACKLIT-NOCAM-018
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: known_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for known_person under backlit through brief
+    occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-UNKNOWN-BRIGHT-NORMAL-019
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for unknown_person under bright through brief
+    occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-UNKNOWN-LOWLIGHT-NORMAL-020
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for unknown_person under low through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-UNKNOWN-LOWLIGHT-NOCAM-021
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for unknown_person under low through brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-UNKNOWN-BACKLIT-NORMAL-022
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for unknown_person under backlit through brief
+    occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-OFFCAM-BRIGHT-NORMAL-023
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for off_camera_speaker under bright through brief
+    occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-OFFCAM-BRIGHT-NOCAM-024
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for off_camera_speaker under bright through brief
+    occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-OFFCAM-LOWLIGHT-NORMAL-025
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for off_camera_speaker under low through brief
+    occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-OFFCAM-BACKLIT-NORMAL-026
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: stable identity for off_camera_speaker under backlit through
+    brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate
+- scenario_id: BB-MPT-OFFCAM-BACKLIT-NOCAM-027
+  family: multi_person_tracking
+  category: perception
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: off_camera_speaker
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: stable identity for off_camera_speaker under backlit through
+    brief occlusion
+  required_safety_response: identity confusion never authorizes an action meant for
+    a different person
+  dashboard_update: person ID switch rate on /validation/production-score
+  pass_criteria: no_identity_mixup() and ID-switch count below the scenario's occlusion
+    threshold
+  fail_criteria: ID switch attributed to the wrong person, or two tracks merged
+  mock_strategy: partial_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - person_id_switch_rate

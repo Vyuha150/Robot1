@@ -1,0 +1,722 @@
+family: field_pilot_learning
+scenarios:
+- scenario_id: BB-FIELD-WRONGOBJ-DEBUGON-001
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_object
+      debug_mode: enabled
+  expected_behavior: a wrong_object event with debug_mode=enabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGOBJ-DEBUGOFF-002
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_object
+      debug_mode: disabled
+  expected_behavior: a wrong_object event with debug_mode=disabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-MISSOBJ-DEBUGON-003
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: missed_object
+      debug_mode: enabled
+  expected_behavior: a missed_object event with debug_mode=enabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-MISSOBJ-DEBUGOFF-004
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: missed_object
+      debug_mode: disabled
+  expected_behavior: a missed_object event with debug_mode=disabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGGEST-DEBUGON-005
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_gesture
+      debug_mode: enabled
+  expected_behavior: a wrong_gesture event with debug_mode=enabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGGEST-DEBUGOFF-006
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_gesture
+      debug_mode: disabled
+  expected_behavior: a wrong_gesture event with debug_mode=disabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-MISSGEST-DEBUGON-007
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: missed_gesture
+      debug_mode: enabled
+  expected_behavior: a missed_gesture event with debug_mode=enabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-MISSGEST-DEBUGOFF-008
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: missed_gesture
+      debug_mode: disabled
+  expected_behavior: a missed_gesture event with debug_mode=disabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGSPK-DEBUGON-009
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_speaker
+      debug_mode: enabled
+  expected_behavior: a wrong_speaker event with debug_mode=enabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGSPK-DEBUGOFF-010
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_speaker
+      debug_mode: disabled
+  expected_behavior: a wrong_speaker event with debug_mode=disabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGID-DEBUGON-011
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_person_identity
+      debug_mode: enabled
+  expected_behavior: a wrong_person_identity event with debug_mode=enabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGID-DEBUGOFF-012
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_person_identity
+      debug_mode: disabled
+  expected_behavior: a wrong_person_identity event with debug_mode=disabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGEMO-DEBUGON-013
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_emotion
+      debug_mode: enabled
+  expected_behavior: a wrong_emotion event with debug_mode=enabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGEMO-DEBUGOFF-014
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_emotion
+      debug_mode: disabled
+  expected_behavior: a wrong_emotion event with debug_mode=disabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGRESP-DEBUGON-015
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_response
+      debug_mode: enabled
+  expected_behavior: a wrong_response event with debug_mode=enabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-WRONGRESP-DEBUGOFF-016
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: wrong_response
+      debug_mode: disabled
+  expected_behavior: a wrong_response event with debug_mode=disabled is logged, reviewed,
+    and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-UNSAFEBLOCK-DEBUGON-017
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: unsafe_proposal_blocked
+      debug_mode: enabled
+  expected_behavior: a unsafe_proposal_blocked event with debug_mode=enabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-UNSAFEBLOCK-DEBUGOFF-018
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: unsafe_proposal_blocked
+      debug_mode: disabled
+  expected_behavior: a unsafe_proposal_blocked event with debug_mode=disabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-NAVFAIL-DEBUGON-019
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: navigation_failure
+      debug_mode: enabled
+  expected_behavior: a navigation_failure event with debug_mode=enabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-NAVFAIL-DEBUGOFF-020
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: navigation_failure
+      debug_mode: disabled
+  expected_behavior: a navigation_failure event with debug_mode=disabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-DASHMISMATCH-DEBUGON-021
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: dashboard_mismatch
+      debug_mode: enabled
+  expected_behavior: a dashboard_mismatch event with debug_mode=enabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-DASHMISMATCH-DEBUGOFF-022
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: dashboard_mismatch
+      debug_mode: disabled
+  expected_behavior: a dashboard_mismatch event with debug_mode=disabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-DEGFAIL-DEBUGON-023
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: degraded_mode_failure
+      debug_mode: enabled
+  expected_behavior: a degraded_mode_failure event with debug_mode=enabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate
+- scenario_id: BB-FIELD-DEGFAIL-DEBUGOFF-024
+  family: field_pilot_learning
+  category: field_pilot
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      failure_category: degraded_mode_failure
+      debug_mode: disabled
+  expected_behavior: a degraded_mode_failure event with debug_mode=disabled is logged,
+    reviewed, and exported correctly
+  required_safety_response: no raw face/audio storage without explicit consent/debug
+    mode
+  dashboard_update: /field-learning/failure-cases and /field-learning/regression-tests
+    updated
+  pass_criteria: anonymized record has zero raw biometric fields outside debug mode;
+    reviewed case yields one regression scenario
+  fail_criteria: raw biometric bytes present outside debug mode, or a labeled failure
+    produces no regression test
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - field_failure_rate
+  - regression_pass_rate

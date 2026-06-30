@@ -1,0 +1,1154 @@
+family: navigation_and_obstacle_avoidance
+scenarios:
+- scenario_id: BB-NAV-HOSP-1P-BRIGHT-NORMAL-001
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hospital_corridor
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in hospital_corridor with one_person present
+    under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOSP-1P-NIGHT-NOCAM-002
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hospital_corridor
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hospital_corridor with one_person present
+    under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOSP-MP-NIGHT-NORMAL-003
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hospital_corridor
+    lighting: night_mode
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in hospital_corridor with two_people present
+    under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOSP-MP-BACKLIT-NOCAM-004
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hospital_corridor
+    lighting: backlit
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hospital_corridor with crowd present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOSP-CHILD-BACKLIT-NOLIDAR-005
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hospital_corridor
+    lighting: backlit
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hospital_corridor with child_nearby
+    present under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOSP-WHEELCHAIR-BACKLIT-NORMAL-006
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hospital_corridor
+    lighting: backlit
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in hospital_corridor with wheelchair_user
+    present under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOSP-UNKNOWN-LOWLIGHT-NOLIDAR-007
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hospital_corridor
+    lighting: low
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hospital_corridor with unknown_person
+    present under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOTEL-1P-LOWLIGHT-NORMAL-008
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hotel_lobby
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in hotel_lobby with one_person present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOTEL-MP-BRIGHT-NOCAM-009
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hotel_lobby
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hotel_lobby with two_people present
+    under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOTEL-MP-BRIGHT-NORMAL-010
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hotel_lobby
+    lighting: bright
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in hotel_lobby with crowd present under
+    bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOTEL-MP-NIGHT-NOCAM-011
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hotel_lobby
+    lighting: night_mode
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hotel_lobby with crowd present under
+    night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOTEL-CHILD-NIGHT-NOLIDAR-012
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hotel_lobby
+    lighting: night_mode
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hotel_lobby with child_nearby present
+    under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOTEL-WHEELCHAIR-BACKLIT-NOCAM-013
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hotel_lobby
+    lighting: backlit
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hotel_lobby with wheelchair_user present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOTEL-UNKNOWN-BACKLIT-NOLIDAR-014
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: hotel_lobby
+    lighting: backlit
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in hotel_lobby with unknown_person present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-OFFICE-1P-BACKLIT-NORMAL-015
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in office_reception with one_person present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-OFFICE-MP-LOWLIGHT-NOCAM-016
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in office_reception with two_people present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-OFFICE-MP-LOWLIGHT-NORMAL-017
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: low
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in office_reception with crowd present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-OFFICE-CHILD-BRIGHT-NOCAM-018
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in office_reception with child_nearby
+    present under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-OFFICE-WHEELCHAIR-BRIGHT-NOLIDAR-019
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in office_reception with wheelchair_user
+    present under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-OFFICE-WHEELCHAIR-NIGHT-NOCAM-020
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in office_reception with wheelchair_user
+    present under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-OFFICE-UNKNOWN-NIGHT-NOLIDAR-021
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in office_reception with unknown_person
+    present under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-UNI-1P-NIGHT-NORMAL-022
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: university_corridor
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in university_corridor with one_person
+    present under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-UNI-MP-BACKLIT-NOLIDAR-023
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: university_corridor
+    lighting: backlit
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in university_corridor with two_people
+    present under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-UNI-MP-BACKLIT-NORMAL-024
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: university_corridor
+    lighting: backlit
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in university_corridor with crowd present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-UNI-CHILD-LOWLIGHT-NOCAM-025
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: university_corridor
+    lighting: low
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in university_corridor with child_nearby
+    present under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-UNI-WHEELCHAIR-LOWLIGHT-NOLIDAR-026
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: university_corridor
+    lighting: low
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in university_corridor with wheelchair_user
+    present under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-UNI-UNKNOWN-BRIGHT-NOCAM-027
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: university_corridor
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in university_corridor with unknown_person
+    present under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOME-1P-BRIGHT-NOLIDAR-028
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: home_room
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in home_room with one_person present under
+    bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOME-MP-BRIGHT-NORMAL-029
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: home_room
+    lighting: bright
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in home_room with two_people present under
+    bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOME-MP-NIGHT-NOLIDAR-030
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: home_room
+    lighting: night_mode
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in home_room with two_people present under
+    night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOME-MP-NIGHT-NORMAL-031
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: home_room
+    lighting: night_mode
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in home_room with crowd present under
+    night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOME-CHILD-BACKLIT-NOCAM-032
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: home_room
+    lighting: backlit
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in home_room with child_nearby present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOME-WHEELCHAIR-BACKLIT-NORMAL-033
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: home_room
+    lighting: backlit
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in home_room with wheelchair_user present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-HOME-UNKNOWN-LOWLIGHT-NOCAM-034
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: home_room
+    lighting: low
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in home_room with unknown_person present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-MALL-1P-LOWLIGHT-NOLIDAR-035
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: crowded_mall
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in crowded_mall with one_person present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-MALL-MP-LOWLIGHT-NORMAL-036
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: crowded_mall
+    lighting: low
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in crowded_mall with two_people present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-MALL-MP-BRIGHT-NOLIDAR-037
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: crowded_mall
+    lighting: bright
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in crowded_mall with crowd present under
+    bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-MALL-CHILD-BRIGHT-NORMAL-038
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: crowded_mall
+    lighting: bright
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in crowded_mall with child_nearby present
+    under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-MALL-CHILD-NIGHT-NOCAM-039
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: crowded_mall
+    lighting: night_mode
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in crowded_mall with child_nearby present
+    under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-MALL-WHEELCHAIR-NIGHT-NORMAL-040
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: crowded_mall
+    lighting: night_mode
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in crowded_mall with wheelchair_user present
+    under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-MALL-UNKNOWN-BACKLIT-NOCAM-041
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: crowded_mall
+    lighting: backlit
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in crowded_mall with unknown_person present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-NARROW-1P-BACKLIT-NOLIDAR-042
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: narrow_passage
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in narrow_passage with one_person present
+    under backlit, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-NARROW-MP-LOWLIGHT-NOCAM-043
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: narrow_passage
+    lighting: low
+    people: two_people
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in narrow_passage with two_people present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-NARROW-MP-LOWLIGHT-NOLIDAR-044
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: narrow_passage
+    lighting: low
+    people: crowd
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in narrow_passage with crowd present under
+    low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-NARROW-CHILD-LOWLIGHT-NORMAL-045
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: narrow_passage
+    lighting: low
+    people: child_nearby
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in narrow_passage with child_nearby present
+    under low, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-NARROW-WHEELCHAIR-BRIGHT-NOCAM-046
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: narrow_passage
+    lighting: bright
+    people: wheelchair_user
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in narrow_passage with wheelchair_user
+    present under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-NARROW-UNKNOWN-BRIGHT-NORMAL-047
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: narrow_passage
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: robot reaches the goal in narrow_passage with unknown_person
+    present under bright, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency
+- scenario_id: BB-NAV-NARROW-UNKNOWN-NIGHT-NOCAM-048
+  family: navigation_and_obstacle_avoidance
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: narrow_passage
+    lighting: night_mode
+    people: unknown_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: robot reaches the goal in narrow_passage with unknown_person
+    present under night_mode, replanning around obstacles
+  required_safety_response: hard stop before any predicted-collision state
+  dashboard_update: navigation success rate on /validation/production-score
+  pass_criteria: reached_goal_without_collision() and margin maintained
+  fail_criteria: collision, near-miss below margin, or unexplained goal timeout
+  mock_strategy: simulation_replay
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - navigation_success_rate
+  - average_response_latency

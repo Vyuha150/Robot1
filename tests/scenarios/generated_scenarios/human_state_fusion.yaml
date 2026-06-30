@@ -1,0 +1,578 @@
+family: human_state_fusion
+scenarios:
+- scenario_id: BB-HSF-ELDERLY-ANGRY-NONE-001
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: elderly_user
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for elderly_user given angry_tone and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-ELDERLY-ANGRY-CONFLICT-002
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: elderly_user
+    gesture: conflicting_gestures
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for elderly_user given angry_tone and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-ELDERLY-CONFUSED-NONE-003
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: elderly_user
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for elderly_user given confused_question and none
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-ELDERLY-CONFUSED-CONFLICT-004
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: elderly_user
+    gesture: conflicting_gestures
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for elderly_user given confused_question and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-ELDERLY-CLEAR-NONE-005
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: elderly_user
+    gesture: none
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for elderly_user given clear_speech and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-ELDERLY-CLEAR-CONFLICT-006
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: elderly_user
+    gesture: conflicting_gestures
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for elderly_user given clear_speech and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-CHILD-ANGRY-NONE-007
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: child_nearby
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for child_nearby given angry_tone and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-CHILD-ANGRY-CONFLICT-008
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: child_nearby
+    gesture: conflicting_gestures
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for child_nearby given angry_tone and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-CHILD-CONFUSED-NONE-009
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: child_nearby
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for child_nearby given confused_question and none
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-CHILD-CONFUSED-CONFLICT-010
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: child_nearby
+    gesture: conflicting_gestures
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for child_nearby given confused_question and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-CHILD-CLEAR-NONE-011
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: child_nearby
+    gesture: none
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for child_nearby given clear_speech and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-CHILD-CLEAR-CONFLICT-012
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: child_nearby
+    gesture: conflicting_gestures
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for child_nearby given clear_speech and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-UNKNOWN-ANGRY-NONE-013
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for unknown_person given angry_tone and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-UNKNOWN-ANGRY-CONFLICT-014
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: conflicting_gestures
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for unknown_person given angry_tone and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-UNKNOWN-CONFUSED-NONE-015
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for unknown_person given confused_question and none
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-UNKNOWN-CONFUSED-CONFLICT-016
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: conflicting_gestures
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for unknown_person given confused_question and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-UNKNOWN-CLEAR-NONE-017
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: none
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for unknown_person given clear_speech and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-UNKNOWN-CLEAR-CONFLICT-018
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: unknown_person
+    gesture: conflicting_gestures
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for unknown_person given clear_speech and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-KNOWN-ANGRY-NONE-019
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: none
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for known_person given angry_tone and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-KNOWN-ANGRY-CONFLICT-020
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: conflicting_gestures
+    speech: angry_tone
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for known_person given angry_tone and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-KNOWN-CONFUSED-NONE-021
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: none
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for known_person given confused_question and none
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-KNOWN-CONFUSED-CONFLICT-022
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: conflicting_gestures
+    speech: confused_question
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for known_person given confused_question and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-KNOWN-CLEAR-NONE-023
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: none
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for known_person given clear_speech and none gates
+    behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate
+- scenario_id: BB-HSF-KNOWN-CLEAR-CONFLICT-024
+  family: human_state_fusion
+  category: hri
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: known_person
+    gesture: conflicting_gestures
+    speech: clear_speech
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: fused state for known_person given clear_speech and conflicting_gestures
+    gates behavior by confidence, not asserted as fact
+  required_safety_response: fused state never gates the safety path directly
+  dashboard_update: fusion confidence shown alongside behavior decisions on /validation/test-results
+  pass_criteria: downstream damping applied at low/conflicting confidence
+  fail_criteria: a low-confidence or conflicting fused state drives a strong behavior
+    change as if certain
+  mock_strategy: full_mock
+  hardware_requirement: simulation
+  metrics_to_capture:
+  - behavior_correctness_rate

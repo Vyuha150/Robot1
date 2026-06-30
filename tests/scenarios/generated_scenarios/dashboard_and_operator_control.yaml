@@ -1,0 +1,636 @@
+family: dashboard_and_operator_control
+scenarios:
+- scenario_id: BB-DASH-IDLE-CONN-AUTH-001
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      connection: connected
+      permission: authorized
+  expected_behavior: dashboard reflects idle accurately over a connected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-IDLE-DISC-AUTH-002
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: authorized
+  expected_behavior: dashboard reflects idle accurately over a disconnected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-IDLE-SLOWNET-AUTH-003
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: authorized
+  expected_behavior: dashboard reflects idle accurately over a slow_network link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-NAV-CONN-AUTH-004
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra:
+      connection: connected
+      permission: authorized
+  expected_behavior: dashboard reflects navigating accurately over a connected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-NAV-DISC-AUTH-005
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: authorized
+  expected_behavior: dashboard reflects navigating accurately over a disconnected
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-NAV-SLOWNET-AUTH-006
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: navigating
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: authorized
+  expected_behavior: dashboard reflects navigating accurately over a slow_network
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-SPEAK-CONN-AUTH-007
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra:
+      connection: connected
+      permission: authorized
+  expected_behavior: dashboard reflects speaking accurately over a connected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-SPEAK-DISC-AUTH-008
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: authorized
+  expected_behavior: dashboard reflects speaking accurately over a disconnected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-SPEAK-SLOWNET-AUTH-009
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: speaking
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: authorized
+  expected_behavior: dashboard reflects speaking accurately over a slow_network link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-TURN-CONN-AUTH-010
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: turning
+    sensor: normal
+    extra:
+      connection: connected
+      permission: authorized
+  expected_behavior: dashboard reflects turning accurately over a connected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-TURN-DISC-AUTH-011
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: turning
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: authorized
+  expected_behavior: dashboard reflects turning accurately over a disconnected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-TURN-SLOWNET-AUTH-012
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: turning
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: authorized
+  expected_behavior: dashboard reflects turning accurately over a slow_network link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DOCK-CONN-UNAUTH-013
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: normal
+    extra:
+      connection: connected
+      permission: unauthorized
+  expected_behavior: dashboard reflects docking accurately over a connected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DOCK-DISC-UNAUTH-014
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: unauthorized
+  expected_behavior: dashboard reflects docking accurately over a disconnected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DOCK-SLOWNET-UNAUTH-015
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: docking
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: unauthorized
+  expected_behavior: dashboard reflects docking accurately over a slow_network link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-LOWBATT-CONN-UNAUTH-016
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: normal
+    extra:
+      connection: connected
+      permission: unauthorized
+  expected_behavior: dashboard reflects low_battery accurately over a connected link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-LOWBATT-DISC-UNAUTH-017
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: unauthorized
+  expected_behavior: dashboard reflects low_battery accurately over a disconnected
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-LOWBATT-SLOWNET-UNAUTH-018
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: unauthorized
+  expected_behavior: dashboard reflects low_battery accurately over a slow_network
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DEGRADED-CONN-UNAUTH-019
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: normal
+    extra:
+      connection: connected
+      permission: unauthorized
+  expected_behavior: dashboard reflects degraded_mode accurately over a connected
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DEGRADED-DISC-UNAUTH-020
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: unauthorized
+  expected_behavior: dashboard reflects degraded_mode accurately over a disconnected
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DEGRADED-SLOWNET-UNAUTH-021
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: unauthorized
+  expected_behavior: dashboard reflects degraded_mode accurately over a slow_network
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DASHDISC-CONN-UNAUTH-022
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: normal
+    extra:
+      connection: connected
+      permission: unauthorized
+  expected_behavior: dashboard reflects dashboard_disconnected accurately over a connected
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DASHDISC-DISC-UNAUTH-023
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: normal
+    extra:
+      connection: disconnected
+      permission: unauthorized
+  expected_behavior: dashboard reflects dashboard_disconnected accurately over a disconnected
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate
+- scenario_id: BB-DASH-DASHDISC-SLOWNET-UNAUTH-024
+  family: dashboard_and_operator_control
+  category: dashboard
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: normal
+    extra:
+      connection: slow_network
+      permission: unauthorized
+  expected_behavior: dashboard reflects dashboard_disconnected accurately over a slow_network
+    link
+  required_safety_response: a disconnected dashboard never blocks the robot's own
+    safety path
+  dashboard_update: this family is the dashboard under test
+  pass_criteria: endpoint_reflects_backend_state(); unauthorized action rejected with
+    403
+  fail_criteria: stale/fake data shown, or an unauthorized action succeeds
+  mock_strategy: full_mock
+  hardware_requirement: none
+  metrics_to_capture:
+  - dashboard_accuracy_rate

@@ -1,0 +1,245 @@
+family: boot_and_deployment_topology
+scenarios:
+- scenario_id: BB-BOOT-FRESH-MONO-001
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: fresh_install
+      topology: monolithic
+  expected_behavior: boot reaches a valid topology (monolithic) under fresh_install
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-FRESH-MODPI-002
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: fresh_install
+      topology: modular_pi
+  expected_behavior: boot reaches a valid topology (modular_pi) under fresh_install
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-FRESH-MIXED-003
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: fresh_install
+      topology: mixed_invalid
+  expected_behavior: boot reaches a valid topology (mixed_invalid) under fresh_install
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-UPGRADE-MONO-004
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: upgrade_in_place
+      topology: monolithic
+  expected_behavior: boot reaches a valid topology (monolithic) under upgrade_in_place
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-UPGRADE-MODPI-005
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: upgrade_in_place
+      topology: modular_pi
+  expected_behavior: boot reaches a valid topology (modular_pi) under upgrade_in_place
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-UPGRADE-MIXED-006
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: upgrade_in_place
+      topology: mixed_invalid
+  expected_behavior: boot reaches a valid topology (mixed_invalid) under upgrade_in_place
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-PWRLOSS-MONO-007
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: power_loss_mid_boot
+      topology: monolithic
+  expected_behavior: boot reaches a valid topology (monolithic) under power_loss_mid_boot
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-PWRLOSS-MODPI-008
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: power_loss_mid_boot
+      topology: modular_pi
+  expected_behavior: boot reaches a valid topology (modular_pi) under power_loss_mid_boot
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate
+- scenario_id: BB-BOOT-PWRLOSS-MIXED-009
+  family: boot_and_deployment_topology
+  category: integration
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      boot_mode: power_loss_mid_boot
+      topology: mixed_invalid
+  expected_behavior: boot reaches a valid topology (mixed_invalid) under power_loss_mid_boot
+  required_safety_response: exactly one safety_supervisor_node; SAFE_STOP if none
+    present
+  dashboard_update: /validation/scenario-families boot_and_deployment_topology marked
+    with this run's verdict
+  pass_criteria: classify_topology() != INVALID and observed_safety_supervisors ==
+    1
+  fail_criteria: INVALID topology or observed_safety_supervisors != 1
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - boot_topology_pass_rate

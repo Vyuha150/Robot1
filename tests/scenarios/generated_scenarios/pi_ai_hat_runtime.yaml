@@ -1,0 +1,698 @@
+family: pi_ai_hat_runtime
+scenarios:
+- scenario_id: BB-AIHAT-PRESENT-INSTALLED-HEFOK-NORMAL-001
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: present
+      hailort_state: installed
+      model_format: hef_valid
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=installed,
+    model=hef_valid
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-INSTALLED-HEFOK-HOT-002
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: present
+      hailort_state: installed
+      model_format: hef_valid
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=installed,
+    model=hef_valid
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-INSTALLED-HEFMISS-NOHAT-003
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: present
+      hailort_state: installed
+      model_format: hef_missing
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=installed,
+    model=hef_missing
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-INSTALLED-HEFBAD-NORMAL-004
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: present
+      hailort_state: installed
+      model_format: hef_wrong_format
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=installed,
+    model=hef_wrong_format
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-INSTALLED-HEFBAD-HOT-005
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: present
+      hailort_state: installed
+      model_format: hef_wrong_format
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=installed,
+    model=hef_wrong_format
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-INSTALLED-ONNXONLY-NOHAT-006
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: present
+      hailort_state: installed
+      model_format: onnx_only
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=installed,
+    model=onnx_only
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-MISSING-HEFOK-NORMAL-007
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: present
+      hailort_state: missing
+      model_format: hef_valid
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=missing,
+    model=hef_valid
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-MISSING-HEFOK-HOT-008
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: present
+      hailort_state: missing
+      model_format: hef_valid
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=missing,
+    model=hef_valid
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-MISSING-HEFMISS-NOHAT-009
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: present
+      hailort_state: missing
+      model_format: hef_missing
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=missing,
+    model=hef_missing
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-MISSING-HEFBAD-NORMAL-010
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: present
+      hailort_state: missing
+      model_format: hef_wrong_format
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=missing,
+    model=hef_wrong_format
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-MISSING-HEFBAD-HOT-011
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: present
+      hailort_state: missing
+      model_format: hef_wrong_format
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=missing,
+    model=hef_wrong_format
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-PRESENT-MISSING-ONNXONLY-NOHAT-012
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: present
+      hailort_state: missing
+      model_format: onnx_only
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=present, hailort=missing,
+    model=onnx_only
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-INSTALLED-HEFOK-NOHAT-013
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: absent
+      hailort_state: installed
+      model_format: hef_valid
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=installed,
+    model=hef_valid
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-INSTALLED-HEFMISS-NORMAL-014
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: absent
+      hailort_state: installed
+      model_format: hef_missing
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=installed,
+    model=hef_missing
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-INSTALLED-HEFMISS-HOT-015
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: absent
+      hailort_state: installed
+      model_format: hef_missing
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=installed,
+    model=hef_missing
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-INSTALLED-HEFBAD-NOHAT-016
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: absent
+      hailort_state: installed
+      model_format: hef_wrong_format
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=installed,
+    model=hef_wrong_format
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-INSTALLED-ONNXONLY-NORMAL-017
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: absent
+      hailort_state: installed
+      model_format: onnx_only
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=installed,
+    model=onnx_only
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-INSTALLED-ONNXONLY-HOT-018
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: absent
+      hailort_state: installed
+      model_format: onnx_only
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=installed,
+    model=onnx_only
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-MISSING-HEFOK-NOHAT-019
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: absent
+      hailort_state: missing
+      model_format: hef_valid
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=missing,
+    model=hef_valid
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-MISSING-HEFMISS-NORMAL-020
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: absent
+      hailort_state: missing
+      model_format: hef_missing
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=missing,
+    model=hef_missing
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-MISSING-HEFMISS-HOT-021
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: absent
+      hailort_state: missing
+      model_format: hef_missing
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=missing,
+    model=hef_missing
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-MISSING-HEFBAD-NOHAT-022
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra:
+      hat_presence: absent
+      hailort_state: missing
+      model_format: hef_wrong_format
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=missing,
+    model=hef_wrong_format
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-MISSING-ONNXONLY-NORMAL-023
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra:
+      hat_presence: absent
+      hailort_state: missing
+      model_format: onnx_only
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=missing,
+    model=onnx_only
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate
+- scenario_id: BB-AIHAT-ABSENT-MISSING-ONNXONLY-HOT-024
+  family: pi_ai_hat_runtime
+  category: ai_hat_gated
+  risk_level: HIGH
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: high_temperature
+    extra:
+      hat_presence: absent
+      hailort_state: missing
+      model_format: onnx_only
+  expected_behavior: RuntimeSelector picks the correct runtime for hat=absent, hailort=missing,
+    model=onnx_only
+  required_safety_response: fallback_active reported honestly; never reports mock
+    as a real accelerator
+  dashboard_update: /ai-runtime/status reflects selected_kind and fallback reason
+  pass_criteria: selected runtime matches the priority chain given the injected availability
+  fail_criteria: wrong runtime selected, or a fallback misreported as the requested
+    accelerator
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - ai_runtime_selection_accuracy
+  - ai_runtime_fallback_honesty_rate

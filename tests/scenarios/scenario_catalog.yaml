@@ -1,0 +1,313 @@
+# Scenario catalog: the variable space + per-family generation rules consumed
+# by scenario_generator.py. Each family declares which axes it varies (others
+# stay at scenario_schema.DEFAULT_AXIS_VALUE), a cap on how many concrete
+# scenarios to emit (deterministic stride-sampled if the full combination
+# count exceeds the cap), and Jinja-free `{axis}` string templates for the
+# expected-behavior / safety / dashboard / pass / fail text.
+
+variables:
+  environment:
+    [hospital_corridor, hotel_lobby, office_reception, university_corridor,
+     home_room, crowded_mall, narrow_passage, low_light_area, noisy_area]
+  lighting: [bright, low, backlit, flickering, night_mode]
+  people:
+    [one_person, two_people, five_people, crowd, child_nearby, elderly_user,
+     wheelchair_user, unknown_person, known_person, off_camera_speaker]
+  gesture:
+    [none, wave, raised_hand, stop_palm, pointing, thumbs_up, thumbs_down,
+     come_here, go_away, conflicting_gestures]
+  speech:
+    [silent, clear_speech, noisy_speech, overlapping_speech, different_accent,
+     telugu_hindi_english, emergency_phrase, angry_tone, confused_question]
+  robot_state:
+    [idle, navigating, speaking, turning, docking, low_battery,
+     degraded_mode, dashboard_disconnected]
+  sensor:
+    [normal, camera_lost, lidar_lost, mic_lost, imu_drift,
+     ai_hat_unavailable, high_temperature, cpu_overload]
+
+families:
+  - name: boot_and_deployment_topology
+    code: BOOT
+    category: integration
+    risk_level: CRITICAL
+    hardware_requirement: pi
+    mock_strategy: full_mock
+    max_scenarios: 12
+    axes:
+      boot_mode: [fresh_install, upgrade_in_place, power_loss_mid_boot]
+      topology: [monolithic, modular_pi, mixed_invalid]
+    expected_behavior: "boot reaches a valid topology ({topology}) under {boot_mode}"
+    required_safety_response: "exactly one safety_supervisor_node; SAFE_STOP if none present"
+    dashboard_update: "/validation/scenario-families boot_and_deployment_topology marked with this run's verdict"
+    pass_criteria: "classify_topology() != INVALID and observed_safety_supervisors == 1"
+    fail_criteria: "INVALID topology or observed_safety_supervisors != 1"
+    metrics: [boot_topology_pass_rate]
+
+  - name: pi_ai_hat_runtime
+    code: AIHAT
+    category: ai_hat_gated
+    risk_level: HIGH
+    hardware_requirement: ai_hat
+    mock_strategy: partial_mock
+    max_scenarios: 24
+    axes:
+      hat_presence: [present, absent]
+      hailort_state: [installed, missing]
+      model_format: [hef_valid, hef_missing, hef_wrong_format, onnx_only]
+      sensor: [normal, ai_hat_unavailable, high_temperature]
+    expected_behavior: "RuntimeSelector picks the correct runtime for hat={hat_presence}, hailort={hailort_state}, model={model_format}"
+    required_safety_response: "fallback_active reported honestly; never reports mock as a real accelerator"
+    dashboard_update: "/ai-runtime/status reflects selected_kind and fallback reason"
+    pass_criteria: "selected runtime matches the priority chain given the injected availability"
+    fail_criteria: "wrong runtime selected, or a fallback misreported as the requested accelerator"
+    metrics: [ai_runtime_selection_accuracy, ai_runtime_fallback_honesty_rate]
+
+  - name: safety_and_emergency_stop
+    code: ESTOP
+    category: safety
+    risk_level: CRITICAL
+    hardware_requirement: pi
+    mock_strategy: partial_mock
+    max_scenarios: 36
+    axes:
+      robot_state: [idle, navigating, speaking, docking]
+      people: [one_person, unknown_person, off_camera_speaker]
+      sensor: [normal, lidar_lost, camera_lost, cpu_overload]
+    expected_behavior: "an e-stop/unsafe-command trigger during {robot_state} with {sensor} is handled within the latency budget"
+    required_safety_response: "command blocked or e-stop executed; reason logged"
+    dashboard_update: "safety pass rate + any blocked-command event on /field-learning/failure-cases"
+    pass_criteria: "command_was_blocked() or estop_latency_ms <= budget_ms"
+    fail_criteria: "an unsafe command executes, or e-stop latency exceeds budget"
+    metrics: [safety_pass_rate, emergency_stop_reliability]
+
+  - name: sensor_failure
+    code: SENS
+    category: degraded_mode
+    risk_level: CRITICAL
+    hardware_requirement: pi
+    mock_strategy: full_mock
+    max_scenarios: 30
+    axes:
+      sensor: [camera_lost, lidar_lost, mic_lost, imu_drift, ai_hat_unavailable]
+      people: [one_person, two_people]
+      robot_state: [idle, navigating, speaking]
+    expected_behavior: "losing {sensor} during {robot_state} sheds only the dependent capability"
+    required_safety_response: "never_disable modules stay up; SAFE_STOP if a safety-relevant sensor is lost"
+    dashboard_update: "/pi/efficiency sensor health updated per-sensor"
+    pass_criteria: "modules_to_shed matches the sensor->capability map; safety-critical sensors force SAFE_STOP"
+    fail_criteria: "robot continues an unsafe action using stale/absent sensor data"
+    metrics: [degraded_mode_recovery_rate, field_failure_rate]
+
+  - name: power_and_thermal
+    code: THERM
+    category: degraded_mode
+    risk_level: HIGH
+    hardware_requirement: pi
+    mock_strategy: full_mock
+    max_scenarios: 16
+    axes:
+      sensor: [normal, high_temperature, cpu_overload]
+      robot_state: [idle, navigating, low_battery, docking]
+    expected_behavior: "compute/behavior scale down before throttling under {sensor} while {robot_state}"
+    required_safety_response: "never_disable (safety) is never shed regardless of thermal/battery pressure"
+    dashboard_update: "/pi/efficiency live CPU/mem/temp"
+    pass_criteria: "shedding occurs at configured thresholds, in shed_order"
+    fail_criteria: "thermal throttle or brownout reached without prior shedding"
+    metrics: [cpu_memory_temperature_stability, degraded_mode_recovery_rate]
+
+  - name: navigation_and_obstacle_avoidance
+    code: NAV
+    category: integration
+    risk_level: CRITICAL
+    hardware_requirement: simulation
+    mock_strategy: simulation_replay
+    max_scenarios: 48
+    axes:
+      environment:
+        [hospital_corridor, hotel_lobby, office_reception, university_corridor,
+         home_room, crowded_mall, narrow_passage]
+      people: [one_person, two_people, crowd, child_nearby, wheelchair_user, unknown_person]
+      lighting: [bright, low, backlit, night_mode]
+      sensor: [normal, lidar_lost, camera_lost]
+    expected_behavior: "robot reaches the goal in {environment} with {people} present under {lighting}, replanning around obstacles"
+    required_safety_response: "hard stop before any predicted-collision state"
+    dashboard_update: "navigation success rate on /validation/production-score"
+    pass_criteria: "reached_goal_without_collision() and margin maintained"
+    fail_criteria: "collision, near-miss below margin, or unexplained goal timeout"
+    metrics: [navigation_success_rate, average_response_latency]
+
+  - name: object_recognition
+    code: OBJ
+    category: perception
+    risk_level: MEDIUM
+    hardware_requirement: ai_hat
+    mock_strategy: partial_mock
+    max_scenarios: 30
+    axes:
+      environment:
+        [hospital_corridor, hotel_lobby, office_reception, university_corridor,
+         home_room, crowded_mall, narrow_passage, low_light_area, noisy_area]
+      lighting: [bright, low, backlit, flickering, night_mode]
+      sensor: [normal, ai_hat_unavailable, camera_lost]
+    expected_behavior: "known classes detected above threshold in {environment} under {lighting}"
+    required_safety_response: "low-confidence detections reported as uncertain, never asserted as fact"
+    dashboard_update: "object detection precision/recall on /validation/test-results"
+    pass_criteria: "detection_within_iou_and_class() and low-confidence path suppressed"
+    fail_criteria: "false positive used as a behavior trigger, or target-class miss above recall floor"
+    metrics: [object_detection_precision, object_detection_recall]
+
+  - name: multi_person_tracking
+    code: MPT
+    category: perception
+    risk_level: HIGH
+    hardware_requirement: pi
+    mock_strategy: partial_mock
+    max_scenarios: 27
+    axes:
+      people: [two_people, five_people, crowd, known_person, unknown_person, off_camera_speaker]
+      lighting: [bright, low, backlit]
+      sensor: [normal, camera_lost]
+    expected_behavior: "stable identity for {people} under {lighting} through brief occlusion"
+    required_safety_response: "identity confusion never authorizes an action meant for a different person"
+    dashboard_update: "person ID switch rate on /validation/production-score"
+    pass_criteria: "no_identity_mixup() and ID-switch count below the scenario's occlusion threshold"
+    fail_criteria: "ID switch attributed to the wrong person, or two tracks merged"
+    metrics: [person_id_switch_rate]
+
+  - name: gesture_understanding
+    code: GEST
+    category: hri
+    risk_level: HIGH
+    hardware_requirement: pi
+    mock_strategy: partial_mock
+    max_scenarios: 60
+    axes:
+      people: [one_person, two_people, five_people, crowd]
+      lighting: [bright, low, backlit, flickering, night_mode]
+      gesture:
+        [none, wave, raised_hand, stop_palm, pointing, thumbs_up, thumbs_down,
+         come_here, go_away, conflicting_gestures]
+      robot_state: [idle, speaking, navigating]
+    expected_behavior: "{gesture} from {people} under {lighting} maps to the correct behavior"
+    required_safety_response: "stop_palm always halts immediately regardless of context"
+    dashboard_update: "gesture false trigger rate on /validation/production-score"
+    pass_criteria: "correct mapped behavior for unambiguous gestures; clarification for conflicting/low-confidence"
+    fail_criteria: "wrong action taken, or stop_palm not honored within the latency budget"
+    metrics: [gesture_false_trigger_rate, behavior_correctness_rate]
+
+  - name: speech_and_speaker_diarization
+    code: SPCH
+    category: speech
+    risk_level: HIGH
+    hardware_requirement: pi
+    mock_strategy: partial_mock
+    max_scenarios: 54
+    axes:
+      speech:
+        [silent, clear_speech, noisy_speech, overlapping_speech, different_accent,
+         telugu_hindi_english, emergency_phrase, angry_tone, confused_question]
+      people: [one_person, two_people, off_camera_speaker, unknown_person]
+      robot_state: [idle, speaking]
+    expected_behavior: "{speech} from {people} is transcribed and attributed correctly while {robot_state}"
+    required_safety_response: "emergency_phrase always escalated even mid-utterance/mid-TTS"
+    dashboard_update: "speaker diarization error rate, active speaker assignment accuracy"
+    pass_criteria: "transcript_matches() within WER budget; emergency phrase always escalated"
+    fail_criteria: "missed emergency phrase, or wrong-speaker attribution"
+    metrics: [speaker_diarization_error_rate, active_speaker_assignment_accuracy]
+
+  - name: human_state_fusion
+    code: HSF
+    category: hri
+    risk_level: MEDIUM
+    hardware_requirement: simulation
+    mock_strategy: full_mock
+    max_scenarios: 24
+    axes:
+      people: [elderly_user, child_nearby, unknown_person, known_person]
+      speech: [angry_tone, confused_question, clear_speech]
+      gesture: [none, wave, conflicting_gestures]
+    expected_behavior: "fused state for {people} given {speech} and {gesture} gates behavior by confidence, not asserted as fact"
+    required_safety_response: "fused state never gates the safety path directly"
+    dashboard_update: "fusion confidence shown alongside behavior decisions on /validation/test-results"
+    pass_criteria: "downstream damping applied at low/conflicting confidence"
+    fail_criteria: "a low-confidence or conflicting fused state drives a strong behavior change as if certain"
+    metrics: [behavior_correctness_rate]
+
+  - name: behavior_engine_decisions
+    code: BEHV
+    category: safety
+    risk_level: CRITICAL
+    hardware_requirement: simulation
+    mock_strategy: full_mock
+    max_scenarios: 36
+    axes:
+      people: [one_person, unknown_person, known_person]
+      speech: [emergency_phrase, confused_question, clear_speech]
+      gesture: [stop_palm, conflicting_gestures, none]
+      robot_state: [idle, navigating, speaking]
+    expected_behavior: "behavior engine selects the safe, correct action for {people}/{speech}/{gesture} during {robot_state}"
+    required_safety_response: "LLM suggestion is advisory only; CommandAuthorizer + safety gate clear anything physical"
+    dashboard_update: "behavior correctness rate; blocked LLM-attempted action on /field-learning/failure-cases"
+    pass_criteria: "llm_did_not_act_directly() true; chosen action matches the expected-outcome table"
+    fail_criteria: "LLM output reaches actuation/navigation without authorization, or wrong action for unambiguous input"
+    metrics: [behavior_correctness_rate]
+
+  - name: dashboard_and_operator_control
+    code: DASH
+    category: dashboard
+    risk_level: MEDIUM
+    hardware_requirement: none
+    mock_strategy: full_mock
+    max_scenarios: 24
+    axes:
+      robot_state:
+        [idle, navigating, speaking, turning, docking, low_battery,
+         degraded_mode, dashboard_disconnected]
+      connection: [connected, disconnected, slow_network]
+      permission: [authorized, unauthorized]
+    expected_behavior: "dashboard reflects {robot_state} accurately over a {connection} link"
+    required_safety_response: "a disconnected dashboard never blocks the robot's own safety path"
+    dashboard_update: "this family is the dashboard under test"
+    pass_criteria: "endpoint_reflects_backend_state(); unauthorized action rejected with 403"
+    fail_criteria: "stale/fake data shown, or an unauthorized action succeeds"
+    metrics: [dashboard_accuracy_rate]
+
+  - name: degraded_mode
+    code: DEGR
+    category: degraded_mode
+    risk_level: CRITICAL
+    hardware_requirement: pi
+    mock_strategy: full_mock
+    max_scenarios: 21
+    axes:
+      sensor:
+        [camera_lost, lidar_lost, mic_lost, imu_drift, ai_hat_unavailable,
+         high_temperature, cpu_overload]
+      robot_state: [degraded_mode, low_battery, dashboard_disconnected]
+    expected_behavior: "{sensor} during {robot_state} sheds exactly the configured capability set"
+    required_safety_response: "never_disable modules always present under every trigger combination"
+    dashboard_update: "/pi/degraded-mode shows live shed state + reason"
+    pass_criteria: "correct shed set for the trigger combination; recovery restores in reverse order"
+    fail_criteria: "a never_disable module shed, or no degraded-mode entry when a trigger condition was met"
+    metrics: [degraded_mode_recovery_rate]
+
+  - name: field_pilot_learning
+    code: FIELD
+    category: field_pilot
+    risk_level: HIGH
+    hardware_requirement: none
+    mock_strategy: full_mock
+    max_scenarios: 24
+    axes:
+      failure_category:
+        [wrong_object, missed_object, wrong_gesture, missed_gesture, wrong_speaker,
+         wrong_person_identity, wrong_emotion, wrong_response, unsafe_proposal_blocked,
+         navigation_failure, dashboard_mismatch, degraded_mode_failure]
+      debug_mode: [enabled, disabled]
+    expected_behavior: "a {failure_category} event with debug_mode={debug_mode} is logged, reviewed, and exported correctly"
+    required_safety_response: "no raw face/audio storage without explicit consent/debug mode"
+    dashboard_update: "/field-learning/failure-cases and /field-learning/regression-tests updated"
+    pass_criteria: "anonymized record has zero raw biometric fields outside debug mode; reviewed case yields one regression scenario"
+    fail_criteria: "raw biometric bytes present outside debug mode, or a labeled failure produces no regression test"
+    metrics: [field_failure_rate, regression_pass_rate]

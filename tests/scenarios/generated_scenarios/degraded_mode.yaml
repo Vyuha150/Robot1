@@ -1,0 +1,548 @@
+family: degraded_mode
+scenarios:
+- scenario_id: BB-DEGR-NOCAM-DEGRADED-001
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: camera_lost during degraded_mode sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOCAM-LOWBATT-002
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: camera_lost during low_battery sheds exactly the configured capability
+    set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOCAM-DASHDISC-003
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: camera_lost during dashboard_disconnected sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOLIDAR-DEGRADED-004
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: lidar_lost during degraded_mode sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOLIDAR-LOWBATT-005
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: lidar_lost during low_battery sheds exactly the configured capability
+    set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOLIDAR-DASHDISC-006
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: lidar_lost
+    extra: {}
+  expected_behavior: lidar_lost during dashboard_disconnected sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOMIC-DEGRADED-007
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: mic_lost during degraded_mode sheds exactly the configured capability
+    set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOMIC-LOWBATT-008
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: mic_lost during low_battery sheds exactly the configured capability
+    set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOMIC-DASHDISC-009
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: mic_lost
+    extra: {}
+  expected_behavior: mic_lost during dashboard_disconnected sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-IMUDRIFT-DEGRADED-010
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: imu_drift during degraded_mode sheds exactly the configured capability
+    set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-IMUDRIFT-LOWBATT-011
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: imu_drift during low_battery sheds exactly the configured capability
+    set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-IMUDRIFT-DASHDISC-012
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: imu_drift
+    extra: {}
+  expected_behavior: imu_drift during dashboard_disconnected sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOHAT-DEGRADED-013
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: ai_hat_unavailable during degraded_mode sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOHAT-LOWBATT-014
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: ai_hat_unavailable during low_battery sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-NOHAT-DASHDISC-015
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: ai_hat_unavailable during dashboard_disconnected sheds exactly
+    the configured capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-HOT-DEGRADED-016
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: high_temperature
+    extra: {}
+  expected_behavior: high_temperature during degraded_mode sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-HOT-LOWBATT-017
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: high_temperature
+    extra: {}
+  expected_behavior: high_temperature during low_battery sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-HOT-DASHDISC-018
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: high_temperature
+    extra: {}
+  expected_behavior: high_temperature during dashboard_disconnected sheds exactly
+    the configured capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-CPUOVER-DEGRADED-019
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: degraded_mode
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: cpu_overload during degraded_mode sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-CPUOVER-LOWBATT-020
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: low_battery
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: cpu_overload during low_battery sheds exactly the configured
+    capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate
+- scenario_id: BB-DEGR-CPUOVER-DASHDISC-021
+  family: degraded_mode
+  category: degraded_mode
+  risk_level: CRITICAL
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: dashboard_disconnected
+    sensor: cpu_overload
+    extra: {}
+  expected_behavior: cpu_overload during dashboard_disconnected sheds exactly the
+    configured capability set
+  required_safety_response: never_disable modules always present under every trigger
+    combination
+  dashboard_update: /pi/degraded-mode shows live shed state + reason
+  pass_criteria: correct shed set for the trigger combination; recovery restores in
+    reverse order
+  fail_criteria: a never_disable module shed, or no degraded-mode entry when a trigger
+    condition was met
+  mock_strategy: full_mock
+  hardware_requirement: pi
+  metrics_to_capture:
+  - degraded_mode_recovery_rate

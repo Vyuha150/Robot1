@@ -1,0 +1,771 @@
+family: object_recognition
+scenarios:
+- scenario_id: BB-OBJ-HOSP-BRIGHT-NORMAL-001
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: hospital_corridor
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in hospital_corridor under
+    bright
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOSP-LOWLIGHT-NOCAM-002
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: hospital_corridor
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in hospital_corridor under
+    low
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOSP-FLICKER-NORMAL-003
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: hospital_corridor
+    lighting: flickering
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in hospital_corridor under
+    flickering
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOSP-NIGHT-NOCAM-004
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: hospital_corridor
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in hospital_corridor under
+    night_mode
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOTEL-LOWLIGHT-NORMAL-005
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: hotel_lobby
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in hotel_lobby under low
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOTEL-BACKLIT-NOCAM-006
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: hotel_lobby
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in hotel_lobby under backlit
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOTEL-NIGHT-NOHAT-007
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: hotel_lobby
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in hotel_lobby under night_mode
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-OFFICE-BRIGHT-NOCAM-008
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in office_reception under
+    bright
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-OFFICE-BACKLIT-NOHAT-009
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in office_reception under
+    backlit
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-OFFICE-NIGHT-NORMAL-010
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: office_reception
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in office_reception under
+    night_mode
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-UNI-BRIGHT-NOHAT-011
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: university_corridor
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in university_corridor
+    under bright
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-UNI-BACKLIT-NORMAL-012
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: university_corridor
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in university_corridor
+    under backlit
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-UNI-FLICKER-NOHAT-013
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: university_corridor
+    lighting: flickering
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in university_corridor
+    under flickering
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOME-BRIGHT-NORMAL-014
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: home_room
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in home_room under bright
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOME-LOWLIGHT-NOCAM-015
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: home_room
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in home_room under low
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOME-FLICKER-NORMAL-016
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: home_room
+    lighting: flickering
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in home_room under flickering
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-HOME-NIGHT-NOCAM-017
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: home_room
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in home_room under night_mode
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-MALL-LOWLIGHT-NOHAT-018
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: crowded_mall
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in crowded_mall under
+    low
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-MALL-BACKLIT-NOCAM-019
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: crowded_mall
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in crowded_mall under
+    backlit
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-MALL-NIGHT-NOHAT-020
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: crowded_mall
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in crowded_mall under
+    night_mode
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-NARROW-BRIGHT-NOCAM-021
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: narrow_passage
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in narrow_passage under
+    bright
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-NARROW-BACKLIT-NOHAT-022
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: narrow_passage
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in narrow_passage under
+    backlit
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-NARROW-NIGHT-NORMAL-023
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: narrow_passage
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in narrow_passage under
+    night_mode
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-LOWLIGHTAREA-BRIGHT-NOHAT-024
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: low_light_area
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: ai_hat_unavailable
+    extra: {}
+  expected_behavior: known classes detected above threshold in low_light_area under
+    bright
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-LOWLIGHTAREA-BACKLIT-NORMAL-025
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: low_light_area
+    lighting: backlit
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in low_light_area under
+    backlit
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-LOWLIGHTAREA-FLICKER-NOCAM-026
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: low_light_area
+    lighting: flickering
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in low_light_area under
+    flickering
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-NOISYAREA-BRIGHT-NORMAL-027
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: noisy_area
+    lighting: bright
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in noisy_area under bright
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-NOISYAREA-LOWLIGHT-NOCAM-028
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: noisy_area
+    lighting: low
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in noisy_area under low
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-NOISYAREA-FLICKER-NORMAL-029
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: noisy_area
+    lighting: flickering
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: normal
+    extra: {}
+  expected_behavior: known classes detected above threshold in noisy_area under flickering
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
+- scenario_id: BB-OBJ-NOISYAREA-NIGHT-NOCAM-030
+  family: object_recognition
+  category: perception
+  risk_level: MEDIUM
+  input_conditions:
+    environment: noisy_area
+    lighting: night_mode
+    people: one_person
+    gesture: none
+    speech: silent
+    robot_state: idle
+    sensor: camera_lost
+    extra: {}
+  expected_behavior: known classes detected above threshold in noisy_area under night_mode
+  required_safety_response: low-confidence detections reported as uncertain, never
+    asserted as fact
+  dashboard_update: object detection precision/recall on /validation/test-results
+  pass_criteria: detection_within_iou_and_class() and low-confidence path suppressed
+  fail_criteria: false positive used as a behavior trigger, or target-class miss above
+    recall floor
+  mock_strategy: partial_mock
+  hardware_requirement: ai_hat
+  metrics_to_capture:
+  - object_detection_precision
+  - object_detection_recall
