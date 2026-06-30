@@ -3,6 +3,22 @@
   "source": "Final no-excuses verification pass — every entry below was individually confirmed by reading source/running commands, not assumed.",
   "issues": [
     {
+      "id": "systemd_duplicate_safety_supervisor",
+      "severity": "blocker",
+      "category": "deployment_topology",
+      "title": "Documented systemd setup starts the safety supervisor (and perception/speech/tts/navigation) TWICE",
+      "description": "deployment/systemd: bonbon-core runs bringup.launch.py (the WHOLE stack, including safety + perception + speech + tts + navigation), while bonbon-safety/bonbon-perception/etc. each launch the same subsystem again. systemd_setup.md literally instructs 'systemctl enable bonbon-core bonbon-safety ...', which co-enables both -- starting two safety_supervisor_node processes (duplicate ROS2 node name; two publishers on the transient-local /bonbon/safety/state, so consumers nondeterministically get whichever is latest) plus duplicate perception/audio pipelines. Directly violates 'no duplicate safety pipelines'. NOT fixed in this pass: resolving it means re-architecting the safety-critical container boot topology (either core runs a reduced non-decomposed launch, or core and the granular services are made mutually exclusive), which must be validated on real Pi hardware before shipping a change to how the safety supervisor boots. The safety container's runtime priority WAS hardened (oom_score_adj/cpu_shares) independently, since that is correct under either resolution.",
+      "blocking_deployment": true
+    },
+    {
+      "id": "no_hailo_ai_hat_backend",
+      "severity": "high",
+      "category": "incomplete_feature",
+      "title": "No Hailo AI HAT acceleration -- vision inference runs on the Pi CPU",
+      "description": "Zero Hailo references in 736 Python files (verified by grep). bonbon_vision/detectors/yolo_detector.py loads .pt/.engine/.onnx via ultralytics (its docstring recommends Jetson Orin Nano TensorRT exports -- the codebase was originally scoped for Jetson, not Pi+Hailo). There is no HailoRT (.hef) detector backend, so on a Pi 5 + AI HAT the YOLO inference falls back to the ARM CPU, contradicting the requirement that the AI HAT be used for supported vision workloads and risking sustained CPU overload. Building a HailoDetector(BaseDetector) backend is the clear next step; not attempted without hardware to validate against. Also means the dashboard has no AI-HAT/NPU telemetry source to display.",
+      "blocking_deployment": true
+    },
+    {
       "id": "bonbon_vision_test_hang",
       "severity": "blocker",
       "category": "test_infrastructure",

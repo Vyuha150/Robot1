@@ -88,6 +88,19 @@ services:
       - /var/log/bonbon:/logs
     command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_safety safety.launch.py"
     security_opt: ["no-new-privileges:true"]
+    # Edge-deployment priority protection (critical requirements #2 and #3:
+    # Safety Supervisor must have the highest runtime priority; emergency
+    # stop must keep working under CPU/GPU/NPU overload). oom_score_adj=-900
+    # means the kernel OOM killer kills the safety container LAST, after AI
+    # and every other service; cpu_shares 4x the default weights its CFS
+    # scheduling above the AI/perception containers under CPU contention so
+    # the 50 Hz e-stop poller (estop_node) is not starved. For full hardware
+    # isolation, additionally pin this container to a dedicated core with
+    # `cpuset: "3"` AND keep the AI/perception containers off that core
+    # (cpuset: "0-2") -- left out here because that split must be validated
+    # on the actual 4-core Pi 5, see RASPBERRY_PI_HAILO_DEPLOYMENT_PHASE2.
+    oom_score_adj: -900
+    cpu_shares: 4096
 
   dashboard-api:
     image: bonbon/dashboard:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
