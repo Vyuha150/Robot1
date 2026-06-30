@@ -41,6 +41,7 @@ if [[ "${1:-}" == "--no-ros2" ]]; then
   run_pkg bonbon_object_intelligence
   run_pkg bonbon_perception_efficiency
   run_pkg bonbon_data_feedback
+  run_pkg bonbon_ai_runtime
   run_pkg bonbon_llm --ignore=tests/integration --ignore=tests/benchmarks
   echo "==> pytest tests/scenarios (cross-package multi-person perception)"
   python -m pytest tests/scenarios -q -p no:cacheprovider

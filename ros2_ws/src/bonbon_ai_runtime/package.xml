@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_ai_runtime</name>
+  <version>1.0.0</version>
+  <description>
+    Pluggable vision-model inference runtime abstraction: CPU/ONNX, TensorRT,
+    Hailo AI HAT, and mock, behind one VisionModelRuntimeInterface with an
+    auto-selecting RuntimeSelector. Lets bonbon_vision run YOLO on the
+    Raspberry Pi AI HAT (Hailo) when present and fall back to CPU otherwise.
+    Hailo is OPTIONAL: every heavy backend is lazy-imported, so this package
+    imports and its tests pass on a plain dev machine with no accelerator.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <!-- All accelerator runtimes are OPTIONAL and lazy-imported; intentionally
+       NOT declared as hard deps so the package installs without them:
+       onnxruntime (CPU), tensorrt (NVIDIA only), hailort (Hailo AI HAT). -->
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
