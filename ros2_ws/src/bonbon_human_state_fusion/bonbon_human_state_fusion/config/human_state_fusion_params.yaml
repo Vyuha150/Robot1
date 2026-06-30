@@ -11,3 +11,8 @@ human_state_fusion_node:
 
     # When true, known_person_id is never published (temporary IDs only).
     privacy_mode: false
+
+    # Active-person focus (FocusPublishGate): background people's HumanState
+    # publishes only once every N cycles. The focus person, new arrivals,
+    # and LEFT_SCENE departures are never throttled by this.
+    background_publish_every_n_cycles: 3

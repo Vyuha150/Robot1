@@ -45,6 +45,7 @@ from rclpy.lifecycle import Publisher as LifecyclePublisher
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Header
 
+from bonbon_human_state_fusion.core.focus_publish_gate import FocusPublishGate
 from bonbon_human_state_fusion.core.human_state_fusion_engine import HumanStateFusionEngine
 
 _HEALTH_OK, _HEALTH_WARN, _HEALTH_ERROR, _HEALTH_STALE = 0, 1, 2, 3
@@ -80,8 +81,10 @@ class HumanStateFusionNode(LifecycleNode):
         self.declare_parameter("speaking_window_sec", 2.0)
         self.declare_parameter("recently_spoke_window_sec", 15.0)
         self.declare_parameter("privacy_mode", False)
+        self.declare_parameter("background_publish_every_n_cycles", 3)
 
         self._engine: HumanStateFusionEngine | None = None
+        self._focus_gate: FocusPublishGate | None = None
         self._privacy_mode = False
 
         self._sub_person_tracks = None
@@ -117,6 +120,11 @@ class HumanStateFusionNode(LifecycleNode):
                 recently_spoke_window_sec=float(
                     gp("recently_spoke_window_sec").get_parameter_value().double_value
                 ),
+            )
+            self._focus_gate = FocusPublishGate(
+                background_publish_every_n_cycles=int(
+                    gp("background_publish_every_n_cycles").get_parameter_value().integer_value
+                )
             )
             self._privacy_mode = bool(gp("privacy_mode").get_parameter_value().bool_value)
             self.get_logger().info("HumanStateFusionNode: configured")
@@ -219,6 +227,7 @@ class HumanStateFusionNode(LifecycleNode):
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("HumanStateFusionNode: cleaning up …")
         self._engine = None
+        self._focus_gate = None
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
@@ -303,7 +312,12 @@ class HumanStateFusionNode(LifecycleNode):
 
     def _run_cycle(self) -> None:
         stamp = self.get_clock().now().to_msg()
-        for result in self._engine.build_all():
+        results = list(self._engine.build_all())
+        # Active-person focus: the focus person and new arrivals publish
+        # every cycle; background people publish at a reduced cadence;
+        # LEFT_SCENE departures are never throttled. See FocusPublishGate.
+        decision = self._focus_gate.select(results)
+        for result in decision.to_publish:
             self._pub_state.publish(self._to_ros(result, stamp))
         self._engine.evict_left_scene()
 

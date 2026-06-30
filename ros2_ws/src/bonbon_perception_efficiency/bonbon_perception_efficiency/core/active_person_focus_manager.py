@@ -14,6 +14,10 @@ published as part of PerceptionBudget.msg, for perception nodes to use when
 deciding (for instance) which person's gesture landmarks to run through the
 backend first, or how often to re-run face recognition on a background
 person already confidently identified.
+
+bonbon_human_state_fusion's FocusPublishGate is the first real consumer:
+it reduces HumanState publish cadence for background people specifically
+(see that package's core/focus_publish_gate.py).
 """
 
 from __future__ import annotations

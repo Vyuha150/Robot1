@@ -18,6 +18,11 @@
   <exec_depend>lifecycle_msgs</exec_depend>
   <exec_depend>bonbon_msgs</exec_depend>
   <exec_depend>bonbon_srvs</exec_depend>
+  <!-- Reuses select_focus_person() and ActivePersonFocusManager directly
+       (FocusPublishGate) rather than re-deriving focus-priority logic a
+       third time. -->
+  <exec_depend>bonbon_behavior_engine</exec_depend>
+  <exec_depend>bonbon_perception_efficiency</exec_depend>
   <exec_depend>python3-pyyaml</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <test_depend>ament_copyright</test_depend>

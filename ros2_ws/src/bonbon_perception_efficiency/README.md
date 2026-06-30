@@ -51,9 +51,12 @@ every perception node (ModuleHealth)         ─┘         │
   and `/budget` are for dashboards and future integrations to read — wiring
   an existing node to actually *apply* a recommendation is a Phase 4
   runtime-optimization follow-up, not something this package can force.
-- **Active-person focus changes nothing on its own** — it publishes a
-  weight; no node currently reads it to actually change its own processing
-  rate per person.
+  **Update:** `bonbon_human_state_fusion`'s `FocusPublishGate` is now a real
+  consumer of the active-person focus weight specifically (see
+  `bonbon_human_state_fusion/core/focus_publish_gate.py`) — background
+  people's `HumanState` publishes at a reduced cadence; the focus person,
+  new arrivals, and `left_scene` departures are never throttled. The
+  `policy`/`budget` topics themselves are still otherwise advisory-only.
 
 ## ROS2 interface
 

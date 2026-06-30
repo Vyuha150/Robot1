@@ -39,6 +39,7 @@ identity space.
 | `confidence_calculator.py` | `HumanState.confidence` — explicitly **not an average**; scales down with missing modalities so 1 confident reading never looks as solid as 4 agreeing ones. |
 | `urgency_engagement_estimator.py` | `engagement_level`/`urgency_level` from real signals only (lifecycle state, gesture safety-relevance, emotion classification) — no invented gaze tracking or stress sensors. |
 | `evidence_summary.py` | Human-readable explainability string — which modalities contributed and why. |
+| `focus_publish_gate.py` | The real consumer of `bonbon_perception_efficiency`'s `ActivePersonFocusManager` weight — background people publish at a reduced cadence; the focus person, new arrivals, and `left_scene` departures are never throttled. Reuses `select_focus_person` (`bonbon_behavior_engine`) and `ActivePersonFocusManager` directly. |
 
 ## Rules enforced (with tests)
 
@@ -75,6 +76,7 @@ tests/test_urgency_engagement_estimator.py    13 tests
 tests/test_evidence_summary.py                10 tests
 tests/test_confidence_calculator.py            6 tests
 tests/test_human_state_fusion_engine.py       23 tests
+tests/test_focus_publish_gate.py               9 tests
 ```
 Run: `python -m pytest tests/ -q` (no rclpy required).
 
