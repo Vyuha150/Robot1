@@ -104,6 +104,7 @@ class LLMOrchestratorNode(LifecycleNode):
         self._tool_reg = None
         self._logger_svc = None
         self._lc_chain = None  # LangChain chain (may be None if unavailable)
+        self._response_cache = None  # ResponseCache; wired in _init_pipeline
 
         # Cached incoming state
         self._last_scene = None
@@ -172,6 +173,10 @@ class LLMOrchestratorNode(LifecycleNode):
         self._guard = HallucinationGuard(cfg.hallucination)
         self._personality = PersonalityLayer(cfg.personality)
         self._logger_svc = ResponseLogger()
+
+        from bonbon_llm.core.response_cache import ResponseCache
+
+        self._response_cache = ResponseCache()
 
         # Wire tool registry
         from bonbon_llm.tools.tool_registry import ToolRegistry
@@ -353,9 +358,24 @@ class LLMOrchestratorNode(LifecycleNode):
             # 4. Build user-facing prompt
             prompt = self._build_prompt(intent_msg)
 
-            # 5. LLM call
+            # 5. LLM call — cache check first. Keyed on (question, full_context),
+            # where full_context already includes RAG results, so any change to
+            # scene, safety state, or retrieved documents naturally misses the
+            # cache rather than serving something stale. The safety filter and
+            # hallucination guard below still run on every cache hit too — a
+            # cache hit only ever skips the inference call itself.
             t_llm = time.perf_counter()
-            raw_llm_out, llm_error = self._call_llm(prompt, full_context)
+            cached = (
+                self._response_cache.get(intent_msg.raw_text, full_context)
+                if self._response_cache
+                else None
+            )
+            if cached is not None:
+                raw_llm_out, llm_error = cached.text, None
+            else:
+                raw_llm_out, llm_error = self._call_llm(prompt, full_context)
+                if raw_llm_out and not llm_error and self._response_cache:
+                    self._response_cache.put(intent_msg.raw_text, full_context, raw_llm_out, "ok")
             llm_latency = (time.perf_counter() - t_llm) * 1000.0
 
             # 6. Safety filter
