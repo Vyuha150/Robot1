@@ -25,6 +25,10 @@ _PACKAGES = [
     "bonbon_behavior_engine",
     "bonbon_affective_ai",
     "bonbon_safety",
+    "bonbon_perception_efficiency",
+    "bonbon_data_feedback",
+    "bonbon_data_stores",
+    "bonbon_llm",
 ]
 
 for _pkg in _PACKAGES:
