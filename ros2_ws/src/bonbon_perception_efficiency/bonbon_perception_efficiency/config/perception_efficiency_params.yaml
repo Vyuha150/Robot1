@@ -10,3 +10,11 @@ perception_efficiency_node:
     # DegradedModeManager — how long load must stay at minimal/critical
     # before the system-wide degraded flag activates.
     degraded_sustained_threshold_sec: 10.0
+
+    # Thermal load-shedding trigger, read from bonbon_hal's existing
+    # ThermalReadings publication (no second temperature sampling pipeline).
+    # Mirrors bonbon_safety's SafetyStateMachine cpu_temp_caution_c default
+    # exactly, so this acts preventively, strictly before the Safety
+    # Supervisor's own cpu_temp_fault_c (90C) threshold would force a
+    # SAFE_STOP.
+    cpu_temp_caution_c: 75.0

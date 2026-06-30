@@ -8,6 +8,7 @@ touches actuation/navigation.
 Consumes (does not redetect/re-sample anything):
     /bonbon/system/resource_usage     (bonbon_msgs/ResourceUsage)   — bonbon_safety
     /bonbon/safety/state               (bonbon_msgs/SafetyState)     — bonbon_safety
+    /bonbon/temperature/readings        (bonbon_msgs/ThermalReadings) — bonbon_hal
     /bonbon/persons/tracks              (bonbon_msgs/PersonTrack)     — bonbon_multi_person_tracker
     /bonbon/human/state                 (bonbon_msgs/HumanState)      — bonbon_human_state_fusion
     /bonbon/vision/vision_node/health   (bonbon_msgs/ModuleHealth)
@@ -16,6 +17,12 @@ Consumes (does not redetect/re-sample anything):
     /bonbon/speaker/speaker_intelligence_node/health
     /bonbon/human/human_state_fusion_node/health
     /health/speech                      (bonbon_msgs/ModuleHealth)    — bonbon_speech
+
+Thermal: reuses bonbon_hal's existing ThermalReadings publication rather
+than sampling temperature a second time. The 75C threshold mirrors
+bonbon_safety's SafetyStateMachine cpu_temp_caution_c default exactly, so
+load shedding acts preventively, strictly before the Safety Supervisor's
+own cpu_temp_fault_c (90C) threshold would force a SAFE_STOP.
 
 Publishes:
     /bonbon/perception_efficiency/policy          (bonbon_msgs/PerceptionPolicy)
@@ -46,6 +53,7 @@ from bonbon_msgs.msg import (
     PersonTrack,
     ResourceUsage,
     SafetyState,
+    ThermalReadings,
 )
 from bonbon_msgs.msg import (
     PerceptionBudget as PerceptionBudgetMsg,
@@ -70,6 +78,12 @@ _HEALTH_OK, _HEALTH_WARN, _HEALTH_ERROR, _HEALTH_STALE = 0, 1, 2, 3
 
 _SAFETY_CAUTION = 2  # SafetyState.CAUTION
 _SAFETY_FAULT = 6  # SafetyState.FAULT
+
+# Mirrors bonbon_safety's SafetyStateMachine cpu_temp_caution_c default
+# exactly (ros2_ws/src/bonbon_safety/bonbon_safety/core/safety_state_machine.py)
+# so this acts strictly before the Safety Supervisor's own cpu_temp_fault_c
+# (90C) threshold would force a SAFE_STOP.
+_CPU_TEMP_CAUTION_C = 75.0
 
 _QOS_RELIABLE = QoSProfile(
     reliability=ReliabilityPolicy.RELIABLE,
@@ -109,11 +123,13 @@ class PerceptionEfficiencyNode(LifecycleNode):
         self.declare_parameter("health_rate_hz", 1.0)
         self.declare_parameter("hysteresis_cycles", 3)
         self.declare_parameter("degraded_sustained_threshold_sec", 10.0)
+        self.declare_parameter("cpu_temp_caution_c", _CPU_TEMP_CAUTION_C)
 
         self._budget_manager: PerceptionBudgetManager | None = None
         self._metrics = PerceptionMetricsAggregator()
 
         self._latest_resource: ResourceUsage | None = None
+        self._latest_thermal: ThermalReadings | None = None
         self._safety_level: int = 0
         self._human_states: dict[str, HumanState] = {}
         self._new_candidate_ids: set[str] = set()
@@ -175,6 +191,7 @@ class PerceptionEfficiencyNode(LifecycleNode):
                 self._subs.append(s)
 
             sub(ResourceUsage, "/bonbon/system/resource_usage", self._cb_resource_usage)
+            sub(ThermalReadings, "/bonbon/temperature/readings", self._cb_thermal_readings)
             sub(SafetyState, "/bonbon/safety/state", self._cb_safety_state)
             sub(PersonTrack, "/bonbon/persons/tracks", self._cb_person_track)
             sub(HumanState, "/bonbon/human/state", self._cb_human_state)
@@ -249,6 +266,9 @@ class PerceptionEfficiencyNode(LifecycleNode):
     def _cb_resource_usage(self, msg: ResourceUsage) -> None:
         self._latest_resource = msg
 
+    def _cb_thermal_readings(self, msg: ThermalReadings) -> None:
+        self._latest_thermal = msg
+
     def _cb_safety_state(self, msg: SafetyState) -> None:
         self._safety_level = msg.state
 
@@ -295,12 +315,17 @@ class PerceptionEfficiencyNode(LifecycleNode):
 
     def _run_cycle(self) -> None:
         res = self._latest_resource
+        thermal = self._latest_thermal
+        temp_caution_c = (
+            self.get_parameter("cpu_temp_caution_c").get_parameter_value().double_value
+        )
         inputs = BudgetInputs(
             cpu_overloaded=bool(res.cpu_overloaded) if res else False,
             memory_pressure=bool(res.memory_pressure) if res else False,
             resource_unavailable=(res is None) or (not res.available),
             safety_caution_or_above=self._safety_level >= _SAFETY_CAUTION,
             safety_fault_or_above=self._safety_level >= _SAFETY_FAULT,
+            thermal_overloaded=(thermal is not None) and (thermal.cpu_temp_c >= temp_caution_c),
             focus_person_track_id=self._compute_focus_person(),
             person_track_ids=list(self._person_track_ids),
             new_candidate_ids=set(self._new_candidate_ids),

@@ -57,9 +57,14 @@ class LoadSheddingController:
         memory_pressure: bool,
         resource_unavailable: bool,
         safety_caution_or_above: bool,
+        thermal_overloaded: bool = False,
     ) -> LoadSheddingDecision:
         target, reason = self._evaluate_target(
-            cpu_overloaded, memory_pressure, resource_unavailable, safety_caution_or_above
+            cpu_overloaded,
+            memory_pressure,
+            resource_unavailable,
+            safety_caution_or_above,
+            thermal_overloaded,
         )
 
         if target == self._level:
@@ -94,16 +99,29 @@ class LoadSheddingController:
         memory_pressure: bool,
         resource_unavailable: bool,
         safety_elevated: bool,
+        thermal_overloaded: bool = False,
     ) -> tuple[LoadLevel, str]:
         if resource_unavailable:
             # No real metrics (sim/CI) — never shed load on missing data.
             return LoadLevel.NORMAL, "resource metrics unavailable — assuming nominal"
+        # Thermal is treated the same severity as CPU overload — sustained
+        # high SoC temperature is itself a consequence of sustained high CPU
+        # load, and reducing perception throughput is a direct, immediate
+        # lever to bring it back down before bonbon_safety's own
+        # cpu_temp_fault_c threshold (90°C) is reached and a SAFE_STOP is
+        # forced. The 75°C trigger mirrors bonbon_safety's SafetyStateMachine
+        # cpu_temp_caution_c default exactly, so this acts preventively,
+        # strictly before the Safety Supervisor itself has to intervene.
         if cpu_overloaded and memory_pressure:
             return LoadLevel.CRITICAL, "CPU and memory both overloaded"
+        if thermal_overloaded and (cpu_overloaded or memory_pressure):
+            return LoadLevel.CRITICAL, "thermal overload combined with CPU/memory pressure"
         if cpu_overloaded:
             return LoadLevel.MINIMAL, "CPU overloaded"
         if memory_pressure:
             return LoadLevel.MINIMAL, "memory pressure"
+        if thermal_overloaded:
+            return LoadLevel.MINIMAL, "thermal overload (SoC temperature elevated)"
         if safety_elevated:
             return LoadLevel.REDUCED, "safety level elevated — perception competing for CPU"
         return LoadLevel.NORMAL, "nominal"

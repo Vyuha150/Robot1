@@ -83,3 +83,19 @@ class TestSafetyFaultCascades:
         mgr = PerceptionBudgetManager()
         budget = mgr.update(BudgetInputs(resource_unavailable=False, safety_fault_or_above=True))
         assert budget.degraded.is_degraded is True
+
+
+class TestThermalPropagatesThroughBudget:
+    def test_thermal_overload_reduces_load_level(self):
+        mgr = PerceptionBudgetManager()
+        budget = mgr.update(BudgetInputs(resource_unavailable=False, thermal_overloaded=True))
+        assert budget.load.level == LoadLevel.MINIMAL
+
+    def test_thermal_overload_increases_sample_interval(self):
+        mgr = PerceptionBudgetManager()
+        nominal = mgr.update(BudgetInputs(resource_unavailable=False))
+        mgr2 = PerceptionBudgetManager()
+        hot = mgr2.update(BudgetInputs(resource_unavailable=False, thermal_overloaded=True))
+        nominal_rate = next(r for r in nominal.sample_rates if r.consumer == "gesture")
+        hot_rate = next(r for r in hot.sample_rates if r.consumer == "gesture")
+        assert hot_rate.sample_every_n_frames > nominal_rate.sample_every_n_frames

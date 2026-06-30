@@ -53,6 +53,7 @@ class BudgetInputs:
     resource_unavailable: bool = True
     safety_caution_or_above: bool = False
     safety_fault_or_above: bool = False
+    thermal_overloaded: bool = False
     focus_person_track_id: str = ""
     person_track_ids: list[str] = field(default_factory=list)
     new_candidate_ids: set = field(default_factory=set)
@@ -79,6 +80,7 @@ class PerceptionBudgetManager:
             memory_pressure=inputs.memory_pressure,
             resource_unavailable=inputs.resource_unavailable,
             safety_caution_or_above=inputs.safety_caution_or_above,
+            thermal_overloaded=inputs.thermal_overloaded,
         )
         degraded = self._degraded_mode.update(
             load_level=load.level, safety_fault_or_above=inputs.safety_fault_or_above

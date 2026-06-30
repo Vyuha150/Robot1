@@ -20,8 +20,9 @@ coordination layer without touching any working module.
 
 ```
 bonbon_safety (ResourceUsage, SafetyState)  ─┐
-bonbon_multi_person_tracker (PersonTrack)    ─┤
-bonbon_human_state_fusion (HumanState)       ─┼──► PerceptionBudgetManager
+bonbon_hal (ThermalReadings)                 ─┤
+bonbon_multi_person_tracker (PersonTrack)    ─┼──► PerceptionBudgetManager
+bonbon_human_state_fusion (HumanState)       ─┤         │
 every perception node (ModuleHealth)         ─┘         │
                                                           ▼
                                     /bonbon/perception_efficiency/{policy,budget,
@@ -56,8 +57,10 @@ every perception node (ModuleHealth)         ─┘         │
 
 ## ROS2 interface
 
-**Subscribes:** `/bonbon/system/resource_usage`, `/bonbon/safety/state`,
-`/bonbon/persons/tracks`, `/bonbon/human/state`, plus `ModuleHealth` from
+**Subscribes:** `/bonbon/system/resource_usage`, `/bonbon/temperature/readings`
+(reuses `bonbon_hal`'s existing publication — no second temperature sampling
+pipeline), `/bonbon/safety/state`, `/bonbon/persons/tracks`,
+`/bonbon/human/state`, plus `ModuleHealth` from
 vision/multi_person_tracker/object_intelligence/speaker_intelligence/
 human_state_fusion/speech.
 
@@ -71,7 +74,7 @@ See [`config/perception_efficiency_params.yaml`](bonbon_perception_efficiency/co
 
 ## Tests
 
-70 tests across 9 core modules (`perception_budget_manager.py` is the
+77 tests across 9 core modules (`perception_budget_manager.py` is the
 orchestrator, tested via integration-style cycles; every other module has
 its own dedicated unit suite). Run: `python -m pytest tests/ -q`.
 

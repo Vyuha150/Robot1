@@ -103,3 +103,68 @@ class TestScaleMonotonicity:
         ctrl3 = LoadSheddingController()
         critical = ctrl3.update(True, True, False, False).scale
         assert normal > reduced > critical
+
+
+class TestThermalOverload:
+    """Mirrors bonbon_safety's SafetyStateMachine cpu_temp_caution_c (75C)
+    trigger exactly, so this acts preventively, strictly before the Safety
+    Supervisor's own cpu_temp_fault_c (90C) threshold would force a
+    SAFE_STOP."""
+
+    def test_thermal_alone_escalates_to_minimal(self):
+        ctrl = LoadSheddingController()
+        decision = ctrl.update(
+            cpu_overloaded=False,
+            memory_pressure=False,
+            resource_unavailable=False,
+            safety_caution_or_above=False,
+            thermal_overloaded=True,
+        )
+        assert decision.level == LoadLevel.MINIMAL
+
+    def test_thermal_combined_with_cpu_overload_is_critical(self):
+        ctrl = LoadSheddingController()
+        decision = ctrl.update(
+            cpu_overloaded=True,
+            memory_pressure=False,
+            resource_unavailable=False,
+            safety_caution_or_above=False,
+            thermal_overloaded=True,
+        )
+        assert decision.level == LoadLevel.CRITICAL
+
+    def test_thermal_escalation_is_immediate_like_cpu(self):
+        ctrl = LoadSheddingController(hysteresis_cycles=3)
+        decision = ctrl.update(
+            cpu_overloaded=False,
+            memory_pressure=False,
+            resource_unavailable=False,
+            safety_caution_or_above=False,
+            thermal_overloaded=True,
+        )
+        assert decision.level == LoadLevel.MINIMAL  # no hysteresis delay on escalation
+
+    def test_thermal_defaults_to_false_backward_compatible(self):
+        """Every existing caller that doesn't pass thermal_overloaded must
+        behave exactly as before this parameter was added."""
+        ctrl = LoadSheddingController()
+        decision = ctrl.update(
+            cpu_overloaded=False,
+            memory_pressure=False,
+            resource_unavailable=False,
+            safety_caution_or_above=False,
+        )
+        assert decision.level == LoadLevel.NORMAL
+
+    def test_resource_unavailable_still_overrides_thermal(self):
+        """Missing metrics must never shed load, even if a (stale/garbage)
+        thermal_overloaded=True happened to be passed."""
+        ctrl = LoadSheddingController()
+        decision = ctrl.update(
+            cpu_overloaded=False,
+            memory_pressure=False,
+            resource_unavailable=True,
+            safety_caution_or_above=False,
+            thermal_overloaded=True,
+        )
+        assert decision.level == LoadLevel.NORMAL
