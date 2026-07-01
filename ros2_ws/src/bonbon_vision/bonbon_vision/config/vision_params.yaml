@@ -21,7 +21,7 @@ vision_node:
     allow_degraded_startup: true    # allow startup even if model fails to load
 
     # ── Object detector ─────────────────────────────────────────────────────
-    detector.backend: "mock"     # "mock" | "yolo"
+    detector.backend: "mock"     # "mock" | "yolo" | "runtime"
     detector.model_path: ""      # absolute path — required when backend=yolo
     detector.confidence_threshold: 0.45
     detector.nms_iou_threshold: 0.45
@@ -31,6 +31,15 @@ vision_node:
     detector.inference_timeout_sec: 1.0
     detector.max_consecutive_timeouts: 3
     detector.half_precision: false
+
+    # backend="runtime" only — goes through bonbon_ai_runtime.RuntimeSelector
+    # so a Pi 5 + AI HAT genuinely attempts Hailo, with an honest CPU
+    # fallback + reason when it's unavailable. Never mandatory: default
+    # backend stays "mock" and this is a no-op unless backend="runtime".
+    detector.runtime_mode: "auto"                    # "auto"|"hailo"|"cpu"|"tensorrt"|"mock"
+    detector.runtime_priority: ["hailo", "cpu", "mock"]
+    detector.hailo_hef_path: ""      # compiled .hef — required for hailo to ever be selected
+    detector.cpu_onnx_path: ""       # .onnx — required for cpu (onnxruntime) fallback
 
     # ── Face pipeline ────────────────────────────────────────────────────────
     face.detect_backend: "mock"        # "mock" | "opencv_dnn" | "insightface"

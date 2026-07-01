@@ -17,6 +17,7 @@ Failure handling:
 
 from __future__ import annotations
 
+import json
 import math
 import time
 
@@ -27,13 +28,18 @@ from geometry_msgs.msg import Point, Vector3
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.lifecycle import Publisher as LifecyclePublisher
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
-from std_msgs.msg import Header
+from std_msgs.msg import Header, String
 
 from bonbon_object_intelligence.core.confidence_calibrator import (
     CalibratorConfig,
     ObjectConfidenceCalibrator,
 )
 from bonbon_object_intelligence.core.depth_association import CameraIntrinsics, pixel_to_position_3d
+from bonbon_object_intelligence.core.low_confidence_object_handler import (
+    LowConfidenceConfig,
+    LowConfidenceObjectHandler,
+)
+from bonbon_object_intelligence.core.object_class_registry import ObjectClassRegistry
 from bonbon_object_intelligence.core.object_memory_hook import (
     InMemoryObjectMemoryHook,
     ObjectMemoryEntry,
@@ -43,7 +49,12 @@ from bonbon_object_intelligence.core.object_permanence_tracker import (
     PermanenceConfig,
     RawObjectDetection,
 )
+from bonbon_object_intelligence.core.object_verification_manager import ObjectVerificationManager
 from bonbon_object_intelligence.core.ocr_hook import MockOCRBackend, is_ocr_eligible
+from bonbon_object_intelligence.core.pi_object_inference_scheduler import (
+    PiObjectInferenceScheduler,
+    SchedulerConfig,
+)
 
 _HEALTH_OK, _HEALTH_WARN, _HEALTH_ERROR, _HEALTH_STALE = 0, 1, 2, 3
 _SOURCE_MODULE = "bonbon_object_intelligence"
@@ -84,6 +95,9 @@ class ObjectIntelligenceNode(LifecycleNode):
         self.declare_parameter("small_object_confidence_floor", 0.35)
         self.declare_parameter("camera_hfov_deg", 60.0)
         self.declare_parameter("enable_ocr", False)
+        self.declare_parameter("actionable_confidence_threshold", 0.6)
+        self.declare_parameter("target_fps", 8.0)
+        self.declare_parameter("bounded_queue_size", 2)
 
         self._tracker: ObjectPermanenceTracker | None = None
         self._calibrator: ObjectConfidenceCalibrator | None = None
@@ -92,10 +106,20 @@ class ObjectIntelligenceNode(LifecycleNode):
         self._enable_ocr = False
         self._camera_hfov_deg = 60.0
 
+        # Class-support honesty, low-confidence gating, and Pi frame-rate
+        # policy — see docs/OBJECT_RECOGNITION_FAILURE_ANALYSIS.md.
+        self._registry = ObjectClassRegistry()
+        self._verifier: ObjectVerificationManager | None = None
+        self._low_confidence: LowConfidenceObjectHandler | None = None
+        self._scheduler: PiObjectInferenceScheduler | None = None
+        self._low_confidence_count = 0
+
         self._sub_objects = None
         self._sub_safety = None
         self._pub_tracked: LifecyclePublisher | None = None
         self._pub_health: LifecyclePublisher | None = None
+        self._pub_status: LifecyclePublisher | None = None
+        self._pub_dashboard_summary: LifecyclePublisher | None = None
         self._srv_health = None
         self._timer = None
         self._health_timer = None
@@ -132,6 +156,19 @@ class ObjectIntelligenceNode(LifecycleNode):
             )
             self._enable_ocr = bool(gp("enable_ocr").bool_value)
             self._camera_hfov_deg = float(gp("camera_hfov_deg").double_value)
+
+            self._verifier = ObjectVerificationManager(self._registry)
+            self._low_confidence = LowConfidenceObjectHandler(
+                LowConfidenceConfig(
+                    actionable_threshold=float(gp("actionable_confidence_threshold").double_value)
+                )
+            )
+            self._scheduler = PiObjectInferenceScheduler(
+                SchedulerConfig(
+                    target_fps=float(gp("target_fps").double_value),
+                    bounded_queue_size=int(gp("bounded_queue_size").integer_value),
+                )
+            )
             self.get_logger().info("ObjectIntelligenceNode: configured")
         except Exception as exc:  # noqa: BLE001
             self.get_logger().error("on_configure failed: %s", str(exc))
@@ -164,6 +201,16 @@ class ObjectIntelligenceNode(LifecycleNode):
             self._pub_health = self.create_lifecycle_publisher(
                 ModuleHealth,
                 "/bonbon/objects/object_intelligence_node/health",
+                _QOS_RELIABLE,
+            )
+            self._pub_status = self.create_lifecycle_publisher(
+                String,
+                "/bonbon/objects/status",
+                _QOS_RELIABLE,
+            )
+            self._pub_dashboard_summary = self.create_lifecycle_publisher(
+                String,
+                "/bonbon/dashboard/object_summary",
                 _QOS_RELIABLE,
             )
             self._srv_health = self.create_service(
@@ -258,6 +305,14 @@ class ObjectIntelligenceNode(LifecycleNode):
             )
             if cal.rejected:
                 continue
+            # Published (passed calibration), but never treated as an
+            # actionable signal on its own if still below the actionable
+            # threshold — see LowConfidenceObjectHandler / brief rule
+            # "low-confidence detection does not trigger behavior".
+            if self._low_confidence is not None:
+                assessment = self._low_confidence.assess(cal.calibrated_confidence)
+                if not assessment.is_actionable:
+                    self._low_confidence_count += 1
 
             if o.position_3d.x == o.position_3d.x and not (
                 o.position_3d.x == 0.0 and o.position_3d.y == 0.0
@@ -269,12 +324,31 @@ class ObjectIntelligenceNode(LifecycleNode):
                 if x != x:  # NaN depth — fall back to bearing-only placement
                     x, y, z = 1.0, math.tan(math.radians(o.bearing_deg)), 0.0
 
+            reported_class = self._resolve_class_name(o)
+
             out.append(
                 RawObjectDetection(
-                    o.class_name, cal.calibrated_confidence, x, y, z, o.source_camera
+                    reported_class, cal.calibrated_confidence, x, y, z, o.source_camera
                 )
             )
         return out
+
+    def _resolve_class_name(self, o) -> str:
+        """Base class name, unless ObjectVerificationManager has confirmed
+        an ALIAS label (e.g. "person" -> "child") for this track across
+        enough consecutive frames — never relabels off a single frame."""
+        if self._verifier is None:
+            return o.class_name
+        results = self._verifier.verify(
+            track_id=o.track_id or f"{o.class_name}:{o.bbox_x}:{o.bbox_y}",
+            base_class=o.class_name,
+            bbox=(o.bbox_x, o.bbox_y, o.bbox_w, o.bbox_h),
+            frame_height=480.0,
+        )
+        for result in results:
+            if result.confirmed:
+                return result.reported_class
+        return o.class_name
 
     def _to_ros(self, rec, stamp) -> TrackedObject:
         msg = TrackedObject()
@@ -335,6 +409,39 @@ class ObjectIntelligenceNode(LifecycleNode):
         msg.warning_count = 0
         msg.processed_count = int(self._cycle_count)
         self._pub_health.publish(msg)
+        self._publish_status_and_dashboard_summary(status, text)
+
+    def _publish_status_and_dashboard_summary(self, health_status: int, health_text: str) -> None:
+        tracked_count = self._tracker.tracked_count if self._tracker is not None else 0
+        scheduler_info = (
+            {
+                "queue_depth": self._scheduler.queue_depth,
+                "stale_dropped_count": self._scheduler.stale_dropped_count,
+                "target_fps": self._scheduler.target_fps,
+            }
+            if self._scheduler is not None
+            else {}
+        )
+        status_payload = {
+            "health_status": health_status,
+            "health_text": health_text,
+            "supported_class_count": len(self._registry.list_supported()),
+            "unsupported_class_count": len(self._registry.list_unsupported()),
+            "low_confidence_count": self._low_confidence_count,
+            "ocr_enabled": self._enable_ocr,
+            "scheduler": scheduler_info,
+        }
+        if self._pub_status is not None and self._pub_status.is_activated:
+            self._pub_status.publish(String(data=json.dumps(status_payload)))
+
+        dashboard_payload = {
+            "tracked_object_count": tracked_count,
+            "low_confidence_count": self._low_confidence_count,
+            "supported_class_count": len(self._registry.list_supported()),
+            "health": health_text,
+        }
+        if self._pub_dashboard_summary is not None and self._pub_dashboard_summary.is_activated:
+            self._pub_dashboard_summary.publish(String(data=json.dumps(dashboard_payload)))
 
     def _handle_health_check(self, request, response):
         status, text = self._health_status()
@@ -354,7 +461,15 @@ class ObjectIntelligenceNode(LifecycleNode):
         if self._health_timer is not None:
             self._health_timer.cancel()
             self._health_timer = None
-        for attr in ("_sub_objects", "_sub_safety", "_pub_tracked", "_pub_health", "_srv_health"):
+        for attr in (
+            "_sub_objects",
+            "_sub_safety",
+            "_pub_tracked",
+            "_pub_health",
+            "_pub_status",
+            "_pub_dashboard_summary",
+            "_srv_health",
+        ):
             resource = getattr(self, attr, None)
             if resource is not None:
                 for destroy in (

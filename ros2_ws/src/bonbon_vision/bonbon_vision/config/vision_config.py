@@ -33,7 +33,10 @@ logger = logging.getLogger(__name__)
 class DetectorConfig:
     """YOLO / fallback object-detector settings."""
 
-    # Backend: "yolo" | "hog" | "mock" | "degraded"
+    # Backend: "yolo" | "runtime" | "hog" | "mock" | "degraded"
+    # "runtime" goes through bonbon_ai_runtime's RuntimeSelector (Hailo/CPU/
+    # TensorRT/Mock) instead of calling ultralytics directly — see
+    # detectors/runtime_adapter_detector.py.
     backend: str = "mock"
 
     # Path to YOLO weights file — MUST be set when backend="yolo"
@@ -61,6 +64,14 @@ class DetectorConfig:
 
     # Use FP16 inference (requires CUDA or Metal)
     half_precision: bool = False
+
+    # ── backend="runtime" only (bonbon_ai_runtime.RuntimeSelector) ─────────────
+    # Mode: "auto" | "hailo" | "cpu" | "tensorrt" | "mock". "auto" prefers
+    # Hailo when a real AI HAT is present, honestly falls back otherwise.
+    runtime_mode: str = "auto"
+    runtime_priority: list[str] = field(default_factory=lambda: ["hailo", "cpu", "mock"])
+    hailo_hef_path: str = ""
+    cpu_onnx_path: str = ""
 
     def validate(self) -> None:
         if self.backend == "yolo" and not self.model_path:
@@ -284,6 +295,12 @@ class VisionConfig:
         cfg.detector.inference_timeout_sec = _p("detector_timeout_sec", 1.0)
         cfg.detector.max_consecutive_timeouts = int(_p("detector_max_timeouts", 3))
         cfg.detector.half_precision = bool(_p("detector_half", False))
+        cfg.detector.runtime_mode = _p("detector_runtime_mode", "auto")
+        cfg.detector.runtime_priority = list(
+            _p("detector_runtime_priority", ["hailo", "cpu", "mock"])
+        )
+        cfg.detector.hailo_hef_path = _p("detector_hailo_hef_path", "")
+        cfg.detector.cpu_onnx_path = _p("detector_cpu_onnx_path", "")
 
         # Face
         cfg.face.detect_backend = _p("face_detect_backend", "mock")

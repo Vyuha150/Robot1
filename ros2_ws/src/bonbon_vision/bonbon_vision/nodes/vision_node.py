@@ -291,6 +291,10 @@ class VisionNode(LifecycleNode):
         self.declare_parameter("detector_timeout_sec", 1.0)
         self.declare_parameter("detector_max_timeouts", 3)
         self.declare_parameter("detector_half", False)
+        self.declare_parameter("detector_runtime_mode", "auto")
+        self.declare_parameter("detector_runtime_priority", ["hailo", "cpu", "mock"])
+        self.declare_parameter("detector_hailo_hef_path", "")
+        self.declare_parameter("detector_cpu_onnx_path", "")
         # Face
         self.declare_parameter("face_detect_backend", "mock")
         self.declare_parameter("face_recognize_backend", "mock")
@@ -723,6 +727,20 @@ class VisionNode(LifecycleNode):
                 return YoloDetector(self._cfg.detector, self._cfg.hfov_deg)
             except ImportError:
                 self.get_logger().warning(f"[{NODE_NAME}] YOLO unavailable — falling back to mock")
+                return MockDetector(self._cfg.detector, self._cfg.hfov_deg)
+        elif backend == "runtime":
+            # Goes through bonbon_ai_runtime.RuntimeSelector (Hailo/CPU/
+            # TensorRT/Mock) instead of calling ultralytics directly — the
+            # AI-HAT-aware path. Falls back to mock if bonbon_ai_runtime
+            # itself isn't importable (workspace not built with it).
+            try:
+                from ..detectors.runtime_adapter_detector import ObjectDetectorRuntimeAdapter
+
+                return ObjectDetectorRuntimeAdapter(self._cfg.detector, self._cfg.hfov_deg)
+            except ImportError:
+                self.get_logger().warning(
+                    f"[{NODE_NAME}] bonbon_ai_runtime unavailable — falling back to mock"
+                )
                 return MockDetector(self._cfg.detector, self._cfg.hfov_deg)
         elif backend == "mock":
             return MockDetector(self._cfg.detector, self._cfg.hfov_deg)

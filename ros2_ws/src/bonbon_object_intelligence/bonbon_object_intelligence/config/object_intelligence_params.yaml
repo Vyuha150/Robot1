@@ -23,3 +23,13 @@ object_intelligence_node:
     # OCR is off by default — MockOCRBackend never fabricates text; only
     # enable once a real backend is wired in.
     enable_ocr: false
+
+    # LowConfidenceObjectHandler — a published (calibration-passed)
+    # detection below this is never treated as actionable on its own.
+    actionable_confidence_threshold: 0.6
+
+    # PiObjectInferenceScheduler — Pi frame-rate + bounded-queue policy,
+    # independent of the camera's raw rate. Defaults match
+    # config/pi_perception_profile.yaml's object_detection entry.
+    target_fps: 8.0
+    bounded_queue_size: 2
