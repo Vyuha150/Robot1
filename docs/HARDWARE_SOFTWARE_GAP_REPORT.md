@@ -14,30 +14,42 @@ no code was changed to produce this report.
 
 ---
 
-## 1. CRITICAL: Pi-3 has no base-drive actuation
+## 1. RESOLVED (Phase 6): Pi-3 base-drive actuation now implemented
 
 **Hardware:** Cytron SmartDrive MDDS30 dual 30A motor driver + Rhino 24V
 60RPM 100W drive motors.
 
-**Finding:** No file in the repository mentions "cytron", "mdds30", or any
-wheel/base motor controller. `bonbon_hal`'s driver directories cover camera,
-microphone, speaker, lidar, servo (Dynamixel), IMU, battery, and e-stop —
-**not** drive motors. The safety gate (`bonbon_safety/safety_gate_node.py`)
-already publishes a `/cmd_vel`-equivalent topic as the sole sanctioned
-motion-command channel, but nothing on the other end converts that into PWM/
-serial commands for the Cytron controller, and nothing reports wheel
-odometry back to Nav2 for localization.
+**Original finding (2026-07-01):** No file in the repository mentioned
+"cytron", "mdds30", or any wheel/base motor controller — the single most
+severe gap in the entire repo, true regardless of the 3-Pi split.
 
-**Impact:** Nav2 can plan a path and the safety gate can approve a velocity
-command, but the physical base cannot move. This is true regardless of the
-3-Pi split — it would be true even in single-machine monolithic mode. It is
-the single most severe gap in the entire repo.
+**Resolution (Phase 6, same date):**
+- `bonbon_hal/drivers/motor/cytron_mdds30_driver.py` —
+  `CytronMDDS30Driver`, using Cytron's documented Simplified Serial
+  Interface (one byte per channel over UART). Mirrors every other real
+  driver's lazy-SDK-import + honest-`DriverFault` pattern
+  (`OrbbecDriver`, `RplidarDriver`, `OAKDLiteDriver`). `has_encoders =
+  False` honestly, since the MDDS30 reports no encoder ticks and whether
+  the Rhino motors have encoders fitted is unconfirmed —
+  `read_wheels()` is an explicit open-loop estimate, never fabricated
+  closed-loop odometry. `bonbon_hal/nodes/motor_node.py` is the thin
+  ROS2 wrapper, added to `hal.launch.py` behind a new `launch_motor` flag
+  (defaults on; explicitly disabled in Pi-2's `human_ai_bringup.launch.py`
+  since it's Pi-3 hardware).
+- New `bonbon_base_controller` package (kinematics/policy layer, same
+  HAL/policy split as `camera_node`/`vision_node`): `DiffDriveKinematics`
+  converts the safety-gate-approved `/cmd_vel` into per-wheel speeds
+  (clamping preserves the requested turn ratio rather than independently
+  clipping the faster wheel); `OdometryIntegrator` dead-reckons wheel
+  distance readings into `nav_msgs/Odometry` for Nav2. 30 tests, both
+  pure Python with no rclpy dependency.
 
-**Required development:** a new `bonbon_drive_motors` (or
-`bonbon_motor_cytron_mdds30`, matching the brief's Phase 6 naming) HAL
-package: PWM or serial driver for the Cytron MDDS30, a motor node that
-subscribes to the approved `/cmd_vel` topic and translates it to left/right
-wheel commands, and a wheel-odometry publisher for Nav2's localization input.
+**Still open:** `wheel_base_m` (default 0.40m) is a placeholder pending
+physical measurement during Pi-3 hardware bring-up — see
+`bonbon_base_controller/README.md`. Neither driver has been run against
+real hardware in this session (no Pi-3 board available); `has_encoders`
+honesty means odometry accuracy is capped until real encoders (if any)
+are confirmed and wired in.
 
 ## 2. CRITICAL: Pi-3 has no NEMA 17 stepper support
 
@@ -153,9 +165,9 @@ rather than as a code gap.
 
 | # | Gap | Severity | Pi | New package needed |
 |---|---|---|---|---|
-| 1 | No Cytron MDDS30 / Rhino drive-motor control | CRITICAL | Pi-3 | `bonbon_motor_cytron_mdds30` + `bonbon_base_controller` |
+| 1 | ~~No Cytron MDDS30 / Rhino drive-motor control~~ | **RESOLVED** (Phase 6) | Pi-3 | `bonbon_hal` (`CytronMDDS30Driver`+`motor_node`) + `bonbon_base_controller` |
 | 2 | No NEMA 17 stepper support | CRITICAL (pending role clarification) | Pi-3 | `bonbon_stepper_controller` |
-| 3 | No OAK-D Lite driver | HIGH | Pi-2 | `OAKDLiteDriver` in `bonbon_hal` / `bonbon_oakd_vision` |
+| 3 | ~~No OAK-D Lite driver~~ | **RESOLVED** (Phase 5) | Pi-2 | `OAKDLiteDriver` in `bonbon_hal` |
 | 4 | No PAM8610-specific amp control | MEDIUM | Pi-2 | optional extension to `AlsaSpeakerDriver` |
 | 5 | No standalone face-identity API | MEDIUM | Pi-2 | dashboard endpoint only, Phase 8 |
 | 6 | No kiosk-mode touchscreen config | LOW | Pi-1 | deployment script only |

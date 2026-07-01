@@ -56,6 +56,18 @@ servo_node:
     reconnect_base_delay_sec: 1.0
     reconnect_max_delay_sec:  15.0
 
+# ── Motor node (Cytron SmartDrive MDDS30 -- Rhino 24V 60RPM 100W wheel motors) ─
+motor_node:
+  ros__parameters:
+    driver_mode:   "mock"
+    data_rate_hz:  20.0
+    port:          "/dev/ttyUSB2"
+    baudrate:      115200
+    max_speed_mps: 1.0
+    reconnect_max_attempts:   5
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  15.0
+
 # ── Battery node (INA226) ─────────────────────────────────────────────────────
 battery_node:
   ros__parameters:

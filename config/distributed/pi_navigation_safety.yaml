@@ -6,13 +6,16 @@
 # docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md and
 # docs/INTER_PI_COMMUNICATION_POLICY.md for the full authority chain.
 #
-# NOTE (Phase 1 audit finding): bonbon_motor_cytron_mdds30 and
-# bonbon_stepper_controller do not exist in the repo yet — see
-# docs/HARDWARE_SOFTWARE_GAP_REPORT.md items 1-2. This profile documents
-# the INTENDED final package set; systemd units for those two packages
-# must not be enabled until the drivers exist (a stub/mock is acceptable
-# for dev-machine testing, matching this repo's existing MockDetector /
-# MockRuntime pattern — never a fake PASS on real hardware).
+# NOTE (Phase 1 audit finding, updated Phase 6): bonbon_motor_cytron_mdds30
+# is now implemented as bonbon_hal's CytronMDDS30Driver + motor_node
+# (raw hardware I/O, same HAL-centralization pattern as every other Pi-3
+# physical device), and bonbon_base_controller (kinematics/odometry
+# policy layer) is a new package. bonbon_stepper_controller is still NOT
+# implemented — see docs/HARDWARE_SOFTWARE_GAP_REPORT.md item 2 (severity
+# pending clarification of which joint(s), if any, the steppers drive).
+# Neither the Cytron driver nor bonbon_base_controller has been run
+# against real hardware yet -- mock/open-loop-estimate only until Pi-3
+# hardware bring-up confirms wheel_base_m and whether wheel encoders exist.
 
 pi_role: navigation_safety
 static_ip: 192.168.10.13
@@ -20,8 +23,8 @@ static_ip: 192.168.10.13
 packages:
   - bonbon_navigation_bringup
   - bonbon_lidar_rplidar
-  - bonbon_motor_cytron_mdds30    # NOT YET IMPLEMENTED — see gap report item 1
-  - bonbon_base_controller        # NOT YET IMPLEMENTED — see gap report item 1
+  - bonbon_hal                    # owns CytronMDDS30Driver + motor_node (raw I/O)
+  - bonbon_base_controller        # diff-drive kinematics + odometry (policy layer)
   - bonbon_stepper_controller     # NOT YET IMPLEMENTED — see gap report item 2
   - bonbon_servo_controller       # = existing bonbon_hal servo_node (Dynamixel)
   - bonbon_motion_safety
@@ -32,7 +35,8 @@ systemd_services:
   - bonbon-safety-supervisor.service    # starts FIRST, before any actuation
   - bonbon-lidar.service
   - bonbon-servo-controller.service
-  - bonbon-base-controller.service      # blocked until motor driver exists
+  - bonbon-motor.service                # bonbon_hal motor_node (Cytron MDDS30)
+  - bonbon-base-controller.service
   - bonbon-stepper-controller.service   # blocked until stepper driver exists
   - bonbon-navigation.service
   - bonbon-motion-safety.service
@@ -78,8 +82,9 @@ boot_order:
   1: bonbon-safety-supervisor.service   # must be up before ANY actuation node starts
   2: bonbon-lidar.service
   3: bonbon-servo-controller.service    # actuation starts DISABLED until safety confirms
-  4: bonbon-base-controller.service
-  5: bonbon-stepper-controller.service
-  6: bonbon-navigation.service
-  7: bonbon-motion-safety.service
-  8: bonbon-navigation-monitor.service
+  4: bonbon-motor.service               # also starts DISABLED (motor_node emergency-stops on deactivate)
+  5: bonbon-base-controller.service
+  6: bonbon-stepper-controller.service
+  7: bonbon-navigation.service
+  8: bonbon-motion-safety.service
+  9: bonbon-navigation-monitor.service

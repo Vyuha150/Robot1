@@ -27,6 +27,7 @@ setup(
             "lidar_node       = bonbon_hal.nodes.lidar_node:main",
             "imu_node         = bonbon_hal.nodes.imu_node:main",
             "servo_node       = bonbon_hal.nodes.servo_node:main",
+            "motor_node       = bonbon_hal.nodes.motor_node:main",
             "battery_node     = bonbon_hal.nodes.battery_node:main",
             "mic_node         = bonbon_hal.nodes.microphone_node:main",
             "speaker_node     = bonbon_hal.nodes.speaker_node:main",

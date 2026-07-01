@@ -24,8 +24,8 @@ Without this package, there was no single command that brings up
 
 ## What it deliberately does NOT launch
 
-`bonbon_hal`'s lidar/servo/estop/battery/imu nodes are explicitly disabled
-(`launch_lidar:=false` etc.) — those are Pi-3 hardware. Only
+`bonbon_hal`'s lidar/servo/motor/estop/battery/imu nodes are explicitly
+disabled (`launch_lidar:=false` etc.) — those are Pi-3 hardware. Only
 camera/mic/speaker are started, using the Pi-2 hardware backends
 (`config/pi2_hal_overrides.yaml`: OAK-D Lite, ReSpeaker XVF3800, generic
 ALSA).

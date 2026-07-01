@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_base_controller</name>
+  <version>1.0.0</version>
+  <description>
+    Differential-drive kinematics and dead-reckoning odometry for the
+    Rhino 24V wheel motors (Cytron MDDS30, via bonbon_hal's motor_node).
+    Converts the safety_gate_node-approved /cmd_vel into per-wheel speed
+    commands, and integrates wheel distance readings into
+    nav_msgs/Odometry for Nav2. Has no motion authority of its own -- it
+    only translates an already-approved velocity command; it never
+    originates one. This is the fix for
+    docs/HARDWARE_SOFTWARE_GAP_REPORT.md item 1 (CRITICAL), alongside
+    bonbon_hal's CytronMDDS30Driver (the raw hardware I/O layer this
+    package sits above).
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>bonbon_hal</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
