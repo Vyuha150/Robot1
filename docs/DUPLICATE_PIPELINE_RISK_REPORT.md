@@ -75,3 +75,81 @@ Phase 2's fix is a deployment-topology guard, not a change to any node.
 Exactly **one** active `safety_supervisor_node` in every runtime mode,
 enforced by a validator that fails deployment if `bonbon-core` and any
 modular service are enabled together, plus a runtime duplicate-node check.
+
+---
+
+## Addendum (2026-07-01): Three-Pi distributed deployment — new duplication risks
+
+**Scope:** the three-Pi brief (PI-1 UI/API, PI-2 Human AI, PI-3 Navigation/
+Motion/Safety). The single-machine defect above is fully resolved and stays
+resolved for single-Pi deployments — this addendum covers **new** risks that
+only exist once nodes are split across three physically separate machines.
+Read-only finding; no code changed.
+
+### New risk 1: a Pi accidentally launching `bonbon-core` in addition to its role
+
+The existing `Conflicts=bonbon-core.service` guard only prevents *one Pi*
+from running both the monolithic stack and its modular services
+simultaneously. It does **not** prevent a misconfigured Pi-1 (say) from
+having `bonbon-core.service` enabled at all — on a single Pi that would just
+be "monolithic mode," but on a 3-Pi deployment it would mean Pi-1 runs a
+**second, fully-featured safety supervisor** in addition to Pi-3's, with no
+existing cross-machine check to catch it. This is the same class of bug as
+the resolved single-machine one, but the "two supervisors" now live on two
+different IP addresses instead of two local processes — `ros2 node list`
+alone can no longer detect it locally; detection requires a **network-aware**
+check.
+
+**Required outcome (Phase 8 of the 3-Pi brief):** extend
+`check_duplicate_ros_nodes.sh` (or a new
+`scripts/check_inter_pi_communication.py`) to enumerate the live ROS2 graph
+across the shared `ROS_DOMAIN_ID` and fail if more than one
+`safety_supervisor_node`, `behavior_engine_node`, or `llm_orchestrator_node`
+is visible network-wide — not just locally per machine.
+
+### New risk 2: Pi-2 or Pi-1 accidentally opening a camera/mic device via a stray monolithic launch
+
+Today's "no duplicate camera/mic pipeline" finding (see main report above)
+is verified for a single machine's process tree. If Pi-1 or Pi-3 were ever
+started with `bringup.launch.py` instead of a Pi-scoped launch file (see
+`DISTRIBUTED_DEPLOYMENT_BLOCKERS.md`, Blocker 2 — no per-Pi launch files
+exist yet), they would attempt to open camera/microphone devices that either
+don't physically exist on that Pi (harmless local failure) or, worse, if a
+future deployment mistakenly attaches the same physical camera/mic to two
+Pis (e.g. over a USB extender or shared capture device), would create a
+genuine duplicate-pipeline condition indistinguishable from the resolved
+single-machine bug.
+
+**Required outcome (Phase 2 of the 3-Pi brief):** per-Pi launch files that
+make it structurally impossible to launch `bringup.launch.py`'s full stack
+on any single Pi in a 3-Pi deployment — this is a **prerequisite**, not just
+a convenience (see Blocker 2).
+
+### New risk 3: Pi-2's LLM/perception proposals reaching Pi-3 through an unintended path
+
+The brief requires all inter-Pi movement-related communication to flow as
+typed proposals through `/bonbon/behavior/proposal` →
+`bonbon_motion_approval_gateway` → Pi-3's safety supervisor (Phase 3). Today,
+no such distributed topic or gateway exists yet (confirmed: zero occurrences
+of "behavior/proposal", "motion_approval_gateway", "authority_manager" in
+the repo). The risk is *architectural*, not yet realized in code: once
+built, if any Pi-2 node were given a second, informal way to reach Pi-3
+(e.g. a raw string topic, a direct service call bypassing the gateway), that
+would recreate the "two paths to the same dangerous action" pattern this
+report exists to catch — just one level higher in the stack (behavior
+proposals instead of raw motor commands).
+
+**Required outcome (Phase 3 of the 3-Pi brief):** exactly one message type
+and one topic (`/bonbon/behavior/proposal`) for Pi-2→Pi-3 movement-related
+communication, with `bonbon_motion_approval_gateway` as the sole consumer
+authorized to forward proposals into Pi-3's existing safety-gate chain — no
+second path.
+
+### Net assessment
+
+No **new** duplication exists in the codebase today (there is no Pi-2/Pi-3
+distributed code yet to duplicate). All three risks above are **preventive**
+— they describe how the already-solved single-machine duplication bug could
+reappear in a new form once Phases 2/3/8 are implemented, and what guard
+each phase must include to avoid reintroducing it. This report should be
+re-verified (not just re-read) after Phases 2, 3, and 8 land.
