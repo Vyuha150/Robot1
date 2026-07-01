@@ -38,6 +38,7 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
+from bonbon_operator_api.ros2.distributed_status_tracker import DistributedStatusTracker
 from bonbon_operator_api.ros2.status_aggregator import RobotStatusAggregator
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,9 @@ try:
     import rclpy
     from bonbon_msgs.msg import (
         ActuationStatus,
+        BehaviorDecision,
+        BehaviorProposal,
+        DegradedModeStatus,
         ModuleHealth,
         NavigationStatus,
         PerceptionEfficiencyMetrics,
@@ -78,6 +82,26 @@ _TOPIC_ACTUATION_STATUS = "/bonbon/actuation/status"  # bonbon_actuation, Actuat
 _TOPIC_PERSON_TRACKS = "/bonbon/persons/tracks"  # bonbon_multi_person_tracker, PersonTrack
 _TOPIC_RESOURCE_USAGE = "/bonbon/system/resource_usage"  # bonbon_safety, ResourceUsage
 _TOPIC_PERCEPTION_METRICS = "/bonbon/perception_efficiency/metrics"  # bonbon_perception_efficiency
+
+# Three-Pi distributed topics — see config/distributed/topic_contracts.yaml
+# and docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md. Pi-1 only ever READS
+# safety/approval, safety/rejection, degraded_mode, and pi2/pi3 heartbeats
+# (never publishes anything actuation-relevant); it WRITES operator
+# proposals only, never a direct command.
+_TOPIC_SAFETY_APPROVAL = (
+    "/bonbon/safety/approval"  # bonbon_motion_approval_gateway, BehaviorDecision
+)
+_TOPIC_SAFETY_REJECTION = (
+    "/bonbon/safety/rejection"  # bonbon_motion_approval_gateway, BehaviorDecision
+)
+_TOPIC_DEGRADED_MODE = (
+    "/bonbon/system/degraded_mode"  # bonbon_authority_manager, DegradedModeStatus
+)
+_TOPIC_PI2_HEARTBEAT = "/bonbon/pi2/heartbeat"  # bonbon_distributed_safety, ModuleHealth
+_TOPIC_PI3_HEARTBEAT = "/bonbon/pi3/heartbeat"  # bonbon_distributed_safety, ModuleHealth
+_TOPIC_OPERATOR_PROPOSAL = (
+    "/bonbon/operator/proposal"  # THIS bridge publishes, bonbon_msgs/BehaviorProposal
+)
 
 # Curated set of ModuleHealth topics surfaced as dashboard module cards.
 # There is no single aggregate "/bonbon/modules/status" topic anywhere in
@@ -172,6 +196,9 @@ class ROS2DashboardBridge:
         self._executor = None
         self._spin_thread: threading.Thread | None = None
         self._running = False
+        # Populated even when the bridge isn't ready, so REST/WS callers
+        # always get a real (if empty) snapshot rather than a KeyError.
+        self._offline_distributed_tracker = DistributedStatusTracker()
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -292,6 +319,36 @@ class ROS2DashboardBridge:
     def call_rag_query(self, query: str, collection: str, top_k: int) -> dict[str, Any]:
         return self._not_implemented("rag_query")
 
+    def call_operator_proposal(
+        self,
+        proposal_type: str,
+        proposal_content: str,
+        urgency: float,
+        justification: str,
+        person_id: str = "",
+    ) -> dict[str, Any]:
+        """Publish an operator-sourced BehaviorProposal to Pi-3's
+        motion_approval_gateway. This is NOT a command — it is a proposal
+        that Pi-3's safety supervisor may approve, reject, or escalate,
+        exactly like any LLM/gesture/rule-engine proposal from Pi-2 (see
+        docs/INTER_PI_COMMUNICATION_POLICY.md Rule 10: no source gets a
+        bypass). Publishing succeeding only means the proposal was sent,
+        NOT that it will be approved.
+        """
+        if not self._ready():
+            return {"success": False, "error": "bridge not ready"}
+        return self._node.publish_operator_proposal(
+            proposal_type, proposal_content, urgency, justification, person_id
+        )
+
+    def get_distributed_snapshot(self) -> dict[str, Any]:
+        """Pi-1's live view of Pi-2/Pi-3 liveness + the most recent motion
+        approval/rejection/degraded-mode state. Honest even when the
+        bridge isn't running: every Pi reports LOST, never a stale-but-
+        plausible-looking cached value."""
+        tracker = self._node._distributed if self._ready() else self._offline_distributed_tracker
+        return {"bridge_ready": self._ready(), **tracker.snapshot()}
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -346,6 +403,7 @@ if _ROS2_AVAILABLE:
             self._agg = aggregator
             self._emit = emit_cb
             self._person_track_ids: set[str] = set()
+            self._distributed = DistributedStatusTracker()
 
             _best_effort = QoSProfile(
                 depth=10,
@@ -391,12 +449,51 @@ if _ROS2_AVAILABLE:
                     _best_effort,
                 )
 
+            # Three-Pi distributed subscriptions — read-only, see
+            # docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md. Pi-1 never
+            # subscribes to /bonbon/behavior/proposal or /bonbon/motion/
+            # approved_command's raw command content, only the approval/
+            # rejection/degraded-mode OUTCOME and peer liveness.
+            self.create_subscription(
+                BehaviorDecision,
+                _TOPIC_SAFETY_APPROVAL,
+                self._on_safety_approval,
+                _reliable_transient,
+            )
+            self.create_subscription(
+                BehaviorDecision,
+                _TOPIC_SAFETY_REJECTION,
+                self._on_safety_rejection,
+                _reliable_transient,
+            )
+            self.create_subscription(
+                DegradedModeStatus,
+                _TOPIC_DEGRADED_MODE,
+                self._on_degraded_mode,
+                _reliable_transient,
+            )
+            self.create_subscription(
+                ModuleHealth,
+                _TOPIC_PI2_HEARTBEAT,
+                lambda msg: self._distributed.record_heartbeat("pi2"),
+                _best_effort,
+            )
+            self.create_subscription(
+                ModuleHealth,
+                _TOPIC_PI3_HEARTBEAT,
+                lambda msg: self._distributed.record_heartbeat("pi3"),
+                _best_effort,
+            )
+
             # Service clients — only for commands with a confirmed real target.
             self._cli_navigate = self.create_client(NavigateTo, _SVC_NAVIGATE)
             self._cli_cancel = self.create_client(CancelNavigation, _SVC_CANCEL_NAVIGATION)
             self._cli_get_charger = self.create_client(GetNearestCharger, _SVC_GET_NEAREST_CHARGER)
             self._pub_tts_request = self.create_publisher(
                 TTSRequest, _TOPIC_TTS_REQUEST, _best_effort
+            )
+            self._pub_operator_proposal = self.create_publisher(
+                BehaviorProposal, _TOPIC_OPERATOR_PROPOSAL, _best_effort
             )
 
         # -- Subscription callbacks --
@@ -524,7 +621,67 @@ if _ROS2_AVAILABLE:
             self._agg.update_module(module_key, data)
             self._emit("diagnostics", "module_status_changed", {"module": module_key, **data})
 
+        def _decision_to_dict(self, msg: "BehaviorDecision") -> dict[str, Any]:
+            return {
+                "event_id": msg.event_id,
+                "proposal_event_id": msg.proposal_event_id,
+                "decision": msg.decision,
+                "approved_action": msg.approved_action,
+                "approved_content": msg.approved_content,
+                "safety_approved": msg.safety_approved,
+                "rejection_reason": msg.rejection_reason,
+                "modification_note": msg.modification_note,
+                "confidence": msg.confidence,
+                "operator_alerted": msg.operator_alerted,
+            }
+
+        def _on_safety_approval(self, msg: BehaviorDecision) -> None:
+            data = self._decision_to_dict(msg)
+            self._distributed.record_approval(data)
+            self._emit("safety-approvals", "proposal_approved", data)
+
+        def _on_safety_rejection(self, msg: BehaviorDecision) -> None:
+            data = self._decision_to_dict(msg)
+            self._distributed.record_rejection(data)
+            self._emit("safety-rejections", "proposal_rejected", data)
+            if data["operator_alerted"]:
+                self._emit("safety-events", "proposal_escalated", data)
+
+        def _on_degraded_mode(self, msg: DegradedModeStatus) -> None:
+            data = {
+                "is_degraded": msg.is_degraded,
+                "reason": msg.reason,
+                "duration_sec": msg.duration_sec,
+            }
+            self._distributed.record_degraded_mode(data)
+            self._emit("degraded-mode", "degraded_mode_changed", data)
+
         # -- Command dispatch (real service/topic clients) --
+
+        def publish_operator_proposal(
+            self,
+            proposal_type: str,
+            proposal_content: str,
+            urgency: float,
+            justification: str,
+            person_id: str,
+        ) -> dict[str, Any]:
+            msg = BehaviorProposal()
+            msg.event_id = str(uuid.uuid4())
+            msg.source_module = "operator"
+            msg.person_id = person_id or ""
+            msg.proposal_type = proposal_type
+            msg.proposal_content = proposal_content
+            msg.urgency = float(urgency)
+            msg.justification = justification or ""
+            msg.safety_check_required = True
+            self._pub_operator_proposal.publish(msg)
+            return {
+                "success": True,
+                "service": "operator_proposal",
+                "event_id": msg.event_id,
+                "note": "Proposal sent to Pi-3 for safety validation -- not yet approved.",
+            }
 
         def publish_speak(self, text: str, language: str, priority: str) -> dict[str, Any]:
             _PRIORITY_MAP = {"low": 1, "normal": 5, "high": 10}

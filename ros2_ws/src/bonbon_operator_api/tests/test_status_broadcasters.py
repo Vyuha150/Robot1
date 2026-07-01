@@ -8,6 +8,7 @@ TestClient/lifespan just to prove the snapshot shape is real, not fabricated.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 from bonbon_operator_api.ros2.status_aggregator import RobotStatusAggregator
@@ -15,26 +16,54 @@ from bonbon_operator_api.websocket.status_broadcasters import (
     CHANNEL_SNAPSHOTS,
     ai_runtime_snapshot,
     boot_topology_snapshot,
+    degraded_mode_snapshot,
     deployment_readiness_snapshot,
+    distributed_status_snapshot,
+    pi1_status_snapshot,
     pi_efficiency_snapshot,
+    pi_status_snapshot,
+    safety_approvals_snapshot,
     validation_snapshot,
 )
+
+_EMPTY_DISTRIBUTED_SNAPSHOT = {
+    "bridge_ready": False,
+    "pi_links": {"pi1": "lost", "pi2": "lost", "pi3": "lost"},
+    "last_approval": None,
+    "last_rejection": None,
+    "last_degraded_mode": None,
+    "approval_count": 0,
+    "rejection_count": 0,
+}
 
 
 @pytest.fixture
 def fake_app(tmp_path):
     aggregator = RobotStatusAggregator(offline_timeout_sec=15.0)
     cfg = SimpleNamespace(project_status_dir=tmp_path)
-    return SimpleNamespace(state=SimpleNamespace(cfg=cfg, status_aggregator=aggregator))
+    bridge = MagicMock()
+    bridge.get_distributed_snapshot.return_value = dict(_EMPTY_DISTRIBUTED_SNAPSHOT)
+    return SimpleNamespace(
+        state=SimpleNamespace(cfg=cfg, status_aggregator=aggregator, ros2_bridge=bridge)
+    )
 
 
-def test_all_five_channels_registered():
+def test_all_channel_snapshots_registered():
     assert set(CHANNEL_SNAPSHOTS) == {
         "boot-topology",
         "ai-runtime",
         "pi-efficiency",
         "validation",
         "deployment-readiness",
+        # Three-Pi distributed channels (docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md)
+        "distributed-status",
+        "pi1-status",
+        "pi2-status",
+        "pi3-status",
+        "safety-approvals",
+        "safety-rejections",
+        "degraded-mode",
+        "component-health",
     }
 
 
@@ -91,3 +120,46 @@ def test_deployment_readiness_snapshot_reflects_blocking_issues(fake_app):
     assert snap["blocking_issue_count"] == 1
     assert snap["ready"] is False
     assert "blocking issue" in snap["reasons"][0]
+
+
+# ── Three-Pi distributed channels ────────────────────────────────────────────
+# These read the REAL config/distributed/*.yaml (via status_broadcasters'
+# module-level _REPO_ROOT), same as ai_runtime_snapshot/pi_efficiency_snapshot
+# above read the real config/ directory rather than fake_app's tmp_path --
+# only the bridge (peer liveness/approvals) is mocked, per fake_app fixture.
+
+
+def test_distributed_status_snapshot_reads_real_network_config(fake_app):
+    snap = distributed_status_snapshot(fake_app)
+    assert snap["available"] is True
+    assert snap["deployment_mode"] == "three_pi"
+    assert set(snap["pi_links"].keys()) == {"pi2", "pi3"}
+
+
+def test_pi1_status_snapshot_is_trivially_online(fake_app):
+    snap = pi1_status_snapshot(fake_app)
+    assert snap["pi_id"] == "pi1"
+    assert snap["link_state"] == "online"
+
+
+def test_pi_status_snapshot_reflects_bridge_link_state(fake_app):
+    fake_app.state.ros2_bridge.get_distributed_snapshot.return_value = {
+        **_EMPTY_DISTRIBUTED_SNAPSHOT,
+        "bridge_ready": True,
+        "pi_links": {"pi1": "online", "pi2": "online", "pi3": "stale"},
+    }
+    snap = pi_status_snapshot("pi3")(fake_app)
+    assert snap["pi_id"] == "pi3"
+    assert snap["link_state"] == "stale"
+    assert snap["bridge_ready"] is True
+
+
+def test_safety_approvals_snapshot_honest_when_no_data(fake_app):
+    snap = safety_approvals_snapshot(fake_app)
+    assert snap["last_approval"] is None
+    assert snap["approval_count"] == 0
+
+
+def test_degraded_mode_snapshot_defaults_to_not_degraded(fake_app):
+    snap = degraded_mode_snapshot(fake_app)
+    assert snap["is_degraded"] is False

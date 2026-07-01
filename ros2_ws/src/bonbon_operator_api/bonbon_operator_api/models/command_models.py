@@ -63,6 +63,22 @@ class RAGQueryRequest(BaseModel):
     min_score: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class OperatorProposalCommand(BaseModel):
+    """A movement/behavior-relevant request from the Pi-1 dashboard,
+    published as a bonbon_msgs/BehaviorProposal (source_module='operator')
+    for Pi-3's motion_approval_gateway to validate -- never a direct
+    command. See docs/INTER_PI_COMMUNICATION_POLICY.md Rule 5."""
+
+    proposal_type: str = Field(
+        pattern=r"^(navigate|approach|retreat|dock|gesture|speak|"
+        r"ask_clarification|pause|resume|alert_operator|ignore)$"
+    )
+    proposal_content: str = Field(default="", max_length=500)
+    urgency: float = Field(default=0.1, ge=0.0, le=1.0)
+    justification: str = Field(default="operator_requested", max_length=200)
+    person_id: str = Field(default="", max_length=64)
+
+
 class CommandResponse(BaseModel):
     accepted: bool
     command_id: str

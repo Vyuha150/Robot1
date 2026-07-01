@@ -43,6 +43,15 @@ VALID_CHANNELS: set[str] = {
     "pi-efficiency",
     "validation",
     "deployment-readiness",
+    # Three-Pi distributed channels — see docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md
+    "distributed-status",
+    "pi1-status",
+    "pi2-status",
+    "pi3-status",
+    "safety-approvals",
+    "safety-rejections",
+    "degraded-mode",
+    "component-health",
 }
 
 

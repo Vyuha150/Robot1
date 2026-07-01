@@ -89,6 +89,20 @@ def mock_bridge():
     bridge.call_get_config.return_value = {"success": True, "value": None}
     bridge.call_memory_query.return_value = {"success": True, "results": []}
     bridge.call_rag_query.return_value = {"success": True, "results": []}
+    bridge.call_operator_proposal.return_value = {
+        "success": True,
+        "event_id": "test-event-id",
+        "note": "Proposal sent to Pi-3 for safety validation -- not yet approved.",
+    }
+    bridge.get_distributed_snapshot.return_value = {
+        "bridge_ready": False,
+        "pi_links": {"pi1": "lost", "pi2": "lost", "pi3": "lost"},
+        "last_approval": None,
+        "last_rejection": None,
+        "last_degraded_mode": None,
+        "approval_count": 0,
+        "rejection_count": 0,
+    }
     return bridge
 
 

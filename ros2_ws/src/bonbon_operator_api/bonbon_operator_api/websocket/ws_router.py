@@ -37,6 +37,14 @@ _CHANNEL_MIN_PERMISSION = {
     "pi-efficiency": "diagnostics:read",
     "validation": "diagnostics:read",
     "deployment-readiness": "diagnostics:read",
+    "distributed-status": "diagnostics:read",
+    "pi1-status": "diagnostics:read",
+    "pi2-status": "diagnostics:read",
+    "pi3-status": "diagnostics:read",
+    "safety-approvals": "robot:read",
+    "safety-rejections": "robot:read",
+    "degraded-mode": "diagnostics:read",
+    "component-health": "diagnostics:read",
 }
 
 ws_router = APIRouter(prefix="/ws", tags=["websocket"])

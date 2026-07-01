@@ -130,6 +130,64 @@ def validation_snapshot(app: FastAPI) -> dict[str, Any]:
     }
 
 
+def _distributed_snapshot(app: FastAPI) -> dict[str, Any]:
+    bridge = app.state.ros2_bridge
+    snap = bridge.get_distributed_snapshot()
+    # pi1 is this Pi -- reachability is trivial (if this endpoint answered,
+    # Pi-1 is up) and not tracked via the peer-heartbeat mechanism; see
+    # bonbon_operator_api/ros2/distributed_status_tracker.py.
+    peer_links = {k: v for k, v in snap["pi_links"].items() if k != "pi1"}
+    return {**snap, "pi_links": peer_links}
+
+
+def distributed_status_snapshot(app: FastAPI) -> dict[str, Any]:
+    network = _read_yaml(_REPO_ROOT / "config" / "distributed" / "robot_network.yaml") or {}
+    return {
+        "available": bool(network),
+        "deployment_mode": network.get("deployment_mode", "unknown"),
+        **_distributed_snapshot(app),
+    }
+
+
+def pi_status_snapshot(pi_id: str):
+    def _build(app: FastAPI) -> dict[str, Any]:
+        snap = _distributed_snapshot(app)
+        return {
+            "pi_id": pi_id,
+            "link_state": snap["pi_links"].get(pi_id, "unknown"),
+            "bridge_ready": snap["bridge_ready"],
+        }
+
+    return _build
+
+
+def pi1_status_snapshot(app: FastAPI) -> dict[str, Any]:
+    # Pi-1's own liveness is trivial: if this handler ran, Pi-1 is up. It is
+    # not tracked via the peer-heartbeat mechanism used for pi2/pi3 (a
+    # process cannot meaningfully await its own heartbeat).
+    return {"pi_id": "pi1", "link_state": "online", "bridge_ready": True}
+
+
+def safety_approvals_snapshot(app: FastAPI) -> dict[str, Any]:
+    snap = _distributed_snapshot(app)
+    return {"last_approval": snap["last_approval"], "approval_count": snap["approval_count"]}
+
+
+def safety_rejections_snapshot(app: FastAPI) -> dict[str, Any]:
+    snap = _distributed_snapshot(app)
+    return {"last_rejection": snap["last_rejection"], "rejection_count": snap["rejection_count"]}
+
+
+def degraded_mode_snapshot(app: FastAPI) -> dict[str, Any]:
+    snap = _distributed_snapshot(app)
+    return snap["last_degraded_mode"] or {"is_degraded": False, "reason": "no data received yet"}
+
+
+def component_health_snapshot(app: FastAPI) -> dict[str, Any]:
+    status = app.state.status_aggregator.get_status()
+    return {"modules": {k: v.model_dump() for k, v in status.modules.items()}}
+
+
 def deployment_readiness_snapshot(app: FastAPI) -> dict[str, Any]:
     status_dir = _status_dir(app)
     issues_data = _read_json(status_dir / "project-status" / "known_issues.json")
@@ -163,4 +221,13 @@ CHANNEL_SNAPSHOTS = {
     "pi-efficiency": pi_efficiency_snapshot,
     "validation": validation_snapshot,
     "deployment-readiness": deployment_readiness_snapshot,
+    # Three-Pi distributed channels
+    "distributed-status": distributed_status_snapshot,
+    "pi1-status": pi1_status_snapshot,
+    "pi2-status": pi_status_snapshot("pi2"),
+    "pi3-status": pi_status_snapshot("pi3"),
+    "safety-approvals": safety_approvals_snapshot,
+    "safety-rejections": safety_rejections_snapshot,
+    "degraded-mode": degraded_mode_snapshot,
+    "component-health": component_health_snapshot,
 }
