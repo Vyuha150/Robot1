@@ -1,0 +1,88 @@
+# pi_human_ai.yaml — PI-2 runtime profile (192.168.10.12).
+#
+# RPi5 8GB + AI HAT/AI HAT+/AI HAT+2. Owns audio, camera, local LLM,
+# perception AI. NEVER commands motors/servos/navigation directly — every
+# output that could affect motion is a proposal, not a command. See
+# docs/FINAL_THREE_PI_ARCHITECTURE.md and docs/PI2_QWEN25_05B_DOWNLOAD_REPORT.md
+# (Phase 9) for the LLM-specific constraints.
+
+pi_role: human_ai
+static_ip: 192.168.10.12
+
+packages:
+  - bonbon_human_ai_bringup
+  - bonbon_oakd_vision
+  - bonbon_respeaker_audio
+  - bonbon_asr                    # = existing bonbon_speech (ASR/VAD)
+  - bonbon_local_llm_gateway      # = existing bonbon_llm, Ollama-backed
+  - bonbon_face_recognition
+  - bonbon_multi_person_tracker
+  - bonbon_object_intelligence
+  - bonbon_gesture_intelligence   # = existing bonbon_gesture
+  - bonbon_affective_ai
+  - bonbon_human_state_fusion
+  - bonbon_tts
+
+systemd_services:
+  - bonbon-oakd-vision.service
+  - bonbon-respeaker-audio.service
+  - bonbon-asr.service
+  - bonbon-local-llm.service
+  - bonbon-face-recognition.service
+  - bonbon-perception-fusion.service   # tracker + object + gesture + affective + human_state_fusion
+  - bonbon-tts.service
+  - bonbon-human-ai-bringup.service
+
+# Subset of config/pi_efficiency_profile.yaml relevant to Pi-2. Safety-
+# critical items (safety_supervisor, e-stop, hal, lidar/nav safety) are
+# Pi-3-only and are NOT run here at all — "shed last" on Pi-2 just means
+# "highest-value perception," not "safety-critical."
+relevant_efficiency_modules:
+  - object_detection
+  - person_detection
+  - gesture_recognition
+  - speech_vad
+  - stt
+  - human_state_fusion
+  - tts
+  - rag
+  - llm
+  - background_emotion
+
+llm:
+  model: qwen2.5:0.5b
+  max_concurrent_requests: 1
+  max_output_tokens: 64
+  initial_timeout_sec: 1.0
+  cloud_api_fallback: false        # hard rule — no cloud fallback by default
+  disable_when:
+    cpu_percent_above: 85
+    temp_c_above: 75
+    safety_state_in: [DANGER, FAULT, SAFE_STOP]
+  resolution_order: [rule_engine, rag, llm]   # LLM is last resort, never first
+
+remote_dependencies:
+  reads_from_pi3:
+    - /bonbon/safety/state          # LLM/perception must know when to go quiet
+    - /bonbon/motion/status
+  writes_to_pi3:
+    - /bonbon/behavior/proposal     # ALL movement-relevant output goes out as a proposal
+
+forbidden:
+  - direct_motor_control
+  - direct_servo_control
+  - direct_navigation_goal_publish
+  - cloud_llm_api_calls_by_default
+  - duplicate_camera_open           # bonbon_oakd_vision is the sole camera owner
+  - duplicate_microphone_open       # bonbon_respeaker_audio is the sole mic owner
+
+boot_order:
+  # AI HAT/model warmup should not block sensor availability being reported.
+  1: bonbon-oakd-vision.service
+  2: bonbon-respeaker-audio.service
+  3: bonbon-asr.service             # requires respeaker-audio healthy
+  4: bonbon-face-recognition.service    # requires oakd-vision healthy
+  5: bonbon-perception-fusion.service   # requires oakd-vision + face-recognition
+  6: bonbon-local-llm.service           # slowest to warm up, started after sensors confirmed
+  7: bonbon-tts.service
+  8: bonbon-human-ai-bringup.service    # orchestrator, last

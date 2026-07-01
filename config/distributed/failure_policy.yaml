@@ -1,0 +1,84 @@
+# failure_policy.yaml — what every Pi does when it loses contact with
+# another Pi. Loaded by bonbon_distributed_network_monitor (Phase 7) and
+# by each Pi's local fault manager (Phase 11). See
+# docs/FAILURE_AND_DEGRADED_MODE_POLICY.md and
+# docs/THREE_PI_FAILURE_BEHAVIOR.md for the full narrative and state machine.
+#
+# Heartbeat thresholds are defined once in config/distributed/robot_network.yaml
+# (heartbeat.stale_after_sec / lost_after_sec) — do not duplicate them here.
+
+policies:
+  # ── Pi-3 loses Pi-1 (dashboard/operator) ─────────────────────────────────
+  pi3_loses_pi1:
+    detection: no /bonbon/pi1/heartbeat for > lost_after_sec
+    behavior: continue_safe_autonomous
+    rationale: >
+      Pi-1 is UI/monitoring only — it holds no safety or actuation
+      authority. Losing it must never affect motion. Pi-3 keeps operating
+      under its last-known safety state and any already-approved
+      navigation goal; no NEW operator proposals can arrive, which is
+      the only operational impact.
+    dashboard_effect: n/a (Pi-1 is the thing that's down)
+    safety_state_change: none
+
+  # ── Pi-3 loses Pi-2 (perception/LLM/audio) ───────────────────────────────
+  pi3_loses_pi2:
+    detection: no /bonbon/pi2/heartbeat for > lost_after_sec
+    behavior: disable_human_interaction_stay_physically_safe
+    rationale: >
+      Pi-2 provides speech, gesture, emotion, and behavior proposals — none
+      of which are required for the robot to remain physically safe.
+      Pi-3's lidar/IMU/servo/e-stop inputs are entirely local and keep
+      functioning. Human-facing interaction (speech, gesture response)
+      stops because its source is gone, not because safety demands it.
+    safety_state_change: DEGRADED (module "human_ai" listed in degraded_modules)
+    actuation_permitted: true          # motion continues to be allowed
+    navigation_permitted: true         # existing/new nav goals from Pi-1 still work
+    human_interaction_permitted: false # no new behavior proposals possible (source is gone)
+
+  # ── Pi-1 loses Pi-3 (safety/navigation authority) ────────────────────────
+  pi1_loses_pi3:
+    detection: no /bonbon/pi3/heartbeat for > lost_after_sec
+    behavior: dashboard_shows_motion_authority_unavailable
+    rationale: >
+      Pi-3 is the sole motion authority. If the dashboard cannot see it,
+      the dashboard must NOT imply it can still command movement — showing
+      stale safety/navigation state as if current would be actively
+      misleading to an operator.
+    dashboard_effect: >
+      All motion-control UI elements disabled; safety/navigation status
+      cards switch to "UNKNOWN — Pi-3 unreachable" (never silently show the
+      last cached value as if live).
+    operator_proposal_behavior: queued_locally_not_discarded   # see INTER_PI_COMMUNICATION_POLICY.md
+
+  # ── Pi-2 loses Pi-3 (perception loses safety/motion context) ─────────────
+  pi2_loses_pi3:
+    detection: no /bonbon/pi3/heartbeat for > lost_after_sec
+    behavior: perception_continues_proposals_paused
+    rationale: >
+      Pi-2 has no actuation authority regardless, so losing Pi-3 changes
+      nothing about physical safety. Pi-2 stops emitting new
+      /bonbon/behavior/proposal messages (there is no safety authority
+      to validate them against) but keeps running perception/ASR/LLM
+      locally so it resumes immediately once Pi-3 reappears.
+    safety_state_change: n/a (Pi-2 has no local safety state to change)
+
+  # ── Pi-2 losing its OWN camera/mic/LLM (not an inter-Pi failure) ─────────
+  pi2_internal_sensor_loss:
+    detection: per-component health topic reports FAULT (Phase 11 fault levels)
+    behavior: must_not_affect_pi3
+    rationale: >
+      A camera, microphone, or LLM crash on Pi-2 is entirely local to
+      Pi-2. It must degrade Pi-2's own capability (reported honestly via
+      /bonbon/pi2/heartbeat payload and /bonbon/system/component_health)
+      and must NEVER be able to reach, stall, or degrade Pi-3's safety or
+      motion behavior — there is no code path from a Pi-2 sensor driver to
+      any Pi-3 topic other than the proposal channel, which simply stops
+      producing proposals.
+
+# ── Network-partition edge case ──────────────────────────────────────────────
+# All three Pis lose contact with each other simultaneously (e.g. switch
+# failure): each Pi falls back to its OWN policy above as if it lost both
+# peers — Pi-3 continues safe autonomous operation using only local sensors,
+# Pi-1 shows everything as unavailable, Pi-2 pauses proposal emission.
+full_partition_behavior: each_pi_applies_its_own_loss_policies_independently

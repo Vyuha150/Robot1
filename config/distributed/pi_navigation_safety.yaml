@@ -1,0 +1,85 @@
+# pi_navigation_safety.yaml — PI-3 runtime profile (192.168.10.13).
+#
+# Owns ALL physical motion authority. This is the only Pi allowed to
+# actuate motors/servos, and the only Pi allowed to approve or reject a
+# movement proposal from Pi-1 or Pi-2. See
+# docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md and
+# docs/INTER_PI_COMMUNICATION_POLICY.md for the full authority chain.
+#
+# NOTE (Phase 1 audit finding): bonbon_motor_cytron_mdds30 and
+# bonbon_stepper_controller do not exist in the repo yet — see
+# docs/HARDWARE_SOFTWARE_GAP_REPORT.md items 1-2. This profile documents
+# the INTENDED final package set; systemd units for those two packages
+# must not be enabled until the drivers exist (a stub/mock is acceptable
+# for dev-machine testing, matching this repo's existing MockDetector /
+# MockRuntime pattern — never a fake PASS on real hardware).
+
+pi_role: navigation_safety
+static_ip: 192.168.10.13
+
+packages:
+  - bonbon_navigation_bringup
+  - bonbon_lidar_rplidar
+  - bonbon_motor_cytron_mdds30    # NOT YET IMPLEMENTED — see gap report item 1
+  - bonbon_base_controller        # NOT YET IMPLEMENTED — see gap report item 1
+  - bonbon_stepper_controller     # NOT YET IMPLEMENTED — see gap report item 2
+  - bonbon_servo_controller       # = existing bonbon_hal servo_node (Dynamixel)
+  - bonbon_motion_safety
+  - bonbon_safety_supervisor      # = existing bonbon_safety
+  - bonbon_navigation_monitor
+
+systemd_services:
+  - bonbon-safety-supervisor.service    # starts FIRST, before any actuation
+  - bonbon-lidar.service
+  - bonbon-servo-controller.service
+  - bonbon-base-controller.service      # blocked until motor driver exists
+  - bonbon-stepper-controller.service   # blocked until stepper driver exists
+  - bonbon-navigation.service
+  - bonbon-motion-safety.service
+  - bonbon-navigation-monitor.service
+
+# Subset of config/pi_efficiency_profile.yaml relevant to Pi-3 — every
+# safety-critical (never-shed) module lives here, plus navigation.
+relevant_efficiency_modules:
+  - safety_supervisor
+  - emergency_stop
+  - hal
+  - lidar_obstacle_safety
+  - navigation_safety
+  - active_person_tracking     # proximity input only; full tracking runs on Pi-2
+
+remote_dependencies:
+  reads_from_pi1:
+    - /bonbon/operator/proposal
+  reads_from_pi2:
+    - /bonbon/behavior/proposal
+    - /bonbon/human_state/active   # secondary safety signal (see Phase 6 wiring)
+  publishes:
+    - /bonbon/safety/state
+    - /bonbon/safety/approval
+    - /bonbon/safety/rejection
+    - /bonbon/motion/approved_command
+    - /bonbon/motion/status
+    - /bonbon/navigation/status
+
+authority:
+  # Pi-3's safety supervisor is the ONLY node anywhere in the fleet allowed
+  # to publish /bonbon/motion/approved_command. This is enforced by
+  # bonbon_motion_approval_gateway (Phase 3) and checked at deployment time
+  # by scripts/check_inter_pi_communication.py (Phase 8).
+  sole_motion_command_publisher: bonbon_safety_supervisor
+  actuation_starts_disabled: true   # actuation is enabled only after safety confirms sensor readiness
+
+forbidden:
+  - accepting_raw_string_commands_from_other_pis   # typed proposals only
+  - bypassing_safety_validation_for_any_source      # including operator/dashboard
+
+boot_order:
+  1: bonbon-safety-supervisor.service   # must be up before ANY actuation node starts
+  2: bonbon-lidar.service
+  3: bonbon-servo-controller.service    # actuation starts DISABLED until safety confirms
+  4: bonbon-base-controller.service
+  5: bonbon-stepper-controller.service
+  6: bonbon-navigation.service
+  7: bonbon-motion-safety.service
+  8: bonbon-navigation-monitor.service

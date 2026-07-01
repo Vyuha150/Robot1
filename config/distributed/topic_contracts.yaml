@@ -1,0 +1,179 @@
+# topic_contracts.yaml — every topic/service that crosses a Pi boundary,
+# its exact message type, publisher, and subscriber(s). This is the
+# machine-checked companion to docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md
+# (read that file for the full rationale). scripts/check_inter_pi_communication.py
+# (Phase 8) validates the live ROS2 graph against this file.
+#
+# Column note: "reused_type: true" means the bonbon_msgs type already
+# exists and is already registered in bonbon_msgs/CMakeLists.txt (verified
+# in this Phase 1/2 audit) -- no new .msg file is required for that topic.
+
+inter_pi_topics:
+
+  # ── Proposals (flow TOWARD Pi-3) ────────────────────────────────────────
+  - topic: /bonbon/behavior/proposal
+    type: bonbon_msgs/msg/BehaviorProposal
+    reused_type: true
+    note: >
+      Already defined and CMakeLists-registered. Today published by
+      behavior_engine_node with ZERO subscribers anywhere in the repo
+      (confirmed by audit) -- this is the first real consumer it gets.
+      For the 3-Pi split, Pi-2 is the sole publisher (source_module in
+      'llm','speech_intent','gesture','rule_engine' -- never 'operator').
+    publisher_pi: pi2
+    subscriber_pis: [pi3]
+    qos: {reliability: RELIABLE, durability: VOLATILE, depth: 10}
+
+  - topic: /bonbon/operator/proposal
+    type: bonbon_msgs/msg/BehaviorProposal
+    reused_type: true
+    note: >
+      Same message type as above, source_module MUST equal 'operator'.
+      Kept on a separate topic (not just a field value on the same topic)
+      so Pi-3 can apply different urgency/precedence handling to operator
+      requests vs. AI-originated ones without string-matching a field.
+    publisher_pi: pi1
+    subscriber_pis: [pi3]
+    qos: {reliability: RELIABLE, durability: VOLATILE, depth: 10}
+
+  # ── Decisions (flow AWAY FROM Pi-3) ──────────────────────────────────────
+  - topic: /bonbon/safety/approval
+    type: bonbon_msgs/msg/BehaviorDecision
+    reused_type: true
+    note: >
+      Published only when decision in {'approved','modified'}. Reuses the
+      existing BehaviorDecision type (currently unused/unsubscribed on the
+      single-machine deployment -- confirmed by audit).
+    publisher_pi: pi3
+    subscriber_pis: [pi1, pi2]
+    qos: {reliability: RELIABLE, durability: VOLATILE, depth: 10}
+
+  - topic: /bonbon/safety/rejection
+    type: bonbon_msgs/msg/BehaviorDecision
+    reused_type: true
+    note: Published only when decision in {'rejected','deferred','escalated'}.
+    publisher_pi: pi3
+    subscriber_pis: [pi1, pi2]
+    qos: {reliability: RELIABLE, durability: VOLATILE, depth: 10}
+
+  - topic: /bonbon/motion/approved_command
+    type: bonbon_msgs/msg/BehaviorDecision
+    reused_type: true
+    note: >
+      Dashboard/telemetry view of what Pi-3 actually approved and is
+      executing -- NOT the raw Twist. The actual geometry_msgs/Twist sent
+      to motors (currently /cmd_vel, published by safety_gate_node) never
+      needs to leave Pi-3, since the motors it drives are physically
+      attached to Pi-3. This topic exists purely so Pi-1's dashboard and
+      Pi-2 can see "what is currently approved," not to route motor
+      commands across the network.
+    publisher_pi: pi3
+    subscriber_pis: [pi1, pi2]
+    qos: {reliability: RELIABLE, durability: TRANSIENT_LOCAL, depth: 1}
+
+  - topic: /bonbon/motion/status
+    type: bonbon_msgs/msg/NavigationStatus
+    reused_type: true
+    note: General motion/navigation status summary for dashboard consumption.
+    publisher_pi: pi3
+    subscriber_pis: [pi1, pi2]
+    qos: {reliability: RELIABLE, durability: TRANSIENT_LOCAL, depth: 1}
+
+  # ── Safety state (existing single-machine topic, now crosses the network) ─
+  - topic: /bonbon/safety/state
+    type: bonbon_msgs/msg/SafetyState
+    reused_type: true
+    note: >
+      Already exists, already has 14 local subscribers on a single
+      machine (confirmed by audit: behavior_engine_node, affective_ai_node,
+      safety_gate_node, estop_node, estop_hal_node, gesture_node,
+      human_state_fusion_node, llm_orchestrator_node,
+      multi_person_tracker_node, navigation_node, object_intelligence_node,
+      perception_efficiency_node, spatial_reasoning_node,
+      speaker_intelligence_node). For the 3-Pi split, 8 of those 14
+      subscriber nodes move to Pi-2 -- this topic MUST cross the network
+      identically to how it works today, just over Ethernet+DDS instead of
+      loopback. No message-type or QoS change; this is a pure networking
+      concern (see robot_network.yaml / topic_contracts network validation).
+    publisher_pi: pi3
+    subscriber_pis: [pi1, pi2]
+    qos: {reliability: RELIABLE, durability: TRANSIENT_LOCAL, depth: 1}
+
+  - topic: /bonbon/human_state/active
+    type: bonbon_msgs/msg/HumanState
+    reused_type: true
+    note: >
+      Secondary/advisory safety signal only (see
+      FAILURE_AND_DEGRADED_MODE_POLICY.md) -- Pi-3's core safety
+      classification never depends on this being present.
+    publisher_pi: pi2
+    subscriber_pis: [pi3, pi1]
+    qos: {reliability: RELIABLE, durability: VOLATILE, depth: 10}
+
+  # ── Heartbeats ────────────────────────────────────────────────────────────
+  - topic: /bonbon/pi1/heartbeat
+    type: bonbon_msgs/msg/ModuleHealth
+    reused_type: true
+    note: Reuses the existing per-module health message shape for a per-Pi heartbeat.
+    publisher_pi: pi1
+    subscriber_pis: [pi2, pi3]
+    qos: {reliability: BEST_EFFORT, durability: VOLATILE, depth: 1}
+
+  - topic: /bonbon/pi2/heartbeat
+    type: bonbon_msgs/msg/ModuleHealth
+    reused_type: true
+    publisher_pi: pi2
+    subscriber_pis: [pi1, pi3]
+    qos: {reliability: BEST_EFFORT, durability: VOLATILE, depth: 1}
+
+  - topic: /bonbon/pi3/heartbeat
+    type: bonbon_msgs/msg/ModuleHealth
+    reused_type: true
+    publisher_pi: pi3
+    subscriber_pis: [pi1, pi2]
+    qos: {reliability: BEST_EFFORT, durability: VOLATILE, depth: 1}
+
+  # ── System-wide status (new, Phase 4/11) ─────────────────────────────────
+  - topic: /bonbon/system/distributed_status
+    type: std_msgs/msg/String   # JSON payload -- informational aggregate only, not a command/safety path (see INTER_PI_COMMUNICATION_POLICY.md Rule 1 exception scope)
+    reused_type: true
+    note: >
+      Rule 1 (typed messages only) applies to command/safety-relevant
+      topics. This is a read-only dashboard aggregate summarizing all
+      three Pis' states, same informational-JSON pattern already used by
+      /bonbon/gesture/status and /bonbon/objects/status -- explicitly NOT
+      part of the proposal/approval/actuation chain.
+    publisher_pi: pi1
+    subscriber_pis: []   # dashboard-internal / WebSocket bridge only
+    qos: {reliability: RELIABLE, durability: TRANSIENT_LOCAL, depth: 1}
+
+  - topic: /bonbon/system/component_health
+    type: bonbon_msgs/msg/ModuleHealth
+    reused_type: true
+    publisher_pi: any   # each Pi publishes its own components' health
+    subscriber_pis: [pi1]
+    qos: {reliability: RELIABLE, durability: VOLATILE, depth: 10}
+
+  - topic: /bonbon/system/failure_events
+    type: bonbon_msgs/msg/SafetyEvent
+    reused_type: true
+    publisher_pi: any
+    subscriber_pis: [pi1]
+    qos: {reliability: RELIABLE, durability: VOLATILE, depth: 20}
+
+  - topic: /bonbon/system/degraded_mode
+    type: bonbon_msgs/msg/DegradedModeStatus
+    reused_type: true
+    publisher_pi: pi3   # authoritative degraded-mode source (safety-derived)
+    subscriber_pis: [pi1, pi2]
+    qos: {reliability: RELIABLE, durability: TRANSIENT_LOCAL, depth: 1}
+
+# ── Not yet implemented, blocked on Phase 1 gap-report items ────────────────
+blocked_topics:
+  - topic: /bonbon/motor/status
+    type: bonbon_msgs/msg/ModuleHealth   # exact type TBD when bonbon_motor_cytron_mdds30 is built
+    blocked_on: "bonbon_motor_cytron_mdds30 does not exist yet (HARDWARE_SOFTWARE_GAP_REPORT.md item 1)"
+  - topic: /bonbon/joints/status
+    type: bonbon_msgs/msg/ServoStateArray
+    reused_type: true
+    blocked_on: "stepper joints not yet defined (HARDWARE_SOFTWARE_GAP_REPORT.md item 2); servo joints already covered by existing /bonbon/servo/*/state"

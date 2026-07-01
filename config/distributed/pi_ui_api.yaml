@@ -1,0 +1,57 @@
+# pi_ui_api.yaml — PI-1 runtime profile (192.168.10.11).
+#
+# Everything this Pi is allowed to run. Enforced by
+# scripts/install_pi1_services.sh (only enables the systemd units listed
+# here) and checked at boot by scripts/health_check_pi1.sh. Pi-1 NEVER runs
+# perception, LLM, audio, navigation, or motor code — see
+# docs/FINAL_THREE_PI_ARCHITECTURE.md for the authority rationale.
+
+pi_role: ui_api
+static_ip: 192.168.10.11
+
+packages:
+  - bonbon_operator_dashboard
+  - bonbon_dashboard_api        # = existing bonbon_operator_api, renamed role for the 3-Pi context
+  - bonbon_distributed_monitor
+
+systemd_services:
+  - bonbon-ui-api.service
+  - bonbon-dashboard-frontend.service
+  - bonbon-distributed-monitor.service
+
+# Modules from the single-machine pi_efficiency_profile.yaml that are
+# actually relevant on Pi-1 — everything perception/LLM/nav related is N/A
+# here by design, not "shed under pressure."
+relevant_efficiency_modules:
+  - dashboard
+  - analytics_logging
+
+remote_dependencies:
+  # Pi-1 only ever READS these — it never publishes commands directly into
+  # them; operator actions go out as typed proposals (see
+  # config/distributed/topic_contracts.yaml) that Pi-3's safety supervisor
+  # must approve, same as any other proposal source.
+  reads_from_pi2:
+    - /bonbon/human_state/active
+    - /bonbon/human_state/all
+    - /bonbon/perception/status
+    - /bonbon/llm/status
+  reads_from_pi3:
+    - /bonbon/safety/state
+    - /bonbon/navigation/status
+    - /bonbon/motion/status
+  writes_to_pi3:
+    - /bonbon/operator/proposal   # operator commands are proposals, not commands
+
+forbidden:
+  - direct_motor_control
+  - direct_servo_control
+  - direct_navigation_goal_publish   # must go through /bonbon/operator/proposal
+  - camera_or_microphone_access
+  - llm_hosting
+
+boot_order:
+  # Dashboard should not claim "ready" before it can actually reach the API.
+  1: bonbon-ui-api.service
+  2: bonbon-dashboard-frontend.service   # requires ui-api healthy
+  3: bonbon-distributed-monitor.service

@@ -1,0 +1,63 @@
+# robot_network.yaml — network topology for the three-Pi BonBon deployment.
+#
+# Loaded by bonbon_distributed_network_monitor (Phase 7) and referenced by
+# every per-Pi systemd environment file. This is the single source of truth
+# for static IPs, ROS2 domain sharing, and time sync — do not hardcode any
+# of these values a second time anywhere else.
+
+deployment_mode: three_pi   # "three_pi" | "monolithic" | "modular_pi" (single-Pi legacy modes remain valid for dev/lab)
+
+pis:
+  pi1:
+    role: ui_api
+    hostname: bonbon-pi1
+    static_ip: 192.168.10.11
+    profile: config/distributed/pi_ui_api.yaml
+    heartbeat_topic: /bonbon/pi1/heartbeat
+
+  pi2:
+    role: human_ai
+    hostname: bonbon-pi2
+    static_ip: 192.168.10.12
+    profile: config/distributed/pi_human_ai.yaml
+    heartbeat_topic: /bonbon/pi2/heartbeat
+
+  pi3:
+    role: navigation_safety
+    hostname: bonbon-pi3
+    static_ip: 192.168.10.13
+    profile: config/distributed/pi_navigation_safety.yaml
+    heartbeat_topic: /bonbon/pi3/heartbeat
+
+# ── ROS2 DDS discovery ────────────────────────────────────────────────────────
+# All three Pis MUST export the same ROS_DOMAIN_ID or they will not discover
+# each other's nodes at all. Wired Ethernet only — Wi-Fi is not supported for
+# inter-Pi ROS2 traffic (jitter/latency risk to the safety-critical path).
+ros2:
+  ros_domain_id: 42
+  rmw_implementation: rmw_cyclonedds_cpp
+  dds_profile_file: config/distributed/cyclonedds_ethernet_profile.xml
+  discovery:
+    mode: unicast   # explicit peer list, not multicast — more reliable on
+                     # consumer-grade switches that may not forward multicast
+    peers: [192.168.10.11, 192.168.10.12, 192.168.10.13]
+
+# ── Time synchronization ──────────────────────────────────────────────────────
+# chrony keeps all three Pis' clocks within a few ms of each other, which
+# matters for correctly ordering safety events, heartbeat staleness checks,
+# and cross-Pi log correlation. Pi-3 (navigation/safety) is the LAN time
+# server since it's the safety-authority machine; Pi-1 and Pi-2 sync to it.
+time_sync:
+  method: chrony
+  server: pi3   # 192.168.10.13 acts as chrony NTP server for pi1/pi2
+  max_offset_ms: 50
+  alert_offset_ms: 200   # publish a component_health WARNING above this
+
+# ── Heartbeat contract ────────────────────────────────────────────────────────
+# Every Pi publishes its own heartbeat at this rate; see
+# docs/INTER_PI_COMMUNICATION_POLICY.md for the full failure-detection state
+# machine and docs/FAILURE_AND_DEGRADED_MODE_POLICY.md for per-loss behavior.
+heartbeat:
+  publish_rate_hz: 2.0
+  stale_after_sec: 1.5     # 3 missed beats
+  lost_after_sec: 5.0      # declare the Pi unreachable
