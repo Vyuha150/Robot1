@@ -182,3 +182,72 @@ def test_privacy_status_confirms_no_raw_media_fields(
 def test_endpoints_require_auth(client: TestClient):
     resp = client.get("/api/v1/validation/scenario-families")
     assert resp.status_code in (401, 403)
+
+
+# ── /dashboard/summary ───────────────────────────────────────────────────────
+
+
+def test_dashboard_summary_reflects_real_state(client: TestClient, viewer_token: str, tmp_path):
+    client.app.state.cfg.project_status_dir = tmp_path
+    resp = client.get("/api/v1/dashboard/summary", headers=_auth(viewer_token))
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    # no boot_topology.json / known_issues.json in the empty tmp_path -> honest Nones/zeros
+    assert data["boot_topology_valid"] is None
+    assert data["known_issue_count"] == 0
+    assert data["blocking_issue_count"] == 0
+    assert data["ai_runtime"] is not None
+    assert data["ai_runtime"]["is_real_accelerator"] is False  # no accelerator on this machine
+
+
+def test_dashboard_summary_counts_real_known_issues(
+    client: TestClient, viewer_token: str, tmp_path
+):
+    pdir = tmp_path / "project-status"
+    pdir.mkdir()
+    (pdir / "known_issues.json").write_text(
+        '{"issues": [{"id": "a", "blocking_deployment": true}, '
+        '{"id": "b", "blocking_deployment": false}]}',
+        encoding="utf-8",
+    )
+    client.app.state.cfg.project_status_dir = tmp_path
+    resp = client.get("/api/v1/dashboard/summary", headers=_auth(viewer_token))
+    data = resp.json()["data"]
+    assert data["known_issue_count"] == 2
+    assert data["blocking_issue_count"] == 1
+
+
+def test_dashboard_summary_requires_auth(client: TestClient):
+    assert client.get("/api/v1/dashboard/summary").status_code in (401, 403)
+
+
+# ── new websocket channels ───────────────────────────────────────────────────
+
+
+def test_new_finalization_channels_are_registered():
+    from bonbon_operator_api.websocket.ws_manager import VALID_CHANNELS
+
+    for channel in (
+        "boot-topology",
+        "ai-runtime",
+        "pi-efficiency",
+        "validation",
+        "deployment-readiness",
+    ):
+        assert channel in VALID_CHANNELS
+
+
+def test_ws_boot_topology_channel_connects(client: TestClient, viewer_token: str):
+    with client.websocket_connect(f"/ws/boot-topology?token={viewer_token}") as ws:
+        msg = ws.receive_json()
+        assert msg["event"] == "connected"
+        assert msg["data"]["channel"] == "boot-topology"
+
+
+def test_ws_unknown_channel_still_rejected(client: TestClient, viewer_token: str):
+    import pytest
+    from starlette.websockets import WebSocketDisconnect
+
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect(f"/ws/not-a-real-channel?token={viewer_token}"):
+            pass

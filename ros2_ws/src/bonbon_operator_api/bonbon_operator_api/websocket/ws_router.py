@@ -32,6 +32,11 @@ _CHANNEL_MIN_PERMISSION = {
     "navigation-events": "robot:read",
     "diagnostics": "diagnostics:read",
     "live-logs": "diagnostics:read",
+    "boot-topology": "diagnostics:read",
+    "ai-runtime": "diagnostics:read",
+    "pi-efficiency": "diagnostics:read",
+    "validation": "diagnostics:read",
+    "deployment-readiness": "diagnostics:read",
 }
 
 ws_router = APIRouter(prefix="/ws", tags=["websocket"])

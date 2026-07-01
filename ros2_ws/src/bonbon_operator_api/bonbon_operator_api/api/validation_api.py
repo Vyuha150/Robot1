@@ -12,6 +12,7 @@ honestly reports it unavailable. None hardcode PASS.
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 import xml.etree.ElementTree as ET
@@ -413,3 +414,93 @@ async def privacy_data_collection_status(
             ),
         }
     )
+
+
+# ── /dashboard/summary ───────────────────────────────────────────────────────
+
+
+@validation_router.get("/dashboard/summary", response_model=APIResponse)
+async def dashboard_summary(
+    request: Request,
+    current_user: TokenPayload = Depends(require_permission("diagnostics:read")),
+) -> APIResponse:
+    """One-call landing summary: boot topology validity, safety supervisor
+    count, selected AI runtime, degraded-mode flag, production-score
+    verdict, and known-issue count. Each field is read from the same real
+    source its own dedicated endpoint uses (boot_topology.json, the live
+    RuntimeSelector, the live performance snapshot, the JUnit XML, and
+    known_issues.json) -- this is a rollup view, not a second data path."""
+    status_dir = _status_dir(request)
+
+    topology = _read_json_compat(status_dir / "project-status" / "boot_topology.json")
+
+    try:
+        from bonbon_ai_runtime import RuntimeKind, RuntimeMode, RuntimeSelector, RuntimeSpec
+
+        rt_cfg = _read_yaml(_REPO_ROOT / "config" / "runtime" / "model_runtime.yaml") or {}
+        obj = rt_cfg.get("models", {}).get("object_detection", {})
+        rt_result = RuntimeSelector().select(
+            RuntimeSpec(
+                mode=RuntimeMode(rt_cfg.get("runtime", {}).get("mode", "auto")),
+                runtime_priority=[
+                    RuntimeKind(k) for k in obj.get("runtime_priority", ["hailo", "cpu", "mock"])
+                ],
+                model_paths={
+                    RuntimeKind.HAILO: obj.get("hailo_hef_path", ""),
+                    RuntimeKind.CPU: obj.get("cpu_onnx_path", ""),
+                },
+            )
+        )
+        ai_runtime_summary = {
+            "selected_kind": rt_result.selected_kind.value,
+            "fallback_active": rt_result.fallback_active,
+            "is_real_accelerator": rt_result.selected_kind.value in ("hailo", "tensorrt"),
+        }
+    except ImportError:
+        ai_runtime_summary = None
+
+    perf = request.app.state.status_aggregator.get_status().performance.model_dump()
+
+    known_issues = _read_json_compat(status_dir / "project-status" / "known_issues.json")
+    issues = (known_issues or {}).get("issues", [])
+    blocking_issue_count = sum(1 for i in issues if i.get("blocking_deployment") is True)
+
+    try:
+        from bonbon_behavior_validation import ProductionMetrics, ProductionScoreCalculator
+        from bonbon_behavior_validation.production_score import compute_maintainability_score
+
+        test_data = _parse_junit_xml(status_dir / "project-status" / "production_test_results.xml")
+        per_family = test_data["per_family"] if test_data else {}
+        score = ProductionScoreCalculator().compute(
+            ProductionMetrics(
+                safety_pass_rate=_family_pass_rate(per_family, "test_safety_scenarios"),
+                emergency_stop_reliability=_family_pass_rate(per_family, "test_safety_scenarios"),
+                maintainability_score=compute_maintainability_score(),
+            )
+        )
+        production_score_verdict = score.verdict.value
+    except ImportError:
+        production_score_verdict = None
+
+    return APIResponse.ok(
+        {
+            "boot_topology_valid": (topology or {}).get("valid"),
+            "observed_safety_supervisors": (topology or {}).get("observed_safety_supervisors"),
+            "ai_runtime": ai_runtime_summary,
+            "degraded_mode_active": perf.get("degraded_mode_active", False),
+            "production_score_verdict": production_score_verdict,
+            "known_issue_count": len(issues),
+            "blocking_issue_count": blocking_issue_count,
+        }
+    )
+
+
+def _read_json_compat(path: Path) -> dict[str, Any] | None:
+    """boot_topology.json / known_issues.json are JSON, not YAML -- kept
+    distinct from _read_yaml() to make the intent explicit at each call site."""
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None

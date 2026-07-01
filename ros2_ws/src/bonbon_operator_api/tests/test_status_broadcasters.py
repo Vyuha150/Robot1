@@ -1,0 +1,93 @@
+"""Unit tests for the 5 finalization-mode WebSocket snapshot builders.
+Each is exercised directly against a minimal fake `app` (just needs
+`.state.cfg.project_status_dir` and, for pi-efficiency/deployment-
+readiness, `.state.status_aggregator`) so these don't need a full
+TestClient/lifespan just to prove the snapshot shape is real, not fabricated.
+"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import pytest
+from bonbon_operator_api.ros2.status_aggregator import RobotStatusAggregator
+from bonbon_operator_api.websocket.status_broadcasters import (
+    CHANNEL_SNAPSHOTS,
+    ai_runtime_snapshot,
+    boot_topology_snapshot,
+    deployment_readiness_snapshot,
+    pi_efficiency_snapshot,
+    validation_snapshot,
+)
+
+
+@pytest.fixture
+def fake_app(tmp_path):
+    aggregator = RobotStatusAggregator(offline_timeout_sec=15.0)
+    cfg = SimpleNamespace(project_status_dir=tmp_path)
+    return SimpleNamespace(state=SimpleNamespace(cfg=cfg, status_aggregator=aggregator))
+
+
+def test_all_five_channels_registered():
+    assert set(CHANNEL_SNAPSHOTS) == {
+        "boot-topology",
+        "ai-runtime",
+        "pi-efficiency",
+        "validation",
+        "deployment-readiness",
+    }
+
+
+def test_boot_topology_snapshot_honest_when_missing(fake_app):
+    snap = boot_topology_snapshot(fake_app)
+    assert snap["available"] is False
+
+
+def test_boot_topology_snapshot_reads_real_file(fake_app):
+    pdir = fake_app.state.cfg.project_status_dir / "project-status"
+    pdir.mkdir()
+    (pdir / "boot_topology.json").write_text(
+        '{"mode": "modular_pi", "valid": true}', encoding="utf-8"
+    )
+    snap = boot_topology_snapshot(fake_app)
+    assert snap["available"] is True
+    assert snap["valid"] is True
+
+
+def test_ai_runtime_snapshot_is_never_a_fake_hailo_pass(fake_app):
+    snap = ai_runtime_snapshot(fake_app)
+    assert snap["available"] is True
+    # No real accelerator on this dev machine -- must not claim hailo.
+    assert snap["selected_kind"] != "hailo"
+    assert snap["fallback_active"] is True
+
+
+def test_pi_efficiency_snapshot_includes_live_perf(fake_app):
+    snap = pi_efficiency_snapshot(fake_app)
+    assert "live" in snap
+    assert isinstance(snap["live"], dict)
+
+
+def test_validation_snapshot_reflects_real_catalog(fake_app):
+    snap = validation_snapshot(fake_app)
+    assert snap["available"] is True
+    assert snap["total_scenarios"] > 0
+    assert "gesture_understanding" in snap["scenarios_per_family"]
+
+
+def test_deployment_readiness_snapshot_honest_with_no_issues_file(fake_app):
+    snap = deployment_readiness_snapshot(fake_app)
+    assert snap["blocking_issue_count"] == 0
+    assert isinstance(snap["ready"], bool)
+
+
+def test_deployment_readiness_snapshot_reflects_blocking_issues(fake_app):
+    pdir = fake_app.state.cfg.project_status_dir / "project-status"
+    pdir.mkdir()
+    (pdir / "known_issues.json").write_text(
+        '{"issues": [{"id": "x", "blocking_deployment": true}]}', encoding="utf-8"
+    )
+    snap = deployment_readiness_snapshot(fake_app)
+    assert snap["blocking_issue_count"] == 1
+    assert snap["ready"] is False
+    assert "blocking issue" in snap["reasons"][0]

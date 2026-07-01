@@ -5,11 +5,16 @@ Sending to a channel delivers to all connected clients subscribed to it.
 
 Channels
 --------
-* ``robot-status``      — periodic full status snapshot (~1 Hz)
-* ``safety-events``     — immediate safety state changes
-* ``navigation-events`` — navigation goal / progress updates
-* ``diagnostics``       — module health updates
-* ``live-logs``         — log stream (engineer+ only)
+* ``robot-status``        — periodic full status snapshot (~1 Hz)
+* ``safety-events``       — immediate safety state changes
+* ``navigation-events``   — navigation goal / progress updates
+* ``diagnostics``         — module health updates
+* ``live-logs``           — log stream (engineer+ only)
+* ``boot-topology``       — periodic boot-topology verdict (~5s)
+* ``ai-runtime``          — periodic AI runtime selection status (~5s)
+* ``pi-efficiency``       — periodic Pi efficiency / live perf snapshot (~5s)
+* ``validation``          — periodic scenario-catalog / test-results summary (~5s)
+* ``deployment-readiness``— periodic deployment readiness verdict (~5s)
 """
 
 from __future__ import annotations
@@ -33,6 +38,11 @@ VALID_CHANNELS: set[str] = {
     "navigation-events",
     "diagnostics",
     "live-logs",
+    "boot-topology",
+    "ai-runtime",
+    "pi-efficiency",
+    "validation",
+    "deployment-readiness",
 }
 
 

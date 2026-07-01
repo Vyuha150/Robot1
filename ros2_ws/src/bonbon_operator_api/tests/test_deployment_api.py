@@ -141,3 +141,25 @@ def test_endpoints_require_auth(client: TestClient):
         "/api/v1/pi/efficiency",
     ):
         assert client.get(path).status_code in (401, 403)
+
+
+# ── Finalization-mode aliases ───────────────────────────────────────────────
+
+
+def test_deployment_known_issues_matches_diagnostics_alias(client: TestClient, viewer_token: str):
+    direct = client.get("/api/v1/diagnostics/known-issues", headers=_auth(viewer_token))
+    alias = client.get("/api/v1/deployment/known-issues", headers=_auth(viewer_token))
+    assert alias.status_code == 200
+    assert alias.json()["data"] == direct.json()["data"]
+
+
+def test_deployment_readiness_matches_diagnostics_alias(client: TestClient, viewer_token: str):
+    direct = client.get("/api/v1/diagnostics/deployment-readiness", headers=_auth(viewer_token))
+    alias = client.get("/api/v1/deployment/readiness", headers=_auth(viewer_token))
+    assert alias.status_code == 200
+    assert alias.json()["data"] == direct.json()["data"]
+
+
+def test_finalization_aliases_require_auth(client: TestClient):
+    for path in ("/api/v1/deployment/known-issues", "/api/v1/deployment/readiness"):
+        assert client.get(path).status_code in (401, 403)

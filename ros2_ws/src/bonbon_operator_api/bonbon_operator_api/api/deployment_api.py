@@ -275,3 +275,32 @@ async def pi_degraded_mode(
             "live_load_level": perf.get("load_level", "unknown"),
         }
     )
+
+
+# ── Finalization-mode aliases ───────────────────────────────────────────────
+# The brief's Phase 6 asks for /deployment/known-issues and
+# /deployment/readiness specifically. These delegate to the existing,
+# already-tested /diagnostics/known-issues and /diagnostics/deployment-
+# readiness handlers rather than reimplementing the same logic twice.
+
+
+@deployment_router.get("/deployment/known-issues", response_model=APIResponse)
+async def deployment_known_issues(
+    request: Request,
+    current_user: TokenPayload = Depends(require_permission("diagnostics:read")),
+) -> APIResponse:
+    """Alias of GET /diagnostics/known-issues."""
+    from bonbon_operator_api.api.project_status_api import get_known_issues
+
+    return await get_known_issues(request, current_user)
+
+
+@deployment_router.get("/deployment/readiness", response_model=APIResponse)
+async def deployment_readiness(
+    request: Request,
+    current_user: TokenPayload = Depends(require_permission("diagnostics:read")),
+) -> APIResponse:
+    """Alias of GET /diagnostics/deployment-readiness."""
+    from bonbon_operator_api.api.project_status_api import get_deployment_readiness
+
+    return await get_deployment_readiness(request, current_user)

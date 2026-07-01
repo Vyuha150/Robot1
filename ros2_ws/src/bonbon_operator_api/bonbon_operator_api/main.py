@@ -111,6 +111,11 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
         # Background task: periodic status broadcast
         status_task = asyncio.create_task(_status_broadcaster(aggregator, ws_manager, metrics))
 
+        # Background task: periodic boot-topology/ai-runtime/pi-efficiency/
+        # validation/deployment-readiness broadcast (slower cadence -- these
+        # change on the order of seconds-to-minutes, not every tick)
+        finalization_task = asyncio.create_task(_finalization_status_broadcaster(app, ws_manager))
+
         logger.info(
             "BonBon Operator API ready — host=%s port=%d",
             cfg.server.host,
@@ -121,6 +126,7 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
         # Shutdown
         event_task.cancel()
         status_task.cancel()
+        finalization_task.cancel()
         if cfg.ros2.enabled:
             bridge.stop()
         logger.info("BonBon Operator API shutdown complete")
@@ -250,6 +256,31 @@ async def _status_broadcaster(
             break
         except Exception as exc:
             logger.debug("Status broadcaster error: %s", exc)
+
+
+_FINALIZATION_BROADCAST_INTERVAL = 5.0
+
+
+async def _finalization_status_broadcaster(app, ws_manager: WebSocketConnectionManager) -> None:
+    """Periodically broadcast the 5 finalization-mode channels. Each
+    snapshot builder reads the same real source its REST counterpart
+    reads (see websocket/status_broadcasters.py) -- never fabricated."""
+    from bonbon_operator_api.websocket.status_broadcasters import CHANNEL_SNAPSHOTS
+
+    while True:
+        try:
+            await asyncio.sleep(_FINALIZATION_BROADCAST_INTERVAL)
+            for channel, build_snapshot in CHANNEL_SNAPSHOTS.items():
+                try:
+                    snapshot = build_snapshot(app)
+                except Exception as exc:  # a single channel's failure must not kill the loop
+                    logger.debug("Finalization broadcaster: %s snapshot failed: %s", channel, exc)
+                    continue
+                await ws_manager.broadcast(channel, "snapshot_update", snapshot)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.debug("Finalization broadcaster error: %s", exc)
 
 
 # ---------------------------------------------------------------------------

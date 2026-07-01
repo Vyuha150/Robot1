@@ -9,9 +9,10 @@
 
 priority_order:
   # ── NEVER shed (safety-critical) ──────────────────────────────────────────
+  # Order frozen to match docs/ARCHITECTURE_FREEZE.md section 7 exactly.
   - {rank: 1,  module: safety_supervisor,     safety_critical: true}
-  - {rank: 2,  module: hal,                    safety_critical: true}
-  - {rank: 3,  module: emergency_stop,         safety_critical: true}
+  - {rank: 2,  module: emergency_stop,         safety_critical: true}
+  - {rank: 3,  module: hal,                    safety_critical: true}
   - {rank: 4,  module: lidar_obstacle_safety,  safety_critical: true}
   - {rank: 5,  module: navigation_safety,      safety_critical: true}
   - {rank: 6,  module: active_person_tracking, safety_critical: true}
