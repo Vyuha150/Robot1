@@ -12,6 +12,7 @@ Lazy-import contract
 
 from bonbon_llm.core.langchain_bridge import LangChainUnavailableError
 from bonbon_llm.core.ollama_client import OllamaClient, OllamaResponse
+from bonbon_llm.core.pi2_llm_guard import DisableDecision, Pi2LLMGuard
 from bonbon_llm.core.rag_retriever import RAGDocument, RAGRetriever, RetrievalResult
 from bonbon_llm.core.response_logger import LogEntry, ResponseLogger
 
@@ -19,6 +20,9 @@ __all__ = [
     # Ollama
     "OllamaClient",
     "OllamaResponse",
+    # Pi-2 LLM guard
+    "Pi2LLMGuard",
+    "DisableDecision",
     # RAG
     "RAGRetriever",
     "RAGDocument",

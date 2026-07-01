@@ -10,6 +10,7 @@ from bonbon_llm.config.llm_config import (
     LLMConfig,
     OllamaConfig,
     PersonalityConfig,
+    Pi2LLMGuardConfig,
     RAGConfig,
     SafetyFilterConfig,
 )
@@ -21,5 +22,6 @@ __all__ = [
     "HallucinationConfig",
     "PersonalityConfig",
     "AuthorizationConfig",
+    "Pi2LLMGuardConfig",
     "LLMConfig",
 ]

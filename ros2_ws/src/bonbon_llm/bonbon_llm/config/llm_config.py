@@ -193,6 +193,38 @@ class AuthorizationConfig:
     )
 
 
+# ── Pi-2 LLM hardware guard (three-Pi deployment only) ─────────────────────────
+
+
+@dataclass
+class Pi2LLMGuardConfig:
+    """Pi-2 hardware constraints for the local Qwen2.5 0.5B deployment (see
+    config/distributed/pi_human_ai.yaml's `llm:` section). Disabled by
+    default -- this package also serves the monolithic/single-machine
+    deployment, whose behavior must not change unless a Pi-2 runtime
+    profile explicitly turns this on. Consumed by
+    bonbon_llm.core.pi2_llm_guard.Pi2LLMGuard; defined here (not in core/)
+    to avoid a config<->core circular import."""
+
+    enabled: bool = False
+    max_concurrent_requests: int = 1
+    max_output_tokens: int = 64
+    initial_timeout_sec: float = 1.0
+    cpu_disable_threshold_percent: float = 85.0
+    temp_disable_threshold_c: float = 75.0
+    disable_safety_states: frozenset[str] = field(
+        default_factory=lambda: frozenset({"DANGER", "FAULT", "SAFE_STOP"})
+    )
+
+    def validate(self) -> None:
+        if self.max_concurrent_requests < 1:
+            raise ValueError("max_concurrent_requests must be >= 1")
+        if self.max_output_tokens < 1:
+            raise ValueError("max_output_tokens must be >= 1")
+        if self.initial_timeout_sec <= 0:
+            raise ValueError("initial_timeout_sec must be > 0")
+
+
 # ── Top-level config ──────────────────────────────────────────────────────────
 
 
@@ -204,6 +236,10 @@ class LLMConfig:
     hallucination: HallucinationConfig = field(default_factory=HallucinationConfig)
     personality: PersonalityConfig = field(default_factory=PersonalityConfig)
     authorization: AuthorizationConfig = field(default_factory=AuthorizationConfig)
+    # Pi-2 hardware constraints (three-Pi deployment only -- disabled by
+    # default, see Pi2LLMGuardConfig's own docstring and
+    # config/distributed/pi_human_ai.yaml's `llm:` section).
+    pi2_guard: Pi2LLMGuardConfig = field(default_factory=Pi2LLMGuardConfig)
 
     # Node-level
     scene_publish_rate_hz: float = 5.0
@@ -214,6 +250,7 @@ class LLMConfig:
     def validate(self) -> None:
         self.ollama.validate()
         self.rag.validate()
+        self.pi2_guard.validate()
 
     def summary(self) -> str:
         return (
@@ -260,5 +297,16 @@ class LLMConfig:
         # Node
         cfg.health_rate_hz = _get("health_rate_hz", 1.0)
         cfg.allow_degraded_startup = _get("allow_degraded_startup", False)
+
+        # Pi-2 LLM guard (three-Pi deployment only; disabled unless a Pi-2
+        # runtime profile explicitly turns it on)
+        cfg.pi2_guard.enabled = _get("pi2_guard.enabled", False)
+        cfg.pi2_guard.max_concurrent_requests = _get("pi2_guard.max_concurrent_requests", 1)
+        cfg.pi2_guard.max_output_tokens = _get("pi2_guard.max_output_tokens", 64)
+        cfg.pi2_guard.initial_timeout_sec = _get("pi2_guard.initial_timeout_sec", 1.0)
+        cfg.pi2_guard.cpu_disable_threshold_percent = _get(
+            "pi2_guard.cpu_disable_threshold_percent", 85.0
+        )
+        cfg.pi2_guard.temp_disable_threshold_c = _get("pi2_guard.temp_disable_threshold_c", 75.0)
 
         return cfg

@@ -1,0 +1,22 @@
+# pi2_hal_overrides.yaml — selects the real Pi-2 hardware backends on top
+# of bonbon_hal's default hal_params.yaml. Passed as hal.launch.py's
+# override_params_file so bonbon_hal itself does not need a Pi-2-specific
+# fork of its own defaults.
+
+camera_node:
+  ros__parameters:
+    backend: "oakd"          # Luxonis OAK-D Lite (bonbon_hal/drivers/camera/oakd_lite_driver.py)
+    oakd_autofocus: true
+
+mic_node:
+  ros__parameters:
+    backend: "respeaker"     # ReSpeaker XVF3800 (bonbon_hal/drivers/microphone/respeaker_driver.py)
+
+# speaker_node has no "backend" param -- driver_mode:real alone selects
+# AlsaSpeakerDriver (bonbon_hal/nodes/speaker_node.py). No PAM8610-specific
+# gain control exists yet (HARDWARE_SOFTWARE_GAP_REPORT.md item 4); generic
+# ALSA volume control works today via alsa_device/amixer_control below.
+speaker_node:
+  ros__parameters:
+    alsa_device: "default"
+    amixer_control: "Master"

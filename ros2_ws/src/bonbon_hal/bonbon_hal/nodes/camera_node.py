@@ -14,7 +14,12 @@ import rclpy
 from sensor_msgs.msg import CameraInfo, Image
 
 from bonbon_hal.base.driver_base import DriverBase
-from bonbon_hal.drivers.camera import MockCameraDriver, OrbbecDriver, UsbCameraDriver
+from bonbon_hal.drivers.camera import (
+    MockCameraDriver,
+    OAKDLiteDriver,
+    OrbbecDriver,
+    UsbCameraDriver,
+)
 
 from .hal_node_base import BEST_EFFORT_D5, HalNodeBase
 
@@ -30,8 +35,10 @@ class CameraNode(HalNodeBase):
         self.declare_parameter("width", 640)
         self.declare_parameter("height", 480)
         self.declare_parameter("fps", 30)
-        # Backend: 'mock' | 'usb' (generic USB/V4L2 webcam) | 'orbbec' (RGB-D).
+        # Backend: 'mock' | 'usb' (generic USB/V4L2 webcam) | 'orbbec' (RGB-D)
+        # | 'oakd' (Luxonis OAK-D Lite, Pi-2 hardware -- autofocus RGB-D).
         self.declare_parameter("backend", "mock")
+        self.declare_parameter("oakd_autofocus", True)
         self.declare_parameter("device", "0")  # V4L2 index or path for USB cam
         self.declare_parameter("hfov_deg", 60.0)
         self.declare_parameter("frame_id_color", "camera_color_optical_frame")
@@ -58,6 +65,10 @@ class CameraNode(HalNodeBase):
         if backend == "orbbec":
             self.get_logger().info("Camera backend: Orbbec RGB-D")
             return OrbbecDriver(width=w, height=h, fps=f)
+        if backend == "oakd":
+            autofocus = bool(self.get_parameter("oakd_autofocus").value)
+            self.get_logger().info("Camera backend: OAK-D Lite (autofocus=%s)", autofocus)
+            return OAKDLiteDriver(width=w, height=h, fps=f, enable_autofocus=autofocus)
         self.get_logger().info("Camera backend: mock (simulation)")
         return MockCameraDriver(width=w, height=h, fps=f)
 
