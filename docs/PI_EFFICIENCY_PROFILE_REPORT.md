@@ -1,4 +1,4 @@
-# Pi Efficiency Profile Report (Phase 5)
+# Pi Efficiency Profile Report (Phase 5, updated during Finalization Mode)
 
 How BonBon reduces load on a Raspberry Pi 5 **without** reducing safety.
 
@@ -6,14 +6,16 @@ How BonBon reduces load on a Raspberry Pi 5 **without** reducing safety.
 
 [`config/pi_efficiency_profile.yaml`](../config/pi_efficiency_profile.yaml),
 loaded by `bonbon_perception_efficiency.core.pi_efficiency_profile.PiEfficiencyProfile`.
+Frozen for this release in
+[ARCHITECTURE_FREEZE.md](ARCHITECTURE_FREEZE.md) section 7.
 
 **Priority order (rank 1 = most important = shed last):**
 
 | Rank | Module | Safety-critical |
 |---|---|---|
 | 1 | safety_supervisor | ✅ never shed |
-| 2 | hal | ✅ |
-| 3 | emergency_stop | ✅ |
+| 2 | emergency_stop | ✅ |
+| 3 | hal | ✅ |
 | 4 | lidar_obstacle_safety | ✅ |
 | 5 | navigation_safety | ✅ |
 | 6 | active_person_tracking | ✅ |
@@ -80,3 +82,14 @@ remains hardware-only: confirming the *measured* CPU%, temperature, and FPS on
 a live Pi 5 under a real multi-person workload stay within these limits — that
 is the BLOCKED row in the final checklist, runnable with `vcgencmd` + `top` +
 the `ai_runtime_bench` CLI on the actual robot.
+
+## Finalization-mode correction (2026-07-01)
+
+Ranks 2 and 3 (`emergency_stop`/`hal`) were swapped to match the frozen
+architecture doc's literal ordering ("1. Safety Supervisor · 2. Emergency
+stop polling · 3. HAL"). This has **zero functional effect** — ranks 1-6
+are all `safety_critical: true` and `shed_order()`/`modules_to_shed()`
+only ever operate on non-safety-critical ranks (7-18) — but it removes a
+real discrepancy between the documented and configured order. Re-verified:
+88 `bonbon_perception_efficiency` tests + 71 related production-scenario
+tests all still pass after the change.
