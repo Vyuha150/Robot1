@@ -25,7 +25,13 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent))
-from scenario_schema import HardwareRequirement, InputConditions, MockStrategy, RiskLevel, Scenario  # noqa: E402
+from scenario_schema import (  # noqa: E402
+    HardwareRequirement,
+    InputConditions,
+    MockStrategy,
+    RiskLevel,
+    Scenario,
+)
 
 _KNOWN_INPUT_FIELDS = {
     "environment",
