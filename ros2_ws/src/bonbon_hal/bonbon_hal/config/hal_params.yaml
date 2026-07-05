@@ -141,6 +141,12 @@ speaker_node:
     volume_pct:    80.0
     alsa_device:   "default"
     amixer_control: "Master"
+    # PAM8610 amp mute-pin control -- OFF by default (see
+    # docs/HARDWARE_SOFTWARE_GAP_REPORT.md item 4). Enable only after
+    # confirming the mute pin is GPIO-wired on real Pi-2 hardware.
+    has_pam8610: false
+    pam8610_mute_pin: 23
+    pam8610_mute_active_low: true
     reconnect_max_attempts:   3
     reconnect_base_delay_sec: 1.0
     reconnect_max_delay_sec:  15.0

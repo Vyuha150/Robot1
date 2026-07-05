@@ -1,8 +1,20 @@
 """
-ALSA speaker driver via sounddevice.
+ALSA speaker driver via sounddevice, with optional PAM8610 amplifier
+mute-pin control (Pi-2 hardware: 4Ω 10W speaker driven by a PAM8610
+2x10W amp — see docs/HARDWARE_SOFTWARE_GAP_REPORT.md item 4).
 
 Plays AudioChunk objects and WAV files.
-Volume control via amixer (ALSA) or sounddevice's output level.
+Volume control via amixer (ALSA) or sounddevice's output level — this is
+signal-level gain, unrelated to the PAM8610's own mute/standby pin.
+
+Whether the PAM8610 board's mute pin is actually wired to a Pi GPIO is
+NOT assumed here: `has_pam8610` defaults to False, so behavior is
+identical to before unless a real unit's config explicitly enables it
+after hardware verification (per the gap report's own caveat). When
+enabled, GPIO init failure degrades this ONE capability (logged, amp
+control reported unavailable) rather than failing speaker connect()
+entirely -- ALSA playback must keep working even if the amp's mute pin
+turns out to be unreachable.
 
 SDK:  sounddevice (pip install sounddevice)
       pydub       (pip install pydub)  — for WAV/MP3 file playback
@@ -41,6 +53,46 @@ try:
 except ImportError:
     logger.warning("pydub not installed.  pip install pydub  (WAV file playback disabled)")
 
+_SIMULATION = os.environ.get("BONBON_SIMULATION", "0") == "1"
+
+
+class _MockGPIO:
+    BCM = "BCM"
+    IN = "IN"
+    OUT = "OUT"
+    HIGH = 1
+    LOW = 0
+
+    def setmode(self, *a):
+        pass
+
+    def setup(self, *a, **kw):
+        pass
+
+    def cleanup(self):
+        pass
+
+    def output(self, pin, val):
+        logger.debug("[MockGPIO] pin%d→%d", pin, val)
+
+
+def _load_gpio():
+    if _SIMULATION:
+        logger.info("BONBON_SIMULATION=1: using MockGPIO for PAM8610 mute pin")
+        return _MockGPIO()
+    try:
+        import Jetson.GPIO as GPIO  # type: ignore[import]
+
+        return GPIO
+    except ImportError:
+        try:
+            import RPi.GPIO as GPIO  # type: ignore[import]
+
+            return GPIO
+        except ImportError:
+            logger.warning("No GPIO library found — falling back to MockGPIO")
+            return _MockGPIO()
+
 
 class AlsaSpeakerDriver(SpeakerDriver):
 
@@ -49,6 +101,9 @@ class AlsaSpeakerDriver(SpeakerDriver):
         device_name: str = "default",
         volume_pct: float = 80.0,
         amixer_control: str = "Master",
+        has_pam8610: bool = False,
+        mute_pin: int = 23,
+        mute_active_low: bool = True,
     ) -> None:
         super().__init__(driver_mode="real")
         self._device_name = device_name
@@ -56,6 +111,14 @@ class AlsaSpeakerDriver(SpeakerDriver):
         self._amixer_control = amixer_control
         self._device_index = None
         self._playing = False
+
+        # PAM8610 amp mute-pin control (optional — see module docstring).
+        self._has_pam8610 = has_pam8610
+        self._mute_pin = mute_pin
+        self._mute_active_low = mute_active_low
+        self._pam8610_ready = False
+        self._muted = False
+        self._gpio = _load_gpio() if has_pam8610 else None
 
     def _do_connect(self) -> bool:
         if not _HAS_SD:
@@ -84,14 +147,42 @@ class AlsaSpeakerDriver(SpeakerDriver):
                 ),
             )
             self.set_volume(self._volume)
+            self._init_pam8610()
             return True
         except DriverFault:
             raise
         except Exception as exc:
             raise DriverFault(str(exc), "CONNECT_ERROR") from exc
 
+    def _init_pam8610(self) -> None:
+        if not self._has_pam8610:
+            return
+        try:
+            self._gpio.setmode(self._gpio.BCM)
+            self._gpio.setup(self._mute_pin, self._gpio.OUT)
+            self._pam8610_ready = True
+            self.unmute()
+            logger.info("AlsaSpeakerDriver: PAM8610 mute pin %d ready", self._mute_pin)
+        except Exception as exc:
+            # Amp-control is an optional enhancement (see gap report) --
+            # degrade THIS capability only, never fail speaker connect().
+            self._pam8610_ready = False
+            logger.warning(
+                "AlsaSpeakerDriver: PAM8610 GPIO init failed (%s) — "
+                "amp mute control unavailable, plain ALSA playback continues",
+                exc,
+            )
+            self._record_partial_fault("PAM8610_GPIO_INIT_FAILED", str(exc))
+
     def _do_disconnect(self) -> None:
         self.stop()
+        if self._pam8610_ready:
+            try:
+                self.mute()
+                self._gpio.cleanup()
+            except Exception:
+                pass
+            self._pam8610_ready = False
 
     def play(self, chunk: AudioChunk) -> None:
         if not self.is_connected:
@@ -156,3 +247,30 @@ class AlsaSpeakerDriver(SpeakerDriver):
             except Exception:
                 pass
         self._playing = False
+
+    # ── PAM8610 amp mute-pin control (no-op unless has_pam8610 AND GPIO
+    #    init succeeded -- see _init_pam8610) ──────────────────────────────
+
+    @property
+    def has_pam8610_control(self) -> bool:
+        """True only if PAM8610 mute-pin control was requested AND the
+        GPIO pin was actually claimed successfully -- never fabricated."""
+        return self._pam8610_ready
+
+    @property
+    def is_muted(self) -> bool:
+        return self._muted
+
+    def mute(self) -> None:
+        if not self._pam8610_ready:
+            return
+        asserted = self._gpio.LOW if self._mute_active_low else self._gpio.HIGH
+        self._gpio.output(self._mute_pin, asserted)
+        self._muted = True
+
+    def unmute(self) -> None:
+        if not self._pam8610_ready:
+            return
+        asserted = self._gpio.HIGH if self._mute_active_low else self._gpio.LOW
+        self._gpio.output(self._mute_pin, asserted)
+        self._muted = False

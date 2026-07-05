@@ -107,6 +107,46 @@ class TestMockStepperFaults:
         # lost_sync=True as long as stalled_id is still set.
         assert drv.read_stepper(1).lost_sync is True
 
+    def test_stall_reaches_hal_fault_callback_via_read_stepper(self, drv):
+        # Regression test: a stall must surface via _record_partial_fault()
+        # (fires the HAL fault callback feeding /bonbon/hal/fault) on the
+        # path that's actually polled every cycle -- read_stepper()/
+        # read_all() -- not only when a new command happens to be written
+        # to the stalled joint. Before this fix, an idle stalled joint
+        # never emitted a HalFault at all.
+        faults: list[tuple[str, str, str]] = []
+        drv.register_fault_callback(lambda device, code, msg: faults.append((device, code, msg)))
+        drv.inject_fault(stalled_id=1)
+        drv.read_stepper(1)
+        assert faults, "stall must fire the fault callback via read_stepper()"
+        assert faults[-1][1] == "STALLED"
+        # The bus itself is fine -- a single stalled joint must NOT mark
+        # the whole driver disconnected (that would block reads of every
+        # other channel and trigger a pointless reconnect loop).
+        assert drv.is_connected is True
+        assert drv.health.total_faults >= 1
+
+    def test_stall_reaches_hal_fault_callback_via_read_all(self, drv):
+        faults: list[tuple[str, str, str]] = []
+        drv.register_fault_callback(lambda device, code, msg: faults.append((device, code, msg)))
+        drv.inject_fault(stalled_id=2)
+        drv.read_all()
+        assert faults
+        assert faults[-1][1] == "STALLED"
+
+    def test_stall_on_one_channel_does_not_block_reads_of_other_channel(self, drv):
+        drv.inject_fault(stalled_id=1)
+        drv.read_stepper(1)  # observe the stall on channel 1
+        # Channel 2 must still be readable -- the driver as a whole is
+        # not disconnected by a single joint's mechanical stall.
+        r2 = drv.read_stepper(2)
+        assert r2.lost_sync is False
+
+    def test_no_stall_keeps_recording_success(self, drv):
+        drv.read_all()
+        assert drv.health.consecutive_errors == 0
+        assert drv.health.total_faults == 0
+
 
 if __name__ == "__main__":
     pytest.main([__file__])

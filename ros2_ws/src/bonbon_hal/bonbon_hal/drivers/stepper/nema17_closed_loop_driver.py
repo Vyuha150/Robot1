@@ -209,7 +209,7 @@ class NEMA17ClosedLoopDriver(StepperDriver):
             raise DriverFault("Not connected", "NOT_CONNECTED")
         with self._lock:
             readings = [self._reading(ch) for ch in self._channels.values()]
-        self._record_success()
+        self._record_stall_or_success([r for r in readings if r.lost_sync])
         return readings
 
     def read_stepper(self, stepper_id: int) -> StepperReading:
@@ -220,8 +220,30 @@ class NEMA17ClosedLoopDriver(StepperDriver):
             raise DriverFault(f"Unknown stepper {stepper_id}", "INVALID_ID")
         with self._lock:
             reading = self._reading(ch)
-        self._record_success()
+        self._record_stall_or_success([reading] if reading.lost_sync else [])
         return reading
+
+    def _record_stall_or_success(self, stalled: list[StepperReading]) -> None:
+        # NOTE: without this, a stall confirmed by StallFaultTracker only
+        # ever surfaced via write_command() raising DriverFault("STALLED")
+        # -- which only fires if a NEW target is commanded. A robot sitting
+        # idle with a stalled joint would never emit a HalFault at all,
+        # since read_all()/read_stepper() (the path actually polled every
+        # cycle) unconditionally called _record_success(). This now uses
+        # _record_partial_fault() -- fires the HAL fault callback for as
+        # long as any channel remains in lost_sync -- rather than
+        # _record_fault(), because _record_fault() would flip this whole
+        # multi-channel driver's status to FAULTED/not-connected over a
+        # single stalled joint, needlessly blocking reads of every OTHER
+        # channel on the same GPIO bus and triggering a pointless
+        # reconnect loop that cannot fix a mechanical stall.
+        if stalled:
+            ids = ",".join(str(r.stepper_id) for r in stalled)
+            self._record_partial_fault(
+                "STALLED", f"stepper(s) {ids} lost sync — clear_stall() required"
+            )
+        else:
+            self._record_success()
 
     def _reading(self, ch: _StepperChannel) -> StepperReading:
         return StepperReading(

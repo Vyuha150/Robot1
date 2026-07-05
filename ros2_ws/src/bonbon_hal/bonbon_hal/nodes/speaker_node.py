@@ -33,6 +33,14 @@ class SpeakerNode(HalNodeBase):
         self.declare_parameter("volume_pct", 80.0)
         self.declare_parameter("alsa_device", "default")
         self.declare_parameter("amixer_control", "Master")
+        # PAM8610 amp mute-pin control -- defaults OFF (see
+        # docs/HARDWARE_SOFTWARE_GAP_REPORT.md item 4: whether the mute pin
+        # is actually GPIO-wired on a given unit is unverified without
+        # hardware access). Only set has_pam8610=true in a Pi-2 config once
+        # confirmed on real hardware.
+        self.declare_parameter("has_pam8610", False)
+        self.declare_parameter("pam8610_mute_pin", 23)
+        self.declare_parameter("pam8610_mute_active_low", True)
 
     def _create_driver(self) -> DriverBase:
         vol = self.get_parameter("volume_pct").value
@@ -41,6 +49,9 @@ class SpeakerNode(HalNodeBase):
                 device_name=self.get_parameter("alsa_device").value,
                 volume_pct=vol,
                 amixer_control=self.get_parameter("amixer_control").value,
+                has_pam8610=self.get_parameter("has_pam8610").value,
+                mute_pin=self.get_parameter("pam8610_mute_pin").value,
+                mute_active_low=self.get_parameter("pam8610_mute_active_low").value,
             )
         return MockSpeakerDriver()
 

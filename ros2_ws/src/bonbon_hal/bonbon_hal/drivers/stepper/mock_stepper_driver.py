@@ -40,15 +40,33 @@ class MockStepperDriver(StepperDriver):
 
     def read_all(self) -> list[StepperReading]:
         self._check()
-        self._record_success()
-        return [self._reading(sid) for sid in self.stepper_ids]
+        readings = [self._reading(sid) for sid in self.stepper_ids]
+        self._record_stall_or_success([r for r in readings if r.lost_sync])
+        return readings
 
     def read_stepper(self, stepper_id: int) -> StepperReading:
         self._check()
         if stepper_id not in self._position:
             raise DriverFault(f"Unknown stepper {stepper_id}", "INVALID_ID")
-        self._record_success()
-        return self._reading(stepper_id)
+        reading = self._reading(stepper_id)
+        self._record_stall_or_success([reading] if reading.lost_sync else [])
+        return reading
+
+    def _record_stall_or_success(self, stalled: list[StepperReading]) -> None:
+        # Mirrors the real NEMA17ClosedLoopDriver fix: a stall must reach
+        # _record_partial_fault() (fires the HAL fault callback without
+        # marking the whole multi-channel driver disconnected) on every
+        # poll while it persists, not just _record_success() -- otherwise
+        # an idle stalled joint never surfaces on /bonbon/hal/fault, and
+        # using _record_fault() instead would incorrectly block reads of
+        # every OTHER (non-stalled) channel on the same driver.
+        if stalled:
+            ids = ",".join(str(r.stepper_id) for r in stalled)
+            self._record_partial_fault(
+                "STALLED", f"stepper(s) {ids} lost sync — clear_stall() required"
+            )
+        else:
+            self._record_success()
 
     def _reading(self, stepper_id: int) -> StepperReading:
         stalled = stepper_id == self._stalled_id

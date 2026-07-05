@@ -236,6 +236,27 @@ class DriverBase(ABC):
             except Exception as exc:
                 logger.warning("Fault callback raised: %s", exc)
 
+    def _record_partial_fault(self, error_code: str, message: str) -> None:
+        """Call when one sub-component of a multi-channel driver (e.g. a
+        single stalled joint on a multi-stepper bus) reports a real,
+        persistent hardware fault that must still reach the fault
+        callback / HalFault topic -- but, unlike _record_fault(), does
+        NOT flip `status`/`is_connected`. The bus itself is fine and
+        other channels are still readable; forcing a reconnect (which
+        _record_fault's FAULTED status would trigger via HalNodeBase's
+        consecutive-error threshold) cannot fix a mechanical stall and
+        would needlessly interrupt every other channel on the same bus.
+        """
+        with self._lock:
+            self._total_faults += 1
+            self._last_error = f"[{error_code}] {message}"
+        logger.error("[%s/%s] PARTIAL FAULT %s: %s", self._device, self._mode, error_code, message)
+        if self._fault_cb:
+            try:
+                self._fault_cb(self._device, error_code, message)
+            except Exception as exc:
+                logger.warning("Fault callback raised: %s", exc)
+
     def _mark_degraded(self, reason: str) -> None:
         with self._lock:
             self._status = DriverStatus.DEGRADED
