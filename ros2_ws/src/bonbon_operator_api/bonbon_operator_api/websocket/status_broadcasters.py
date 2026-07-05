@@ -185,7 +185,15 @@ def degraded_mode_snapshot(app: FastAPI) -> dict[str, Any]:
 
 def component_health_snapshot(app: FastAPI) -> dict[str, Any]:
     status = app.state.status_aggregator.get_status()
-    return {"modules": {k: v.model_dump() for k, v in status.modules.items()}}
+    return {
+        "modules": {k: v.model_dump() for k, v in status.modules.items()},
+        # Sourced from bonbon_fault_manager's /bonbon/fault_manager/registry
+        # -- per-hardware-component fault classification (OK..BLOCKED) with
+        # recovery guidance, extending (not replacing) the modules dict
+        # above which is node-liveness only.
+        "component_faults": [f.model_dump() for f in status.component_faults],
+        "worst_fault_level": status.worst_fault_level,
+    }
 
 
 def deployment_readiness_snapshot(app: FastAPI) -> dict[str, Any]:

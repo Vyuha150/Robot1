@@ -57,6 +57,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/NavigationGoal.msg"
   "msg/DockingStatus.msg"
   "msg/RecoveryStatus.msg"
+  "msg/ComponentFault.msg"
+  "msg/ComponentFaultArray.msg"
   DEPENDENCIES std_msgs geometry_msgs builtin_interfaces
 )
 

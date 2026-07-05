@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_fault_manager</name>
+  <version>1.0.0</version>
+  <description>
+    Aggregates /bonbon/hal/fault (HalFault) and /bonbon/safety/state
+    (SafetyState) into a classified, per-component fault registry
+    (OK/WARNING/DEGRADED/FAULT/CRITICAL/BLOCKED) with concrete,
+    component-specific recovery guidance -- built for the real BOM
+    (ReSpeaker, OAK-D Lite, PAM8610, Cytron MDDS30, RPLiDAR, NEMA17
+    stepper, PCA9685 servo), not generic boilerplate. Publishes
+    bonbon_msgs/ComponentFaultArray on /bonbon/fault_manager/registry
+    for bonbon_operator_api's dashboard to consume. Does not duplicate
+    bonbon_safety/watchdog_node's node-liveness monitoring -- this is a
+    hardware-fault classifier, not a heartbeat watcher.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>bonbon_msgs</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

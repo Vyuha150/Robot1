@@ -58,6 +58,23 @@ class ModuleStatus(BaseModel):
     message: str = ""
 
 
+class ComponentFaultData(BaseModel):
+    """Mirrors bonbon_msgs/ComponentFault.msg -- sourced from
+    bonbon_fault_manager's /bonbon/fault_manager/registry, NOT derived
+    from ModuleStatus (that's node-liveness; this is per-hardware-part
+    fault classification with concrete recovery guidance)."""
+
+    component_id: str
+    subsystem: str = "unknown"
+    affected_pi: str = "unknown"
+    fault_level: str = "OK"  # OK|WARNING|DEGRADED|FAULT|CRITICAL|BLOCKED
+    error_code: str = ""
+    message: str = ""
+    recovery_action: str = ""
+    dashboard_visible: bool = True
+    occurrence_count: int = 0
+
+
 class PerformanceData(BaseModel):
     """System performance snapshot. Sourced from bonbon_safety's
     ResourceUsage (always-on baseline) and bonbon_perception_efficiency's
@@ -89,6 +106,8 @@ class RobotStatus(BaseModel):
     actuation: ActuationData = Field(default_factory=ActuationData)
     performance: PerformanceData = Field(default_factory=PerformanceData)
     modules: dict[str, ModuleStatus] = Field(default_factory=dict)
+    component_faults: list[ComponentFaultData] = Field(default_factory=list)
+    worst_fault_level: str = "OK"
     active_task: str | None = None
     last_updated: float = 0.0
 

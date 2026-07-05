@@ -1,0 +1,3 @@
+fault_manager_node:
+  ros__parameters:
+    republish_rate_hz: 1.0

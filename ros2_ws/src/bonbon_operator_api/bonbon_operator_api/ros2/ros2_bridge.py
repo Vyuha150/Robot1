@@ -50,6 +50,7 @@ try:
         ActuationStatus,
         BehaviorDecision,
         BehaviorProposal,
+        ComponentFaultArray,
         DegradedModeStatus,
         ModuleHealth,
         NavigationStatus,
@@ -82,6 +83,20 @@ _TOPIC_ACTUATION_STATUS = "/bonbon/actuation/status"  # bonbon_actuation, Actuat
 _TOPIC_PERSON_TRACKS = "/bonbon/persons/tracks"  # bonbon_multi_person_tracker, PersonTrack
 _TOPIC_RESOURCE_USAGE = "/bonbon/system/resource_usage"  # bonbon_safety, ResourceUsage
 _TOPIC_PERCEPTION_METRICS = "/bonbon/perception_efficiency/metrics"  # bonbon_perception_efficiency
+_TOPIC_FAULT_REGISTRY = (
+    "/bonbon/fault_manager/registry"  # bonbon_fault_manager, ComponentFaultArray
+)
+
+# bonbon_msgs/ComponentFault.msg's uint8 fault_level constants -> name,
+# for the dashboard-facing string field (ComponentFaultData.fault_level).
+_FAULT_LEVEL_NAMES = ["OK", "WARNING", "DEGRADED", "FAULT", "CRITICAL", "BLOCKED"]
+
+
+def _fault_level_name(level: int) -> str:
+    if 0 <= level < len(_FAULT_LEVEL_NAMES):
+        return _FAULT_LEVEL_NAMES[level]
+    return "UNKNOWN"
+
 
 # Three-Pi distributed topics — see config/distributed/topic_contracts.yaml
 # and docs/DISTRIBUTED_TOPIC_SERVICE_CONTRACT.md. Pi-1 only ever READS
@@ -441,6 +456,12 @@ if _ROS2_AVAILABLE:
                 self._on_perception_metrics,
                 _best_effort,
             )
+            self.create_subscription(
+                ComponentFaultArray,
+                _TOPIC_FAULT_REGISTRY,
+                self._on_component_faults,
+                _reliable_transient,
+            )
             for module_key, topic in _MODULE_HEALTH_TOPICS.items():
                 self.create_subscription(
                     ModuleHealth,
@@ -507,6 +528,31 @@ if _ROS2_AVAILABLE:
             }
             self._agg.update_safety(data)
             self._emit("safety-events", "safety_state_changed", data)
+
+        def _on_component_faults(self, msg: ComponentFaultArray) -> None:
+            faults = [
+                {
+                    "component_id": c.component_id,
+                    "subsystem": c.subsystem,
+                    "affected_pi": c.affected_pi,
+                    "fault_level": _fault_level_name(c.fault_level),
+                    "error_code": c.error_code,
+                    "message": c.message,
+                    "recovery_action": c.recovery_action,
+                    "dashboard_visible": c.dashboard_visible,
+                    "occurrence_count": c.occurrence_count,
+                }
+                for c in msg.components
+            ]
+            self._agg.update_component_faults(faults, _fault_level_name(msg.worst_level))
+            self._emit(
+                "component-health",
+                "component_faults_changed",
+                {
+                    "component_faults": faults,
+                    "worst_fault_level": _fault_level_name(msg.worst_level),
+                },
+            )
 
         def _on_battery(self, msg: BatteryState) -> None:
             # sensor_msgs/BatteryState.percentage is a 0.0-1.0 fraction (or

@@ -14,6 +14,7 @@ from typing import Any
 from bonbon_operator_api.models.robot_models import (
     ActuationData,
     BatteryData,
+    ComponentFaultData,
     ModuleStatus,
     NavigationData,
     PerceptionData,
@@ -86,6 +87,8 @@ class RobotStatusAggregator:
         )
         self._performance = PerformanceData()
         self._modules: dict[str, ModuleStatus] = {}
+        self._component_faults: list[ComponentFaultData] = []
+        self._worst_fault_level: str = "OK"
         self._active_task: str | None = None
         self._last_updated: float = 0.0  # epoch seconds; 0 = never heard from robot
 
@@ -112,6 +115,8 @@ class RobotStatusAggregator:
                 actuation=self._actuation.model_copy(),
                 performance=self._performance.model_copy(),
                 modules={k: v.model_copy() for k, v in self._modules.items()},
+                component_faults=[f.model_copy() for f in self._component_faults],
+                worst_fault_level=self._worst_fault_level,
                 active_task=self._active_task,
                 last_updated=self._last_updated,
             )
@@ -239,6 +244,17 @@ class RobotStatusAggregator:
                 health=data.get("health", "unknown"),
                 message=data.get("message", ""),
             )
+            self._touch()
+
+    def update_component_faults(self, faults: list[dict[str, Any]], worst_level: str) -> None:
+        """Called from bonbon_fault_manager's /bonbon/fault_manager/registry
+        subscription (bonbon_msgs/ComponentFaultArray) -- extends the
+        existing component-health dashboard channel, does not replace the
+        ModuleStatus/update_module() path (that's node-liveness; this is
+        per-hardware-part fault classification with recovery guidance)."""
+        with self._lock:
+            self._component_faults = [ComponentFaultData(**f) for f in faults]
+            self._worst_fault_level = worst_level
             self._touch()
 
     def update_active_task(self, task_id: str | None) -> None:
