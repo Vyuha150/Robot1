@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_ui_api_bringup</name>
+  <version>1.0.0</version>
+  <description>
+    Pi-1 bringup: composes bonbon_operator_api (dashboard/operator API
+    serving the 10.1" touchscreen), bonbon_fault_manager (component fault
+    registry, co-located here since the dashboard is its primary
+    consumer), and cross-Pi liveness/authority (self_id=pi1) into ONE
+    launch for the System UI/API Pi. Pi-1 owns no HAL hardware (no AI
+    HAT, no sensors/actuators per the BOM) -- this package launches no
+    bonbon_hal nodes at all, unlike the Pi-2/Pi-3 bringups. This package
+    launches no node code of its own -- it is composition only.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>bonbon_operator_api</exec_depend>
+  <exec_depend>bonbon_fault_manager</exec_depend>
+  <exec_depend>bonbon_distributed_safety</exec_depend>
+  <exec_depend>bonbon_authority_manager</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

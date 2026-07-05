@@ -1,0 +1,17 @@
+# pi3_hal_overrides.yaml -- selects the real Pi-3 hardware backends on top
+# of bonbon_hal's default hal_params.yaml. Passed as hal.launch.py's
+# override_params_file so bonbon_hal itself does not need a Pi-3-specific
+# fork of its own defaults. Mirrors pi2_hal_overrides.yaml's pattern.
+
+servo_node:
+  ros__parameters:
+    backend: "pca9685"   # PCA9685 16-channel PWM driver (bonbon_hal/drivers/servo/pca9685_servo_driver.py)
+
+stepper_node:
+  ros__parameters:
+    backend: "nema17"    # NEMA17 closed-loop stepper (bonbon_hal/drivers/stepper/nema17_closed_loop_driver.py)
+
+# motor_node (Cytron MDDS30), lidar_node (RPLiDAR A2M12), imu_node
+# (MPU6050), battery_node (INA226), estop_hal_node have no "backend" param
+# -- driver_mode:=real alone selects each one's single real driver
+# implementation. No overrides needed beyond driver_mode.

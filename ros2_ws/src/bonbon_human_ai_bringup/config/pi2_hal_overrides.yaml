@@ -13,10 +13,17 @@ mic_node:
     backend: "respeaker"     # ReSpeaker XVF3800 (bonbon_hal/drivers/microphone/respeaker_driver.py)
 
 # speaker_node has no "backend" param -- driver_mode:real alone selects
-# AlsaSpeakerDriver (bonbon_hal/nodes/speaker_node.py). No PAM8610-specific
-# gain control exists yet (HARDWARE_SOFTWARE_GAP_REPORT.md item 4); generic
-# ALSA volume control works today via alsa_device/amixer_control below.
+# AlsaSpeakerDriver (bonbon_hal/nodes/speaker_node.py). PAM8610 mute-pin
+# GPIO control now exists (see HARDWARE_SOFTWARE_GAP_REPORT.md item 4,
+# resolved) but defaults OFF (has_pam8610: false) since whether the mute
+# pin is actually wired on a given unit is unverified without hardware
+# access -- flip it to true here only after confirming on real Pi-2
+# hardware. Generic ALSA volume control works either way via
+# alsa_device/amixer_control below.
 speaker_node:
   ros__parameters:
     alsa_device: "default"
     amixer_control: "Master"
+    has_pam8610: false
+    pam8610_mute_pin: 23
+    pam8610_mute_active_low: true

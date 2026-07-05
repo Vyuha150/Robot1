@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_navigation_bringup</name>
+  <version>1.0.0</version>
+  <description>
+    Pi-3 bringup: composes the existing per-subsystem launch files (HAL
+    lidar/motor/servo/stepper/estop/imu/battery, base_controller,
+    actuation, safety [safety_supervisor+safety_gate+watchdog+estop],
+    motion_approval_gateway, Nav2+RTAB-Map navigation) into ONE launch for
+    the Navigation/Motion/Safety Pi, plus cross-Pi liveness (self_id=pi3).
+    Launches ONLY Pi-3 hardware (lidar/motor/servo/stepper/estop/imu/
+    battery) -- explicitly disables camera/mic/speaker so this launch can
+    never accidentally start Pi-2 hardware nodes on Pi-3, mirroring
+    bonbon_human_ai_bringup's Pi-2 pattern. This package launches no nodes
+    of its own -- it is composition only.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>bonbon_hal</exec_depend>
+  <exec_depend>bonbon_base_controller</exec_depend>
+  <exec_depend>bonbon_actuation</exec_depend>
+  <exec_depend>bonbon_safety</exec_depend>
+  <exec_depend>bonbon_motion_approval_gateway</exec_depend>
+  <exec_depend>bonbon_navigation</exec_depend>
+  <exec_depend>bonbon_distributed_safety</exec_depend>
+  <exec_depend>bonbon_authority_manager</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
