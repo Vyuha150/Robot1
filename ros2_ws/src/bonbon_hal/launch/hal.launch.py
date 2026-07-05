@@ -65,6 +65,7 @@ def _hal_nodes(context, *args, **kwargs) -> list:
     launch_lidar = context.launch_configurations.get("launch_lidar", "true") == "true"
     launch_imu = context.launch_configurations.get("launch_imu", "true") == "true"
     launch_servo = context.launch_configurations.get("launch_servo", "true") == "true"
+    launch_stepper = context.launch_configurations.get("launch_stepper", "true") == "true"
     launch_motor = context.launch_configurations.get("launch_motor", "true") == "true"
     launch_battery = context.launch_configurations.get("launch_battery", "true") == "true"
     launch_mic = context.launch_configurations.get("launch_mic", "true") == "true"
@@ -80,6 +81,8 @@ def _hal_nodes(context, *args, **kwargs) -> list:
         nodes.append(_make_node("imu_node"))
     if launch_servo:
         nodes.append(_make_node("servo_node"))
+    if launch_stepper:
+        nodes.append(_make_node("stepper_node"))
     if launch_motor:
         nodes.append(_make_node("motor_node"))
     if launch_battery:
@@ -132,6 +135,7 @@ def generate_launch_description() -> LaunchDescription:
             DeclareLaunchArgument("launch_lidar", default_value="true"),
             DeclareLaunchArgument("launch_imu", default_value="true"),
             DeclareLaunchArgument("launch_servo", default_value="true"),
+            DeclareLaunchArgument("launch_stepper", default_value="true"),
             DeclareLaunchArgument("launch_motor", default_value="true"),
             DeclareLaunchArgument("launch_battery", default_value="true"),
             DeclareLaunchArgument("launch_mic", default_value="true"),

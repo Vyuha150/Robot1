@@ -43,15 +43,55 @@ imu_node:
     reconnect_base_delay_sec: 0.5
     reconnect_max_delay_sec:  10.0
 
-# ── Servo node (Dynamixel) ────────────────────────────────────────────────────
+# ── Servo node (PCA9685 PWM -- 25kgcm digital servos, real BOM hardware;
+#    Dynamixel kept as a selectable backend for any future Dynamixel HW) ──────
+# Corrected joint topology (was wrongly assumed 7-servo two-arm Dynamixel;
+# real BOM is a single right arm + 2-DOF head, elbow/wrist/head-tilt only
+# -- shoulder and head-pan are NEMA17 steppers, see stepper_node below):
+#   1 = HEAD_TILT (up/down)      -- published alone on the "neck" topics
+#   2 = RIGHT_ELBOW
+#   3 = RIGHT_WRIST                -- 2,3 published together on "arm" topics
 servo_node:
   ros__parameters:
     driver_mode:   "mock"
+    backend:       "mock"        # "mock" | "pca9685" (real) | "dynamixel"
     data_rate_hz:  20.0
+    # Dynamixel-only:
     port:          "/dev/ttyUSB1"
     baudrate:      57600
-    servo_ids:     [1, 2, 3, 4]   # 1=neck, 2-4=arm
-    neck_servo_id: 1
+    # PCA9685-only -- I2C address 0x40 is the chip default (A0-A5 unbridged):
+    i2c_bus:       1
+    i2c_address:   0x40
+    pwm_freq_hz:   50.0
+    servo_ids:            [1, 2, 3]
+    primary_servo_id:     1
+    pca9685_channels:      [0, 1, 2]
+    pca9685_min_pulse_us:  [1000.0, 1000.0, 1000.0]
+    pca9685_max_pulse_us:  [2000.0, 2000.0, 2000.0]
+    reconnect_max_attempts:   3
+    reconnect_base_delay_sec: 1.0
+    reconnect_max_delay_sec:  15.0
+
+# ── Stepper node (NEMA17 closed-loop -- HEAD pan L/R, RIGHT ARM shoulder) ──────
+# The ONE actuator class in this BOM with a genuine closed-loop fault
+# signal (ALM/stall) -- see bonbon_hal/drivers/stepper/nema17_closed_loop_driver.py.
+# Pin numbers below are BCM GPIO placeholders -- MUST be verified against
+# the physical Pi-3 wiring during bring-up, not assumed correct.
+#   1 = HEAD_PAN (left/right)
+#   2 = RIGHT_SHOULDER
+stepper_node:
+  ros__parameters:
+    driver_mode:      "mock"
+    backend:          "mock"        # "mock" | "nema17" (real)
+    data_rate_hz:     20.0
+    stepper_ids:      [1, 2]
+    steps_per_rev:    200
+    microstepping:    8
+    max_step_rate_hz: 1500.0
+    step_pins:        [20, 22]
+    dir_pins:         [21, 23]
+    enable_pins:      [24, 25]
+    alarm_pins:       [26, 27]
     reconnect_max_attempts:   3
     reconnect_base_delay_sec: 1.0
     reconnect_max_delay_sec:  15.0

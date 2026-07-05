@@ -6,7 +6,7 @@ by config/distributed/pi_human_ai.yaml. Launches NO new node types itself
 is composition + correct Pi-2-only HAL scoping only.
 
 Explicitly launches ONLY camera/mic/speaker HAL devices (lidar/servo/
-motor/estop/battery/imu are Pi-3 hardware) -- this is the concrete fix for
+stepper/motor/estop/battery/imu are Pi-3 hardware) -- this is the concrete fix for
 docs/DISTRIBUTED_DEPLOYMENT_BLOCKERS.md Blocker 2 ("no per-Pi launch
 files... a Pi could accidentally launch the full monolithic stack").
 
@@ -44,7 +44,8 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     # ── Rank 1-2: sensors first (camera + mic + speaker ONLY -- see module
-    #    docstring for why lidar/servo/motor/estop/battery/imu are excluded) ──
+    #    docstring for why lidar/servo/stepper/motor/estop/battery/imu are
+    #    excluded) ──────────────────────────────────────────────────────────
     hal = _include(
         "bonbon_hal",
         "hal.launch.py",
@@ -54,6 +55,7 @@ def generate_launch_description() -> LaunchDescription:
             "launch_lidar": "false",
             "launch_imu": "false",
             "launch_servo": "false",
+            "launch_stepper": "false",
             "launch_motor": "false",
             "launch_battery": "false",
             "launch_estop": "false",

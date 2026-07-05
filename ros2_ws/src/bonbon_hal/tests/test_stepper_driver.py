@@ -1,0 +1,112 @@
+"""Tests for MockStepperDriver: motion, fault injection, torque control,
+stall clearing -- mirrors test_servo_driver.py / test_motor_driver.py."""
+
+from __future__ import annotations
+
+import pytest
+from bonbon_hal.base.driver_base import DriverFault
+from bonbon_hal.drivers.stepper import MockStepperDriver, StepperCommand
+
+
+@pytest.fixture
+def drv() -> MockStepperDriver:
+    d = MockStepperDriver(stepper_ids=[1, 2])
+    d.connect()
+    return d
+
+
+class TestMockStepperNormal:
+    def test_connect_ok(self, drv):
+        assert drv.is_connected
+
+    def test_initial_position_is_zero(self, drv):
+        r = drv.read_stepper(1)
+        assert r.position_rad == 0.0
+        assert r.is_stalled is False
+        assert r.lost_sync is False
+        assert r.enabled is True
+
+    def test_write_command_moves_to_target(self, drv):
+        drv.write_command(StepperCommand(stepper_id=1, target_position_rad=1.5))
+        r = drv.read_stepper(1)
+        assert r.position_rad == 1.5
+
+    def test_write_commands_batch(self, drv):
+        drv.write_commands(
+            [
+                StepperCommand(stepper_id=1, target_position_rad=0.5),
+                StepperCommand(stepper_id=2, target_position_rad=-0.5),
+            ]
+        )
+        assert drv.read_stepper(1).position_rad == 0.5
+        assert drv.read_stepper(2).position_rad == -0.5
+
+    def test_read_all_returns_every_stepper(self, drv):
+        readings = drv.read_all()
+        assert {r.stepper_id for r in readings} == {1, 2}
+
+    def test_disabled_stepper_ignores_command(self, drv):
+        drv.enable_torque(1, False)
+        drv.write_command(StepperCommand(stepper_id=1, target_position_rad=2.0))
+        assert drv.read_stepper(1).position_rad == 0.0
+
+    def test_enable_all_torque(self, drv):
+        drv.enable_all_torque(False)
+        assert drv.read_stepper(1).enabled is False
+        assert drv.read_stepper(2).enabled is False
+
+
+class TestMockStepperFaults:
+    def test_read_without_connect_raises(self):
+        d = MockStepperDriver()
+        with pytest.raises(DriverFault) as exc:
+            d.read_stepper(1)
+        assert exc.value.error_code == "NOT_CONNECTED"
+
+    def test_start_disconnected(self):
+        d = MockStepperDriver(start_disconnected=True)
+        assert d.connect() is False
+
+    def test_unknown_stepper_id_raises(self, drv):
+        with pytest.raises(DriverFault) as exc:
+            drv.read_stepper(99)
+        assert exc.value.error_code == "INVALID_ID"
+
+    def test_stalled_stepper_reports_lost_sync(self, drv):
+        drv.inject_fault(stalled_id=1)
+        r = drv.read_stepper(1)
+        assert r.is_stalled is True
+        assert r.lost_sync is True
+
+    def test_write_command_to_stalled_stepper_raises(self, drv):
+        drv.inject_fault(stalled_id=1)
+        with pytest.raises(DriverFault) as exc:
+            drv.write_command(StepperCommand(stepper_id=1, target_position_rad=1.0))
+        assert exc.value.error_code == "STALLED"
+
+    def test_stall_does_not_affect_other_steppers(self, drv):
+        drv.inject_fault(stalled_id=1)
+        drv.write_command(StepperCommand(stepper_id=2, target_position_rad=0.7))
+        assert drv.read_stepper(2).position_rad == 0.7
+        assert drv.read_stepper(2).lost_sync is False
+
+    def test_clear_stall_resets_lost_sync_once_fault_condition_is_gone(self, drv):
+        drv.inject_fault(stalled_id=1)
+        drv.read_stepper(1)  # observe the stall
+        drv.inject_fault(stalled_id=-1)  # underlying fault condition clears
+        drv.clear_stall(1)
+        assert drv.read_stepper(1).lost_sync is False
+
+    def test_clear_stall_is_reasserted_while_fault_condition_persists(self, drv):
+        drv.inject_fault(stalled_id=1)
+        drv.read_stepper(1)  # observe the stall
+        drv.clear_stall(1)
+        # Real hardware: clear_stall() only acknowledges -- if the
+        # physical jam/misalignment is still present, the alarm re-fires
+        # on the next poll. The mock models that by re-injecting
+        # lost_sync=True as long as stalled_id is still set.
+        assert drv.read_stepper(1).lost_sync is True
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
