@@ -13,9 +13,23 @@ Pipeline (per ActuationGesture on /bonbon/behavior/actuation)
 4. GestureLibrary     — resolve the named gesture to a keyframe sequence.
 5. MotionQueue        — if a gesture is already running, queue by priority;
                         emergency / higher-priority requests preempt.
-6. ServoValidator     — clamp every servo target to safe mechanical limits.
-7. /bonbon/hal/servo_commands — dispatch validated ServoStateArray to the HAL.
+6. ServoValidator     — clamp every joint target to safe mechanical limits.
+7. Dispatch to bonbon_safety's safety_gate_node (CLASS-A) via three RAW
+   topics -- /bonbon/stepper/command_raw, /bonbon/servo/neck/command_raw,
+   /bonbon/servo/arm/command_raw -- routed per-joint by
+   gesture_library.JOINT_ACTUATOR_TYPE/JOINT_LOCAL_ID. This node has no
+   direct path to the HAL; the safety gate is never bypassed.
 8. /bonbon/actuation/status   — publish ActuationStatus throughout.
+
+Bug fixes from the BOM-accuracy audit (see docs/HARDWARE_SOFTWARE_GAP_REPORT.md):
+this node previously published a single ServoStateArray to
+/bonbon/hal/servo_commands, a topic nothing subscribes to (the safety gate
+listens on the three _raw topics above) -- gestures never reached hardware.
+It also used field names (`position_deg`, `current_ma`, `is_enabled`, ...)
+that don't exist on bonbon_msgs/ServoState (`position_rad`, `load_percent`,
+`torque_enabled`, ...) and on bonbon_msgs/SafetyState (`msg.level` instead
+of `msg.state`, etc.) -- both silently no-op rather than crash, so this had
+never surfaced as a visible failure. All three are fixed here.
 
 Safety guarantees
 -----------------
@@ -36,6 +50,7 @@ behaves identically — it simply has no physical effect.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 import uuid
@@ -58,7 +73,13 @@ from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPo
 from std_msgs.msg import Bool, Header
 
 from bonbon_actuation.core.actuation_safety_gate import ActuationSafetyGate
-from bonbon_actuation.core.gesture_library import GestureLibrary
+from bonbon_actuation.core.gesture_library import (
+    JOINT_ACTUATOR_TYPE,
+    JOINT_HEAD_PAN,
+    JOINT_HEAD_TILT,
+    JOINT_LOCAL_ID,
+    GestureLibrary,
+)
 from bonbon_actuation.core.motion_profile import MotionProfileGenerator
 from bonbon_actuation.core.motion_queue import MotionQueue
 from bonbon_actuation.core.proximity_governor import ProximityGovernor
@@ -125,7 +146,9 @@ class ActuationNode(LifecycleNode):
         self._sub_estop = None
         self._sub_hint = None
         self._sub_entity = None
-        self._pub_servo = None
+        self._pub_primary_servo = None
+        self._pub_arm_servo = None
+        self._pub_stepper = None
         self._pub_status = None
         self._srv_perform = None
         self._srv_health = None
@@ -139,7 +162,12 @@ class ActuationNode(LifecycleNode):
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("ActuationNode configuring …")
-        self.declare_parameter("servo_command_topic", "/bonbon/hal/servo_commands")
+        # Three RAW topics matching bonbon_safety/safety_gate_node.py's
+        # actual gated-input contract exactly -- NOT a single combined
+        # topic (see module docstring for the dead-topic bug this replaces).
+        self.declare_parameter("primary_servo_command_topic", "/bonbon/servo/neck/command_raw")
+        self.declare_parameter("arm_servo_command_topic", "/bonbon/servo/arm/command_raw")
+        self.declare_parameter("stepper_command_topic", "/bonbon/stepper/command_raw")
         self.declare_parameter("status_topic", "/bonbon/actuation/status")
         self.declare_parameter("gesture_topic", "/bonbon/behavior/actuation")
         self.declare_parameter("safety_topic", "/bonbon/safety/state")
@@ -155,7 +183,9 @@ class ActuationNode(LifecycleNode):
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("ActuationNode activating …")
         p = self.get_parameter
-        servo_topic = p("servo_command_topic").get_parameter_value().string_value
+        primary_servo_topic = p("primary_servo_command_topic").get_parameter_value().string_value
+        arm_servo_topic = p("arm_servo_command_topic").get_parameter_value().string_value
+        stepper_topic = p("stepper_command_topic").get_parameter_value().string_value
         status_topic = p("status_topic").get_parameter_value().string_value
         gesture_topic = p("gesture_topic").get_parameter_value().string_value
         safety_topic = p("safety_topic").get_parameter_value().string_value
@@ -172,8 +202,13 @@ class ActuationNode(LifecycleNode):
             max_workers=max(1, n_threads), thread_name_prefix="actuation"
         )
 
-        # Publishers
-        self._pub_servo = self.create_lifecycle_publisher(ServoStateArray, servo_topic, 10)
+        # Publishers -- to bonbon_safety's safety_gate_node RAW inputs,
+        # never directly to the HAL. See module docstring.
+        self._pub_primary_servo = self.create_lifecycle_publisher(
+            ServoState, primary_servo_topic, 10
+        )
+        self._pub_arm_servo = self.create_lifecycle_publisher(ServoStateArray, arm_servo_topic, 10)
+        self._pub_stepper = self.create_lifecycle_publisher(ServoStateArray, stepper_topic, 10)
         self._pub_status = self.create_lifecycle_publisher(ActuationStatus, status_topic, 10)
 
         # Subscribers
@@ -236,7 +271,7 @@ class ActuationNode(LifecycleNode):
             srv = getattr(self, attr, None)
             if srv:
                 self.destroy_service(srv)
-        for attr in ("_pub_servo", "_pub_status"):
+        for attr in ("_pub_primary_servo", "_pub_arm_servo", "_pub_stepper", "_pub_status"):
             pub = getattr(self, attr, None)
             if pub:
                 self.destroy_publisher(pub)
@@ -252,14 +287,20 @@ class ActuationNode(LifecycleNode):
     # ── Subscription callbacks ─────────────────────────────────────────────────
 
     def _on_safety_state(self, msg: SafetyState) -> None:
-        self._safety_gate.update_safety_state(msg.level, msg.actuation_enabled, msg.level_name)
-        if msg.level >= 3:
+        # NOTE: SafetyState.msg's real fields are `state`/`state_name`/
+        # `actuation_permitted` -- this previously read msg.level/
+        # msg.actuation_enabled/msg.level_name, none of which exist on the
+        # message, so this whole safety-cancellation path silently did
+        # nothing (no exception; unknown attrs just don't affect the real
+        # ones). Found and fixed during the BOM-accuracy audit.
+        self._safety_gate.update_safety_state(msg.state, msg.actuation_permitted, msg.state_name)
+        if msg.state >= SafetyState.DANGER:
             with self._lock:
                 if self._current_gesture and self._current_gesture not in _EMERGENCY_GESTURES:
                     self._cancel_requested = True
                     self.get_logger().warn(
-                        "Safety level %s: cancelling gesture '%s'.",
-                        msg.level_name,
+                        "Safety state %s: cancelling gesture '%s'.",
+                        msg.state_name,
                         self._current_gesture,
                     )
             self._queue.clear()
@@ -322,7 +363,9 @@ class ActuationNode(LifecycleNode):
             estop = self._estop_engaged
         if estop and gesture_name != _RECOVERY_GESTURE:
             self._gestures_rejected += 1
-            self._publish_status(event_id, gesture_name, "rejected", "e-stop engaged", 0.0)
+            self._publish_status(
+                event_id, gesture_name, "rejected", "e-stop engaged", 0.0, safety_blocked=True
+            )
             return "rejected"
 
         # Safety-level gate.
@@ -330,7 +373,9 @@ class ActuationNode(LifecycleNode):
         if not allowed:
             self._gestures_rejected += 1
             self.get_logger().warn("Gesture '%s' rejected: %s", gesture_name, reason)
-            self._publish_status(event_id, gesture_name, "rejected", reason, 0.0)
+            self._publish_status(
+                event_id, gesture_name, "rejected", reason, 0.0, safety_blocked=True
+            )
             return "rejected"
 
         gesture_def = GestureLibrary.get(gesture_name)
@@ -448,7 +493,16 @@ class ActuationNode(LifecycleNode):
                     return False
 
                 self._publish_servo_commands(vr.clamped_targets)
-                self._publish_status(event_id, gesture_name, "executing", "", step.progress)
+                pan_rad, tilt_rad = self._extract_head_angles(vr.clamped_targets)
+                self._publish_status(
+                    event_id,
+                    gesture_name,
+                    "executing",
+                    "",
+                    step.progress,
+                    head_pan_rad=pan_rad,
+                    head_tilt_rad=tilt_rad,
+                )
 
             elapsed = time.monotonic() - self._gesture_start_time
             self._gestures_run += 1
@@ -475,42 +529,117 @@ class ActuationNode(LifecycleNode):
     # ── Publishing helpers ─────────────────────────────────────────────────────
 
     def _publish_servo_commands(self, targets) -> None:
-        if self._pub_servo is None:
-            return
-        msg = ServoStateArray()
-        msg.header = Header()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "actuation"
+        """Route each validated joint target to the correct RAW topic
+        (stepper / primary servo / arm servo) using the joint's actuator
+        type and local bus ID (gesture_library.JOINT_ACTUATOR_TYPE /
+        JOINT_LOCAL_ID), and build real bonbon_msgs/ServoState fields --
+        position_rad (radians, NOT position_deg -- gesture targets are
+        authored in degrees, the wire message is radians) and
+        torque_enabled/error_code, not the nonexistent current_ma/
+        is_enabled/has_error/error_msg fields the previous version wrote to.
+        """
+        now = self.get_clock().now().to_msg()
+        stepper_states: list[ServoState] = []
+        arm_servo_states: list[ServoState] = []
+        primary_servo_state: Optional[ServoState] = None
+
         for t in targets:
+            actuator_type = JOINT_ACTUATOR_TYPE.get(t.servo_id)
+            local_id = JOINT_LOCAL_ID.get(t.servo_id)
+            if actuator_type is None or local_id is None:
+                self.get_logger().error(
+                    "Joint id=%d has no actuator-type/local-id mapping -- "
+                    "target dropped, not silently sent to the wrong bus.",
+                    t.servo_id,
+                )
+                continue
+
             ss = ServoState()
-            ss.servo_id = t.servo_id
-            ss.position_deg = t.position_deg
-            ss.velocity_dps = t.velocity_dps
-            ss.current_ma = 0.0
-            ss.temperature_c = 0.0
-            ss.is_enabled = True
-            ss.has_error = False
-            ss.error_msg = ""
-            msg.servos.append(ss)
-        self._pub_servo.publish(msg)
+            ss.servo_id = local_id
+            ss.position_rad = math.radians(t.position_deg)
+            ss.velocity_rads = math.radians(t.velocity_dps)
+            ss.load_percent = 0.0  # this is a COMMAND, not measured state
+            ss.temperature_c = 0.0  # this is a COMMAND, not measured state
+            ss.voltage_v = 0.0  # this is a COMMAND, not measured state
+            ss.error_code = 0
+            ss.torque_enabled = True
+
+            if actuator_type == "stepper":
+                stepper_states.append(ss)
+            elif local_id == 1:  # HEAD_TILT -- the single "primary"/"neck" servo
+                primary_servo_state = ss
+            else:
+                arm_servo_states.append(ss)
+
+        if primary_servo_state is not None and self._pub_primary_servo is not None:
+            self._pub_primary_servo.publish(primary_servo_state)
+
+        if arm_servo_states and self._pub_arm_servo is not None:
+            arm_msg = ServoStateArray()
+            arm_msg.header = Header()
+            arm_msg.header.stamp = now
+            arm_msg.header.frame_id = "actuation"
+            arm_msg.servos = arm_servo_states
+            self._pub_arm_servo.publish(arm_msg)
+
+        if stepper_states and self._pub_stepper is not None:
+            stepper_msg = ServoStateArray()
+            stepper_msg.header = Header()
+            stepper_msg.header.stamp = now
+            stepper_msg.header.frame_id = "actuation"
+            stepper_msg.servos = stepper_states
+            self._pub_stepper.publish(stepper_msg)
 
     def _publish_status(
-        self, event_id: str, gesture_name: str, status: str, reason: str, progress: float
+        self,
+        event_id: str,
+        gesture_name: str,
+        status: str,
+        reason: str,
+        progress: float,
+        safety_blocked: bool = False,
+        head_pan_rad: float = 0.0,
+        head_tilt_rad: float = 0.0,
     ) -> None:
+        # NOTE: bonbon_msgs/ActuationStatus's real fields are `failure_reason`
+        # (not `reason`), `progress_pct` on a 0-100 scale (not `progress` on
+        # 0-1), and there is no `elapsed_sec` field at all -- this previously
+        # wrote to all three nonexistent names, so failure reasons and
+        # progress never actually reached any subscriber. Found and fixed
+        # during the BOM-accuracy audit.
         if self._pub_status is None:
             return
         msg = ActuationStatus()
         msg.header = Header()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.event_id = event_id
+        msg.source_module = "bonbon_actuation"
         msg.gesture_name = gesture_name
         msg.status = status
-        msg.reason = reason
-        msg.progress = float(progress)
-        msg.elapsed_sec = float(
-            time.monotonic() - self._gesture_start_time if self._gesture_start_time else 0.0
-        )
+        msg.failure_reason = reason
+        msg.progress_pct = float(progress) * 100.0
+        msg.safety_blocked = safety_blocked
+        msg.head_pan_rad = head_pan_rad
+        msg.head_tilt_rad = head_tilt_rad
+        msg.queue_depth = self._queue.depth()
         self._pub_status.publish(msg)
+
+    @staticmethod
+    def _extract_head_angles(targets) -> tuple[float, float]:
+        """Pull the current step's commanded head_pan/head_tilt (radians)
+        out of a keyframe's targets, for ActuationStatus.head_pan_rad/
+        head_tilt_rad. Returns 0.0 for either joint not present in THIS
+        step -- this reflects "not commanded in this step," not a
+        tracked absolute head position (this node does not maintain
+        persistent joint-position state outside of gesture execution)."""
+        pan_rad = 0.0
+        tilt_rad = 0.0
+        for t in targets:
+            if t.servo_id == JOINT_HEAD_PAN:
+                pan_rad = math.radians(t.position_deg)
+            elif t.servo_id == JOINT_HEAD_TILT:
+                tilt_rad = math.radians(t.position_deg)
+        return pan_rad, tilt_rad
 
     # ── Service handlers ───────────────────────────────────────────────────────
 

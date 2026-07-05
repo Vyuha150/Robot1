@@ -12,10 +12,11 @@ Architecture
 ------------
 
   AI / Navigation layer
-    /bonbon/servo/neck/command_raw  ─┐
-    /bonbon/servo/arm/command_raw   ─┤──► SafetyGateNode ──► HAL layer
-    /bonbon/cmd_vel_raw              ─┘         ▲
-                                                │
+    /bonbon/servo/neck/command_raw   ─┐
+    /bonbon/servo/arm/command_raw    ─┤
+    /bonbon/stepper/command_raw      ─┤──► SafetyGateNode ──► HAL layer
+    /bonbon/cmd_vel_raw               ─┘         ▲
+                                                 │
                               /bonbon/safety/state
                               (RELIABLE / TRANSIENT_LOCAL)
 
@@ -32,15 +33,25 @@ Topics subscribed
   /bonbon/safety/state             SafetyState      RELIABLE/TRANSIENT_LOCAL
   /bonbon/servo/neck/command_raw   ServoState       RELIABLE depth=10
   /bonbon/servo/arm/command_raw    ServoStateArray  RELIABLE depth=10
+  /bonbon/stepper/command_raw      ServoStateArray  RELIABLE depth=10
   /bonbon/cmd_vel_raw              Twist            BEST_EFFORT depth=1
 
 Topics published
 ----------------
   /bonbon/servo/neck/command       ServoState       RELIABLE depth=10   → HAL
   /bonbon/servo/arm/command        ServoStateArray  RELIABLE depth=10   → HAL
+  /bonbon/stepper/command          ServoStateArray  RELIABLE depth=10   → HAL
   /cmd_vel                         Twist            BEST_EFFORT depth=1  → Nav
   /bonbon/actuation/safety_gate_node/health  ModuleHealth  RELIABLE/TL
   /bonbon/safety_gate/stats        SafetyGateStats  RELIABLE depth=5
+
+NOTE: /bonbon/stepper/command_raw gating was added alongside the BOM
+correction that introduced NEMA17 closed-loop steppers for HEAD_PAN and
+RIGHT_SHOULDER (bonbon_hal/nodes/stepper_node.py) -- before this, stepper
+commands had NO safety-gated path at all (bonbon_hal's stepper_node
+subscribed directly with no gate in front of it), meaning an arm/head
+stepper could move even during DANGER/e-stop. It now uses the exact same
+_can_actuate() gate as servo commands, never a separate/weaker check.
 
 Parameters
 ----------
@@ -187,6 +198,7 @@ class SafetyGateNode(LifecycleNode):
         # Publishers / subscribers — created in on_activate
         self._pub_neck: object | None = None
         self._pub_arm: object | None = None
+        self._pub_stepper: object | None = None
         self._pub_vel: object | None = None
         self._pub_health: object | None = None
 
@@ -251,6 +263,12 @@ class SafetyGateNode(LifecycleNode):
             self._on_arm_command_raw,
             RELIABLE_D10,
         )
+        self._sub_stepper_raw = self.create_subscription(
+            ServoStateArray,
+            "/bonbon/stepper/command_raw",
+            self._on_stepper_command_raw,
+            RELIABLE_D10,
+        )
         self._sub_vel_raw = self.create_subscription(
             Twist,
             "/bonbon/cmd_vel_raw",
@@ -264,6 +282,9 @@ class SafetyGateNode(LifecycleNode):
         )
         self._pub_arm = self.create_lifecycle_publisher(
             ServoStateArray, "/bonbon/servo/arm/command", RELIABLE_D10
+        )
+        self._pub_stepper = self.create_lifecycle_publisher(
+            ServoStateArray, "/bonbon/stepper/command", RELIABLE_D10
         )
         self._pub_vel = self.create_lifecycle_publisher(Twist, "/cmd_vel", BEST_EFFORT_D1)
         self._pub_health = self.create_lifecycle_publisher(ModuleHealth, HEALTH_TOPIC, RELIABLE_TL)
@@ -299,6 +320,7 @@ class SafetyGateNode(LifecycleNode):
         self.get_logger().info(f"[{NODE_NAME}] Cleanup")
         self._pub_neck = None
         self._pub_arm = None
+        self._pub_stepper = None
         self._pub_vel = None
         self._pub_health = None
         return TransitionCallbackReturn.SUCCESS
@@ -349,6 +371,24 @@ class SafetyGateNode(LifecycleNode):
 
         if self._pub_arm is not None:
             self._pub_arm.publish(msg)
+            self._stats.record_servo_pass()
+            self._processed_count += 1
+
+    def _on_stepper_command_raw(self, msg: ServoStateArray) -> None:
+        """Gate stepper (HEAD_PAN/RIGHT_SHOULDER) command array from AI
+        layer -- same _can_actuate() gate as servo commands, since a
+        stepper-driven joint is exactly as capable of unsafe motion as a
+        servo-driven one and must never have a separate, weaker check."""
+        if not self._can_actuate():
+            self._stats.record_servo_block()
+            self._warning_count += 1
+            self.get_logger().debug(
+                f"[{NODE_NAME}] BLOCKED stepper cmd " f"(state={self._current_state_name()})"
+            )
+            return
+
+        if self._pub_stepper is not None:
+            self._pub_stepper.publish(msg)
             self._stats.record_servo_pass()
             self._processed_count += 1
 
