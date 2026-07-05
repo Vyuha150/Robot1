@@ -1,0 +1,18 @@
+[Unit]
+Description=BonBon Pi-2 (Human AI) -- tracker+object+gesture+affective+human_state_fusion+speaker_intel
+After=docker.service network-online.target bonbon-pi2-vision.service bonbon-pi2-asr.service
+Wants=docker.service network-online.target
+Requires=bonbon-pi2-vision.service bonbon-pi2-asr.service
+Conflicts=bonbon-core.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.pi2.yml up -d perception-fusion
+ExecStop=/usr/bin/docker compose -f docker-compose.pi2.yml stop perception-fusion
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

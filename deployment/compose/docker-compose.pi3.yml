@@ -1,0 +1,125 @@
+# docker-compose.pi3.yml -- Autonomous Navigation Pi (192.168.10.13,
+# static IP per config/distributed/robot_network.yaml). Confirmed BOM:
+# Raspberry Pi 5 + AI HAT+2, Cytron SmartDrive MDDS30 + Rhino 24V 60RPM
+# motors, SLAMTEC RPLiDAR A2M12, plus (Hand Gestures & Head Pan sheet)
+# 2x NEMA17 closed-loop steppers + 3x 25kgcm PWM servos.
+#
+# Per-subsystem services, matching docker-compose.robot.yml's granularity
+# and preserving its safety-priority protection (oom_score_adj/cpu_shares)
+# for the `safety` and `hal` services -- safety_gate_node/estop_node must
+# survive resource pressure that kills everything else on this Pi.
+#
+# KNOWN, NON-OBVIOUS DEVICE-PATH RISK (flagged, not silently assumed
+# away): RPLiDAR A2M12 and Cytron MDDS30 are BOTH USB-serial devices.
+# Raw /dev/ttyUSB0 / /dev/ttyUSB1 enumeration order is not guaranteed
+# stable across reboots or USB hub re-plugs -- if they swap, the lidar
+# and drive motors silently swap control paths. Before real deployment,
+# create persistent udev rules keyed on each device's USB
+# vendor:product (and serial, if the vendor exposes one) mapping to
+# stable symlinks (e.g. /dev/bonbon-lidar, /dev/bonbon-motor), then
+# update the device paths below to those symlinks instead of raw
+# ttyUSB*. Left as raw ttyUSB0/1 here ONLY as a documented placeholder
+# pending that udev rule (which requires the physical hardware's exact
+# USB IDs to write correctly).
+services:
+  safety:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+      - /var/lib/bonbon:/var/bonbon/data
+    devices:
+      - "/dev/gpiomem:/dev/gpiomem"   # e-stop relay/button GPIO
+    group_add: ["gpio"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_safety safety.launch.py"
+    security_opt: ["no-new-privileges:true"]
+    # Safety Supervisor must have the highest runtime priority; e-stop
+    # must keep working under CPU/AI-HAT overload -- see the identical
+    # rationale in docker-compose.robot.yml's `safety` service.
+    oom_score_adj: -900
+    cpu_shares: 4096
+
+  hal:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"   # RPLiDAR A2M12 -- see module comment on udev symlinks
+      - "/dev/ttyUSB1:/dev/ttyUSB1"   # Cytron MDDS30 -- see module comment on udev symlinks
+      - "/dev/i2c-1:/dev/i2c-1"       # PCA9685 servo + MPU6050 IMU + INA226 battery (shared bus)
+      - "/dev/gpiomem:/dev/gpiomem"   # NEMA17 STEP/DIR/ENABLE/ALM pins
+    group_add: ["dialout", "i2c", "gpio"]
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+      source /opt/bonbon/install/setup.bash &&
+      ros2 launch bonbon_hal hal.launch.py driver_mode:=real
+      override_params_file:=/opt/bonbon/ros2_ws/src/bonbon_navigation_bringup/config/pi3_hal_overrides.yaml
+      launch_camera:=false launch_mic:=false launch_speaker:=false
+      launch_lidar:=true launch_motor:=true launch_servo:=true launch_stepper:=true
+      launch_estop:=true launch_imu:=true launch_battery:=true"
+    security_opt: ["no-new-privileges:true"]
+    # HAL owns the stepper/servo/motor actuator paths -- protect it like
+    # safety (slightly lower priority than safety itself).
+    oom_score_adj: -800
+    cpu_shares: 2048
+
+  base-controller:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_base_controller base_controller.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  actuation:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_actuation actuation.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  motion-gateway:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_motion_approval_gateway motion_approval_gateway.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  navigation:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /opt/bonbon/maps:/maps:ro
+      - /var/log/bonbon:/logs
+      - /var/lib/bonbon:/var/bonbon/data
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_navigation navigation.launch.py use_sim_time:=false"
+    security_opt: ["no-new-privileges:true"]
+
+  distributed-liveness:
+    image: bonbon/navigation:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+      source /opt/bonbon/install/setup.bash &&
+      ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi3 &
+      ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi3 &
+      wait"
+    security_opt: ["no-new-privileges:true"]

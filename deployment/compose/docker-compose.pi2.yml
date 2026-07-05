@@ -1,0 +1,125 @@
+# docker-compose.pi2.yml -- ASR/LLM/Face Recognition Pi (192.168.10.12,
+# static IP per config/distributed/robot_network.yaml). Confirmed BOM:
+# Raspberry Pi 5 + AI HAT+2, Luxonis OAK-D Lite, ReSpeaker XVF3800 4-mic
+# array, 4ohm 10W speaker + PAM8610 amp.
+#
+# Per-subsystem services (not one bundled container) so each has its own
+# restart/resource-limit domain, matching the granularity already
+# established for Pi-1/single-machine deployments in
+# docker-compose.robot.yml. `bonbon_human_ai_bringup`'s ONE launch file
+# is for the bare-metal/systemd `ros2 launch` path; this is the
+# Docker-container-per-subsystem path -- both compose to the identical
+# set of nodes.
+#
+# Device paths below are PLACEHOLDERS -- adjust to match
+# `bash scripts/pi_hardware_check.sh` run on real Pi-2 hardware, exactly
+# as docker-compose.robot.yml's own comment instructs. Two real,
+# non-obvious concerns flagged here rather than hidden:
+#   1. OAK-D Lite (depthai) needs raw USB3 access, not a single /dev/videoN
+#      node -- a v4l2 passthrough does NOT work for depthai's MyriadX
+#      pipeline. Use a `--device-cgroup-rule` scoped to the USB bus depthai
+#      enumerates on (find via `lsusb`, vendor 03e7 = Movidius/Luxonis), or
+#      fall back to `privileged: true` for this one service if the
+#      cgroup-rule approach proves too fragile on a given kernel/udev setup
+#      (common in practice for OAK-D containers; documented here as a
+#      known, accepted tradeoff, not a silent workaround).
+#   2. AI HAT+2 (Hailo-10H) is present on Pi-2 per the BOM but NOT yet
+#      integrated (Phase 10 of the original 14-phase brief, out of scope
+#      here) -- no /dev/hailo* device passthrough is configured; add one
+#      when that integration lands.
+services:
+  hal:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    devices:
+      - "/dev/snd:/dev/snd"           # ReSpeaker XVF3800 (USB audio) + PAM8610 speaker output
+      - "/dev/gpiomem:/dev/gpiomem"   # PAM8610 mute pin, ONLY if has_pam8610 verified wired (see pi2_hal_overrides.yaml)
+    group_add: ["audio", "gpio"]
+    # OAK-D Lite: see module comment #1 -- adjust bus number after lsusb.
+    device_cgroup_rules:
+      - "c 189:* rmw"
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+      source /opt/bonbon/install/setup.bash &&
+      ros2 launch bonbon_hal hal.launch.py driver_mode:=real
+      override_params_file:=/opt/bonbon/ros2_ws/src/bonbon_human_ai_bringup/config/pi2_hal_overrides.yaml
+      launch_lidar:=false launch_imu:=false launch_servo:=false launch_stepper:=false
+      launch_motor:=false launch_battery:=false launch_estop:=false
+      launch_camera:=true launch_mic:=true launch_speaker:=true"
+    security_opt: ["no-new-privileges:true"]
+
+  asr:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_speech speech.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  vision:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs", "/opt/bonbon/models:/models:ro"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_vision vision.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  perception-fusion:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    # Bundles the 6 lightweight fusion nodes into one container --
+    # none of these own a hardware device, so per-node container
+    # isolation buys nothing here (unlike hal/vision/asr above).
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+      source /opt/bonbon/install/setup.bash &&
+      ros2 launch bonbon_multi_person_tracker multi_person_tracker.launch.py &
+      ros2 launch bonbon_object_intelligence object_intelligence.launch.py &
+      ros2 launch bonbon_gesture gesture.launch.py &
+      ros2 launch bonbon_affective_ai affective_ai.launch.py &
+      ros2 launch bonbon_human_state_fusion human_state_fusion.launch.py &
+      ros2 launch bonbon_speaker_intelligence speaker_intelligence.launch.py &
+      wait"
+    security_opt: ["no-new-privileges:true"]
+
+  llm:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/opt/bonbon/models:/models:ro", "/var/log/bonbon:/logs"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_llm llm.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  tts:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_tts tts.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
+  distributed-liveness:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+      source /opt/bonbon/install/setup.bash &&
+      ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi2 &
+      ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi2 &
+      wait"
+    security_opt: ["no-new-privileges:true"]

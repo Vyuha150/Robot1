@@ -1,0 +1,17 @@
+[Unit]
+Description=BonBon Pi-1 (System UI/API) -- fault_manager + distributed liveness/authority
+After=docker.service network-online.target bonbon-pi1-dashboard-api.service
+Wants=docker.service network-online.target
+Conflicts=bonbon-core.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.pi1.yml up -d ros2-support
+ExecStop=/usr/bin/docker compose -f docker-compose.pi1.yml stop ros2-support
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

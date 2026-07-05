@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  cyclonedds_ethernet_profile.xml: unicast-peer CycloneDDS config for the
+  three-Pi BonBon deployment, matching robot_network.yaml's
+  `ros2.discovery.mode: unicast` / `ros2.discovery.peers` (192.168.10.11/12/13).
+
+  Referenced by robot_network.yaml but did not exist as a real file before
+  this change. The network bootstrap script (scripts/bootstrap_pi_network.sh)
+  installs this at /etc/bonbon/cyclonedds_ethernet_profile.xml and exports
+  CYCLONEDDS_URI to point at it.
+
+  Unicast (explicit peer list), not multicast: consumer-grade switches
+  commonly used in a lab/pilot deployment may not reliably forward
+  multicast DDS discovery traffic, and the safety-critical heartbeat path
+  cannot depend on that being configured correctly on unknown network
+  hardware. See robot_network.yaml's own comment on this choice.
+-->
+<CycloneDDS xmlns="https://cdds.io/config"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
+  <Domain id="42">
+    <General>
+      <Interfaces>
+        <!-- Wired Ethernet only, per robot_network.yaml. Wi-Fi is not
+             supported for inter-Pi ROS2 traffic (jitter/latency risk to the
+             safety-critical path). Set the exact interface name (e.g. eth0)
+             here once known on the deployed hardware; autodetermine is a
+             safe default for initial bring-up. -->
+        <NetworkInterface autodetermine="true" priority="default" multicast="false" />
+      </Interfaces>
+      <AllowMulticast>false</AllowMulticast>
+      <EnableMulticastLoopback>false</EnableMulticastLoopback>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <MaxAutoParticipantIndex>60</MaxAutoParticipantIndex>
+      <!-- Explicit peer list. Must match robot_network.yaml's
+           ros2.discovery.peers exactly. -->
+      <Peers>
+        <Peer Address="192.168.10.11"/>
+        <Peer Address="192.168.10.12"/>
+        <Peer Address="192.168.10.13"/>
+      </Peers>
+    </Discovery>
+    <Internal>
+      <!-- Slightly relaxed lease duration tolerates brief Ethernet
+           hiccups without flapping DDS-level liveliness. This is
+           independent of, and more forgiving than, the application-level
+           heartbeat staleness check (stale_after_sec: 1.5,
+           lost_after_sec: 5.0 in robot_network.yaml), which remains the
+           authoritative failure signal for bonbon_distributed_safety. -->
+      <LeaseDuration>10s</LeaseDuration>
+    </Internal>
+  </Domain>
+</CycloneDDS>

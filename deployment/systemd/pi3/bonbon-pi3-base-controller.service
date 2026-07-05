@@ -1,0 +1,18 @@
+[Unit]
+Description=BonBon Pi-3 (Navigation/Motion/Safety) -- diff-drive kinematics over motor_node
+After=docker.service network-online.target bonbon-pi3-hal.service
+Wants=docker.service network-online.target
+Requires=bonbon-pi3-hal.service
+Conflicts=bonbon-core.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.pi3.yml up -d base-controller
+ExecStop=/usr/bin/docker compose -f docker-compose.pi3.yml stop base-controller
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -4,6 +4,20 @@
 # live (two publishers on /bonbon/safety/state → nondeterministic safety
 # state). Run on the robot with a sourced ROS2 workspace.
 #
+# Already network-aware across all three Pis without any extra code: as
+# long as ROS_DOMAIN_ID matches on every Pi (see robot_network.yaml /
+# scripts/bootstrap_pi_network.py), `ros2 node list` queries the whole
+# shared DDS domain, not just this process's local nodes — so running
+# this from ANY one Pi sees the full 3-Pi node graph and would catch a
+# duplicate safety_supervisor_node on a DIFFERENT Pi just as well as one
+# on this Pi.
+#
+# This script only detects DUPLICATES, though — it cannot tell "no
+# duplicates" apart from "can't see the other Pis at all" (both look
+# identical: a clean node list). For a positive confirmation that
+# inter-Pi discovery is actually working (not just vacuously clean), run
+# scripts/check_inter_pi_communication.py alongside this.
+#
 #   bash scripts/check_duplicate_ros_nodes.sh
 #
 # Exit 0 = no duplicates; 1 = a duplicate node (or duplicate safety

@@ -1,0 +1,19 @@
+[Unit]
+Description=BonBon Pi-1 (System UI/API) -- dashboard/operator API
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+# Pi-1 never runs the monolithic single-machine stack -- see
+# docs/DUPLICATE_PIPELINE_RISK_REPORT.md and scripts/validate_boot_topology.py.
+Conflicts=bonbon-core.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/bonbon/bonbon.env
+WorkingDirectory=/opt/bonbon/current
+ExecStart=/usr/bin/docker compose -f docker-compose.pi1.yml up -d dashboard-api
+ExecStop=/usr/bin/docker compose -f docker-compose.pi1.yml stop dashboard-api
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

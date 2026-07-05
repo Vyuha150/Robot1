@@ -8,14 +8,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-navigation2 ros-humble-nav2-bringup ros-humble-rtabmap-slam \
     && rm -rf /var/lib/apt/lists/*
 
+# Pi-3 (Navigation/Motion/Safety) package set -- every package
+# bonbon_navigation_bringup's launch composition includes, plus their
+# transitive bonbon_* exec_depends (computed by grepping every
+# package.xml's <exec_depend>bonbon_*</exec_depend> to a fixed point --
+# none found beyond this set). Previously this image only copied
+# bonbon_navigation + bonbon_msgs + bonbon_srvs and never ran
+# `rosdep install`, so it could not have run safety_gate_node,
+# bonbon_hal's lidar/motor/servo/stepper/estop/imu/battery nodes,
+# base_controller, actuation, or motion_approval_gateway -- the rest of
+# Pi-3's real bringup composition. Both gaps are fixed here.
 WORKDIR /opt/bonbon
+COPY ros2_ws/src/bonbon_safety /opt/bonbon/ros2_ws/src/bonbon_safety
+COPY ros2_ws/src/bonbon_hal /opt/bonbon/ros2_ws/src/bonbon_hal
+COPY ros2_ws/src/bonbon_base_controller /opt/bonbon/ros2_ws/src/bonbon_base_controller
+COPY ros2_ws/src/bonbon_actuation /opt/bonbon/ros2_ws/src/bonbon_actuation
+COPY ros2_ws/src/bonbon_motion_approval_gateway /opt/bonbon/ros2_ws/src/bonbon_motion_approval_gateway
 COPY ros2_ws/src/bonbon_navigation /opt/bonbon/ros2_ws/src/bonbon_navigation
+COPY ros2_ws/src/bonbon_distributed_safety /opt/bonbon/ros2_ws/src/bonbon_distributed_safety
+COPY ros2_ws/src/bonbon_authority_manager /opt/bonbon/ros2_ws/src/bonbon_authority_manager
+COPY ros2_ws/src/bonbon_navigation_bringup /opt/bonbon/ros2_ws/src/bonbon_navigation_bringup
 COPY ros2_ws/src/bonbon_msgs /opt/bonbon/ros2_ws/src/bonbon_msgs
 COPY ros2_ws/src/bonbon_srvs /opt/bonbon/ros2_ws/src/bonbon_srvs
-RUN source /opt/ros/humble/setup.bash && colcon build --base-paths ros2_ws/src --merge-install
+RUN rosdep update && \
+    rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble && \
+    source /opt/ros/humble/setup.bash && colcon build --base-paths ros2_ws/src --merge-install
 
-RUN useradd --create-home --shell /bin/bash bonbon && chown -R bonbon:bonbon /opt/bonbon
+COPY devops/scripts/health_check.sh /usr/local/bin/bonbon-health-check
+RUN chmod +x /usr/local/bin/bonbon-health-check && \
+    useradd --create-home --shell /bin/bash bonbon && chown -R bonbon:bonbon /opt/bonbon
 USER bonbon
 VOLUME ["/maps", "/config"]
 ENTRYPOINT ["/bin/bash", "-lc"]
-CMD ["source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_navigation navigation.launch.py use_sim_time:=false"]
+CMD ["source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_navigation_bringup navigation_bringup.launch.py driver_mode:=real"]

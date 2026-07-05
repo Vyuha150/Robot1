@@ -1,0 +1,58 @@
+# docker-compose.pi1.yml -- System UI/API Pi (192.168.10.11, static IP per
+# config/distributed/robot_network.yaml). Confirmed BOM: plain Raspberry
+# Pi 5, no AI HAT, 10.1" HDMI capacitive touchscreen -- no HAL hardware
+# devices are passed through here at all (unlike pi2/pi3).
+#
+# Two containers, not one, because bonbon_operator_api has two distinct
+# entry points (see bonbon_operator_api/main.py): a standalone uvicorn
+# ASGI app (no rclpy needed -- what Dockerfile.dashboard's lightweight
+# python:3.11-slim image runs) and a ROS2 LifecycleNode that wraps the
+# same app AND starts its own internal uvicorn thread
+# (bonbon_operator_api/nodes/operator_api_node.py, needs rclpy). Running
+# BOTH in one container would start uvicorn twice on the same port.
+# `dashboard-api` (lightweight, no ROS2) owns the touchscreen HTTP
+# surface; `ros2-support` (bonbon/ros2 image, already contains the full
+# workspace) runs the ROS2-only nodes Pi-1 needs alongside it.
+#
+# KNOWN GAP (pre-existing, not introduced here, flagged during this
+# pass): the lightweight dashboard-api container has no rclpy, so its
+# ROS2 bridge (bonbon_operator_api/ros2/ros2_bridge.py) is inert inside
+# Docker -- `_ROS2_AVAILABLE=False`. It only sees live robot state when
+# run outside Docker via `ros2 launch bonbon_ui_api_bringup
+# ui_api_bringup.launch.py`, which runs operator_api_node (WITH rclpy)
+# as a single bare-metal process. Fixing this for the split-container
+# case means either giving the dashboard image a ROS2 base (defeats its
+# purpose) or building a network-facing ROS2<->HTTP bridge process --
+# neither decision is made here; this is the honest current state, not
+# a regression from this compose file.
+services:
+  dashboard-api:
+    image: bonbon/dashboard:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    security_opt: ["no-new-privileges:true"]
+
+  ros2-support:
+    image: bonbon/ros2:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes:
+      - /etc/bonbon:/config:ro
+      - /var/log/bonbon:/logs
+    # fault_manager + distributed_safety + authority_manager only --
+    # deliberately NOT bonbon_ui_api_bringup's full launch (that bundles
+    # operator_api_node, which would double-start uvicorn against the
+    # dashboard-api container above). See module comment.
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+      source /opt/bonbon/install/setup.bash &&
+      ros2 launch bonbon_fault_manager fault_manager.launch.py &
+      ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi1 &
+      ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi1 &
+      wait"
+    security_opt: ["no-new-privileges:true"]

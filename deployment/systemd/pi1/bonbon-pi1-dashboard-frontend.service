@@ -1,0 +1,19 @@
+[Unit]
+Description=BonBon Pi-1 touchscreen kiosk browser (see scripts/launch_kiosk.sh)
+# Frontend must not claim "ready" before the API it renders can actually
+# respond -- see config/distributed/pi_ui_api.yaml's documented boot_order.
+After=bonbon-pi1-dashboard-api.service graphical.target
+Requires=bonbon-pi1-dashboard-api.service
+Wants=graphical.target
+
+[Service]
+Type=simple
+User=bonbon
+EnvironmentFile=-/etc/bonbon/bonbon.env
+Environment=DISPLAY=:0
+ExecStart=/opt/bonbon/current/scripts/launch_kiosk.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
