@@ -31,13 +31,32 @@ packages:
   - bonbon_safety_supervisor      # = existing bonbon_safety
   - bonbon_navigation_monitor
 
+# NOTE (2026-07-06): this list predates the actual per-Pi systemd units in
+# deployment/systemd/pi3/ and names one unit per HAL device (lidar/servo/
+# motor/stepper separately); the real units bundle all of bonbon_hal's
+# Pi-3 devices into a single bonbon-pi3-hal.service, since bonbon_hal's
+# launch file already gives each device its own ROS2 node process with
+# its own respawn -- a separate systemd unit/container per device buys
+# nothing extra. Also: bonbon-stepper-controller.service is no longer
+# "blocked until stepper driver exists" -- the NEMA17 driver was built
+# 2026-07-06 (see HARDWARE_SOFTWARE_GAP_REPORT.md item 2, resolved). The
+# real list, matching deployment/compose/docker-compose.pi3.yml:
+#   bonbon-pi3-safety.service              (starts FIRST, before any actuation)
+#   bonbon-pi3-hal.service                 (lidar+motor+servo+stepper+estop+imu+battery)
+#   bonbon-pi3-base-controller.service
+#   bonbon-pi3-actuation.service
+#   bonbon-pi3-motion-gateway.service
+#   bonbon-pi3-navigation.service
+#   bonbon-pi3-distributed-liveness.service
+# The list below is kept for historical/planning context, not as the
+# literal deployment target -- see deployment/systemd/pi3/*.service.
 systemd_services:
   - bonbon-safety-supervisor.service    # starts FIRST, before any actuation
   - bonbon-lidar.service
   - bonbon-servo-controller.service
   - bonbon-motor.service                # bonbon_hal motor_node (Cytron MDDS30)
   - bonbon-base-controller.service
-  - bonbon-stepper-controller.service   # blocked until stepper driver exists
+  - bonbon-stepper-controller.service   # RESOLVED 2026-07-06 -- see note above
   - bonbon-navigation.service
   - bonbon-motion-safety.service
   - bonbon-navigation-monitor.service

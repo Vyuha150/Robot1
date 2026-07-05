@@ -23,6 +23,22 @@ packages:
   - bonbon_human_state_fusion
   - bonbon_tts
 
+# NOTE (2026-07-06): this list predates the actual per-Pi systemd units in
+# deployment/systemd/pi2/ and names services more finely than what was
+# actually implemented (e.g. one unit per HAL device). The real units are
+# coarser by design: bonbon_hal's launch file already gives each HAL
+# device its own ROS2 node process with its own respawn, so a separate
+# systemd unit/container per device buys nothing extra. The real list,
+# matching deployment/compose/docker-compose.pi2.yml:
+#   bonbon-pi2-hal.service                (camera+mic+speaker together)
+#   bonbon-pi2-asr.service
+#   bonbon-pi2-vision.service              (face recognition)
+#   bonbon-pi2-perception-fusion.service   (tracker+object+gesture+affective+human_state_fusion+speaker_intel)
+#   bonbon-pi2-llm.service
+#   bonbon-pi2-tts.service
+#   bonbon-pi2-distributed-liveness.service
+# The list below is kept for historical/planning context, not as the
+# literal deployment target -- see deployment/systemd/pi2/*.service.
 systemd_services:
   - bonbon-oakd-vision.service
   - bonbon-respeaker-audio.service

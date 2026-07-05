@@ -14,6 +14,17 @@ packages:
   - bonbon_dashboard_api        # = existing bonbon_operator_api, renamed role for the 3-Pi context
   - bonbon_distributed_monitor
 
+# NOTE (2026-07-06): this list predates the actual per-Pi systemd units in
+# deployment/systemd/pi1/ and names a single "bonbon_distributed_monitor"
+# package that was never actually built as such -- the real packages are
+# bonbon_distributed_safety + bonbon_authority_manager (bundled into
+# bonbon-pi1-ros2-support.service alongside the new bonbon_fault_manager).
+# The real list, matching deployment/compose/docker-compose.pi1.yml:
+#   bonbon-pi1-dashboard-api.service       (bonbon_operator_api, no rclpy)
+#   bonbon-pi1-ros2-support.service        (fault_manager + distributed_safety + authority_manager)
+#   bonbon-pi1-dashboard-frontend.service  (kiosk browser, devops/scripts/launch_kiosk.sh)
+# The list below is kept for historical/planning context, not as the
+# literal deployment target -- see deployment/systemd/pi1/*.service.
 systemd_services:
   - bonbon-ui-api.service
   - bonbon-dashboard-frontend.service
