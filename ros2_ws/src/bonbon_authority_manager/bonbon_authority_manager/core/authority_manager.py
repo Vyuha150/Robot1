@@ -10,12 +10,12 @@ Pure Python, no rclpy dependency.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_distributed_safety.core.heartbeat_monitor import PiId, PiLinkState
 
 
-class SelfRole(StrEnum):
+class SelfRole(str, Enum):
     PI1_UI_API = "pi1"
     PI2_HUMAN_AI = "pi2"
     PI3_NAVIGATION_SAFETY = "pi3"

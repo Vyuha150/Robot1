@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_llm.config.llm_config import AuthorizationConfig
 
@@ -57,7 +57,7 @@ _ACTUATION_ALLOWED_STATES = frozenset({SAFETY_NORMAL})
 # ── Result type ───────────────────────────────────────────────────────────────
 
 
-class AuthStatus(StrEnum):
+class AuthStatus(str, Enum):
     GRANTED = "GRANTED"
     DENIED = "DENIED"
     DEFERRED = "DEFERRED"  # ask again when safety state improves

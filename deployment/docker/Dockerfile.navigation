@@ -35,6 +35,22 @@ RUN rosdep update && \
     source /opt/ros/humble/setup.bash && colcon build --base-paths ros2_ws/src --merge-install
 
 COPY devops/scripts/health_check.sh /usr/local/bin/bonbon-health-check
+# docker-compose.pi3.yml's safety/hal services use group_add: ["gpio"]
+# and ["dialout", "i2c", "gpio"] for e-stop/NEMA17 GPIO pins and the
+# PCA9685/MPU6050/INA226 I2C bus. "dialout" is a standard Debian group
+# (present by default); "gpio"/"i2c" are NOT -- they're created
+# dynamically by Raspberry Pi OS's udev/raspi-config setup with GIDs
+# that vary per install. Without them, `docker compose up` fails
+# outright with "unable to find group gpio: no matching entries in group
+# file" -- confirmed for the identical pattern on real Pi-2 hardware
+# (see Dockerfile.ai). GIDs below (986/988) match Pi-2's actual
+# /etc/group on this fleet's Raspberry Pi OS image; NOT yet verified
+# against a real Pi-3 unit -- re-check with `getent group gpio i2c` on
+# the actual Pi-3 hardware before relying on this and adjust if it
+# differs.
+RUN groupadd -g 986 gpio || groupadd gpio
+RUN groupadd -g 988 i2c || groupadd i2c
+
 RUN chmod +x /usr/local/bin/bonbon-health-check && \
     useradd --create-home --shell /bin/bash bonbon && chown -R bonbon:bonbon /opt/bonbon
 USER bonbon

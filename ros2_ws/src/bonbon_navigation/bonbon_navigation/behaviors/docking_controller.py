@@ -30,7 +30,7 @@ import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_navigation.config.nav_config import DockingConfig
 
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 # ── Phases ────────────────────────────────────────────────────────────────────
 
 
-class DockingPhase(StrEnum):
+class DockingPhase(str, Enum):
     IDLE = "IDLE"
     APPROACHING = "APPROACHING"
     ALIGNING = "ALIGNING"

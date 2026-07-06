@@ -18,7 +18,7 @@ import logging
 import math
 import time
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ── Localization quality ──────────────────────────────────────────────────────
 
 
-class LocalizationQuality(StrEnum):
+class LocalizationQuality(str, Enum):
     UNKNOWN = "UNKNOWN"  # no pose received yet
     GOOD = "GOOD"  # covariance within limits
     DEGRADED = "DEGRADED"  # covariance elevated, but usable

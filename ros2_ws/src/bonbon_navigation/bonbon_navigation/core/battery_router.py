@@ -22,7 +22,7 @@ import logging
 import math
 import time
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_navigation.config.nav_config import BatteryRoutingConfig
 from bonbon_navigation.core.map_manager import MapManager, NamedPose
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # ── Battery level classification ─────────────────────────────────────────────
 
 
-class BatteryLevel(StrEnum):
+class BatteryLevel(str, Enum):
     OK = "OK"  # above low threshold — normal operation
     LOW = "LOW"  # below low_pct — start planning dock route
     CRITICAL = "CRITICAL"  # below critical_pct — abort task, dock now

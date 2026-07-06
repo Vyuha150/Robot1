@@ -22,7 +22,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from threading import Lock
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ RESULT_PLAN_FAILED = 7
 # ── Goal state ────────────────────────────────────────────────────────────────
 
 
-class GoalState(StrEnum):
+class GoalState(str, Enum):
     PENDING = "PENDING"
     ACTIVE = "ACTIVE"
     SUCCEEDED = "SUCCEEDED"

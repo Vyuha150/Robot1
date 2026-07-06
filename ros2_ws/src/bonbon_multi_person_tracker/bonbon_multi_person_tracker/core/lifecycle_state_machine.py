@@ -32,10 +32,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 
-class PersonLifecycleState(StrEnum):
+class PersonLifecycleState(str, Enum):
     NEW_CANDIDATE = "new_candidate"
     PRESENT = "present"
     ACTIVE_INTERACTION = "active_interaction"

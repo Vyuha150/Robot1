@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 
 import yaml
@@ -23,7 +23,7 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-class PolicyAction(StrEnum):
+class PolicyAction(str, Enum):
     """All possible actions the supervisor can take on a state transition."""
 
     # Locomotion

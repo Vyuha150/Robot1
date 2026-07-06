@@ -116,10 +116,15 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    # Each backgrounded job wrapped in its own subshell -- see the
+    # identical fix + rationale in docker-compose.pi2.yml's
+    # distributed-liveness/perception-fusion services (the un-wrapped
+    # form only sources the ROS environment for the first job; every
+    # other backgrounded `ros2 run`/`ros2 launch` fails with
+    # "ros2: command not found").
     command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      source /opt/bonbon/install/setup.bash &&
-      ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi3 &
-      ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi3 &
+      bash -c "
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi3) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi3) &
       wait"
     security_opt: ["no-new-privileges:true"]

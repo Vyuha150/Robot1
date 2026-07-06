@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_llm.config.llm_config import SafetyFilterConfig
 
@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # ── Filter result ─────────────────────────────────────────────────────────────
 
 
-class FilterStatus(StrEnum):
+class FilterStatus(str, Enum):
     SAFE = "SAFE"
     RISKY = "RISKY"
     BLOCKED = "BLOCKED"

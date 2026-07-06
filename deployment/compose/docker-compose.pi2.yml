@@ -80,15 +80,22 @@ services:
     # Bundles the 6 lightweight fusion nodes into one container --
     # none of these own a hardware device, so per-node container
     # isolation buys nothing here (unlike hal/vision/asr above).
+    #
+    # Each backgrounded job below is wrapped in its own (source && source
+    # && ros2 ...) subshell -- `&` has LOWER precedence than `&&`, so the
+    # original "source A && source B && cmd1 & cmd2 & cmd3 & wait" only
+    # chained the sourcing onto cmd1; cmd2-cmd6 ran as separate background
+    # jobs with NO ROS environment sourced at all, failing immediately with
+    # "ros2: command not found". Confirmed on real Pi-2 hardware: this
+    # container's ros2 nodes past the first one never actually started.
     command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      source /opt/bonbon/install/setup.bash &&
-      ros2 launch bonbon_multi_person_tracker multi_person_tracker.launch.py &
-      ros2 launch bonbon_object_intelligence object_intelligence.launch.py &
-      ros2 launch bonbon_gesture gesture.launch.py &
-      ros2 launch bonbon_affective_ai affective_ai.launch.py &
-      ros2 launch bonbon_human_state_fusion human_state_fusion.launch.py &
-      ros2 launch bonbon_speaker_intelligence speaker_intelligence.launch.py &
+      bash -c "
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_multi_person_tracker multi_person_tracker.launch.py) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_object_intelligence object_intelligence.launch.py) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_gesture gesture.launch.py) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_affective_ai affective_ai.launch.py) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_human_state_fusion human_state_fusion.launch.py) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_speaker_intelligence speaker_intelligence.launch.py) &
       wait"
     security_opt: ["no-new-privileges:true"]
 
@@ -151,10 +158,12 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    # Same subshell-per-job fix as perception-fusion above (see its
+    # comment) -- authority_manager_node was launching with no ROS
+    # environment sourced and failing with "ros2: command not found".
     command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      source /opt/bonbon/install/setup.bash &&
-      ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi2 &
-      ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi2 &
+      bash -c "
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi2) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi2) &
       wait"
     security_opt: ["no-new-privileges:true"]

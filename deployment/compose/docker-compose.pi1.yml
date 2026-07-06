@@ -48,11 +48,18 @@ services:
     # deliberately NOT bonbon_ui_api_bringup's full launch (that bundles
     # operator_api_node, which would double-start uvicorn against the
     # dashboard-api container above). See module comment.
+    #
+    # Each backgrounded job is wrapped in its own (source && source &&
+    # ros2 ...) subshell -- `&` has LOWER precedence than `&&`, so
+    # "source A && source B && cmd1 & cmd2 & cmd3 & wait" only chains the
+    # sourcing onto cmd1; cmd2/cmd3 run as separate background jobs with
+    # NO ROS environment sourced, failing with "ros2: command not found".
+    # Found on a real Pi-2 build of the identical pattern in
+    # docker-compose.pi2.yml; fixed here too since it's the same bug.
     command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      source /opt/bonbon/install/setup.bash &&
-      ros2 launch bonbon_fault_manager fault_manager.launch.py &
-      ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi1 &
-      ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi1 &
+      bash -c "
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_fault_manager fault_manager.launch.py) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi1) &
+      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi1) &
       wait"
     security_opt: ["no-new-privileges:true"]

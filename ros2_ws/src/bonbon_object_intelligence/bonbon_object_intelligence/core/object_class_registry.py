@@ -24,10 +24,10 @@ model didn't produce:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 
-class ClassStrategy(StrEnum):
+class ClassStrategy(str, Enum):
     DIRECT = "direct"
     ALIAS = "alias"
     OCR = "ocr"

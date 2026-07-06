@@ -30,14 +30,14 @@ from __future__ import annotations
 
 import logging
 import threading
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_tts.core.utterance_queue import Priority
 
 logger = logging.getLogger(__name__)
 
 
-class SafetyState(StrEnum):
+class SafetyState(str, Enum):
     """Safety supervisor state values."""
 
     NORMAL = "normal"

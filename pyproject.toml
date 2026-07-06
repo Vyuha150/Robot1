@@ -2,11 +2,19 @@
 name = "bonbon-robot-ai"
 version = "1.0.0"
 description = "BonBon AI service robot — ROS2 software stack"
-requires-python = ">=3.11"
+# Pinned to the actual deployment runtime: every Pi's ROS2 container is
+# built FROM ros:humble-ros-base-jammy, which ships Python 3.10 -- ROS2
+# Humble has no official Ubuntu 22.04/Python 3.11 image. This was
+# previously set to >=3.11 with no corresponding runtime that actually
+# provides it, and went undetected until a real Pi-2 deployment build
+# crashed on `from enum import StrEnum` (3.11+ only) across 21 files
+# repo-wide. Do not raise this without also changing every Pi's base
+# container image.
+requires-python = ">=3.10"
 
 [tool.black]
 line-length = 100
-target-version = ["py311"]
+target-version = ["py310"]
 include = '\.py$'
 extend-exclude = '''
 /(build|install|log|\.venv|\.git|founder_command_center)/
@@ -14,7 +22,7 @@ extend-exclude = '''
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py310"
 # founder_command_center is a separate, unrelated project (an AI Founder
 # Command Center for personal/business use) that happens to live in this
 # repository — it is not BonBon robot software and should not be subject to
@@ -60,7 +68,7 @@ ignore = [
 "ros2_ws/src/bonbon_data_stores/tests/**" = ["B017"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 ignore_missing_imports = true
 warn_unused_configs = true
 exclude = "(build|install|log|\\.venv)"

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 # ---------------------------------------------------------------------------
 
 
-class PrivacyLevel(StrEnum):
+class PrivacyLevel(str, Enum):
     """Privacy classification for stored events and records.
 
     ``do_not_store`` is special: any event carrying this level MUST be
@@ -32,7 +32,7 @@ class PrivacyLevel(StrEnum):
     DO_NOT_STORE = "do_not_store"
 
 
-class RetentionPolicy(StrEnum):
+class RetentionPolicy(str, Enum):
     """How long a record is kept before automatic deletion."""
 
     EPHEMERAL = "ephemeral"  # purge when session ends
@@ -43,7 +43,7 @@ class RetentionPolicy(StrEnum):
     PERMANENT_UNTIL_DELETED = "permanent_until_deleted"
 
 
-class RobotMode(StrEnum):
+class RobotMode(str, Enum):
     IDLE = "idle"
     ACTIVE = "active"
     NAVIGATING = "navigating"
@@ -54,7 +54,7 @@ class RobotMode(StrEnum):
     SHUTDOWN = "shutdown"
 
 
-class SafetyEventType(StrEnum):
+class SafetyEventType(str, Enum):
     COLLISION_RISK = "collision_risk"
     EMERGENCY_STOP = "emergency_stop"
     SAFETY_STOP = "safety_stop"
@@ -64,7 +64,7 @@ class SafetyEventType(StrEnum):
     RECOVERY = "recovery"
 
 
-class NavigationOutcome(StrEnum):
+class NavigationOutcome(str, Enum):
     SUCCESS = "success"
     ABORTED = "aborted"
     FAILED = "failed"

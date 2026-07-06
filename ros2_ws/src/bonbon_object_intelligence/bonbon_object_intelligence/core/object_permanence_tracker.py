@@ -20,10 +20,10 @@ import itertools
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 
-class PermanenceState(StrEnum):
+class PermanenceState(str, Enum):
     VISIBLE = "visible"
     OCCLUDED = "occluded"
     MEMORY = "memory"

@@ -27,7 +27,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_navigation.config.nav_config import RecoveryConfig
 
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # ── Result ────────────────────────────────────────────────────────────────────
 
 
-class RecoveryOutcome(StrEnum):
+class RecoveryOutcome(str, Enum):
     IN_PROGRESS = "IN_PROGRESS"
     SUCCEEDED = "SUCCEEDED"  # behavior complete; retry navigation
     EXHAUSTED = "EXHAUSTED"  # all behaviors tried; give up

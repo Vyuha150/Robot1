@@ -12,12 +12,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
 
-class HealthLevel(StrEnum):
+class HealthLevel(str, Enum):
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"

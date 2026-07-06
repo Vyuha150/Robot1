@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 from bonbon_ai_runtime.cpu_onnx_runtime import CPUONNXRuntime
 from bonbon_ai_runtime.hailo_runtime import HailoRuntime
@@ -28,7 +28,7 @@ from bonbon_ai_runtime.model_compatibility import ModelCompatibilityChecker
 from bonbon_ai_runtime.tensorrt_runtime import TensorRTRuntime
 
 
-class RuntimeMode(StrEnum):
+class RuntimeMode(str, Enum):
     AUTO = "auto"
     CPU = "cpu"
     HAILO = "hailo"

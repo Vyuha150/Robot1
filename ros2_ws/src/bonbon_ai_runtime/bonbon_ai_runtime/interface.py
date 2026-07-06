@@ -16,17 +16,17 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 
 
-class RuntimeKind(StrEnum):
+class RuntimeKind(str, Enum):
     CPU = "cpu"
     HAILO = "hailo"
     TENSORRT = "tensorrt"
     MOCK = "mock"
 
 
-class RuntimeStatus(StrEnum):
+class RuntimeStatus(str, Enum):
     UNINITIALISED = "uninitialised"
     READY = "ready"
     DEGRADED = "degraded"  # loaded but a recent inference failed/timed out

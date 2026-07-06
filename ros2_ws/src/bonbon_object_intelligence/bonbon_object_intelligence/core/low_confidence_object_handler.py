@@ -13,10 +13,10 @@ themselves, be treated as a trigger for behavior. That distinction is the
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 
-class ConfidenceState(StrEnum):
+class ConfidenceState(str, Enum):
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"

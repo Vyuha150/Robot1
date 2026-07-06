@@ -23,6 +23,7 @@ WORKDIR /opt/bonbon
 COPY ros2_ws/src/bonbon_hal /opt/bonbon/ros2_ws/src/bonbon_hal
 COPY ros2_ws/src/bonbon_speech /opt/bonbon/ros2_ws/src/bonbon_speech
 COPY ros2_ws/src/bonbon_llm /opt/bonbon/ros2_ws/src/bonbon_llm
+COPY ros2_ws/src/bonbon_ai_runtime /opt/bonbon/ros2_ws/src/bonbon_ai_runtime
 COPY ros2_ws/src/bonbon_vision /opt/bonbon/ros2_ws/src/bonbon_vision
 COPY ros2_ws/src/bonbon_multi_person_tracker /opt/bonbon/ros2_ws/src/bonbon_multi_person_tracker
 COPY ros2_ws/src/bonbon_object_intelligence /opt/bonbon/ros2_ws/src/bonbon_object_intelligence
@@ -84,6 +85,19 @@ RUN python3 -m pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pypi.org/simple \
     -r /opt/bonbon/requirements/pi2_requirements.txt
+
+# docker-compose.pi2.yml's hal service uses group_add: ["audio", "gpio"] for
+# ReSpeaker/PAM8610 (audio, already a standard Ubuntu group) and the
+# PAM8610 mute-pin GPIO (gpio, which is NOT a standard Ubuntu group --
+# it's created dynamically by Raspberry Pi OS's udev/raspi-config setup,
+# with a GID that varies per install). Without it, `docker compose up`
+# fails outright with "unable to find group gpio: no matching entries in
+# group file" -- confirmed on real Pi-2 hardware. GID 986 matches THIS
+# Pi's actual /etc/group (checked via `getent group gpio` on the host) --
+# it is NOT a portable constant; a different Pi unit may assign a
+# different GID depending on package install order. Re-check with
+# `getent group gpio` on any new unit and adjust if it differs.
+RUN groupadd -g 986 gpio || groupadd gpio
 
 RUN useradd --create-home --shell /bin/bash bonbon && chown -R bonbon:bonbon /opt/bonbon
 USER bonbon

@@ -18,16 +18,16 @@ matching this repo's established no-fake-PASS posture.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 
-class PiId(StrEnum):
+class PiId(str, Enum):
     PI1 = "pi1"
     PI2 = "pi2"
     PI3 = "pi3"
 
 
-class PiLinkState(StrEnum):
+class PiLinkState(str, Enum):
     ONLINE = "online"
     STALE = "stale"
     LOST = "lost"

@@ -18,10 +18,10 @@ processing for the same CPU), never the other way around.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 
 
-class LoadLevel(StrEnum):
+class LoadLevel(str, Enum):
     NORMAL = "normal"
     REDUCED = "reduced"
     MINIMAL = "minimal"
