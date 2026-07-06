@@ -5,19 +5,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     ROS_DISTRO=humble \
     PYTHONUNBUFFERED=1
 
-# Forces Python to use the OS-provided stdlib distutils (Debian-patched)
-# instead of setuptools' own vendored copy (setuptools >= 60 default).
-# Root cause of the "invalid variable 'base_dir'" crash every ament_python
-# package's setup.py hits during colcon build on this image: Debian's
-# distutils.sysconfig patches populate an INSTALL_SCHEMES {base_dir}
-# template that setuptools' bundled _distutils copy does not know about.
-# This is a documented ROS2/colcon-on-Debian interaction, not specific to
-# any package in this repo -- upgrading setuptools (previous fix attempt)
-# made it WORSE by replacing the OS's patched distutils with setuptools'
-# unpatched vendored one. The standard fix is this env var, not a
-# setuptools version change.
-ENV SETUPTOOLS_USE_DISTUTILS=stdlib
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip python3-colcon-common-extensions python3-rosdep \
     python3-yaml git curl ca-certificates \
