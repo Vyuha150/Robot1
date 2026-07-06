@@ -37,6 +37,28 @@
 #     "just work". If pip has no matching wheel for this Python/arch
 #     combination, this is a genuine, reportable BLOCKER for
 #     bonbon_gesture's real backend, not something to silently skip.
+#   - numba pinned to <0.59: a transitive dependency somewhere in this
+#     chain (numba is pulled in indirectly, not listed directly by us --
+#     likely via librosa under pyannote.audio/faster-whisper) requires
+#     cuda-bindings on newer numba releases, which in turn pulls the
+#     ENTIRE NVIDIA CUDA toolkit metapackage (cudnn, nccl, triton,
+#     cusparse, nvjitlink, ...) -- multiple gigabytes of GPU packages
+#     with zero use on a Raspberry Pi 5 (no NVIDIA silicon at all).
+#     Discovered when a real build attempt sat backtracking through
+#     dozens of nvidia_ml_py/cuda-toolkit version combinations for over
+#     40 minutes before being killed. Pinning below 0.59 avoids the
+#     unconditional CUDA dependency entirely.
+#   - nvidia-ml-py pinned to a single version for the same reason:
+#     ultralytics-thop wants it, but leaving it unpinned let pip's
+#     resolver backtrack through dozens of releases trying to satisfy
+#     other constraints. It's a tiny pure-Python GPU-query binding either
+#     way (installs fine with no GPU present; simply never used).
+
+# Transitive-dependency pins (see ARM64/CPU-only notes above) -- these are
+# not directly imported by any bonbon_* package, they exist purely to stop
+# pip's resolver from pulling the NVIDIA CUDA toolkit onto a GPU-less Pi.
+numba<0.59
+nvidia-ml-py==12.560.30
 
 # Vision / face recognition (bonbon_vision)
 ultralytics
