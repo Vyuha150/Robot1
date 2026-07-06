@@ -5,6 +5,19 @@ ENV DEBIAN_FRONTEND=noninteractive \
     ROS_DISTRO=humble \
     PYTHONUNBUFFERED=1
 
+# Forces Python to use the OS-provided stdlib distutils (Debian-patched)
+# instead of setuptools' own vendored copy (setuptools >= 60 default).
+# Root cause of the "invalid variable 'base_dir'" crash every ament_python
+# package's setup.py hits during colcon build on this image: Debian's
+# distutils.sysconfig patches populate an INSTALL_SCHEMES {base_dir}
+# template that setuptools' bundled _distutils copy does not know about.
+# This is a documented ROS2/colcon-on-Debian interaction, not specific to
+# any package in this repo -- upgrading setuptools (previous fix attempt)
+# made it WORSE by replacing the OS's patched distutils with setuptools'
+# unpatched vendored one. The standard fix is this env var, not a
+# setuptools version change.
+ENV SETUPTOOLS_USE_DISTUTILS=stdlib
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip python3-colcon-common-extensions python3-rosdep \
     python3-yaml git curl ca-certificates \
@@ -49,19 +62,6 @@ COPY ros2_ws/src/bonbon_srvs /opt/bonbon/ros2_ws/src/bonbon_srvs
 # RUN a deployed node -- this is a runtime image, not a test environment.
 # Found and fixed after the first real build attempt on Pi-2 hardware
 # surfaced both failures.
-# Ubuntu 22.04 Jammy ships an old, Debian-patched setuptools (59.6.0) whose
-# distutils.util.subst_vars() chokes with "ValueError: invalid variable
-# '$'base_dir''" on several ament_python packages' setup.py install step --
-# a well-known upstream setuptools/distutils interaction bug on this exact
-# Ubuntu/Python combination, unrelated to anything in this repo's own
-# setup.py files (they're all near-identical ament_python boilerplate).
-# Upgrading setuptools/wheel before colcon build is the standard fix.
-# Found on the 4th real build attempt against Pi-2 hardware -- the first
-# package queued alphabetically (bonbon_perception_ai) hit it first and
-# aborted every other package still queued; every ament_python package in
-# this workspace would have hit the identical error once it was its turn.
-RUN python3 -m pip install --no-cache-dir --upgrade setuptools wheel
-
 RUN apt-get update && rosdep update && \
     rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble \
         --dependency-types=exec --dependency-types=buildtool && \
