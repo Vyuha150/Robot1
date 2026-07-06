@@ -1,0 +1,17 @@
+.git
+build/
+install/
+log/
+node_modules/
+__pycache__/
+*.pyc
+*.bag
+*.mp4
+*.avi
+*.wav
+*.cache
+.DS_Store
+.env
+secrets/
+models/large/
+datasets/

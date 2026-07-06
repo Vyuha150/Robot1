@@ -1,0 +1,68 @@
+# requirements/pi2_requirements.txt
+#
+# Real Python dependencies for Pi-2 (Human AI) optional backends. None of
+# these were previously declared anywhere in the repo -- every bonbon_*
+# package.xml / setup.py only lists python3-numpy / python3-opencv
+# (resolvable via rosdep), while insightface/whisper/ollama/chromadb/
+# mediapipe/torch/etc. are all lazy-imported (`try: import X` inside a
+# function, wrapped so a missing backend degrades honestly rather than
+# crashing at module load -- same pattern as every bonbon_hal driver's
+# DriverFault("SDK_MISSING")). That's correct for graceful degradation,
+# but it also meant nothing actually installed these packages anywhere.
+# This file is the missing manifest, consumed by deployment/docker/
+# Dockerfile.ai's `pip3 install -r requirements/pi2_requirements.txt`.
+#
+# ARM64/CPU-only notes (Raspberry Pi 5, no CUDA):
+#   - torch: install the CPU-only wheel index, never the CUDA build.
+#   - faster-whisper preferred over openai-whisper as the default STT
+#     backend (bonbon_speech/stt/whisper_stt.py supports both) -- it uses
+#     CTranslate2 (int8-quantized, CPU-optimized), meaningfully faster
+#     than openai-whisper's raw PyTorch inference on an ARM CPU with no
+#     GPU. openai-whisper is still listed as a fallback since the code
+#     supports it and switching is just a launch-arg away.
+#   - deepface intentionally NOT installed: bonbon_vision/face/
+#     face_pipeline.py treats insightface and deepface as ALTERNATIVE
+#     face backends, not complementary ones (deepface recognition is
+#     skipped entirely whenever insightface handles detection). Installing
+#     both would mean shipping two overlapping, heavy face stacks
+#     (deepface pulls in TensorFlow/Keras) when only one is ever used --
+#     exactly the redundancy this deployment must avoid. insightface
+#     alone covers both face detection and recognition.
+#   - faiss-cpu NOT installed by default: bonbon_llm's RAGConfig defaults
+#     to backend="chroma" (config/llm/llm_config.py); faiss is only the
+#     alternative backend. Add faiss-cpu only if you deliberately switch
+#     rag.backend to "faiss".
+#   - mediapipe: historically had incomplete/lagging aarch64 Linux wheel
+#     availability -- flagged as a real installation risk, not assumed to
+#     "just work". If pip has no matching wheel for this Python/arch
+#     combination, this is a genuine, reportable BLOCKER for
+#     bonbon_gesture's real backend, not something to silently skip.
+
+# Vision / face recognition (bonbon_vision)
+ultralytics
+insightface
+onnxruntime
+
+# ASR / VAD / diarization (bonbon_speech)
+faster-whisper
+openai-whisper
+torch --index-url https://download.pytorch.org/whl/cpu
+torchaudio --index-url https://download.pytorch.org/whl/cpu
+pyannote.audio
+sounddevice
+
+# Gesture recognition (bonbon_gesture) -- see aarch64 wheel risk note above
+mediapipe
+
+# Affective AI (bonbon_affective_ai)
+transformers
+sentence-transformers
+
+# Local LLM gateway + RAG (bonbon_llm)
+ollama
+langchain
+langchain-community
+chromadb
+
+# TTS (bonbon_tts)
+piper-tts

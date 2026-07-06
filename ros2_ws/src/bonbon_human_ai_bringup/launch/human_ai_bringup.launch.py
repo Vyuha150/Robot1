@@ -13,6 +13,19 @@ files... a Pi could accidentally launch the full monolithic stack").
 Usage:
   ros2 launch bonbon_human_ai_bringup human_ai_bringup.launch.py driver_mode:=real
   ros2 launch bonbon_human_ai_bringup human_ai_bringup.launch.py   # mock, dev/CI
+
+  # Real AI backends (previously unreachable through this bringup -- it used
+  # to call vision.launch.py/speech.launch.py with zero arguments, so their
+  # own real-backend options existed but had no way to be turned on here):
+  ros2 launch bonbon_human_ai_bringup human_ai_bringup.launch.py \\
+      driver_mode:=real \\
+      detector_backend:=yolo model_path:=/models/yolov8n.pt \\
+      face_detect_backend:=insightface face_recognize_backend:=insightface \\
+      stt_backend:=faster_whisper stt_model_size:=base
+
+All AI-backend args below default to the same "mock" values
+vision.launch.py/speech.launch.py already default to -- this bringup adds a
+pass-through, it does not change what happens if you don't set anything.
 """
 
 from __future__ import annotations
@@ -66,10 +79,30 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     # ── Rank 3: ASR (requires mic) ────────────────────────────────────────────
-    asr = _include("bonbon_speech", "speech.launch.py")
+    asr = _include(
+        "bonbon_speech",
+        "speech.launch.py",
+        {
+            "stt_backend": LaunchConfiguration("stt_backend"),
+            "stt_model_size": LaunchConfiguration("stt_model_size"),
+            "stt_model_dir": LaunchConfiguration("stt_model_dir"),
+            "diarization_enabled": LaunchConfiguration("diarization_enabled"),
+            "diarization_hf_token": LaunchConfiguration("diarization_hf_token"),
+        },
+    )
 
     # ── Rank 4: face recognition (runs inline in vision_node, requires camera) ─
-    vision = _include("bonbon_vision", "vision.launch.py")
+    vision = _include(
+        "bonbon_vision",
+        "vision.launch.py",
+        {
+            "detector_backend": LaunchConfiguration("detector_backend"),
+            "model_path": LaunchConfiguration("model_path"),
+            "face_detect_backend": LaunchConfiguration("face_detect_backend"),
+            "face_recognize_backend": LaunchConfiguration("face_recognize_backend"),
+            "face_db_path": LaunchConfiguration("face_db_path"),
+        },
+    )
 
     # ── Rank 5: perception fusion group (tracker, object, gesture, affective,
     #    human_state_fusion, speaker_intelligence) ────────────────────────────
@@ -124,6 +157,50 @@ def generate_launch_description() -> LaunchDescription:
         [
             DeclareLaunchArgument(
                 "driver_mode", default_value="mock", description="real|mock — HAL driver mode"
+            ),
+            # AI-backend pass-through args -- same defaults vision.launch.py/
+            # speech.launch.py already declare on their own; this bringup
+            # previously gave no way to reach them at all (see module
+            # docstring). deepface intentionally not exposed here: it and
+            # insightface are alternative, not complementary, face backends
+            # (bonbon_vision skips deepface recognition entirely whenever
+            # insightface is handling detection -- see face_pipeline.py) --
+            # exposing both would invite running two overlapping face stacks
+            # instead of picking one, which is the redundancy this deployment
+            # must avoid.
+            DeclareLaunchArgument(
+                "detector_backend", default_value="mock", description="mock | yolo"
+            ),
+            DeclareLaunchArgument(
+                "model_path", default_value="", description="Absolute path to YOLO .pt file"
+            ),
+            DeclareLaunchArgument(
+                "face_detect_backend",
+                default_value="mock",
+                description="mock | opencv_dnn | insightface",
+            ),
+            DeclareLaunchArgument(
+                "face_recognize_backend", default_value="mock", description="mock | insightface"
+            ),
+            DeclareLaunchArgument(
+                "face_db_path", default_value="", description="Path to face identity database"
+            ),
+            DeclareLaunchArgument(
+                "stt_backend", default_value="mock", description="mock | whisper | faster_whisper"
+            ),
+            DeclareLaunchArgument(
+                "stt_model_size", default_value="base", description="tiny|base|small|medium|large"
+            ),
+            DeclareLaunchArgument(
+                "stt_model_dir", default_value="", description="Absolute path to STT model cache"
+            ),
+            DeclareLaunchArgument(
+                "diarization_enabled", default_value="false", description="Enable pyannote"
+            ),
+            DeclareLaunchArgument(
+                "diarization_hf_token",
+                default_value="",
+                description="HuggingFace token for pyannote (gated model, requires ToS accept)",
             ),
             hal,
             distributed_safety,

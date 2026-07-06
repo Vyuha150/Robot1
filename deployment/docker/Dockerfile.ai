@@ -43,6 +43,20 @@ RUN rosdep update && \
     rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble && \
     source /opt/ros/humble/setup.bash && colcon build --base-paths ros2_ws/src --merge-install
 
+# Real Python backends (insightface/whisper/ollama/chromadb/mediapipe/etc.)
+# -- none of these are rosdep-resolvable (they're not registered ROS
+# system dependencies), and every bonbon_* package.xml only declares
+# python3-numpy/python3-opencv. They're lazy-imported in code (degrade
+# honestly to "backend unavailable" if missing, same pattern as every
+# bonbon_hal driver's DriverFault("SDK_MISSING")) -- but that only helps
+# if the alternative is "actually installed", not "never installed at
+# all". requirements/pi2_requirements.txt is the authoritative manifest;
+# see its header comment for the ARM64-specific choices (CPU-only torch,
+# faster-whisper preferred, deepface deliberately excluded as redundant
+# with insightface, faiss-cpu excluded since RAG defaults to chroma).
+COPY requirements/pi2_requirements.txt /opt/bonbon/requirements/pi2_requirements.txt
+RUN python3 -m pip install --no-cache-dir --break-system-packages     -r /opt/bonbon/requirements/pi2_requirements.txt
+
 RUN useradd --create-home --shell /bin/bash bonbon && chown -R bonbon:bonbon /opt/bonbon
 USER bonbon
 VOLUME ["/models"]

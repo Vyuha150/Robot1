@@ -37,6 +37,7 @@ deployment/ota/*.sha256
 deployment/ota/*.sig
 simulation_reports/
 simulation_artifacts/
+deploy/*.tar.gz
 
 # Editor / OS
 .vscode/
