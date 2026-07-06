@@ -18,6 +18,17 @@ Key responsibilities handled at this layer
    centre and camera HFOV.
 
 All implementations inherit BaseDetector and only override _detect_impl().
+
+Important caveat — timeouts are NOT cancellation:
+  ThreadPoolExecutor cannot preempt a task that has already started, so a
+  timed-out call keeps running on the single worker thread. With
+  ``max_workers=1`` (deliberate: one concurrent inference bounds CPU/GPU
+  memory on embedded hardware), a naive implementation would let the *next*
+  detect() call queue behind that abandoned task and silently burn its own
+  timeout budget waiting for a worker that was never going to be free in
+  time. Instead, ``detect()`` tracks the abandoned future and fails fast (no
+  queuing) while it is still draining; once it actually finishes, normal
+  operation resumes automatically.
 """
 
 from __future__ import annotations
@@ -25,7 +36,7 @@ from __future__ import annotations
 import logging
 import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 
@@ -179,6 +190,10 @@ class BaseDetector(ABC):
         self._total_errors: int = 0
         # Single-worker pool for timeout isolation
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="detector")
+        # Future left running on the single worker after a previous call
+        # timed out. Tracked so the next detect() can fail fast instead of
+        # queuing behind it (see module docstring).
+        self._pending_future: Future | None = None
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -210,6 +225,22 @@ class BaseDetector(ABC):
         timeout = self._cfg.inference_timeout_sec
         result: DetectionResult
 
+        if timeout > 0 and self._pending_future is not None:
+            if self._pending_future.done():
+                self._pending_future = None
+            else:
+                # The single worker is still draining a previously abandoned
+                # call. Fail fast rather than queuing behind it and waiting
+                # out our own timeout for a worker we already know is busy.
+                logger.warning(
+                    "detector=%s event=inference_busy reason='previous call "
+                    "still running' consecutive=%d max=%d",
+                    self.backend_name,
+                    self._consecutive_timeouts + 1,
+                    self._cfg.max_consecutive_timeouts,
+                )
+                return self._record_timeout(t0)
+
         try:
             if timeout > 0:
                 future = self._executor.submit(self._detect_impl, bgr)
@@ -240,21 +271,18 @@ class BaseDetector(ABC):
             )
 
         except FuturesTimeout:
-            elapsed_ms = (time.monotonic() - t0) * 1000.0
-            self._consecutive_timeouts += 1
-            self._total_timeouts += 1
             logger.warning(
                 "detector=%s event=inference_timeout " "consecutive=%d max=%d elapsed_ms=%.1f",
                 self.backend_name,
-                self._consecutive_timeouts,
+                self._consecutive_timeouts + 1,
                 self._cfg.max_consecutive_timeouts,
-                elapsed_ms,
+                (time.monotonic() - t0) * 1000.0,
             )
-            if self._consecutive_timeouts >= self._cfg.max_consecutive_timeouts:
-                self._enter_degraded("too many consecutive timeouts")
-            result = DetectionResult(
-                timed_out=True, inference_ms=elapsed_ms, backend=self.backend_name
-            )
+            # Can't cancel a task that's already started — remember the
+            # future so the next call doesn't queue behind it.
+            self._pending_future = future
+            future.add_done_callback(self._log_abandoned_future)
+            result = self._record_timeout(t0)
 
         except Exception as exc:
             elapsed_ms = (time.monotonic() - t0) * 1000.0
@@ -308,6 +336,34 @@ class BaseDetector(ABC):
             self._total_timeouts,
             self._total_errors,
         )
+
+    def _record_timeout(self, t0: float) -> DetectionResult:
+        """Bump the consecutive-timeout counter, degrade if past the cap."""
+        elapsed_ms = (time.monotonic() - t0) * 1000.0
+        self._consecutive_timeouts += 1
+        self._total_timeouts += 1
+        if self._consecutive_timeouts >= self._cfg.max_consecutive_timeouts:
+            self._enter_degraded("too many consecutive timeouts")
+        return DetectionResult(timed_out=True, inference_ms=elapsed_ms, backend=self.backend_name)
+
+    def _log_abandoned_future(self, future: Future) -> None:
+        """Best-effort observability for a call that timed out: log how it
+        actually turned out once it eventually finishes (result is discarded
+        either way — the caller already moved on)."""
+        if future.cancelled():
+            return
+        exc = future.exception()
+        if exc is not None:
+            logger.warning(
+                "detector=%s event=abandoned_inference_failed error=%r",
+                self.backend_name,
+                str(exc),
+            )
+        else:
+            logger.info(
+                "detector=%s event=abandoned_inference_completed_late (result discarded)",
+                self.backend_name,
+            )
 
     @staticmethod
     def _fill_depth(det: ObjectDetection, depth_m: np.ndarray | None) -> None:

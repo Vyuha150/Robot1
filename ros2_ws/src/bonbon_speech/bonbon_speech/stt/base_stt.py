@@ -7,6 +7,19 @@ Timeout / degraded-mode pattern (same as bonbon_vision BaseDetector):
   ThreadPoolExecutor.submit().result(timeout=N) — if the model hangs or
   exceeds inference_timeout_sec the future times out, ``consecutive_timeouts``
   increments, and the node may degrade to mock mode once the cap is reached.
+
+Important caveat — timeouts are NOT cancellation:
+  ThreadPoolExecutor cannot preempt a task that has already started, so a
+  timed-out call keeps running on the single worker thread. With
+  ``max_workers=1`` (deliberate: one concurrent inference bounds CPU/memory
+  on embedded hardware), a naive implementation would let the *next*
+  transcribe() call queue behind that abandoned task and silently burn its
+  own timeout budget waiting for a worker that was never going to be free in
+  time — turning one slow call into a cascade of spurious timeouts. Instead,
+  ``transcribe()`` tracks the abandoned future and fails fast (no queuing)
+  while it is still draining; once it actually finishes, normal operation
+  resumes automatically. This keeps the "one worker = one concurrent
+  inference" resource bound intact while avoiding the cascade.
 """
 
 from __future__ import annotations
@@ -14,7 +27,7 @@ from __future__ import annotations
 import logging
 import time
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 
@@ -76,6 +89,10 @@ class BaseSTT(ABC):
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="stt")
         self._consecutive_timeouts = 0
         self._degraded = False
+        # Future left running on the single worker after a previous call
+        # timed out. Tracked so the next transcribe() can fail fast instead
+        # of queuing behind it (see module docstring).
+        self._pending_future: Future | None = None
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -119,6 +136,21 @@ class BaseSTT(ABC):
             return TranscriptionResult(is_silence=True)
 
         t0 = time.monotonic()
+
+        if self._pending_future is not None:
+            if self._pending_future.done():
+                self._pending_future = None
+            else:
+                # The single worker is still draining a previously abandoned
+                # call. Fail fast rather than queuing behind it and waiting
+                # out our own timeout for a worker we already know is busy.
+                logger.warning(
+                    "STT busy: previous inference still running on the single "
+                    "worker, rejecting immediately (#%d)",
+                    self._consecutive_timeouts + 1,
+                )
+                return self._record_timeout(time.monotonic() - t0)
+
         future = self._executor.submit(self._transcribe_impl, samples, sample_rate)
         try:
             result = future.result(timeout=self._cfg.inference_timeout_sec)
@@ -136,24 +168,18 @@ class BaseSTT(ABC):
             )
             return result
         except FutureTimeout:
-            self._consecutive_timeouts += 1
-            elapsed_ms = (time.monotonic() - t0) * 1000.0
+            elapsed_sec = time.monotonic() - t0
             logger.warning(
                 "STT timeout #%d (limit=%ds elapsed=%.0fms)",
-                self._consecutive_timeouts,
+                self._consecutive_timeouts + 1,
                 self._cfg.inference_timeout_sec,
-                elapsed_ms,
+                elapsed_sec * 1000.0,
             )
-            if self._consecutive_timeouts >= self._cfg.max_consecutive_timeouts:
-                self._degraded = True
-                logger.error(
-                    "STT degraded: %d consecutive timeouts",
-                    self._consecutive_timeouts,
-                )
-            return TranscriptionResult(
-                is_timeout=True,
-                inference_ms=elapsed_ms,
-            )
+            # Can't cancel a task that's already started — remember the
+            # future so the next call doesn't queue behind it.
+            self._pending_future = future
+            future.add_done_callback(self._log_abandoned_outcome)
+            return self._record_timeout(elapsed_sec)
         except Exception as exc:
             elapsed_ms = (time.monotonic() - t0) * 1000.0
             logger.error("STT exception: %s (%.0f ms)", exc, elapsed_ms)
@@ -161,6 +187,33 @@ class BaseSTT(ABC):
                 is_timeout=False,
                 inference_ms=elapsed_ms,
             )
+
+    def _record_timeout(self, elapsed_sec: float) -> TranscriptionResult:
+        """Bump the consecutive-timeout counter, degrade if past the cap."""
+        self._consecutive_timeouts += 1
+        if self._consecutive_timeouts >= self._cfg.max_consecutive_timeouts:
+            self._degraded = True
+            logger.error(
+                "STT degraded: %d consecutive timeouts",
+                self._consecutive_timeouts,
+            )
+        return TranscriptionResult(
+            is_timeout=True,
+            inference_ms=elapsed_sec * 1000.0,
+        )
+
+    @staticmethod
+    def _log_abandoned_outcome(future: Future) -> None:
+        """Best-effort observability for a call that timed out: log how it
+        actually turned out once it eventually finishes (result is discarded
+        either way — the caller already moved on)."""
+        if future.cancelled():
+            return
+        exc = future.exception()
+        if exc is not None:
+            logger.warning("STT abandoned inference eventually failed: %s", exc)
+        else:
+            logger.info("STT abandoned inference eventually completed (result discarded)")
 
     @property
     def is_degraded(self) -> bool:

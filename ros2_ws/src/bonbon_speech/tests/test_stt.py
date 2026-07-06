@@ -9,6 +9,8 @@ Tests for the STT layer:
   - Word timestamps pass-through
 """
 
+import time
+
 import numpy as np
 import pytest
 from bonbon_speech.config.speech_config import STTConfig
@@ -166,16 +168,43 @@ class TestTimeout:
             stt.transcribe(samples())
         assert stt.is_degraded
 
+    def test_busy_call_fails_fast_without_queuing(self):
+        """ThreadPoolExecutor cannot preempt a task that's already started,
+        so the abandoned call from a timeout keeps running on the single
+        worker. A call made while it's still draining must fail fast rather
+        than queue behind it and wait out its own timeout budget."""
+        stt = MockSTT(
+            make_cfg(inference_timeout_sec=0.05, max_consecutive_timeouts=10),
+            block_sec=0.3,
+        )
+        stt.load()
+        stt.transcribe(samples())  # times out; abandoned task keeps running
+        assert stt.consecutive_timeouts == 1
+
+        t0 = time.monotonic()
+        result = stt.transcribe(samples())
+        elapsed = time.monotonic() - t0
+
+        assert result.is_timeout is True
+        assert elapsed < 0.1  # rejected immediately, did not queue/wait
+        assert stt.consecutive_timeouts == 2
+
     def test_successful_call_resets_timeout_count(self):
+        """Once the abandoned task actually finishes (the single worker is
+        free again), a subsequent call can succeed and recovery resets the
+        consecutive-timeout count."""
         stt = MockSTT(
             make_cfg(inference_timeout_sec=0.05, max_consecutive_timeouts=5),
-            block_sec=0.3,
+            block_sec=0.2,
         )
         stt.load()
         stt.transcribe(samples())  # times out
         assert stt.consecutive_timeouts == 1
+
+        time.sleep(0.25)  # let the abandoned task actually drain
         stt.set_block(0.0)
-        stt.transcribe(samples())  # succeeds
+        result = stt.transcribe(samples())  # succeeds
+        assert result.is_timeout is False
         assert stt.consecutive_timeouts == 0
 
     def test_reset_degraded(self):

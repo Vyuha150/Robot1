@@ -390,9 +390,7 @@ class SpeechNode(LifecycleNode):
             all_speakers = ["SPEAKER_ANON"]
             # Anonymise per-segment speaker IDs too — otherwise privacy mode
             # would leak real diarizer labels through the detail fields below.
-            diar_segments = [
-                replace(s, speaker_id="SPEAKER_ANON") for s in diar_segments
-            ]
+            diar_segments = [replace(s, speaker_id="SPEAKER_ANON") for s in diar_segments]
 
         # Build and publish messages
         self._publish_command(

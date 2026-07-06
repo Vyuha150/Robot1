@@ -28,6 +28,7 @@
   <exec_depend>bonbon_affective_ai</exec_depend>
   <exec_depend>bonbon_human_state_fusion</exec_depend>
   <exec_depend>bonbon_speaker_intelligence</exec_depend>
+  <exec_depend>bonbon_behavior_engine</exec_depend>
   <exec_depend>bonbon_tts</exec_depend>
   <exec_depend>bonbon_distributed_safety</exec_depend>
   <exec_depend>bonbon_authority_manager</exec_depend>

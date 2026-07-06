@@ -27,6 +27,7 @@ Covered scenarios
 
 import math
 import threading
+import time
 import unittest
 
 import numpy as np
@@ -301,6 +302,41 @@ class TestTimeout(unittest.TestCase):
         detector = MockDetector(cfg=cfg, block_sec=0.0)  # no actual block
         r = detector.detect(_frame())
         self.assertFalse(r.timed_out)
+        detector.shutdown()
+
+    def test_busy_call_fails_fast_without_queuing(self):
+        """ThreadPoolExecutor cannot preempt a task that's already started,
+        so the abandoned call from a timeout keeps running on the single
+        worker. A call made while it's still draining must fail fast rather
+        than queue behind it and wait out its own timeout budget."""
+        cfg = _cfg(inference_timeout_sec=0.05, max_consecutive_timeouts=10)
+        detector = MockDetector(cfg=cfg, block_sec=0.3)
+        detector.detect(_frame())  # times out; abandoned task keeps running
+        self.assertEqual(detector.stats()["consecutive_timeouts"], 1)
+
+        t0 = time.monotonic()
+        r = detector.detect(_frame())
+        elapsed = time.monotonic() - t0
+
+        self.assertTrue(r.timed_out)
+        self.assertLess(elapsed, 0.1)  # rejected immediately, did not queue/wait
+        self.assertEqual(detector.stats()["consecutive_timeouts"], 2)
+        detector.shutdown()
+
+    def test_recovers_once_abandoned_task_drains(self):
+        """Once the abandoned task actually finishes (the single worker is
+        free again), a subsequent call can succeed and reset the
+        consecutive-timeout count."""
+        cfg = _cfg(inference_timeout_sec=0.05, max_consecutive_timeouts=10)
+        detector = MockDetector(cfg=cfg, block_sec=0.2)
+        detector.detect(_frame())  # times out
+        self.assertEqual(detector.stats()["consecutive_timeouts"], 1)
+
+        time.sleep(0.25)  # let the abandoned task actually drain
+        detector.set_block_sec(0.0)
+        r = detector.detect(_frame())
+        self.assertFalse(r.timed_out)
+        self.assertEqual(detector.stats()["consecutive_timeouts"], 0)
         detector.shutdown()
 
 

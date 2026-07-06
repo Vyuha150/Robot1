@@ -86,7 +86,19 @@ def generate_launch_description() -> LaunchDescription:
         actions=[_include("bonbon_llm", "llm.launch.py")],
     )
 
-    # ── Rank 7: TTS ────────────────────────────────────────────────────────────
+    # ── Rank 7: behavior proposal generation (fuses human_state_fusion +
+    #    LLM output into BehaviorProposal messages). Pi-2 may only PROPOSE --
+    #    Pi-3's safety_gate_node/motion_approval_gateway is the sole authority
+    #    that can turn a proposal into actual motion. Previously missing from
+    #    this bringup (only wired into the monolithic bonbon_bringup), which
+    #    meant Pi-2's distributed deployment never actually sent behavior
+    #    proposals to Pi-3 -- found and fixed during Pi-2 deployment prep.
+    behavior_engine = TimerAction(
+        period=3.5,
+        actions=[_include("bonbon_behavior_engine", "behavior_engine.launch.py")],
+    )
+
+    # ── Rank 8: TTS ────────────────────────────────────────────────────────────
     tts = _include("bonbon_tts", "tts.launch.py")
 
     # ── Cross-Pi liveness + authority (self_id=pi2, see bonbon_distributed_safety
@@ -125,6 +137,7 @@ def generate_launch_description() -> LaunchDescription:
             human_state,
             speaker_intel,
             llm,
+            behavior_engine,
             tts,
         ]
     )

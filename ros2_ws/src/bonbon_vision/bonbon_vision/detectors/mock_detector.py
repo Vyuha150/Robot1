@@ -160,6 +160,9 @@ class MockDetector(BaseDetector):
     def set_num_detections(self, n: int) -> None:
         self._n = n
 
+    def set_block_sec(self, block_sec: float) -> None:
+        self._block_sec = block_sec
+
     def force_degraded(self, reason: str = "forced") -> None:
         self._enter_degraded(reason)
 

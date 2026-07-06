@@ -101,6 +101,25 @@ services:
     command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_llm llm.launch.py"
     security_opt: ["no-new-privileges:true"]
 
+  behavior-engine:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    # Fuses human_state_fusion + LLM output into BehaviorProposal messages
+    # for Pi-3 -- this Pi may only PROPOSE, never command motion directly;
+    # Pi-3's safety_gate_node/motion_approval_gateway is the sole authority.
+    # Given its own service (not bundled into perception-fusion) because
+    # it's the one node whose output crosses the Pi-2->Pi-3 boundary and
+    # warrants its own restart/log isolation, matching llm/tts above.
+    # Previously missing from this compose file entirely -- found and
+    # fixed during Pi-2 deployment prep (behavior proposals never reached
+    # Pi-3 in the distributed deployment despite bonbon_behavior_engine
+    # existing and being fully tested).
+    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_behavior_engine behavior_engine.launch.py"
+    security_opt: ["no-new-privileges:true"]
+
   tts:
     image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
     network_mode: host
