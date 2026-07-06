@@ -14,12 +14,21 @@
 #
 # ARM64/CPU-only notes (Raspberry Pi 5, no CUDA):
 #   - torch: install the CPU-only wheel index, never the CUDA build.
-#   - faster-whisper preferred over openai-whisper as the default STT
-#     backend (bonbon_speech/stt/whisper_stt.py supports both) -- it uses
-#     CTranslate2 (int8-quantized, CPU-optimized), meaningfully faster
+#   - faster-whisper only, openai-whisper deliberately NOT installed
+#     (bonbon_speech/stt/whisper_stt.py supports both as selectable
+#     backends via stt_backend, never both at once). faster-whisper uses
+#     CTranslate2 (int8-quantized, CPU-optimized) -- meaningfully faster
 #     than openai-whisper's raw PyTorch inference on an ARM CPU with no
-#     GPU. openai-whisper is still listed as a fallback since the code
-#     supports it and switching is just a launch-arg away.
+#     GPU, and openai-whisper's own package additionally hard-depends on
+#     `triton` (an NVIDIA GPU-kernel-compilation library), which drags in
+#     the full CUDA toolkit exactly like the numba/cuda-bindings problem
+#     above -- confirmed on a real build attempt (`Collecting triton==3.7.1`,
+#     184.6 MB, immediately followed by more nvidia-* packages). Shipping
+#     both backends when only one is ever selected was already borderline
+#     redundant; once one of them turned out to actively break the build
+#     on this hardware, dropping it was the clear call. Switching to
+#     openai-whisper later remains a one-line requirements + launch-arg
+#     change if ever needed.
 #   - deepface intentionally NOT installed: bonbon_vision/face/
 #     face_pipeline.py treats insightface and deepface as ALTERNATIVE
 #     face backends, not complementary ones (deepface recognition is
@@ -67,7 +76,6 @@ onnxruntime
 
 # ASR / VAD / diarization (bonbon_speech)
 faster-whisper
-openai-whisper
 torch --index-url https://download.pytorch.org/whl/cpu
 torchaudio --index-url https://download.pytorch.org/whl/cpu
 pyannote.audio
