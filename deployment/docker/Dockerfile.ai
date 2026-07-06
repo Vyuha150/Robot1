@@ -39,9 +39,21 @@ COPY ros2_ws/src/bonbon_distributed_safety /opt/bonbon/ros2_ws/src/bonbon_distri
 COPY ros2_ws/src/bonbon_authority_manager /opt/bonbon/ros2_ws/src/bonbon_authority_manager
 COPY ros2_ws/src/bonbon_msgs /opt/bonbon/ros2_ws/src/bonbon_msgs
 COPY ros2_ws/src/bonbon_srvs /opt/bonbon/ros2_ws/src/bonbon_srvs
-RUN rosdep update && \
-    rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble && \
-    source /opt/ros/humble/setup.bash && colcon build --base-paths ros2_ws/src --merge-install
+# NOTE: apt-get update must run again here -- the first RUN above deletes
+# /var/lib/apt/lists/* at its end (standard image-size hygiene), so without
+# a fresh update rosdep's apt-backed installs (python3-opencv, python3-smbus2)
+# fail with "Unable to locate package" even though the packages genuinely
+# exist in jammy's repos. Also restrict to --dependency-types=exec: several
+# packages declare test_depends (python3-pytest-mock, ament_flake8, etc.)
+# that either aren't real Debian package names or simply aren't needed to
+# RUN a deployed node -- this is a runtime image, not a test environment.
+# Found and fixed after the first real build attempt on Pi-2 hardware
+# surfaced both failures.
+RUN apt-get update && rosdep update && \
+    rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble \
+        --dependency-types=exec --dependency-types=buildtool && \
+    source /opt/ros/humble/setup.bash && colcon build --base-paths ros2_ws/src --merge-install && \
+    rm -rf /var/lib/apt/lists/*
 
 # Real Python backends (insightface/whisper/ollama/chromadb/mediapipe/etc.)
 # -- none of these are rosdep-resolvable (they're not registered ROS
