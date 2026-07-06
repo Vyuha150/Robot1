@@ -100,6 +100,45 @@ def generate_launch_description() -> LaunchDescription:
             default_value="0.80",
             description="Min LLM confidence to allow a RISKY command through",
         ),
+        # --- Pi-2 LLM guard (Pi2LLMGuardConfig in llm_config.py) -- CPU/thermal
+        # self-protection for a tiny local model on shared, resource-limited
+        # Pi-2 hardware. Previously built and read via from_ros_params() but
+        # never exposed here at all, so it was unreachable through this launch
+        # file no matter what a Pi-2 deployment profile wanted -- same class
+        # of bug as bonbon_human_ai_bringup's missing vision/speech backend
+        # pass-through. Disabled by default (enabled=false), matching
+        # Pi2LLMGuardConfig's own default -- a Pi-2 runtime profile must
+        # explicitly turn it on.
+        DeclareLaunchArgument(
+            "pi2_guard_enabled",
+            default_value="false",
+            description="Enable Pi-2 CPU/thermal self-protection guard for local LLM calls",
+        ),
+        DeclareLaunchArgument(
+            "pi2_guard_max_concurrent_requests",
+            default_value="1",
+            description="Max concurrent local LLM inferences (bounds CPU/memory on Pi-2)",
+        ),
+        DeclareLaunchArgument(
+            "pi2_guard_max_output_tokens",
+            default_value="64",
+            description="Max output tokens per response when the guard is active",
+        ),
+        DeclareLaunchArgument(
+            "pi2_guard_initial_timeout_sec",
+            default_value="1.0",
+            description="Initial per-request timeout before the guard escalates",
+        ),
+        DeclareLaunchArgument(
+            "pi2_guard_cpu_disable_threshold_percent",
+            default_value="85.0",
+            description="Disable local LLM calls above this CPU percent",
+        ),
+        DeclareLaunchArgument(
+            "pi2_guard_temp_disable_threshold_c",
+            default_value="75.0",
+            description="Disable local LLM calls above this CPU temperature (Celsius)",
+        ),
         # --- Personality ---
         DeclareLaunchArgument(
             "robot_name",
@@ -170,6 +209,25 @@ def generate_launch_description() -> LaunchDescription:
         {"hallucination.min_grounding_score": LaunchConfiguration("min_grounding_score")},
         # Safety filter
         {"safety_filter.min_risky_confidence": LaunchConfiguration("min_risky_confidence")},
+        # Pi-2 LLM guard
+        {"pi2_guard.enabled": LaunchConfiguration("pi2_guard_enabled")},
+        {
+            "pi2_guard.max_concurrent_requests": LaunchConfiguration(
+                "pi2_guard_max_concurrent_requests"
+            )
+        },
+        {"pi2_guard.max_output_tokens": LaunchConfiguration("pi2_guard_max_output_tokens")},
+        {"pi2_guard.initial_timeout_sec": LaunchConfiguration("pi2_guard_initial_timeout_sec")},
+        {
+            "pi2_guard.cpu_disable_threshold_percent": LaunchConfiguration(
+                "pi2_guard_cpu_disable_threshold_percent"
+            )
+        },
+        {
+            "pi2_guard.temp_disable_threshold_c": LaunchConfiguration(
+                "pi2_guard_temp_disable_threshold_c"
+            )
+        },
         # Personality
         {"personality.name": LaunchConfiguration("robot_name")},
         {"personality.max_response_words": LaunchConfiguration("max_response_words")},

@@ -98,7 +98,23 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/opt/bonbon/models:/models:ro", "/var/log/bonbon:/logs"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_llm llm.launch.py"
+    # ollama_model + pi2_guard_* previously had no way to reach this
+    # container's `ros2 launch` invocation at all (llm.launch.py's own
+    # pi2_guard_* args were only added once the launch file itself was
+    # fixed to expose them -- see llm.launch.py's module history). Without
+    # ollama_model:=qwen2.5:0.5b this node would default to llama3.2:3b,
+    # a model never pulled onto Pi-2 hardware.
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+      source /opt/bonbon/install/setup.bash &&
+      ros2 launch bonbon_llm llm.launch.py
+      ollama_model:=qwen2.5:0.5b
+      pi2_guard_enabled:=true
+      pi2_guard_max_concurrent_requests:=1
+      pi2_guard_max_output_tokens:=64
+      pi2_guard_initial_timeout_sec:=1.0
+      pi2_guard_cpu_disable_threshold_percent:=80.0
+      pi2_guard_temp_disable_threshold_c:=75.0"
     security_opt: ["no-new-privileges:true"]
 
   behavior-engine:

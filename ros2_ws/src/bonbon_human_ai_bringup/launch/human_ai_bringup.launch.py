@@ -114,9 +114,29 @@ def generate_launch_description() -> LaunchDescription:
     speaker_intel = _include("bonbon_speaker_intelligence", "speaker_intelligence.launch.py")
 
     # ── Rank 6: local LLM -- slowest to warm up, started after sensors ───────
+    # Pi-2 guard enabled here: llm.launch.py's pi2_guard_* args existed and
+    # were read by LLMConfig.from_ros_params() but were never actually
+    # reachable from any launch file (same class of bug as the missing
+    # vision/speech backend pass-through above) -- this is precisely the
+    # resource-constrained Pi-2 deployment the guard exists to protect, so
+    # it is turned on here rather than left permanently unreachable.
     llm = TimerAction(
         period=3.0,
-        actions=[_include("bonbon_llm", "llm.launch.py")],
+        actions=[
+            _include(
+                "bonbon_llm",
+                "llm.launch.py",
+                {
+                    "ollama_model": "qwen2.5:0.5b",
+                    "pi2_guard_enabled": "true",
+                    "pi2_guard_max_concurrent_requests": "1",
+                    "pi2_guard_max_output_tokens": "64",
+                    "pi2_guard_initial_timeout_sec": "1.0",
+                    "pi2_guard_cpu_disable_threshold_percent": "80.0",
+                    "pi2_guard_temp_disable_threshold_c": "75.0",
+                },
+            )
+        ],
     )
 
     # ── Rank 7: behavior proposal generation (fuses human_state_fusion +

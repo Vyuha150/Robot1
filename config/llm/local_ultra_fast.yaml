@@ -1,0 +1,65 @@
+# config/llm/local_ultra_fast.yaml
+#
+# Pi-2 "local ultra-fast" LLM profile: qwen2.5:0.5b via Ollama, tuned for
+# low-latency, resource-bounded operation on shared Pi-2 hardware (no GPU,
+# competing with vision/ASR/perception for the same 4 CPU cores).
+#
+# Real ROS2 params-file matching bonbon_llm/config/llm_config.py's actual
+# dotted-key schema (LLMConfig.from_ros_params) -- not an invented schema.
+# Two ways to apply it:
+#   1. Direct node run:
+#      ros2 run bonbon_llm llm_orchestrator_node --ros-args \
+#          --params-file config/llm/local_ultra_fast.yaml
+#   2. Via the launch file's individual args (what bonbon_human_ai_bringup's
+#      Pi-2 composition actually uses -- see human_ai_bringup.launch.py's
+#      llm TimerAction include): the values below are the same ones passed
+#      there, kept in sync manually since llm.launch.py builds parameters
+#      from individual DeclareLaunchArgument entries rather than a
+#      params-file passthrough.
+#
+# Safety invariants (unchanged by this profile, enforced in code, not here):
+#   - emergency/stop/pause/dock intents bypass the LLM entirely (safety
+#     filter + hallucination guard run regardless of pi2_guard state).
+#   - LLM output is a text/proposal only -- bonbon_behavior_engine turns it
+#     into a BehaviorProposal for Pi-3, never a direct motor/servo command.
+#   - cloud fallback is not configured here; this profile is local-only.
+
+llm_orchestrator:
+  ros__parameters:
+    ollama.base_url: "http://localhost:11434"
+    ollama.model: "qwen2.5:0.5b"
+    ollama.timeout_sec: 5.0
+    ollama.temperature: 0.2
+    ollama.max_tokens: 64
+    ollama.num_ctx: 1024
+
+    rag.backend: "chroma"
+    rag.top_k: 3
+    rag.similarity_threshold: 0.35
+    rag.persist_dir: ""
+    rag.collection_name: "bonbon_kb"
+
+    hallucination.enabled: true
+    hallucination.min_grounding_score: 0.30
+
+    safety_filter.min_risky_confidence: 0.80
+
+    # Pi-2 CPU/thermal self-protection guard (Pi2LLMGuardConfig) -- disables
+    # local LLM calls above the thresholds below rather than letting a
+    # struggling Pi 5 degrade every other Pi-2 subsystem competing for the
+    # same CPU. Values match the mega-deployment brief's Phase 8 spec.
+    pi2_guard.enabled: true
+    pi2_guard.max_concurrent_requests: 1
+    pi2_guard.max_output_tokens: 64
+    pi2_guard.initial_timeout_sec: 1.0
+    pi2_guard.cpu_disable_threshold_percent: 80.0
+    pi2_guard.temp_disable_threshold_c: 75.0
+
+    personality.name: "BonBon"
+    personality.max_response_words: 25
+
+    min_confidence_threshold: 0.45
+    use_langchain: true
+    use_tools: true
+    use_rag: true
+    allow_degraded_startup: true

@@ -25,7 +25,7 @@
   <depend>geometry_msgs</depend>
   <depend>bonbon_msgs</depend>
   <!-- Optional at runtime (lazy-imported, graceful ImportError fallback to
-       mock) -- declared so colcon orders the build correctly. -->
+       mock); declared so colcon orders the build correctly. -->
   <depend>bonbon_ai_runtime</depend>
 
   <!-- Python libraries (non-ROS) — optional/soft -->
