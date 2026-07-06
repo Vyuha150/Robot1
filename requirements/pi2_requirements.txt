@@ -18,8 +18,8 @@
 #     --extra-index-url pypi.org), not per-line here -- a per-line
 #     --index-url on just this one requirement only constrains THIS
 #     line's resolution; when pip backtracks through other packages
-#     that also depend on torch (mediapipe, sentence-transformers,
-#     pyannote.audio), it can still reach for the default PyPI torch
+#     that also depend on torch (mediapipe, sentence-transformers),
+#     it can still reach for the default PyPI torch
 #     build (which bundles the full NVIDIA CUDA toolkit) to satisfy
 #     THEIR constraint. Confirmed on a real build: nvidia-cublas
 #     (542.9 MB) got pulled in during backtracking even after this
@@ -58,7 +58,7 @@
 #     bonbon_gesture's real backend, not something to silently skip.
 #   - numba pinned to <0.59: a transitive dependency somewhere in this
 #     chain (numba is pulled in indirectly, not listed directly by us --
-#     likely via librosa under pyannote.audio/faster-whisper) requires
+#     likely via librosa under faster-whisper) requires
 #     cuda-bindings on newer numba releases, which in turn pulls the
 #     ENTIRE NVIDIA CUDA toolkit metapackage (cudnn, nccl, triton,
 #     cusparse, nvjitlink, ...) -- multiple gigabytes of GPU packages
@@ -67,6 +67,28 @@
 #     dozens of nvidia_ml_py/cuda-toolkit version combinations for over
 #     40 minutes before being killed. Pinning below 0.59 avoids the
 #     unconditional CUDA dependency entirely.
+#   - pyannote.audio intentionally NOT installed: it hard-requires
+#     opentelemetry-api>=1.34.0 (for its own telemetry), and every
+#     opentelemetry-proto release compatible with that floor requires
+#     protobuf>=5.0 -- directly conflicting with mediapipe's hard
+#     protobuf<5 ceiling. Confirmed by downloading each package's real
+#     wheel metadata directly (not guessed): mediapipe wants
+#     protobuf<5,>=4.25.3; opentelemetry-proto 1.15.0-1.20.0 support
+#     protobuf<5.0,>=3.19, but pyannote.audio's >=1.34.0 floor forces a
+#     newer opentelemetry-proto that only supports protobuf>=5.0 --
+#     there is no version combination that satisfies both. Speaker
+#     diarization is already disabled by default in this deployment
+#     (bonbon_speech/launch/speech.launch.py's diarization_enabled
+#     defaults to false) and additionally requires a manually-obtained
+#     HuggingFace token + gated-model ToS acceptance regardless of
+#     whether the package is installed -- so dropping it here has no
+#     effect on anything actually reachable in this deployment today,
+#     while mediapipe (bonbon_gesture's real backend) is a core,
+#     always-relevant capability with no such external gating. If
+#     diarization is needed later, it requires either an updated
+#     mediapipe release with a relaxed protobuf ceiling, or running
+#     gesture recognition and diarization from separate Python
+#     environments/containers.
 #   - nvidia-ml-py pinned to a single version for the same reason:
 #     ultralytics-thop wants it, but leaving it unpinned let pip's
 #     resolver backtrack through dozens of releases trying to satisfy
@@ -88,7 +110,6 @@ onnxruntime
 faster-whisper
 torch
 torchaudio
-pyannote.audio
 sounddevice
 
 # Gesture recognition (bonbon_gesture) -- see aarch64 wheel risk note above
