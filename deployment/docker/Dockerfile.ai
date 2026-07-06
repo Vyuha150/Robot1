@@ -49,6 +49,19 @@ COPY ros2_ws/src/bonbon_srvs /opt/bonbon/ros2_ws/src/bonbon_srvs
 # RUN a deployed node -- this is a runtime image, not a test environment.
 # Found and fixed after the first real build attempt on Pi-2 hardware
 # surfaced both failures.
+# Ubuntu 22.04 Jammy ships an old, Debian-patched setuptools (59.6.0) whose
+# distutils.util.subst_vars() chokes with "ValueError: invalid variable
+# '$'base_dir''" on several ament_python packages' setup.py install step --
+# a well-known upstream setuptools/distutils interaction bug on this exact
+# Ubuntu/Python combination, unrelated to anything in this repo's own
+# setup.py files (they're all near-identical ament_python boilerplate).
+# Upgrading setuptools/wheel before colcon build is the standard fix.
+# Found on the 4th real build attempt against Pi-2 hardware -- the first
+# package queued alphabetically (bonbon_perception_ai) hit it first and
+# aborted every other package still queued; every ament_python package in
+# this workspace would have hit the identical error once it was its turn.
+RUN python3 -m pip install --no-cache-dir --break-system-packages --upgrade setuptools wheel
+
 RUN apt-get update && rosdep update && \
     rosdep install --from-paths ros2_ws/src --ignore-src -r -y --rosdistro humble \
         --dependency-types=exec --dependency-types=buildtool && \
