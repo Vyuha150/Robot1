@@ -31,8 +31,8 @@ already committed to git, not merely noted.
 | `bonbon_speaker_intelligence` | Yes | Speaker ID + transcript attribution, feeds human_state_fusion | `numpy` | none | Indirect (mic) | `speaker_intelligence.launch.py` | none | included in perception suite | Ready |
 | `bonbon_behavior_engine` | Yes | Fuses LLM + emotion + gesture + speech into `BehaviorProposal` messages sent toward Pi-3. **Proposes only — never commands motion directly; Pi-3's safety_gate_node/motion_approval_gateway is the sole approval authority** | none beyond `rclpy` | none | none | `behavior_engine.launch.py` | `behavior_engine.yaml` | 164 tests, all passing | **Gap found: was only wired into the monolithic `bonbon_bringup`, absent from `bonbon_human_ai_bringup`'s launch composition, its `package.xml`, and `docker-compose.pi2.yml` — meaning Pi-2's distributed deployment never actually sent behavior proposals to Pi-3. Fixed this session** (all three files) |
 | `bonbon_ai_runtime` | Yes (library, not a node) | Pluggable inference backend abstraction (CPU/ONNX/TensorRT/Hailo/mock) used by `bonbon_vision` | `onnxruntime`; `hailort`/`tensorrt` optional | none required | Optional — Hailo-10H present on Pi-2 BOM, **not yet integrated** (Phase 10, separate scope) | none (library) | none | 3 files | Ready in CPU/ONNX mode; Hailo backend deferred |
-| `bonbon_data_feedback` | Yes | Failure-case logging / hard-negative collection for future model improvement | none unusual | none | none | `data_feedback.launch.py` | none | 10 files | Ready |
-| `bonbon_data_stores` | Yes | Structured memory / interaction history / RAG vector DB backend consumed by `bonbon_llm` | `chromadb`/`faiss-cpu` | none | none | `data_stores.launch.py` | `data_store_params.yaml` | 9 files | Ready |
+| `bonbon_data_feedback` | **No — corrected after verification** | Originally listed as required; grepped every Pi-2 package's source for an actual import and found none. `bonbon_llm`'s RAG is self-contained (own ChromaDB/FAISS code), doesn't delegate to this package. Confirmed absent from `Dockerfile.ai`'s `COPY` list too (that list is independently derived by walking `package.xml` `exec_depend`s to a fixed point) | — | — | — | — | — | 10 files (exist, just not consumed by Pi-2) | Correctly excluded from the Pi-2 bundle |
+| `bonbon_data_stores` | **No — corrected after verification** | Same finding as above — no Pi-2 package imports it; not in `Dockerfile.ai` | — | — | — | — | — | 9 files (exist, just not consumed by Pi-2) | Correctly excluded from the Pi-2 bundle |
 | `bonbon_perception_efficiency` | Yes | Pi-2 resource governor: confidence policy, frame sampling, stale-frame dropping, CPU/temp-based shedding across all perception nodes | `numpy` | none | none | `perception_efficiency.launch.py` | none | 13 files | Ready |
 | `bonbon_distributed_safety` | Yes | Publishes `/bonbon/pi2/heartbeat`, monitors Pi-1/Pi-3 liveness | `rclpy` only | none | none | run directly (`self_id:=pi2` param), no dedicated launch file needed | none | 2 files | Ready |
 | `bonbon_authority_manager` | Yes | Applies `failure_policy.yaml` locally; degrades Pi-2 behavior if peers unreachable | `rclpy` only | none | none | run directly (`self_id:=pi2` param) | none | 2 files | Ready |
@@ -45,6 +45,25 @@ already committed to git, not merely noted.
 | `bonbon_distributed_communication` | **Does not exist as a single package** | Same role already served by `bonbon_distributed_safety` + `bonbon_authority_manager` | — | — | — | — | — | — | N/A |
 | `bonbon_pi2_bringup` | **Does not exist — do not create** | `bonbon_human_ai_bringup` already is the Pi-2 bringup package; creating a second one would be exactly the redundancy this deployment must avoid | — | — | — | — | — | — | N/A |
 | `bonbon_face_recognition`, `bonbon_vad`, `bonbon_asr`, `bonbon_rag`, `bonbon_local_llm_gateway` | **Do not exist as separate packages** | Face recognition lives in `bonbon_vision`; VAD+ASR live in `bonbon_speech`; RAG+LLM gateway live in `bonbon_llm` | — | — | — | — | — | — | N/A |
+
+## Flagged but NOT acted on: `bonbon_perception_ai`
+
+`Dockerfile.ai` copies and colcon-builds `bonbon_perception_ai` (scene/intent/risk semantic fusion,
+publishing `/perception/scene`, `/perception/intent`, `/perception/risks`, `/perception/behavior`),
+but it is **not** included in `bonbon_human_ai_bringup`'s launch, its `package.xml`, or
+`docker-compose.pi2.yml` — so it's built into the image but never actually launched. Checked whether
+this is the same class of bug as the `bonbon_behavior_engine` gap above: it is not, or at least not
+unambiguously. `bonbon_behavior_engine` subscribes to `/bonbon/affective/human_state` and
+`/bonbon/human/state` (from `bonbon_affective_ai`/`bonbon_human_state_fusion`) — it does **not**
+subscribe to any of `bonbon_perception_ai`'s topics. That means `bonbon_perception_ai` is either
+(a) an earlier iteration of scene/intent fusion superseded by the
+`bonbon_human_state_fusion` → `bonbon_behavior_engine` pipeline that now exists, correctly left
+unlaunched to avoid a second, overlapping semantic-fusion pipeline, or (b) a genuinely
+complementary risk/intent layer that was simply never wired up. Deciding which without more
+context risks creating exactly the duplicate-pipeline problem this deployment must avoid — so
+this is left as a flagged, deferred item rather than acted on unilaterally. It does not block Pi-2
+deployment (the wired-in path is complete and unambiguous); it's a candidate for a future,
+deliberate architecture decision, not this deployment pass.
 
 ## Verdict
 
