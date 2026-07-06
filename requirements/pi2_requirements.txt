@@ -13,7 +13,17 @@
 # Dockerfile.ai's `pip3 install -r requirements/pi2_requirements.txt`.
 #
 # ARM64/CPU-only notes (Raspberry Pi 5, no CUDA):
-#   - torch: install the CPU-only wheel index, never the CUDA build.
+#   - torch: the CPU-only wheel index is set GLOBALLY in
+#     Dockerfile.ai's pip install command (--index-url .../whl/cpu
+#     --extra-index-url pypi.org), not per-line here -- a per-line
+#     --index-url on just this one requirement only constrains THIS
+#     line's resolution; when pip backtracks through other packages
+#     that also depend on torch (mediapipe, sentence-transformers,
+#     pyannote.audio), it can still reach for the default PyPI torch
+#     build (which bundles the full NVIDIA CUDA toolkit) to satisfy
+#     THEIR constraint. Confirmed on a real build: nvidia-cublas
+#     (542.9 MB) got pulled in during backtracking even after this
+#     line alone had a CPU-only index override.
 #   - faster-whisper only, openai-whisper deliberately NOT installed
 #     (bonbon_speech/stt/whisper_stt.py supports both as selectable
 #     backends via stt_backend, never both at once). faster-whisper uses
@@ -76,8 +86,8 @@ onnxruntime
 
 # ASR / VAD / diarization (bonbon_speech)
 faster-whisper
-torch --index-url https://download.pytorch.org/whl/cpu
-torchaudio --index-url https://download.pytorch.org/whl/cpu
+torch
+torchaudio
 pyannote.audio
 sounddevice
 

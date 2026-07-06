@@ -66,8 +66,24 @@ RUN apt-get update && rosdep update && \
 # see its header comment for the ARM64-specific choices (CPU-only torch,
 # faster-whisper preferred, deepface deliberately excluded as redundant
 # with insightface, faiss-cpu excluded since RAG defaults to chroma).
+# --index-url/--extra-index-url are passed GLOBALLY here (not per-line in
+# the requirements file) -- a per-line --index-url on just the torch/
+# torchaudio entries only sets a preferred index for THOSE two specific
+# requirements; when pip's resolver backtracks through OTHER packages
+# that also depend on torch (mediapipe, sentence-transformers,
+# pyannote.audio), it can still reach for the default PyPI torch build
+# (which bundles the full NVIDIA CUDA toolkit as install_requires) to
+# satisfy that other package's constraint. Confirmed on a real build:
+# nvidia-cublas (542.9 MB) got downloaded again during backtracking even
+# after the numba and openai-whisper CUDA leaks were already fixed.
+# Passing the CPU-only index globally means EVERY dependency resolution
+# path that needs torch -- direct or backtracked-into via another
+# package -- consistently resolves against the CPU-only build.
 COPY requirements/pi2_requirements.txt /opt/bonbon/requirements/pi2_requirements.txt
-RUN python3 -m pip install --no-cache-dir     -r /opt/bonbon/requirements/pi2_requirements.txt
+RUN python3 -m pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    -r /opt/bonbon/requirements/pi2_requirements.txt
 
 RUN useradd --create-home --shell /bin/bash bonbon && chown -R bonbon:bonbon /opt/bonbon
 USER bonbon
