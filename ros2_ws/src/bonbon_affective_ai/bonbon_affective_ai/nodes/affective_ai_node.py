@@ -144,7 +144,7 @@ class AffectiveAINode(LifecycleNode):
             self._do_configure()
             return TransitionCallbackReturn.SUCCESS
         except Exception as exc:
-            self.get_logger().error("on_configure failed: %s", exc)
+            self.get_logger().error(f"on_configure failed: {exc}")
             return TransitionCallbackReturn.FAILURE
 
     def on_activate(self, state: "LifecycleState") -> "TransitionCallbackReturn":
@@ -161,7 +161,7 @@ class AffectiveAINode(LifecycleNode):
             self._do_activate()
             return TransitionCallbackReturn.SUCCESS
         except Exception as exc:
-            self.get_logger().error("on_activate failed: %s", exc)
+            self.get_logger().error(f"on_activate failed: {exc}")
             return TransitionCallbackReturn.FAILURE
 
     def on_deactivate(self, state: "LifecycleState") -> "TransitionCallbackReturn":
@@ -210,8 +210,7 @@ class AffectiveAINode(LifecycleNode):
             TransitionCallbackReturn.SUCCESS (transition to UNCONFIGURED).
         """
         self.get_logger().error(
-            "AffectiveAINode: error in state %s.  Transitioning to UNCONFIGURED.",
-            state.label,
+            f"AffectiveAINode: error in state {state.label}.  Transitioning to UNCONFIGURED."
         )
         return TransitionCallbackReturn.SUCCESS
 
@@ -356,8 +355,7 @@ class AffectiveAINode(LifecycleNode):
         self._status_timer = self.create_timer(5.0, self._publish_status)
 
         self.get_logger().info(
-            "AffectiveAINode activated.  Fusion at %.1f Hz.",
-            self._config.fusion_update_hz,
+            f"AffectiveAINode activated.  Fusion at {self._config.fusion_update_hz:.1f} Hz."
         )
 
     def _warmup_backends(self) -> None:
@@ -373,7 +371,7 @@ class AffectiveAINode(LifecycleNode):
                     self.get_logger().warn("Face backend not ready after warmup.")
             except Exception as exc:
                 self._health_monitor.record_face_failure(str(exc))
-                self.get_logger().warn("Face backend warmup error: %s", exc)
+                self.get_logger().warn(f"Face backend warmup error: {exc}")
 
         if self._voice_backend is not None and self._config.voice_enabled:
             try:
@@ -386,7 +384,7 @@ class AffectiveAINode(LifecycleNode):
                     self.get_logger().warn("Voice backend not ready after warmup.")
             except Exception as exc:
                 self._health_monitor.record_voice_failure(str(exc))
-                self.get_logger().warn("Voice backend warmup error: %s", exc)
+                self.get_logger().warn(f"Voice backend warmup error: {exc}")
 
     # ── Subscriber callbacks ──────────────────────────────────────────────────
 
@@ -435,8 +433,7 @@ class AffectiveAINode(LifecycleNode):
                     self._executor.submit(self._run_voice_analysis, audio_snapshot, sr)
                 else:
                     self.get_logger().debug(
-                        "Voice analysis queue full (depth=%d) — dropping segment.",
-                        admit.queue_depth,
+                        f"Voice analysis queue full (depth={admit.queue_depth}) — dropping segment."
                     )
 
     def _cb_transcript(self, msg: Any) -> None:
@@ -459,8 +456,7 @@ class AffectiveAINode(LifecycleNode):
                 self._executor.submit(self._run_text_analysis, msg.text, person_id, 0)
             else:
                 self.get_logger().debug(
-                    "Text analysis queue full (depth=%d) — dropping transcript.",
-                    admit.queue_depth,
+                    f"Text analysis queue full (depth={admit.queue_depth}) — dropping transcript."
                 )
 
     def _cb_safety(self, msg: Any) -> None:
@@ -473,8 +469,7 @@ class AffectiveAINode(LifecycleNode):
         if msg.state in (6, 7):
             if self._processing_enabled:
                 self.get_logger().warn(
-                    "Safety state %s — disabling affective AI processing.",
-                    msg.state_name,
+                    f"Safety state {msg.state_name} — disabling affective AI processing."
                 )
             self._processing_enabled = False
         else:
@@ -520,7 +515,7 @@ class AffectiveAINode(LifecycleNode):
                     self._pub_voice_emotion.publish(result)
         except Exception as exc:
             self._health_monitor.record_voice_failure(str(exc))
-            self.get_logger().debug("Voice analysis error: %s", exc)
+            self.get_logger().debug(f"Voice analysis error: {exc}")
         finally:
             self._voice_queue.mark_complete()
 
@@ -549,7 +544,7 @@ class AffectiveAINode(LifecycleNode):
                     )
         except Exception as exc:
             self._health_monitor.record_text_failure(str(exc))
-            self.get_logger().debug("Text analysis error: %s", exc)
+            self.get_logger().debug(f"Text analysis error: {exc}")
         finally:
             self._text_queue.mark_complete()
 
@@ -575,7 +570,7 @@ class AffectiveAINode(LifecycleNode):
                 self._pub_face_emotion.publish(result)
         except Exception as exc:
             self._health_monitor.record_face_failure(str(exc))
-            self.get_logger().debug("Face analysis error: %s", exc)
+            self.get_logger().debug(f"Face analysis error: {exc}")
 
     # ── Fusion timer callback ─────────────────────────────────────────────────
 
@@ -599,7 +594,7 @@ class AffectiveAINode(LifecycleNode):
             try:
                 self._fuse_and_publish(person_id)
             except Exception as exc:
-                self.get_logger().debug("Fusion error for %s: %s", person_id, exc)
+                self.get_logger().debug(f"Fusion error for {person_id}: {exc}")
 
     def _fuse_and_publish(self, person_id: str) -> None:
         """Fuse all available modalities for one person and publish.
@@ -724,10 +719,8 @@ class AffectiveAINode(LifecycleNode):
             response.previous_level = previous_level
             response.error_message = ""
             self.get_logger().info(
-                "Privacy mode set to enabled=%s level='%s' by operator '%s'.",
-                request.enabled,
-                request.level,
-                request.operator_id,
+                f"Privacy mode set to enabled={request.enabled} level='{request.level}' "
+                f"by operator '{request.operator_id}'."
             )
             self._publish_diagnostic(
                 "privacy_mode_changed",
@@ -757,7 +750,7 @@ class AffectiveAINode(LifecycleNode):
             payload.data = json.dumps(status)
             self._pub_status.publish(payload)
         except Exception as exc:
-            self.get_logger().debug("Status publish error: %s", exc)
+            self.get_logger().debug(f"Status publish error: {exc}")
 
     def _publish_diagnostic(self, event_type: str, data: dict) -> None:
         """Publish a JSON diagnostic event.
@@ -779,7 +772,7 @@ class AffectiveAINode(LifecycleNode):
             )
             self._pub_diagnostics.publish(payload)
         except Exception as exc:
-            self.get_logger().debug("Diagnostic publish error: %s", exc)
+            self.get_logger().debug(f"Diagnostic publish error: {exc}")
 
     # ── Backend factory helpers ───────────────────────────────────────────────
 

@@ -225,7 +225,7 @@ class BehaviorEngineNode(LifecycleNode):
         # ── Idle behaviour timer ─────────────────────────────────────────
         self._idle_timer = self.create_timer(idle_period, self._on_idle_tick)
 
-        self.get_logger().info("BehaviorEngineNode active (mode=%s).", self._operating_mode)
+        self.get_logger().info(f"BehaviorEngineNode active (mode={self._operating_mode}).")
         return TransitionCallbackReturn.SUCCESS
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
@@ -308,9 +308,7 @@ class BehaviorEngineNode(LifecycleNode):
 
         if is_safety and gesture in ("raised_hand", "stop_palm"):
             self.get_logger().warn(
-                "Safety gesture '%s' from person '%s'.",
-                gesture,
-                getattr(msg, "person_id", "?"),
+                f"Safety gesture '{gesture}' from person '{getattr(msg, 'person_id', '?')}'."
             )
             self._executor.submit(self._dispatch_gesture_ack, gesture, msg)
             return
@@ -342,14 +340,14 @@ class BehaviorEngineNode(LifecycleNode):
         subject = getattr(msg, "subject_id", "") or "scene"
         response = self._spatial_planner.plan_for_alert(risk_type, severity)
         self.get_logger().info(
-            "Spatial alert '%s' (sev=%d) → %s", risk_type, severity, response.reason
+            f"Spatial alert '{risk_type}' (sev={severity}) → {response.reason}"
         )
         self._executor.submit(self._apply_spatial_response, response, subject)
 
     def _apply_spatial_response(self, response, subject_id: str) -> None:
         """Execute a SpatialResponse via the normal safety-gated dispatch path."""
         if response.pause_navigation and self._fsm.current_state == BehaviorState.NAVIGATING:
-            self.get_logger().warn("Spatial response: pausing navigation (%s)", response.reason)
+            self.get_logger().warn(f"Spatial response: pausing navigation ({response.reason})")
             # Pause is advisory here; navigation node enforces its own safety stop.
 
         if response.gesture and self._actuation_enabled:
@@ -384,7 +382,7 @@ class BehaviorEngineNode(LifecycleNode):
             description=description,
         )
         if not decision.should_send:
-            self.get_logger().debug("Operator alert suppressed: %s", decision.suppressed_reason)
+            self.get_logger().debug(f"Operator alert suppressed: {decision.suppressed_reason}")
             return
         pub = self._pubs.get("operator_alert")
         if pub is None:
@@ -440,7 +438,7 @@ class BehaviorEngineNode(LifecycleNode):
         pid = getattr(msg, "person_id", "")
         tid = getattr(msg, "tracking_id", -1)
 
-        self.get_logger().debug("Speech intent: '%s' text: '%s…'", intent, text[:40])
+        self.get_logger().debug(f"Speech intent: '{intent}' text: '{text[:40]}…'")
 
         if intent in ("greeting", "help", "question"):
             self._fsm.transition(BehaviorState.INTERACTING, f"speech intent: {intent}")
@@ -607,7 +605,7 @@ class BehaviorEngineNode(LifecycleNode):
 
     def _dispatch_emergency_response(self, person_id: str, tracking_id: int) -> None:
         """Handle emergency keyword detection."""
-        self.get_logger().error("Emergency keyword detected from person '%s'!", person_id)
+        self.get_logger().error(f"Emergency keyword detected from person '{person_id}'!")
         self._fsm.force_transition(BehaviorState.ALERTING, "emergency keyword detected")
 
         if self._actuation_enabled:
@@ -773,9 +771,8 @@ class BehaviorEngineNode(LifecycleNode):
 
         if not risk.is_safe:
             self.get_logger().warn(
-                "EvaluateCommand: CRITICAL risk from '%s': '%s…'",
-                request.source,
-                request.command_text[:60],
+                f"EvaluateCommand: CRITICAL risk from '{request.source}': "
+                f"'{request.command_text[:60]}…'"
             )
 
         return response
@@ -799,10 +796,7 @@ class BehaviorEngineNode(LifecycleNode):
         self._evaluator.set_operating_mode(request.mode)
 
         self.get_logger().info(
-            "Operating mode changed: '%s' → '%s' by operator '%s'.",
-            prev,
-            request.mode,
-            request.operator_id,
+            f"Operating mode changed: '{prev}' → '{request.mode}' by operator '{request.operator_id}'."
         )
         response.success = True
         response.previous_mode = prev

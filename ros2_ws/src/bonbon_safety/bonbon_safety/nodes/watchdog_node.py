@@ -131,7 +131,7 @@ class WatchdogNode(LifecycleNode):
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         for node_def in DEFAULT_MANAGED_NODES:
             self._registry[node_def.name] = node_def
-        self.get_logger().info("Watchdog configured — monitoring %d nodes", len(self._registry))
+        self.get_logger().info(f"Watchdog configured — monitoring {len(self._registry)} nodes")
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -160,7 +160,7 @@ class WatchdogNode(LifecycleNode):
         rate_hz = self.get_parameter("watchdog_rate_hz").value
         self._check_timer = self.create_timer(1.0 / rate_hz, self._check_cycle)
         self._startup_time = time.monotonic()
-        self.get_logger().info("WatchdogNode ACTIVE at %.1f Hz", rate_hz)
+        self.get_logger().info(f"WatchdogNode ACTIVE at {rate_hz:.1f} Hz")
         return TransitionCallbackReturn.SUCCESS
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
@@ -189,9 +189,7 @@ class WatchdogNode(LifecycleNode):
                 node_def.is_stale = False
                 node_def.restart_count = 0
                 self.get_logger().info(
-                    "Node RECOVERED: %s (class %s)",
-                    node_def.name,
-                    node_def.node_class.name,
+                    f"Node RECOVERED: {node_def.name} (class {node_def.node_class.name})"
                 )
                 self._publish_crash_flags()
 
@@ -215,10 +213,8 @@ class WatchdogNode(LifecycleNode):
                         # New stale detection
                         node_def.is_stale = True
                         self.get_logger().error(
-                            "Node STALE: %s (class %s) — last seen %.1f s ago",
-                            node_def.name,
-                            node_def.node_class.name,
-                            age,
+                            f"Node STALE: {node_def.name} (class {node_def.node_class.name}) "
+                            f"— last seen {age:.1f} s ago"
                         )
                         self._attempt_restart(node_def)
 
@@ -235,17 +231,14 @@ class WatchdogNode(LifecycleNode):
     def _attempt_restart(self, node_def: ManagedNode) -> None:
         if node_def.restart_count >= node_def.max_restart_attempts:
             self.get_logger().error(
-                "Node %s exhausted %d restart attempts — giving up",
-                node_def.name,
-                node_def.max_restart_attempts,
+                f"Node {node_def.name} exhausted {node_def.max_restart_attempts} "
+                "restart attempts — giving up"
             )
             return
         node_def.restart_count += 1
         self.get_logger().warn(
-            "Requesting restart of node %s (attempt %d/%d)",
-            node_def.name,
-            node_def.restart_count,
-            node_def.max_restart_attempts,
+            f"Requesting restart of node {node_def.name} "
+            f"(attempt {node_def.restart_count}/{node_def.max_restart_attempts})"
         )
         # In production this calls the /bonbon/node/restart service
         # or signals the systemd unit manager.  Placeholder for now.

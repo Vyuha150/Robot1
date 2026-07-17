@@ -56,10 +56,20 @@ services:
     # NO ROS environment sourced, failing with "ros2: command not found".
     # Found on a real Pi-2 build of the identical pattern in
     # docker-compose.pi2.yml; fixed here too since it's the same bug.
-    command: >
-      bash -c "
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_fault_manager fault_manager.launch.py) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi1) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi1) &
-      wait"
+    #
+    # Single-element list, no extra "bash -c" wrapper -- this image's
+    # ENTRYPOINT is ["/bin/bash", "-lc"] (see Dockerfile.ros2), so
+    # `command:` must be the bare script text as ONE list element. A
+    # further "bash -c \"...\"" wrapper (as this previously had) double-
+    # nests bash, launching an inner interactive shell with no stdin that
+    # hits EOF and exits instantly -- confirmed on real Pi-2 hardware
+    # (identical pattern) as the actual cause of that container's
+    # crash-loop (exit 0, ~100ms lifetime, empty logs, RestartCount
+    # climbing under `restart: unless-stopped`). Same fix applied here.
+    command:
+      - >
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_fault_manager fault_manager.launch.py) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi1) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi1) &
+        wait
     security_opt: ["no-new-privileges:true"]

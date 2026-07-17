@@ -241,10 +241,8 @@ class ActuationNode(LifecycleNode):
         self._proximity_timer = self.create_timer(1.0, self._on_proximity_tick)
 
         self.get_logger().info(
-            "ActuationNode active — %d gestures, mode=%s, queue_depth=%d.",
-            len(GestureLibrary.list_names()),
-            mode,
-            depth,
+            f"ActuationNode active — {len(GestureLibrary.list_names())} gestures, "
+            f"mode={mode}, queue_depth={depth}."
         )
         return TransitionCallbackReturn.SUCCESS
 
@@ -258,7 +256,7 @@ class ActuationNode(LifecycleNode):
             try:
                 self._run_gesture_sync(_RECOVERY_GESTURE, speed_scale=0.5, priority=15)
             except Exception as exc:  # noqa: BLE001
-                self.get_logger().error("Safe-fold on deactivate failed: %s", str(exc))
+                self.get_logger().error(f"Safe-fold on deactivate failed: {exc}")
 
         if self._proximity_timer:
             self.destroy_timer(self._proximity_timer)
@@ -299,9 +297,7 @@ class ActuationNode(LifecycleNode):
                 if self._current_gesture and self._current_gesture not in _EMERGENCY_GESTURES:
                     self._cancel_requested = True
                     self.get_logger().warn(
-                        "Safety state %s: cancelling gesture '%s'.",
-                        msg.state_name,
-                        self._current_gesture,
+                        f"Safety state {msg.state_name}: cancelling gesture '{self._current_gesture}'."
                     )
             self._queue.clear()
 
@@ -372,7 +368,7 @@ class ActuationNode(LifecycleNode):
         allowed, reason = self._safety_gate.is_allowed(gesture_name, priority)
         if not allowed:
             self._gestures_rejected += 1
-            self.get_logger().warn("Gesture '%s' rejected: %s", gesture_name, reason)
+            self.get_logger().warn(f"Gesture '{gesture_name}' rejected: {reason}")
             self._publish_status(
                 event_id, gesture_name, "rejected", reason, 0.0, safety_blocked=True
             )
@@ -381,7 +377,7 @@ class ActuationNode(LifecycleNode):
         gesture_def = GestureLibrary.get(gesture_name)
         if gesture_def is None:
             self._gestures_rejected += 1
-            self.get_logger().error("Unknown gesture: '%s'", gesture_name)
+            self.get_logger().error(f"Unknown gesture: '{gesture_name}'")
             self._publish_status(event_id, gesture_name, "failed", "unknown gesture", 0.0)
             return "rejected"
 
@@ -389,7 +385,7 @@ class ActuationNode(LifecycleNode):
         decision = self._proximity.evaluate(priority)
         if decision.block_large_motion and gesture_def.requires_clear_space:
             self._gestures_rejected += 1
-            self.get_logger().warn("Gesture '%s' suppressed: %s", gesture_name, decision.reason)
+            self.get_logger().warn(f"Gesture '{gesture_name}' suppressed: {decision.reason}")
             self._publish_status(
                 event_id,
                 gesture_name,
@@ -485,7 +481,7 @@ class ActuationNode(LifecycleNode):
                     self.get_logger().warn(warn)
                 if not vr.valid:
                     self.get_logger().error(
-                        "Gesture '%s' servo validation error: %s", gesture_name, vr.errors
+                        f"Gesture '{gesture_name}' servo validation error: {vr.errors}"
                     )
                     self._publish_status(
                         event_id, gesture_name, "failed", str(vr.errors), step.progress
@@ -507,12 +503,12 @@ class ActuationNode(LifecycleNode):
             elapsed = time.monotonic() - self._gesture_start_time
             self._gestures_run += 1
             self._publish_status(event_id, gesture_name, "completed", "", 1.0)
-            self.get_logger().info("Gesture '%s' completed in %.2f s.", gesture_name, elapsed)
+            self.get_logger().info(f"Gesture '{gesture_name}' completed in {elapsed:.2f} s.")
             completed = True
             return True
 
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("Gesture '%s' raised exception: %s", gesture_name, exc)
+            self.get_logger().error(f"Gesture '{gesture_name}' raised exception: {exc}")
             self._publish_status(event_id, gesture_name, "failed", str(exc), 0.0)
             return False
         finally:
@@ -548,9 +544,8 @@ class ActuationNode(LifecycleNode):
             local_id = JOINT_LOCAL_ID.get(t.servo_id)
             if actuator_type is None or local_id is None:
                 self.get_logger().error(
-                    "Joint id=%d has no actuator-type/local-id mapping -- "
-                    "target dropped, not silently sent to the wrong bus.",
-                    t.servo_id,
+                    f"Joint id={t.servo_id} has no actuator-type/local-id mapping -- "
+                    "target dropped, not silently sent to the wrong bus."
                 )
                 continue
 
@@ -668,7 +663,7 @@ class ActuationNode(LifecycleNode):
             return response
         self._proximity.set_operating_mode(request.mode)
         self.get_logger().info(
-            "Operating mode '%s' → '%s' by %s", prev, request.mode, request.operator_id or "?"
+            f"Operating mode '{prev}' → '{request.mode}' by {request.operator_id or '?'}"
         )
         response.success = True
         response.previous_mode = prev

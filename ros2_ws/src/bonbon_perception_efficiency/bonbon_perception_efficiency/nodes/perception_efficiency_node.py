@@ -176,7 +176,7 @@ class PerceptionEfficiencyNode(LifecycleNode):
             )
             self.get_logger().info("PerceptionEfficiencyNode: configured")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_configure failed: %s", str(exc))
+            self.get_logger().error(f"on_configure failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -239,7 +239,7 @@ class PerceptionEfficiencyNode(LifecycleNode):
 
             self.get_logger().info("PerceptionEfficiencyNode: active")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_activate failed: %s", str(exc))
+            self.get_logger().error(f"on_activate failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -311,7 +311,7 @@ class PerceptionEfficiencyNode(LifecycleNode):
             self._last_cycle_t = time.monotonic()
         except Exception as exc:  # noqa: BLE001
             self._error_count += 1
-            self.get_logger().error("Perception efficiency cycle failed: %s", str(exc))
+            self.get_logger().error(f"Perception efficiency cycle failed: {exc}")
 
     def _run_cycle(self) -> None:
         res = self._latest_resource

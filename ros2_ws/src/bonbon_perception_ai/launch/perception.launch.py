@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, EmitEvent
+from launch.events import matches_action
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
 from launch_ros.events.lifecycle import ChangeState
@@ -109,13 +110,13 @@ def generate_launch_description() -> LaunchDescription:
 
     configure = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=node,
+            lifecycle_node_matcher=matches_action(node),
             transition_id=Transition.TRANSITION_CONFIGURE,
         )
     )
     activate = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=node,
+            lifecycle_node_matcher=matches_action(node),
             transition_id=Transition.TRANSITION_ACTIVATE,
         )
     )

@@ -91,7 +91,7 @@ class PerceptionAINode(LifecycleNode):
             self._create_interfaces()
             self._init_pipeline()
             self._pipeline_ok = True
-            self.get_logger().info("configured ok summary=%s", self._cfg.summary())
+            self.get_logger().info(f"configured ok summary={self._cfg.summary()}")
             return TransitionCallbackReturn.SUCCESS
         except Exception as exc:
             self.get_logger().error(f"configure failed: {exc}")

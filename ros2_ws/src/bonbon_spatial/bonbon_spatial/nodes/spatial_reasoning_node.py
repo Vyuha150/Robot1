@@ -258,14 +258,12 @@ class SpatialReasoningNode(LifecycleNode):
             )
 
             self.get_logger().info(
-                "SpatialReasoningNode: configured (timeout=%.1fs, stop=%.2fm, slow=%.2fm, "
-                "+ zone monitor, blockage detector, obstacle predictor)",
-                timeout_sec,
-                zones_cfg.stop_distance_m,
-                zones_cfg.slow_distance_m,
+                f"SpatialReasoningNode: configured (timeout={timeout_sec:.1f}s, "
+                f"stop={zones_cfg.stop_distance_m:.2f}m, slow={zones_cfg.slow_distance_m:.2f}m, "
+                "+ zone monitor, blockage detector, obstacle predictor)"
             )
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_configure failed: %s", str(exc))
+            self.get_logger().error(f"on_configure failed: {exc}")
             return TransitionCallbackReturn.FAILURE
 
         return TransitionCallbackReturn.SUCCESS
@@ -354,12 +352,11 @@ class SpatialReasoningNode(LifecycleNode):
             self._health_timer = self.create_timer(1.0 / max(health_hz, 0.1), self._cb_health_timer)
 
             self.get_logger().info(
-                "SpatialReasoningNode: active (publish rate=%.1f Hz, health=%.1f Hz)",
-                rate_hz,
-                health_hz,
+                f"SpatialReasoningNode: active (publish rate={rate_hz:.1f} Hz, "
+                f"health={health_hz:.1f} Hz)"
             )
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_activate failed: %s", str(exc))
+            self.get_logger().error(f"on_activate failed: {exc}")
             return TransitionCallbackReturn.FAILURE
 
         return TransitionCallbackReturn.SUCCESS
@@ -428,18 +425,18 @@ class SpatialReasoningNode(LifecycleNode):
             self._last_latency_ms = (self._last_cycle_t - cycle_start) * 1000.0
         except Exception as exc:  # noqa: BLE001
             self._error_count += 1
-            self.get_logger().error("Spatial publish cycle failed: %s", str(exc))
+            self.get_logger().error(f"Spatial publish cycle failed: {exc}")
 
     def _run_publish_cycle(self) -> None:
         """The actual per-cycle work (separated so the timer can wrap it)."""
         with self._lock:
             stale = self._tracker.cleanup_stale()
             if stale:
-                self.get_logger().debug("Evicted stale entities: %s", stale)
+                self.get_logger().debug(f"Evicted stale entities: {stale}")
             entities = self._tracker.get_all()
             entity_count = self._tracker.count()
 
-        self.get_logger().debug("Spatial: %d entities tracked", entity_count)
+        self.get_logger().debug(f"Spatial: {entity_count} entities tracked")
 
         stamp = self.get_clock().now().to_msg()
 
@@ -467,10 +464,8 @@ class SpatialReasoningNode(LifecycleNode):
                 # Only publish (and log) when hint type changes to avoid spam.
                 if critical.hint_type != self._last_hint_type:
                     self.get_logger().info(
-                        "Navigation hint: %s (urgency=%.2f) — %s",
-                        critical.hint_type,
-                        critical.urgency,
-                        critical.reason,
+                        f"Navigation hint: {critical.hint_type} "
+                        f"(urgency={critical.urgency:.2f}) — {critical.reason}"
                     )
                     ros_hint = self._hint_summary_to_ros(critical, stamp)
                     self._pub_hints.publish(ros_hint)
@@ -513,7 +508,7 @@ class SpatialReasoningNode(LifecycleNode):
         if self._blockage_detector is not None:
             blockage = self._blockage_detector.update(entities)
             if blockage.is_blocked and not self._last_blocked:
-                self.get_logger().warn("Path blockage: %s", blockage.reason)
+                self.get_logger().warn(f"Path blockage: {blockage.reason}")
                 self._publish_alert(
                     stamp,
                     risk_type="path_blocked",
@@ -669,10 +664,8 @@ class SpatialReasoningNode(LifecycleNode):
             response.zone_ids = []
 
         self.get_logger().debug(
-            "GetWorldModel: %d entities, %d relations, %d zones",
-            len(response.entities),
-            len(response.relations),
-            len(response.zone_ids),
+            f"GetWorldModel: {len(response.entities)} entities, "
+            f"{len(response.relations)} relations, {len(response.zone_ids)} zones"
         )
         return response
 
@@ -761,17 +754,15 @@ class SpatialReasoningNode(LifecycleNode):
                 self._zone_manager.add_zone(zone)
 
             self.get_logger().info(
-                "Added restricted zone '%s' (buffer=%.2fm, reason='%s')",
-                request.zone_id,
-                request.buffer_m,
-                request.reason,
+                f"Added restricted zone '{request.zone_id}' "
+                f"(buffer={request.buffer_m:.2f}m, reason='{request.reason}')"
             )
             response.success = True
             response.error_message = ""
         except Exception as exc:  # noqa: BLE001
             response.success = False
             response.error_message = f"Failed to add zone: {exc}"
-            self.get_logger().error("add_restricted_zone error: %s", str(exc))
+            self.get_logger().error(f"add_restricted_zone error: {exc}")
 
         return response
 
@@ -790,7 +781,7 @@ class SpatialReasoningNode(LifecycleNode):
             removed = self._zone_manager.remove_zone(request.zone_id)
 
         if removed:
-            self.get_logger().info("Removed zone '%s'", request.zone_id)
+            self.get_logger().info(f"Removed zone '{request.zone_id}'")
             response.success = True
             response.error_message = ""
         else:

@@ -128,7 +128,7 @@ class DataFeedbackNode(LifecycleNode):
                 )
             self.get_logger().info("DataFeedbackNode: configured")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_configure failed: %s", str(exc))
+            self.get_logger().error(f"on_configure failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -175,7 +175,7 @@ class DataFeedbackNode(LifecycleNode):
 
             self.get_logger().info("DataFeedbackNode: active")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_activate failed: %s", str(exc))
+            self.get_logger().error(f"on_activate failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -212,8 +212,7 @@ class DataFeedbackNode(LifecycleNode):
         admit = self._gesture_log_queue.try_admit()
         if not admit.admitted:
             self.get_logger().debug(
-                "Failure-case write queue full (depth=%d) — dropping gesture case.",
-                admit.queue_depth,
+                f"Failure-case write queue full (depth={admit.queue_depth}) — dropping gesture case."
             )
             return
         self._write_executor.submit(
@@ -249,7 +248,7 @@ class DataFeedbackNode(LifecycleNode):
             self._cases_logged += 1
         except Exception as exc:  # noqa: BLE001
             self._error_count += 1
-            self.get_logger().error("Failed to log gesture failure case: %s", str(exc))
+            self.get_logger().error(f"Failed to log gesture failure case: {exc}")
         finally:
             self._gesture_log_queue.mark_complete()
 
@@ -324,11 +323,11 @@ class DataFeedbackNode(LifecycleNode):
                 deleted = self._store.delete_expired(category, cutoff)
                 if deleted:
                     self.get_logger().info(
-                        "Retention sweep: deleted %d expired '%s' case(s)", deleted, category
+                        f"Retention sweep: deleted {deleted} expired '{category}' case(s)"
                     )
         except Exception as exc:  # noqa: BLE001
             self._error_count += 1
-            self.get_logger().error("Retention sweep failed: %s", str(exc))
+            self.get_logger().error(f"Retention sweep failed: {exc}")
 
     # ── Health ───────────────────────────────────────────────────────────────
 

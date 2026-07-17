@@ -249,8 +249,8 @@ class SafetySupervisorNode(LifecycleNode):
             self._publish_safety_state()
 
             self.get_logger().info(
-                "Safety supervisor ACTIVE — monitoring at %.0f Hz",
-                self.get_parameter("supervisor_rate_hz").value,
+                f"Safety supervisor ACTIVE — monitoring at "
+                f"{self.get_parameter('supervisor_rate_hz').value:.0f} Hz"
             )
             return TransitionCallbackReturn.SUCCESS
 
@@ -350,7 +350,7 @@ class SafetySupervisorNode(LifecycleNode):
         self._startup_timer = self.create_timer(startup_timeout, self._check_startup_complete)
 
         self.get_logger().info(
-            "Supervisor timer started at %.0f Hz (period %.3f s)", rate_hz, period_sec
+            f"Supervisor timer started at {rate_hz:.0f} Hz (period {period_sec:.3f} s)"
         )
 
     # ── Main supervisor cycle (10 Hz timer callback) ──────────────────────────
@@ -391,8 +391,8 @@ class SafetySupervisorNode(LifecycleNode):
                     "Startup timeout — one or more critical sensors did not come online"
                 )
                 self.get_logger().error(
-                    "Startup timeout! Critical sensors did not report within %s s.",
-                    self.get_parameter("startup_timeout_sec").value,
+                    "Startup timeout! Critical sensors did not report within "
+                    f"{self.get_parameter('startup_timeout_sec').value} s."
                 )
                 self._log_and_notify(tx, trigger="TRIGGER_STARTUP", operator_notified=True)
 
@@ -523,7 +523,7 @@ class SafetySupervisorNode(LifecycleNode):
             return
         announce_text = self._policy.announce_text(state_name)
         if announce_text:
-            self.get_logger().info("Action: announce '%s'", announce_text)
+            self.get_logger().info(f"Action: announce '{announce_text}'")
             # Publish TTS request (bonbon_tts listens on /bonbon/tts/request)
             from bonbon_msgs.msg import TTSRequest
 
@@ -538,21 +538,19 @@ class SafetySupervisorNode(LifecycleNode):
             return
         led_state = self._policy.led_state(state_name)
         if led_state:
-            self.get_logger().debug("Action: LED eyes → %s", led_state)
+            self.get_logger().debug(f"Action: LED eyes → {led_state}")
 
     def _action_update_display(self, state_name: str) -> None:
         if self._policy is None:
             return
         text = self._policy.display_text(state_name)
         if text:
-            self.get_logger().debug("Action: display → '%s'", text)
+            self.get_logger().debug(f"Action: display → '{text}'")
 
     def _action_notify_operator(self, transition: StateTransition) -> None:
         self.get_logger().warn(
-            "Action: operator notification — %s → %s: %s",
-            transition.from_state.name,
-            transition.to_state.name,
-            transition.reason,
+            f"Action: operator notification — {transition.from_state.name} → "
+            f"{transition.to_state.name}: {transition.reason}"
         )
 
     def _action_request_human_help(self) -> None:
@@ -760,8 +758,7 @@ class SafetySupervisorNode(LifecycleNode):
                 return response
 
             self.get_logger().warn(
-                "Manual reset by operator '%s' — entering INITIALIZING",
-                request.operator_id,
+                f"Manual reset by operator '{request.operator_id}' — entering INITIALIZING"
             )
             self._log_and_notify(tx, trigger="TRIGGER_MANUAL_RESET", operator_notified=True)
             self._publish_safety_state()

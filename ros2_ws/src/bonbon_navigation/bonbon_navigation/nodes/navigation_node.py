@@ -195,7 +195,7 @@ class NavigationNode(LifecycleNode):
         self.get_logger().info("[navigation] Configuring…")
         try:
             self._cfg = NavigationConfig.from_ros_params(self)
-            self.get_logger().info("[navigation] Config: %s", self._cfg.summary())
+            self.get_logger().info(f"[navigation] Config: {self._cfg.summary()}")
 
             # Subsystems
             self._map_manager = MapManager(self._cfg.locations.named_locations)
@@ -337,7 +337,7 @@ class NavigationNode(LifecycleNode):
             return TransitionCallbackReturn.SUCCESS
 
         except Exception as exc:
-            self.get_logger().error("[navigation] Configure FAILED: %s", exc)
+            self.get_logger().error(f"[navigation] Configure FAILED: {exc}")
             return TransitionCallbackReturn.FAILURE
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -403,7 +403,7 @@ class NavigationNode(LifecycleNode):
         if self._goal_manager:
             timed_out = self._goal_manager.check_timeout()
             if timed_out:
-                self.get_logger().warning("[navigation] Goal timeout: %s", timed_out.goal_id[:8])
+                self.get_logger().warning(f"[navigation] Goal timeout: {timed_out.goal_id[:8]}")
                 self._cancel_nav2_goal()
                 self._goal_manager.mark_failed(
                     timed_out.goal_id, RESULT_TIMEOUT, "navigation timeout"
@@ -416,7 +416,7 @@ class NavigationNode(LifecycleNode):
         if self._stuck_detector and self._state == STATE_EXECUTING:
             result = self._stuck_detector.check()
             if result.is_stuck:
-                self.get_logger().warning("[navigation] Stuck detected: %s", result.reason)
+                self.get_logger().warning(f"[navigation] Stuck detected: {result.reason}")
                 active = self._goal_manager.get_active() if self._goal_manager else None
                 if active:
                     self._start_recovery("stuck")
@@ -442,8 +442,8 @@ class NavigationNode(LifecycleNode):
         """Send an activated goal to Nav2."""
         if self._safety_bridge and self._safety_bridge.is_motion_blocked:
             self.get_logger().warning(
-                "[navigation] Goal rejected: motion blocked (safety=%s)",
-                self._safety_bridge.safety_state_name(),
+                f"[navigation] Goal rejected: motion blocked "
+                f"(safety={self._safety_bridge.safety_state_name()})"
             )
             self._goal_manager.mark_failed(
                 goal.goal_id, RESULT_SAFETY_STOP, "safety state blocks navigation"
@@ -457,10 +457,8 @@ class NavigationNode(LifecycleNode):
             return
 
         self.get_logger().info(
-            "[navigation] Sending goal to Nav2: %s  (%.2f, %.2f)",
-            goal.goal_id[:8],
-            goal.target_x,
-            goal.target_y,
+            f"[navigation] Sending goal to Nav2: {goal.goal_id[:8]}  "
+            f"({goal.target_x:.2f}, {goal.target_y:.2f})"
         )
         self._transition_state(STATE_PLANNING)
         self._stuck_detector.reset()
@@ -498,7 +496,7 @@ class NavigationNode(LifecycleNode):
         self._cancel_nav2_goal()
         self._recovery_executor.reset(trigger_reason=trigger)
         self._transition_state(STATE_RECOVERING)
-        self.get_logger().info("[navigation] Recovery started: %s", trigger)
+        self.get_logger().info(f"[navigation] Recovery started: {trigger}")
 
     def _recovery_tick(self) -> None:
         outcome = self._recovery_executor.step()
@@ -573,7 +571,7 @@ class NavigationNode(LifecycleNode):
             self._nav2_future = self._nav2_client.goToPose(pose)
             return True
         except Exception as exc:
-            self.get_logger().error("[navigation] Nav2 goal send failed: %s", exc)
+            self.get_logger().error(f"[navigation] Nav2 goal send failed: {exc}")
             return False
 
     def _send_nav2_goal_raw(self, pose_tuple) -> None:
@@ -605,15 +603,14 @@ class NavigationNode(LifecycleNode):
                     self._goal_manager.mark_succeeded(active.goal_id)
                     self._transition_state(STATE_ARRIVED)
                     self.get_logger().info(
-                        "[navigation] Arrived: %s (dist=%.2fm)", active.goal_id[:8], d
+                        f"[navigation] Arrived: {active.goal_id[:8]} (dist={d:.2f}m)"
                     )
                     if active.named_location:
                         self._tts_speak(f"I've arrived at {active.named_location}.")
                 else:
                     self.get_logger().warning(
-                        "[navigation] Nav2 succeeded but %.2fm from goal (tol=%.2fm)",
-                        d,
-                        active.arrival_tol_m,
+                        f"[navigation] Nav2 succeeded but {d:.2f}m from goal "
+                        f"(tol={active.arrival_tol_m:.2f}m)"
                     )
                     self._goal_manager.mark_succeeded(active.goal_id)
                     self._transition_state(STATE_ARRIVED)
@@ -629,7 +626,7 @@ class NavigationNode(LifecycleNode):
                     self._start_recovery("nav2_failed")
 
         except Exception as exc:
-            self.get_logger().warning("[navigation] Nav2 result check error: %s", exc)
+            self.get_logger().warning(f"[navigation] Nav2 result check error: {exc}")
 
     def _cancel_nav2_goal(self) -> None:
         if self._nav2_client is not None:
@@ -644,7 +641,7 @@ class NavigationNode(LifecycleNode):
             try:
                 self._nav2_client.clearAllCostmaps()
             except Exception as exc:
-                self.get_logger().warning("[navigation] clearAllCostmaps failed: %s", exc)
+                self.get_logger().warning(f"[navigation] clearAllCostmaps failed: {exc}")
 
     # ── Subscriber callbacks ───────────────────────────────────────────────────
 
@@ -677,7 +674,7 @@ class NavigationNode(LifecycleNode):
             if pose:
                 goal_x, goal_y, goal_yaw = pose.x, pose.y, pose.yaw
             else:
-                self.get_logger().warning("[navigation] Unknown location: %r", named)
+                self.get_logger().warning(f"[navigation] Unknown location: {named!r}")
                 return
 
         # Check safety
@@ -697,11 +694,7 @@ class NavigationNode(LifecycleNode):
             preempt=(int(msg.priority) >= 2),  # HIGH+ preempts
         )
         self.get_logger().info(
-            "[navigation] Goal accepted: %s → %r (%.2f, %.2f)",
-            goal_id[:8],
-            named,
-            goal_x,
-            goal_y,
+            f"[navigation] Goal accepted: {goal_id[:8]} → {named!r} ({goal_x:.2f}, {goal_y:.2f})"
         )
 
     def _on_safety_state(self, msg) -> None:
@@ -714,7 +707,7 @@ class NavigationNode(LifecycleNode):
         # Immediate stop on hard-blocked states
         if int(msg.state) in (SAFETY_DANGER, SAFETY_FAULT, SAFETY_SAFE_STOP):
             if self._state in (STATE_EXECUTING, STATE_PLANNING, STATE_RECOVERING):
-                self.get_logger().warning("[navigation] Safety stop: state=%s", msg.state_name)
+                self.get_logger().warning(f"[navigation] Safety stop: state={msg.state_name}")
                 self._cancel_nav2_goal()
                 if self._goal_manager:
                     active = self._goal_manager.get_active()
@@ -816,7 +809,7 @@ class NavigationNode(LifecycleNode):
             requester_id="battery_router",
             preempt=(priority == 3),  # critical preempts
         )
-        self.get_logger().warning("[navigation] %s — routing to %s", decision.reason, charger.name)
+        self.get_logger().warning(f"[navigation] {decision.reason} — routing to {charger.name}")
         if priority == 3:
             self._tts_speak("My battery is critically low. I need to charge now.")
 
@@ -843,7 +836,7 @@ class NavigationNode(LifecycleNode):
         self._publish_gated_vel(0.0, speed_rps)
 
     def _escalate(self, reason: str) -> None:
-        self.get_logger().error("[navigation] Escalating: %s", reason)
+        self.get_logger().error(f"[navigation] Escalating: {reason}")
         self._tts_speak("I'm sorry, I need help. Please ask a staff member to assist me.")
 
     # ── Velocity publishing ───────────────────────────────────────────────────
@@ -877,16 +870,15 @@ class NavigationNode(LifecycleNode):
             msg.priority = priority
             self._pub_tts.publish(msg)
         except Exception as exc:
-            self.get_logger().warning("[navigation] TTS publish failed: %s", exc)
+            self.get_logger().warning(f"[navigation] TTS publish failed: {exc}")
 
     # ── State helpers ─────────────────────────────────────────────────────────
 
     def _transition_state(self, new_state: int) -> None:
         if self._state != new_state:
             self.get_logger().info(
-                "[navigation] State: %s → %s",
-                _STATE_NAMES.get(self._state, "?"),
-                _STATE_NAMES.get(new_state, "?"),
+                f"[navigation] State: {_STATE_NAMES.get(self._state, '?')} → "
+                f"{_STATE_NAMES.get(new_state, '?')}"
             )
             self._state = new_state
 
@@ -924,7 +916,7 @@ class NavigationNode(LifecycleNode):
 
             self._pub_status.publish(msg)
         except Exception as exc:
-            self.get_logger().debug("[navigation] Status publish error: %s", exc)
+            self.get_logger().debug(f"[navigation] Status publish error: {exc}")
 
     def _publish_health(self) -> None:
         if self._pub_health is None:
@@ -940,7 +932,7 @@ class NavigationNode(LifecycleNode):
             )
             self._pub_health.publish(msg)
         except Exception as exc:
-            self.get_logger().debug("[navigation] Health publish error: %s", exc)
+            self.get_logger().debug(f"[navigation] Health publish error: {exc}")
 
     # ── Service creation ──────────────────────────────────────────────────────
 

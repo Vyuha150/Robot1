@@ -38,19 +38,41 @@ services:
       - /var/log/bonbon:/logs
     devices:
       - "/dev/snd:/dev/snd"           # ReSpeaker XVF3800 (USB audio) + PAM8610 speaker output
-      - "/dev/gpiomem:/dev/gpiomem"   # PAM8610 mute pin, ONLY if has_pam8610 verified wired (see pi2_hal_overrides.yaml)
+      # PAM8610 mute pin, ONLY if has_pam8610 verified wired (see
+      # pi2_hal_overrides.yaml). Path is "/dev/gpiomem0", NOT the older
+      # "/dev/gpiomem" -- Pi 5's RP1 I/O chip exposes multiple numbered
+      # gpiochip*/gpiomem* device nodes (confirmed via `ls -la /dev/gpio*`
+      # on real Pi-2 hardware: gpiomem0-4, gpiochip0/4/10/11/12/13), unlike
+      # earlier Pi models' single /dev/gpiomem. `docker compose up` failed
+      # outright with "error gathering device information...no such file
+      # or directory" against the old path.
+      - "/dev/gpiomem0:/dev/gpiomem0"
     group_add: ["audio", "gpio"]
     # OAK-D Lite: see module comment #1 -- adjust bus number after lsusb.
     device_cgroup_rules:
       - "c 189:* rmw"
-    command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      source /opt/bonbon/install/setup.bash &&
-      ros2 launch bonbon_hal hal.launch.py driver_mode:=real
-      override_params_file:=/opt/bonbon/ros2_ws/src/bonbon_human_ai_bringup/config/pi2_hal_overrides.yaml
-      launch_lidar:=false launch_imu:=false launch_servo:=false launch_stepper:=false
-      launch_motor:=false launch_battery:=false launch_estop:=false
-      launch_camera:=true launch_mic:=true launch_speaker:=true"
+    # Image ENTRYPOINT is ["/bin/bash", "-lc"] (see Dockerfile.ai) -- Docker
+    # concatenates ENTRYPOINT + CMD/command as one argv array. `command:`
+    # must therefore be a SINGLE-element YAML list holding the entire shell
+    # command as one string, so it becomes bash -lc's lone command argument.
+    # A plain multi-word string (or a further `bash -c "..."` wrapper) gets
+    # shell-tokenized by Compose into SEPARATE argv elements; `-lc` then
+    # only consumes the first token as its command and the rest become
+    # inert positional params ($1, $2...) -- the extra "bash -c" wrapping
+    # form in particular launches a nested, stdin-less bash that hits EOF
+    # and exits instantly (exit 0, empty logs). Confirmed on real Pi-2
+    # hardware: every service using either broken form crash-looped with
+    # ~100ms lifetimes and no log output; this single-element-list form is
+    # the one that actually reaches ros2 launch.
+    command:
+      - >
+        source /opt/ros/humble/setup.bash &&
+        source /opt/bonbon/install/setup.bash &&
+        ros2 launch bonbon_hal hal.launch.py driver_mode:=real
+        override_params_file:=/opt/bonbon/ros2_ws/src/bonbon_human_ai_bringup/config/pi2_hal_overrides.yaml
+        launch_lidar:=false launch_imu:=false launch_servo:=false launch_stepper:=false
+        launch_motor:=false launch_battery:=false launch_estop:=false
+        launch_camera:=true launch_mic:=true launch_speaker:=true
     security_opt: ["no-new-privileges:true"]
 
   asr:
@@ -59,7 +81,10 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_speech speech.launch.py"
+    # Single-element list -- see the `hal` service's comment above for why
+    # a plain string here breaks against ENTRYPOINT ["/bin/bash", "-lc"].
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_speech speech.launch.py"
     security_opt: ["no-new-privileges:true"]
 
   vision:
@@ -68,7 +93,8 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs", "/opt/bonbon/models:/models:ro"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_vision vision.launch.py"
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_vision vision.launch.py"
     security_opt: ["no-new-privileges:true"]
 
   perception-fusion:
@@ -88,15 +114,25 @@ services:
     # jobs with NO ROS environment sourced at all, failing immediately with
     # "ros2: command not found". Confirmed on real Pi-2 hardware: this
     # container's ros2 nodes past the first one never actually started.
-    command: >
-      bash -c "
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_multi_person_tracker multi_person_tracker.launch.py) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_object_intelligence object_intelligence.launch.py) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_gesture gesture.launch.py) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_affective_ai affective_ai.launch.py) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_human_state_fusion human_state_fusion.launch.py) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_speaker_intelligence speaker_intelligence.launch.py) &
-      wait"
+    #
+    # Single-element list, no extra "bash -c" wrapper -- see the `hal`
+    # service's comment above: this image's ENTRYPOINT is already
+    # ["/bin/bash", "-lc"], so `command:` must be the bare script text as
+    # ONE list element. A further "bash -c \"...\"" wrapper here (as this
+    # previously had) double-nests bash, launching an inner interactive
+    # shell with no stdin that hits EOF and exits instantly -- confirmed on
+    # real Pi-2 hardware as the actual cause of this container's crash-loop
+    # (exit 0, ~100ms lifetime, empty logs, RestartCount climbing under
+    # `restart: unless-stopped`).
+    command:
+      - >
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_multi_person_tracker multi_person_tracker.launch.py) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_object_intelligence object_intelligence.launch.py) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_gesture gesture.launch.py) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_affective_ai affective_ai.launch.py) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_human_state_fusion human_state_fusion.launch.py) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_speaker_intelligence speaker_intelligence.launch.py) &
+        wait
     security_opt: ["no-new-privileges:true"]
 
   llm:
@@ -111,17 +147,18 @@ services:
     # fixed to expose them -- see llm.launch.py's module history). Without
     # ollama_model:=qwen2.5:0.5b this node would default to llama3.2:3b,
     # a model never pulled onto Pi-2 hardware.
-    command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      source /opt/bonbon/install/setup.bash &&
-      ros2 launch bonbon_llm llm.launch.py
-      ollama_model:=qwen2.5:0.5b
-      pi2_guard_enabled:=true
-      pi2_guard_max_concurrent_requests:=1
-      pi2_guard_max_output_tokens:=64
-      pi2_guard_initial_timeout_sec:=1.0
-      pi2_guard_cpu_disable_threshold_percent:=80.0
-      pi2_guard_temp_disable_threshold_c:=75.0"
+    command:
+      - >
+        source /opt/ros/humble/setup.bash &&
+        source /opt/bonbon/install/setup.bash &&
+        ros2 launch bonbon_llm llm.launch.py
+        ollama_model:=qwen2.5:0.5b
+        pi2_guard_enabled:=true
+        pi2_guard_max_concurrent_requests:=1
+        pi2_guard_max_output_tokens:=64
+        pi2_guard_initial_timeout_sec:=1.0
+        pi2_guard_cpu_disable_threshold_percent:=80.0
+        pi2_guard_temp_disable_threshold_c:=75.0
     security_opt: ["no-new-privileges:true"]
 
   behavior-engine:
@@ -140,7 +177,8 @@ services:
     # fixed during Pi-2 deployment prep (behavior proposals never reached
     # Pi-3 in the distributed deployment despite bonbon_behavior_engine
     # existing and being fully tested).
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_behavior_engine behavior_engine.launch.py"
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_behavior_engine behavior_engine.launch.py"
     security_opt: ["no-new-privileges:true"]
 
   tts:
@@ -149,7 +187,8 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_tts tts.launch.py"
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_tts tts.launch.py"
     security_opt: ["no-new-privileges:true"]
 
   distributed-liveness:
@@ -161,9 +200,11 @@ services:
     # Same subshell-per-job fix as perception-fusion above (see its
     # comment) -- authority_manager_node was launching with no ROS
     # environment sourced and failing with "ros2: command not found".
-    command: >
-      bash -c "
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi2) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi2) &
-      wait"
+    # Same single-element-list fix as perception-fusion above too -- no
+    # extra "bash -c" wrapper against ENTRYPOINT ["/bin/bash", "-lc"].
+    command:
+      - >
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi2) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi2) &
+        wait
     security_opt: ["no-new-privileges:true"]

@@ -36,6 +36,7 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessStart
+from launch.events import matches_action
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
 from launch_ros.event_handlers import OnStateTransition
@@ -174,13 +175,13 @@ def generate_launch_description():
     # ── Auto configure → activate ────────────────────────────────────────────
     configure_event = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=speech_node,
+            lifecycle_node_matcher=matches_action(speech_node),
             transition_id=Transition.TRANSITION_CONFIGURE,
         )
     )
     activate_event = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=speech_node,
+            lifecycle_node_matcher=matches_action(speech_node),
             transition_id=Transition.TRANSITION_ACTIVATE,
         )
     )

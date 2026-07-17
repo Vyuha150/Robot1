@@ -20,10 +20,17 @@ ros2 launch bonbon_llm llm.launch.py simulation:=true log_level:=debug
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
+    EmitEvent,
     LogInfo,
+    RegisterEventHandler,
 )
+from launch.event_handlers import OnProcessStart
+from launch.events import matches_action
 from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import LifecycleNode
+from launch_ros.event_handlers import OnStateTransition
+from launch_ros.events.lifecycle import ChangeState
+from lifecycle_msgs.msg import Transition
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -269,4 +276,45 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
-    return LaunchDescription(args + [startup_log, llm_node])
+    # ── Auto configure -> activate ───────────────────────────────────────────
+    # llm_node previously had no mechanism transitioning it out of
+    # "unconfigured" at all -- unlike every other LifecycleNode launch file
+    # in this repo (tts, speech, vision, perception, ...), this file never
+    # emitted a CONFIGURE/ACTIVATE event, so llm_orchestrator_node sat idle
+    # forever after creation. Confirmed on real Pi-2 hardware: the node logs
+    # "LLMOrchestratorNode created" and nothing else, indefinitely.
+    configure_event = EmitEvent(
+        event=ChangeState(
+            lifecycle_node_matcher=matches_action(llm_node),
+            transition_id=Transition.TRANSITION_CONFIGURE,
+        )
+    )
+    activate_event = EmitEvent(
+        event=ChangeState(
+            lifecycle_node_matcher=matches_action(llm_node),
+            transition_id=Transition.TRANSITION_ACTIVATE,
+        )
+    )
+    on_start_configure = RegisterEventHandler(
+        OnProcessStart(
+            target_action=llm_node,
+            on_start=[
+                LogInfo(msg="LLMOrchestratorNode started — sending configure transition"),
+                configure_event,
+            ],
+        )
+    )
+    on_configured_activate = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=llm_node,
+            goal_state="inactive",
+            entities=[
+                LogInfo(msg="LLMOrchestratorNode inactive — sending activate transition"),
+                activate_event,
+            ],
+        )
+    )
+
+    return LaunchDescription(
+        args + [startup_log, llm_node, on_start_configure, on_configured_activate]
+    )

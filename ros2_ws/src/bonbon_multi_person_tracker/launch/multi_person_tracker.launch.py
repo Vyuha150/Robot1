@@ -5,6 +5,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, EmitEvent, RegisterEventHandler
+from launch.event_handlers import OnProcessStart
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
 from launch_ros.event_handlers import OnStateTransition
@@ -58,11 +59,28 @@ def generate_launch_description() -> LaunchDescription:
         )
     )
 
+    # configure_event previously sat as a top-level LaunchDescription action
+    # alongside tracker_node itself, with no OnProcessStart gate -- launch
+    # visits both essentially immediately, so the CONFIGURE transition
+    # request raced the node's actual startup (rclpy init, lifecycle
+    # service creation) instead of waiting for it. Confirmed on real Pi-2
+    # hardware: the transition failed ~2.9s after the process was spawned
+    # -- too fast for the node to be ready, and far too fast to be the
+    # unbounded-network-call timeout pattern seen elsewhere (llm/asr).
+    # Every other lifecycle launch file in this repo gates its initial
+    # configure_event behind OnProcessStart; this one didn't.
+    on_start_configure = RegisterEventHandler(
+        OnProcessStart(
+            target_action=tracker_node,
+            on_start=[configure_event],
+        )
+    )
+
     return LaunchDescription(
         [
             log_level_arg,
             tracker_node,
-            configure_event,
+            on_start_configure,
             on_configured,
         ]
     )

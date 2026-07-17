@@ -45,7 +45,7 @@ class MicrophoneNode(HalNodeBase):
             device: int | str | None = (
                 int(dev_param) if dev_param.isdigit() else (dev_param or None)
             )
-            self.get_logger().info("Mic backend: USB/ALSA device=%s", device)
+            self.get_logger().info(f"Mic backend: USB/ALSA device={device}")
             return UsbMicDriver(device=device, sample_rate=sr, channels=ch)
         if backend == "respeaker":
             self.get_logger().info("Mic backend: ReSpeaker array")

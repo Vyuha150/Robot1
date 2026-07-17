@@ -32,9 +32,24 @@ services:
       - /var/log/bonbon:/logs
       - /var/lib/bonbon:/var/bonbon/data
     devices:
-      - "/dev/gpiomem:/dev/gpiomem"   # e-stop relay/button GPIO
+      # Path is "/dev/gpiomem0", not the older "/dev/gpiomem" -- confirmed
+      # on real Pi-2 hardware (same Pi 5 RP1 I/O chip) that Pi 5 exposes
+      # numbered gpiomem0-4/gpiochip* device nodes, not a single
+      # /dev/gpiomem. `docker compose up` fails outright ("no such file or
+      # directory") against the old path -- see docker-compose.pi2.yml's
+      # identical fix. NOT yet independently verified against the actual
+      # Pi-3 unit -- re-check with `ls -la /dev/gpio*` there.
+      - "/dev/gpiomem0:/dev/gpiomem0"   # e-stop relay/button GPIO
     group_add: ["gpio"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_safety safety.launch.py"
+    # Single-element list -- image ENTRYPOINT is ["/bin/bash", "-lc"]
+    # (Dockerfile.navigation); see docker-compose.pi2.yml's `hal` service
+    # comment for the full reasoning. A plain string here gets Compose-
+    # tokenized into separate argv elements, of which `-lc` only consumes
+    # the first ("source") as its command -- confirmed on real Pi-2
+    # hardware as a real crash cause (exit code 2, "filename argument
+    # required"), fixed identically here.
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_safety safety.launch.py"
     security_opt: ["no-new-privileges:true"]
     # Safety Supervisor must have the highest runtime priority; e-stop
     # must keep working under CPU/AI-HAT overload -- see the identical
@@ -54,16 +69,23 @@ services:
       - "/dev/ttyUSB0:/dev/ttyUSB0"   # RPLiDAR A2M12 -- see module comment on udev symlinks
       - "/dev/ttyUSB1:/dev/ttyUSB1"   # Cytron MDDS30 -- see module comment on udev symlinks
       - "/dev/i2c-1:/dev/i2c-1"       # PCA9685 servo + MPU6050 IMU + INA226 battery (shared bus)
-      - "/dev/gpiomem:/dev/gpiomem"   # NEMA17 STEP/DIR/ENABLE/ALM pins
+      # Same /dev/gpiomem0 fix as the safety service above -- see its
+      # comment for the reasoning (confirmed on real Pi-2 hardware).
+      - "/dev/gpiomem0:/dev/gpiomem0"   # NEMA17 STEP/DIR/ENABLE/ALM pins
     group_add: ["dialout", "i2c", "gpio"]
-    command: >
-      bash -c "source /opt/ros/humble/setup.bash &&
-      source /opt/bonbon/install/setup.bash &&
-      ros2 launch bonbon_hal hal.launch.py driver_mode:=real
-      override_params_file:=/opt/bonbon/ros2_ws/src/bonbon_navigation_bringup/config/pi3_hal_overrides.yaml
-      launch_camera:=false launch_mic:=false launch_speaker:=false
-      launch_lidar:=true launch_motor:=true launch_servo:=true launch_stepper:=true
-      launch_estop:=true launch_imu:=true launch_battery:=true"
+    # Single-element list, no extra "bash -c" wrapper -- see `safety`
+    # service's comment above and docker-compose.pi2.yml's `hal` service
+    # for the full reasoning (ENTRYPOINT ["/bin/bash", "-lc"] double-nests
+    # into a stdin-less inner bash that exits instantly if wrapped again).
+    command:
+      - >
+        source /opt/ros/humble/setup.bash &&
+        source /opt/bonbon/install/setup.bash &&
+        ros2 launch bonbon_hal hal.launch.py driver_mode:=real
+        override_params_file:=/opt/bonbon/ros2_ws/src/bonbon_navigation_bringup/config/pi3_hal_overrides.yaml
+        launch_camera:=false launch_mic:=false launch_speaker:=false
+        launch_lidar:=true launch_motor:=true launch_servo:=true launch_stepper:=true
+        launch_estop:=true launch_imu:=true launch_battery:=true
     security_opt: ["no-new-privileges:true"]
     # HAL owns the stepper/servo/motor actuator paths -- protect it like
     # safety (slightly lower priority than safety itself).
@@ -76,7 +98,8 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_base_controller base_controller.launch.py"
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_base_controller base_controller.launch.py"
     security_opt: ["no-new-privileges:true"]
 
   actuation:
@@ -85,7 +108,8 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_actuation actuation.launch.py"
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_actuation actuation.launch.py"
     security_opt: ["no-new-privileges:true"]
 
   motion-gateway:
@@ -94,7 +118,8 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_motion_approval_gateway motion_approval_gateway.launch.py"
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_motion_approval_gateway motion_approval_gateway.launch.py"
     security_opt: ["no-new-privileges:true"]
 
   navigation:
@@ -107,7 +132,8 @@ services:
       - /opt/bonbon/maps:/maps:ro
       - /var/log/bonbon:/logs
       - /var/lib/bonbon:/var/bonbon/data
-    command: "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_navigation navigation.launch.py use_sim_time:=false"
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_navigation navigation.launch.py use_sim_time:=false"
     security_opt: ["no-new-privileges:true"]
 
   distributed-liveness:
@@ -121,10 +147,12 @@ services:
     # distributed-liveness/perception-fusion services (the un-wrapped
     # form only sources the ROS environment for the first job; every
     # other backgrounded `ros2 run`/`ros2 launch` fails with
-    # "ros2: command not found").
-    command: >
-      bash -c "
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi3) &
-      (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi3) &
-      wait"
+    # "ros2: command not found"). Single-element list, no extra "bash -c"
+    # wrapper -- see docker-compose.pi2.yml's `hal` service comment for
+    # why (ENTRYPOINT ["/bin/bash", "-lc"] double-nests otherwise).
+    command:
+      - >
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi3) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi3) &
+        wait
     security_opt: ["no-new-privileges:true"]

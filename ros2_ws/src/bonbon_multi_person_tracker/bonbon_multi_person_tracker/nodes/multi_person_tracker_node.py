@@ -134,12 +134,11 @@ class MultiPersonTrackerNode(LifecycleNode):
             )
             self._privacy_mode = bool(gp("privacy_mode").bool_value)
             self.get_logger().info(
-                "MultiPersonTrackerNode: configured (loss_grace=%.1fs, max_persons=%d)",
-                cfg.loss_grace_sec,
-                int(gp("max_persons").integer_value),
+                f"MultiPersonTrackerNode: configured (loss_grace={cfg.loss_grace_sec:.1f}s, "
+                f"max_persons={int(gp('max_persons').integer_value)})"
             )
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_configure failed: %s", str(exc))
+            self.get_logger().error(f"on_configure failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -186,9 +185,9 @@ class MultiPersonTrackerNode(LifecycleNode):
             self._timer = self.create_timer(1.0 / max(rate_hz, 0.1), self._cb_publish_timer)
             self._health_timer = self.create_timer(1.0 / max(health_hz, 0.1), self._cb_health_timer)
 
-            self.get_logger().info("MultiPersonTrackerNode: active (rate=%.1f Hz)", rate_hz)
+            self.get_logger().info(f"MultiPersonTrackerNode: active (rate={rate_hz:.1f} Hz)")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_activate failed: %s", str(exc))
+            self.get_logger().error(f"on_activate failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -235,7 +234,7 @@ class MultiPersonTrackerNode(LifecycleNode):
             self._last_latency_ms = (self._last_cycle_t - cycle_start) * 1000.0
         except Exception as exc:  # noqa: BLE001
             self._error_count += 1
-            self.get_logger().error("Multi-person tracker cycle failed: %s", str(exc))
+            self.get_logger().error(f"Multi-person tracker cycle failed: {exc}")
 
     def _run_cycle(self) -> None:
         stale_timeout = (
@@ -265,7 +264,7 @@ class MultiPersonTrackerNode(LifecycleNode):
                     label = rec.known_person_id or rec.temporary_person_id
                     evt.data = f"{t.to_state.value}: {label} ({t.reason})"
                     self._pub_events.publish(evt)
-                    self.get_logger().info("Lifecycle event: %s", evt.data)
+                    self.get_logger().info(f"Lifecycle event: {evt.data}")
 
     # ── Conversion helpers ───────────────────────────────────────────────────
 

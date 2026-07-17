@@ -79,6 +79,7 @@ class SileroVAD(BaseVAD):
                     model="silero_vad",
                     force_reload=False,
                     onnx=False,
+                    trust_repo=True,
                 )
             self._model.eval()
             logger.info("SileroVAD model loaded ok")

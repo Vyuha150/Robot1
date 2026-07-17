@@ -1,0 +1,13 @@
+{
+  "mode": "invalid",
+  "valid": false,
+  "reasons": [
+    "Neither bonbon-core nor bonbon-safety is enabled \u2014 there is NO safety supervisor in this configuration. The robot must never run without one."
+  ],
+  "remediation": "Enable a safety supervisor by selecting a mode:\n  bash scripts/enable_modular_pi_mode.sh   # Pi production\n  bash scripts/enable_monolithic_mode.sh   # sim / lab / dev",
+  "expected_safety_supervisors": 0,
+  "duplicate_safety_detected": false,
+  "duplicate_pipelines": [],
+  "enabled_units": [],
+  "observed_safety_supervisors": null
+}

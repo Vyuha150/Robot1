@@ -140,10 +140,10 @@ class LLMOrchestratorNode(LifecycleNode):
             self._init_pipeline()
             self._create_interfaces()
             self._pipeline_ok = True
-            self.get_logger().info("configured OK — %s", self._cfg.summary())
+            self.get_logger().info(f"configured OK — {self._cfg.summary()}")
             return TransitionCallbackReturn.SUCCESS
         except Exception as exc:
-            self.get_logger().error("configure failed: %s", exc)
+            self.get_logger().error(f"configure failed: {exc}")
             self._error_msg = str(exc)
             if self._cfg and self._cfg.allow_degraded_startup:
                 self.get_logger().warning("degraded startup allowed")
@@ -199,8 +199,7 @@ class LLMOrchestratorNode(LifecycleNode):
 
         if not self._ollama.is_available():
             self.get_logger().warning(
-                "Ollama not reachable at %s — will use fallback responses",
-                cfg.ollama.base_url,
+                f"Ollama not reachable at {cfg.ollama.base_url} — will use fallback responses"
             )
 
     def _try_build_lc_chain(self):
@@ -213,7 +212,7 @@ class LLMOrchestratorNode(LifecycleNode):
             return chain
         except Exception as exc:
             self.get_logger().warning(
-                "LangChain unavailable (%s); using OllamaClient directly", exc
+                f"LangChain unavailable ({exc}); using OllamaClient directly"
             )
             return None
 
@@ -373,7 +372,7 @@ class LLMOrchestratorNode(LifecycleNode):
                         rag_context = self._rag.build_context_string(rag_results)
                         full_context = context_str + "\n\n" + rag_context
                     except Exception as exc:
-                        self.get_logger().debug("RAG error (non-fatal): %s", exc)
+                        self.get_logger().debug(f"RAG error (non-fatal): {exc}")
                         full_context = context_str
                 else:
                     full_context = context_str
@@ -400,7 +399,7 @@ class LLMOrchestratorNode(LifecycleNode):
                 safety_reason = filter_result.reason
                 self._error_count += 1
                 self.get_logger().warning(
-                    "LLM output blocked [%s]: %.60s", filter_result.reason, raw_llm_out
+                    f"LLM output blocked [{filter_result.reason}]: {raw_llm_out[:60]}"
                 )
             else:
                 sanitized = filter_result.sanitized_text if filter_result else raw_llm_out
@@ -412,7 +411,7 @@ class LLMOrchestratorNode(LifecycleNode):
                     llm_confidence=float(intent_msg.confidence),
                 )
                 if not guard_result.is_grounded:
-                    self.get_logger().warning("Hallucination flagged: %s", guard_result.reason)
+                    self.get_logger().warning(f"Hallucination flagged: {guard_result.reason}")
                     sanitized = guard_result.safe_response or self._fallback("hallucination")
                     status = "hallucination"
                 else:
@@ -440,7 +439,7 @@ class LLMOrchestratorNode(LifecycleNode):
                         self._dispatch_behavior(behavior_class, slots, float(intent_msg.confidence))
                     else:
                         self.get_logger().info(
-                            "Behavior %r %s: %s", behavior_class, auth.status.value, auth.reason
+                            f"Behavior {behavior_class!r} {auth.status.value}: {auth.reason}"
                         )
                         if auth.status.value == "DENIED":
                             denial_text = self._fallback(
@@ -487,7 +486,7 @@ class LLMOrchestratorNode(LifecycleNode):
             )
 
         except Exception as exc:
-            self.get_logger().error("Pipeline error: %s", exc)
+            self.get_logger().error(f"Pipeline error: {exc}")
             self._error_count += 1
             try:
                 fallback = self._fallback("llm_error")
@@ -507,7 +506,7 @@ class LLMOrchestratorNode(LifecycleNode):
                 text = invoke_chain(self._lc_chain, prompt, context)
                 return text, None
             except Exception as exc:
-                self.get_logger().debug("LangChain failed, falling back to OllamaClient: %s", exc)
+                self.get_logger().debug(f"LangChain failed, falling back to OllamaClient: {exc}")
 
         # Direct Ollama client fallback
         if self._ollama:
@@ -588,7 +587,7 @@ class LLMOrchestratorNode(LifecycleNode):
             msg.speed_factor = 1.0
             self._pub_tts.publish(msg)
         except Exception as exc:
-            self.get_logger().debug("TTS dispatch error: %s", exc)
+            self.get_logger().debug(f"TTS dispatch error: {exc}")
 
     def _dispatch_behavior(
         self,
@@ -612,9 +611,9 @@ class LLMOrchestratorNode(LifecycleNode):
             msg.param_values = list(params.values())
             msg.timeout_sec = 30.0
             self._pub_behavior.publish(msg)
-            self.get_logger().debug("Dispatched behavior: %s %s", behavior_class, params)
+            self.get_logger().debug(f"Dispatched behavior: {behavior_class} {params}")
         except Exception as exc:
-            self.get_logger().debug("Behavior dispatch error: %s", exc)
+            self.get_logger().debug(f"Behavior dispatch error: {exc}")
 
     # ── Publisher helpers ─────────────────────────────────────────────────────
 
@@ -656,7 +655,7 @@ class LLMOrchestratorNode(LifecycleNode):
             msg.tts_dispatched = True
             self._pub_response.publish(msg)
         except Exception as exc:
-            self.get_logger().debug("Response publish error: %s", exc)
+            self.get_logger().debug(f"Response publish error: {exc}")
 
     def _publish_health(self) -> None:
         if not self._pub_health:
@@ -675,7 +674,7 @@ class LLMOrchestratorNode(LifecycleNode):
             msg.latency_ms = 0.0
             self._pub_health.publish(msg)
         except Exception as exc:
-            self.get_logger().debug("Health publish error: %s", exc)
+            self.get_logger().debug(f"Health publish error: {exc}")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

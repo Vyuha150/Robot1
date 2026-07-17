@@ -60,14 +60,14 @@ class CameraNode(HalNodeBase):
             device_param = str(self.get_parameter("device").value)
             device: int | str = int(device_param) if device_param.isdigit() else device_param
             hfov = float(self.get_parameter("hfov_deg").value)
-            self.get_logger().info("Camera backend: USB/V4L2 device=%s", device)
+            self.get_logger().info(f"Camera backend: USB/V4L2 device={device}")
             return UsbCameraDriver(device=device, width=w, height=h, fps=f, hfov_deg=hfov)
         if backend == "orbbec":
             self.get_logger().info("Camera backend: Orbbec RGB-D")
             return OrbbecDriver(width=w, height=h, fps=f)
         if backend == "oakd":
             autofocus = bool(self.get_parameter("oakd_autofocus").value)
-            self.get_logger().info("Camera backend: OAK-D Lite (autofocus=%s)", autofocus)
+            self.get_logger().info(f"Camera backend: OAK-D Lite (autofocus={autofocus})")
             return OAKDLiteDriver(width=w, height=h, fps=f, enable_autofocus=autofocus)
         self.get_logger().info("Camera backend: mock (simulation)")
         return MockCameraDriver(width=w, height=h, fps=f)

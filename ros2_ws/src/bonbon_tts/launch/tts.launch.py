@@ -30,6 +30,7 @@ from launch.actions import (
     LogInfo,
     RegisterEventHandler,
 )
+from launch.events import matches_action
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import LifecycleNode
 from launch_ros.event_handlers import OnStateTransition
@@ -90,7 +91,7 @@ def generate_launch_description() -> LaunchDescription:
     # ── Auto-configure transition ──────────────────────────────────────────
     configure_event = EmitEvent(
         event=ChangeState(
-            lifecycle_node_matcher=tts_node,
+            lifecycle_node_matcher=matches_action(tts_node),
             transition_id=lifecycle_msgs.msg.Transition.TRANSITION_CONFIGURE,
         )
     )
@@ -104,7 +105,7 @@ def generate_launch_description() -> LaunchDescription:
                 LogInfo(msg="TTS node configured → activating"),
                 EmitEvent(
                     event=ChangeState(
-                        lifecycle_node_matcher=tts_node,
+                        lifecycle_node_matcher=matches_action(tts_node),
                         transition_id=lifecycle_msgs.msg.Transition.TRANSITION_ACTIVATE,
                     )
                 ),

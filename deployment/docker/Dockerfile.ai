@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip python3-colcon-common-extensions python3-rosdep \
-    python3-yaml git curl ca-certificates \
+    python3-yaml git curl ca-certificates libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Pi-2 (Human AI) package set -- every package bonbon_human_ai_bringup's
@@ -85,6 +85,28 @@ RUN python3 -m pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pypi.org/simple \
     -r /opt/bonbon/requirements/pi2_requirements.txt
+
+# Pre-bake the two runtime-downloaded ML models (Silero VAD for
+# bonbon_speech, all-MiniLM-L6-v2 sentence-transformers embedder for
+# bonbon_llm's Chroma RAG backend) into the image at BUILD time, not
+# container-start time. Confirmed on real Pi-2 hardware: both
+# SentenceTransformer(...) and torch.hub.load(...) are synchronous,
+# unbounded network calls invoked from inside a ROS2 lifecycle
+# on_configure() callback -- on a slow/stalled connection this blocks
+# the node's executor thread for minutes, past launch_ros's own
+# transition-wait patience, so launch reports "Failed to make
+# transition" while the node is actually still stuck mid-download in
+# the background. Baking both models in here makes container startup
+# deterministic and network-independent (the one industry-grade fix;
+# just adding a timeout would still leave a slow-startup landmine).
+ENV HF_HOME=/opt/bonbon/.cache/huggingface \
+    TORCH_HOME=/opt/bonbon/.cache/torch
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && \
+    python3 -c "import torch; torch.hub.load('snakers4/silero-vad', 'silero_vad', trust_repo=True)"
+# HF_HUB_OFFLINE is set only now (after the pre-download RUN above, which
+# needs network) so the final image never attempts a network call for
+# these already-cached models at runtime.
+ENV HF_HUB_OFFLINE=1
 
 # docker-compose.pi2.yml's hal service uses group_add: ["audio", "gpio"] for
 # ReSpeaker/PAM8610 (audio, already a standard Ubuntu group) and the

@@ -92,7 +92,7 @@ class SpeechNode(LifecycleNode):
             self._create_interfaces()
             self._init_pipeline()
             self._pipeline_ok = True
-            self.get_logger().info("configured ok summary=%s", self._cfg.summary())
+            self.get_logger().info(f"configured ok summary={self._cfg.summary()}")
             return TransitionCallbackReturn.SUCCESS
         except Exception as exc:
             self.get_logger().error(f"configure failed: {exc}")
@@ -316,9 +316,8 @@ class SpeechNode(LifecycleNode):
                 detected, score = self._ww.process_chunk(samples)
                 if detected:
                     self.get_logger().info(
-                        "wake_word detected keyword=%r score=%.3f",
-                        self._cfg.wake_word.keyword,
-                        score,
+                        f"wake_word detected keyword={self._cfg.wake_word.keyword!r} "
+                        f"score={score:.3f}"
                     )
                     self._ww_armed = False
                     self._ww_listen_deadline = (
@@ -447,11 +446,8 @@ class SpeechNode(LifecycleNode):
         msg.doa_angle_deg = float(doa)
         self._pub_command.publish(msg)
         self.get_logger().debug(
-            "published SpeechCommand text=%r conf=%.3f lang=%r speaker=%s",
-            msg.text[:60],
-            msg.confidence,
-            msg.language,
-            speaker_id,
+            f"published SpeechCommand text={msg.text[:60]!r} conf={msg.confidence:.3f} "
+            f"lang={msg.language!r} speaker={speaker_id}"
         )
 
     def _publish_transcription(

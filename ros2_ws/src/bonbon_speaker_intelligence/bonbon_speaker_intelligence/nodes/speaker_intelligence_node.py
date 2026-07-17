@@ -141,7 +141,7 @@ class SpeakerIntelligenceNode(LifecycleNode):
             self._privacy_mode = bool(gp("privacy_mode").bool_value)
             self.get_logger().info("SpeakerIntelligenceNode: configured")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_configure failed: %s", str(exc))
+            self.get_logger().error(f"on_configure failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -194,7 +194,7 @@ class SpeakerIntelligenceNode(LifecycleNode):
 
             self.get_logger().info("SpeakerIntelligenceNode: active")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().error("on_activate failed: %s", str(exc))
+            self.get_logger().error(f"on_activate failed: {exc}")
             return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
@@ -246,7 +246,7 @@ class SpeakerIntelligenceNode(LifecycleNode):
             self._last_cycle_t = time.monotonic()
         except Exception as exc:  # noqa: BLE001
             self._error_count += 1
-            self.get_logger().error("Speaker turn build failed: %s", str(exc))
+            self.get_logger().error(f"Speaker turn build failed: {exc}")
         finally:
             _ = time.monotonic() - cycle_start
 

@@ -131,7 +131,7 @@ class BaseControllerNode(LifecycleNode):
             return
         if len(msg.data) < 4:
             self.get_logger().warning(
-                "wheel_state with %d elements (need 4) — ignored", len(msg.data)
+                f"wheel_state with {len(msg.data)} elements (need 4) — ignored"
             )
             return
         _left_mps, _right_mps, left_distance_m, right_distance_m = msg.data[:4]
