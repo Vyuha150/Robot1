@@ -15,6 +15,7 @@ Tests cover
 """
 
 import time
+import uuid
 
 import pytest
 from bonbon_llm.core.response_logger import LogEntry, ResponseLogger
@@ -29,30 +30,44 @@ def logger() -> ResponseLogger:
 
 def _record(
     log: ResponseLogger,
+    response_id: str = None,
     intent_id: str = "intent_001",
     speaker_id: str = "spk_01",
     raw_prompt: str = "User asked about latte.",
     raw_llm_output: str = "The latte is S$5.00.",
     final_response: str = "The latte is S$5.00.",
-    status: str = "ok",
-    confidence: float = 0.90,
+    safety_filter_result: str = "SAFE",
+    safety_filter_reason: str = "",
     llm_latency_ms: float = 120.0,
     rag_latency_ms: float = 5.0,
-    tools_called: list = None,
+    total_latency_ms: float = 130.0,
+    rag_doc_ids: list = None,
+    rag_scores: list = None,
     hallucination_flagged: bool = False,
+    hallucination_reason: str = "",
+    safety_state: int = 0,
+    actuation_permitted: bool = True,
+    navigation_permitted: bool = True,
 ) -> str:
     return log.record(
+        response_id=response_id or str(uuid.uuid4()),
         intent_id=intent_id,
         speaker_id=speaker_id,
         raw_prompt=raw_prompt,
         raw_llm_output=raw_llm_output,
         final_response=final_response,
-        status=status,
-        confidence=confidence,
+        safety_filter_result=safety_filter_result,
+        safety_filter_reason=safety_filter_reason,
         llm_latency_ms=llm_latency_ms,
         rag_latency_ms=rag_latency_ms,
-        tools_called=tools_called or [],
+        total_latency_ms=total_latency_ms,
+        rag_doc_ids=rag_doc_ids or [],
+        rag_scores=rag_scores or [],
         hallucination_flagged=hallucination_flagged,
+        hallucination_reason=hallucination_reason,
+        safety_state=safety_state,
+        actuation_permitted=actuation_permitted,
+        navigation_permitted=navigation_permitted,
     )
 
 
@@ -65,6 +80,10 @@ class TestRecordAndRetrieve:
         rid = _record(logger)
         assert isinstance(rid, str)
         assert len(rid) > 0
+
+    def test_record_echoes_supplied_response_id(self, logger):
+        rid = _record(logger, response_id="my-explicit-id")
+        assert rid == "my-explicit-id"
 
     def test_record_increments_log_size(self, logger):
         assert len(logger.get_recent(100)) == 0
@@ -116,32 +135,39 @@ class TestLogEntryFields:
         entry = logger.get_by_id(rid)
         assert entry.speaker_id == "anon_abc123"
 
-    def test_confidence_stored(self, logger):
-        rid = _record(logger, confidence=0.73)
+    def test_safety_filter_result_stored(self, logger):
+        rid = _record(logger, safety_filter_result="BLOCKED", safety_filter_reason="risky command")
         entry = logger.get_by_id(rid)
-        assert abs(entry.confidence - 0.73) < 1e-4
-
-    def test_status_stored(self, logger):
-        rid = _record(logger, status="safety_block")
-        entry = logger.get_by_id(rid)
-        assert entry.status == "safety_block"
+        assert entry.safety_filter_result == "BLOCKED"
+        assert entry.safety_filter_reason == "risky command"
 
     def test_latency_stored(self, logger):
-        rid = _record(logger, llm_latency_ms=250.0, rag_latency_ms=12.0)
+        rid = _record(logger, llm_latency_ms=250.0, rag_latency_ms=12.0, total_latency_ms=270.0)
         entry = logger.get_by_id(rid)
         assert abs(entry.llm_latency_ms - 250.0) < 1.0
         assert abs(entry.rag_latency_ms - 12.0) < 1.0
+        assert abs(entry.total_latency_ms - 270.0) < 1.0
 
     def test_hallucination_flag_stored(self, logger):
-        rid = _record(logger, hallucination_flagged=True)
+        rid = _record(logger, hallucination_flagged=True, hallucination_reason="fabricated fact")
         entry = logger.get_by_id(rid)
         assert entry.hallucination_flagged is True
+        assert entry.hallucination_reason == "fabricated fact"
 
-    def test_tools_called_stored(self, logger):
-        rid = _record(logger, tools_called=["speak_to_user", "get_menu_info"])
+    def test_rag_context_stored(self, logger):
+        rid = _record(logger, rag_doc_ids=["doc_1", "doc_2"], rag_scores=[0.9, 0.7])
         entry = logger.get_by_id(rid)
-        assert "speak_to_user" in entry.tools_called
-        assert "get_menu_info" in entry.tools_called
+        assert entry.rag_doc_ids == ["doc_1", "doc_2"]
+        assert entry.rag_scores == [0.9, 0.7]
+
+    def test_safety_state_snapshot_stored(self, logger):
+        rid = _record(
+            logger, safety_state=2, actuation_permitted=False, navigation_permitted=False
+        )
+        entry = logger.get_by_id(rid)
+        assert entry.safety_state == 2
+        assert entry.actuation_permitted is False
+        assert entry.navigation_permitted is False
 
     def test_timestamp_is_recent(self, logger):
         before = time.time()
@@ -150,7 +176,7 @@ class TestLogEntryFields:
         entry = logger.get_by_id(rid)
         assert before <= entry.timestamp <= after
 
-    def test_response_id_unique(self, logger):
+    def test_response_id_unique_when_caller_supplies_unique_ids(self, logger):
         ids = [_record(logger) for _ in range(20)]
         assert len(set(ids)) == 20, "All response IDs should be unique"
 

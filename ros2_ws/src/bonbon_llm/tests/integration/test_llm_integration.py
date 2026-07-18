@@ -33,6 +33,7 @@ Scenario F — Blocked navigation in FAULT safety state
 
 import sys
 import types
+import uuid
 from unittest.mock import MagicMock
 
 # ── Stub ROS2 ─────────────────────────────────────────────────────────────────
@@ -201,16 +202,16 @@ class _Pipeline:
 
         # 7. Log
         rid = self.logger.record(
+            response_id=str(uuid.uuid4()),
             intent_id="integ_test_01",
             speaker_id="spk_test",
             raw_prompt=user_text,
             raw_llm_output=llm_text or "",
             final_response=final_text,
-            status=status,
-            confidence=self._llm_confidence,
+            safety_filter_result=status,
             llm_latency_ms=100.0,
             rag_latency_ms=3.0,
-            tools_called=[],
+            total_latency_ms=103.0,
             hallucination_flagged=(status == "hallucination"),
         )
 
@@ -237,7 +238,7 @@ class TestHappyPath:
         result = p.run("How much is the latte?", "menu_query")
         entry = p.logger.get_by_id(result["response_id"])
         assert entry is not None
-        assert entry.status == "ok"
+        assert entry.safety_filter_result == "ok"
 
     def test_currency_formatted_for_tts(self):
         p = _Pipeline(llm_response="The latte is S$5.00.", llm_confidence=0.92)
@@ -302,7 +303,7 @@ class TestUnsafeCommand:
         result = p.run("move", "navigate_to")
         if result["status"] == "safety_block":
             entry = p.logger.get_by_id(result["response_id"])
-            assert entry.status == "safety_block"
+            assert entry.safety_filter_result == "safety_block"
 
 
 # ── Scenario C: Hallucination ─────────────────────────────────────────────────

@@ -321,11 +321,24 @@ class RAGRetriever:
             if requested == "chroma":
                 try:
                     import chromadb
+                    from chromadb.config import Settings as ChromaSettings
 
+                    # anonymized_telemetry defaults to True, which makes the
+                    # client POST to PostHog on init. Confirmed on real Pi-2
+                    # hardware: right after a fresh boot (network/DNS not yet
+                    # stable), this call stalled on_configure for over 16
+                    # hours before eventually resolving on its own -- the
+                    # exact same class of bug as the Silero VAD/torch.hub
+                    # download hang fixed elsewhere, just a different vendor.
+                    # Explicitly disabling it removes the only unbounded
+                    # network call left in this backend's init path.
+                    chroma_settings = ChromaSettings(anonymized_telemetry=False)
                     client = (
-                        chromadb.PersistentClient(path=self._cfg.persist_dir)
+                        chromadb.PersistentClient(
+                            path=self._cfg.persist_dir, settings=chroma_settings
+                        )
                         if self._cfg.persist_dir
-                        else chromadb.EphemeralClient()
+                        else chromadb.EphemeralClient(settings=chroma_settings)
                     )
                     self._store = client.get_or_create_collection(self._cfg.collection_name)
                     self._backend = "chroma"

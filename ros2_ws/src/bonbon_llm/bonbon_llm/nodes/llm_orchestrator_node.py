@@ -480,7 +480,7 @@ class LLMOrchestratorNode(LifecycleNode):
                 total_latency_ms=total_latency,
                 rag_doc_ids=[r.document.doc_id for r in rag_results],
                 rag_scores=[r.score for r in rag_results],
-                safety_state=safety_snap.state,
+                safety_state=safety_snap.state_id,
                 actuation_permitted=safety_snap.actuation_permitted,
                 navigation_permitted=safety_snap.navigation_permitted,
             )
