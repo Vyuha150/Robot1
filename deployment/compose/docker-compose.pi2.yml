@@ -187,8 +187,30 @@ services:
     restart: unless-stopped
     env_file: /etc/bonbon/bonbon.env
     volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    # Missing entirely until now -- confirmed on real Pi-2 hardware:
+    # without /dev/snd passed through, sounddevice/PortAudio inside this
+    # container enumerated either zero devices or some non-hardware
+    # fallback, so speaker_driver:=hal below could never have reached real
+    # audio output no matter which device name was requested. Same device
+    # + group as the hal service's speaker_node (see its comment).
+    devices:
+      - "/dev/snd:/dev/snd"
+    group_add: ["audio"]
+    # speaker_driver:=hal routes synthesized speech to the real PAM8610-amped
+    # speaker (bonbon_hal.SpeakerDriver) instead of the mock bridge -- this
+    # matches the actual BOM (4ohm 10W speaker + PAM8610 amp on Pi-2), it's
+    # not a test-only override. Confirmed on real Pi-2 hardware: without
+    # this, TTS synthesis succeeded but no audio ever reached a real device.
+    #
+    # speaker_device:=USB IS a test-only override, unlike speaker_driver
+    # above -- it targets whatever generic USB audio device is standing in
+    # for testing (confirmed necessary on real hardware: the "default"
+    # device picks PortAudio's first output-capable device, which silently
+    # turned out to be an HDMI port rather than the intended USB output).
+    # Once the real PAM8610-driven speaker is wired (an analog/I2S output,
+    # not USB), change this back to "default" or the real device's name.
     command:
-      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_tts tts.launch.py"
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 launch bonbon_tts tts.launch.py speaker_driver:=hal speaker_device:=USB"
     security_opt: ["no-new-privileges:true"]
 
   distributed-liveness:
@@ -207,4 +229,51 @@ services:
         (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi2) &
         (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi2) &
         wait
+    security_opt: ["no-new-privileges:true"]
+
+  # ── Operator dashboard (test/dev only) ──────────────────────────────────
+  # Not part of Pi-2's production bringup -- bonbon_operator_api is
+  # architecturally Pi-1's System UI/API role per the 3-Pi split. Co-located
+  # here (rather than waiting on Pi-1 hardware) so hardware testing on this
+  # Pi has a real, text/speech/emotion-visible cockpit instead of one-shot
+  # `ros2 topic pub` commands. Reuses the bonbon/ai image (bonbon_operator_api
+  # is now colcon-built into it -- see Dockerfile.ai) purely so its
+  # ros2_bridge.py gets real rclpy + bonbon_msgs and can see this Pi's live
+  # topics over the shared DDS domain; the bundled Dockerfile.dashboard
+  # (plain python:3.11-slim, no ROS2) would only ever show offline/mock data.
+  dashboard-api:
+    image: bonbon/ai:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
+    env_file: /etc/bonbon/bonbon.env
+    environment:
+      # Test-only: seeds a default admin user (admin / BonBon-test-admin-only!)
+      # and an ephemeral JWT secret instead of requiring BONBON_ADMIN_PASSWORD
+      # + BONBON_JWT_SECRET to be provisioned (production Pi-1 deployment
+      # must set those explicitly instead of this flag).
+      BONBON_TEST_MODE: "1"
+      # The dashboard-web origin. Without this, the browser's CORS
+      # preflight rejects every request from the LAN-IP page even though
+      # the API itself is reachable -- api_config.py's default origin list
+      # only covers localhost/127.0.0.1, never the Pi's own LAN address.
+      BONBON_CORS_ORIGINS: "http://192.168.1.13:3000"
+    volumes: ["/etc/bonbon:/config:ro", "/var/log/bonbon:/logs"]
+    # ament_python console_scripts (operator_api_server) aren't on PATH via
+    # a bare command -- they're only reachable through `ros2 run <pkg>
+    # <executable>`, same as every other custom command in this file.
+    # Confirmed on real Pi-2 hardware: the bare form crash-looped with
+    # "operator_api_server: command not found". Note operator_api_node
+    # (the OTHER console_script) is a LifecycleNode -- per this file's own
+    # established lesson (see tts_node history), a bare `ros2 run` on a
+    # lifecycle node never auto-configures without a launch file's event
+    # chain, so operator_api_server (plain run_server(), no lifecycle) is
+    # deliberately used here instead.
+    command:
+      - "source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_operator_api operator_api_server"
+    security_opt: ["no-new-privileges:true"]
+
+  dashboard-web:
+    image: bonbon/dashboard-web:${BONBON_IMAGE_TAG:?set BONBON_IMAGE_TAG}
+    network_mode: host
+    restart: unless-stopped
     security_opt: ["no-new-privileges:true"]

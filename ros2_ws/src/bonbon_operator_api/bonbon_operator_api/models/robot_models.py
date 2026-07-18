@@ -45,6 +45,33 @@ class TTSData(BaseModel):
     queue_depth: int = 0
 
 
+class ConversationData(BaseModel):
+    """Live view of the robot's own ASR/LLM/emotion pipeline -- what it just
+    heard, said, and inferred about the person it's talking to. Distinct
+    from the dashboard's operator-testbench fields (which record what the
+    *operator* typed/spoke into their own browser for one-shot testing)."""
+
+    # /speech/transcription (bonbon_msgs/SpeechTranscription)
+    transcript_text: str = ""
+    transcript_confidence: float = 0.0
+    transcript_speaker_id: str = ""
+    transcript_ts: float | None = None
+
+    # /llm/response (bonbon_msgs/LLMResponse)
+    llm_response_text: str = ""
+    llm_status: str = "unknown"  # ok | low_conf | safety_block | hallucination | llm_error | fallback
+    llm_confidence: float = 0.0
+    llm_model_name: str = ""
+    llm_ts: float | None = None
+
+    # /bonbon/affective/human_state (bonbon_msgs/HumanEmotionState)
+    emotion_dominant: str = "unknown"
+    emotion_confidence: float = 0.0
+    emotion_recommended_style: str = ""
+    emotion_requires_operator_alert: bool = False
+    emotion_ts: float | None = None
+
+
 class ActuationData(BaseModel):
     linear_velocity_mps: float = 0.0
     angular_velocity_rps: float = 0.0
@@ -103,6 +130,7 @@ class RobotStatus(BaseModel):
     navigation: NavigationData = Field(default_factory=NavigationData)
     perception: PerceptionData = Field(default_factory=PerceptionData)
     tts: TTSData = Field(default_factory=TTSData)
+    conversation: ConversationData = Field(default_factory=ConversationData)
     actuation: ActuationData = Field(default_factory=ActuationData)
     performance: PerformanceData = Field(default_factory=PerformanceData)
     modules: dict[str, ModuleStatus] = Field(default_factory=dict)

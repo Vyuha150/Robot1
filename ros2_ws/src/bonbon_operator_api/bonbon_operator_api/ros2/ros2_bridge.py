@@ -52,12 +52,15 @@ try:
         BehaviorProposal,
         ComponentFaultArray,
         DegradedModeStatus,
+        HumanEmotionState,
+        LLMResponse,
         ModuleHealth,
         NavigationStatus,
         PerceptionEfficiencyMetrics,
         PersonTrack,
         ResourceUsage,
         SafetyState,
+        SpeechTranscription,
         TTSRequest,
     )
     from bonbon_srvs.srv import CancelNavigation, GetNearestCharger, NavigateTo
@@ -86,16 +89,37 @@ _TOPIC_PERCEPTION_METRICS = "/bonbon/perception_efficiency/metrics"  # bonbon_pe
 _TOPIC_FAULT_REGISTRY = (
     "/bonbon/fault_manager/registry"  # bonbon_fault_manager, ComponentFaultArray
 )
+_TOPIC_SPEECH_TRANSCRIPTION = "/speech/transcription"  # bonbon_speech/speech_node
+_TOPIC_LLM_RESPONSE = "/llm/response"  # bonbon_llm/llm_orchestrator_node
+_TOPIC_HUMAN_EMOTION_STATE = (
+    "/bonbon/affective/human_state"  # bonbon_human_state_fusion/human_state_fusion_node
+)
 
 # bonbon_msgs/ComponentFault.msg's uint8 fault_level constants -> name,
 # for the dashboard-facing string field (ComponentFaultData.fault_level).
 _FAULT_LEVEL_NAMES = ["OK", "WARNING", "DEGRADED", "FAULT", "CRITICAL", "BLOCKED"]
+
+# bonbon_msgs/LLMResponse.msg's uint8 status constants -> name.
+_LLM_STATUS_NAMES = [
+    "ok",
+    "low_conf",
+    "safety_block",
+    "hallucination",
+    "llm_error",
+    "fallback",
+]
 
 
 def _fault_level_name(level: int) -> str:
     if 0 <= level < len(_FAULT_LEVEL_NAMES):
         return _FAULT_LEVEL_NAMES[level]
     return "UNKNOWN"
+
+
+def _llm_status_name(status: int) -> str:
+    if 0 <= status < len(_LLM_STATUS_NAMES):
+        return _LLM_STATUS_NAMES[status]
+    return "unknown"
 
 
 # Three-Pi distributed topics — see config/distributed/topic_contracts.yaml
@@ -130,7 +154,16 @@ _MODULE_HEALTH_TOPICS = {
     "actuation": "/bonbon/actuation/actuation_node/health",
     "vision": "/bonbon/vision/vision_node/health",
     "speech": "/health/speech",
-    "tts": "/bonbon/tts/health",
+    # "tts" deliberately excluded: /bonbon/tts/health carries std_msgs/String
+    # (JSON), not bonbon_msgs/ModuleHealth like every other entry here --
+    # tts_node has no separate ModuleHealth publisher anywhere. Confirmed on
+    # real Pi-2 hardware: subscribing here with the wrong type against an
+    # already-live String publisher on the exact same topic name throws
+    # "invalid allocator" from rcl_subscription and aborts THIS NODE'S
+    # __init__ entirely -- every other subscription below it silently never
+    # got created either, so the whole bridge reported "start failed" with
+    # no topic data at all, not just TTS. TTS health is already covered
+    # correctly via _TOPIC_TTS_HEALTH/_on_tts below.
     "llm": "/health/llm",
     "perception_efficiency": "/bonbon/perception_efficiency/perception_efficiency_node/health",
 }
@@ -462,6 +495,24 @@ if _ROS2_AVAILABLE:
                 self._on_component_faults,
                 _reliable_transient,
             )
+            # Live conversation feed -- what the robot itself just heard,
+            # said, and inferred, as distinct from the dashboard's own
+            # operator-testbench fields (browser mic/one-shot LLM calls).
+            self.create_subscription(
+                SpeechTranscription,
+                _TOPIC_SPEECH_TRANSCRIPTION,
+                self._on_transcript,
+                _best_effort,
+            )
+            self.create_subscription(
+                LLMResponse, _TOPIC_LLM_RESPONSE, self._on_llm_response, _best_effort
+            )
+            self.create_subscription(
+                HumanEmotionState,
+                _TOPIC_HUMAN_EMOTION_STATE,
+                self._on_emotion_state,
+                _best_effort,
+            )
             for module_key, topic in _MODULE_HEALTH_TOPICS.items():
                 self.create_subscription(
                     ModuleHealth,
@@ -553,6 +604,38 @@ if _ROS2_AVAILABLE:
                     "worst_fault_level": _fault_level_name(msg.worst_level),
                 },
             )
+
+        def _on_transcript(self, msg: SpeechTranscription) -> None:
+            data = {
+                "transcript_text": msg.text,
+                "transcript_confidence": msg.confidence,
+                "transcript_speaker_id": msg.speaker_id,
+                "transcript_ts": time.time(),
+            }
+            self._agg.update_transcript(data)
+            self._emit("robot-status", "transcript_updated", data)
+
+        def _on_llm_response(self, msg: LLMResponse) -> None:
+            data = {
+                "llm_response_text": msg.text,
+                "llm_status": _llm_status_name(msg.status),
+                "llm_confidence": msg.confidence,
+                "llm_model_name": msg.model_name,
+                "llm_ts": time.time(),
+            }
+            self._agg.update_llm_response(data)
+            self._emit("robot-status", "llm_response_updated", data)
+
+        def _on_emotion_state(self, msg: HumanEmotionState) -> None:
+            data = {
+                "emotion_dominant": msg.dominant_state,
+                "emotion_confidence": msg.dominant_confidence,
+                "emotion_recommended_style": msg.recommended_response_style,
+                "emotion_requires_operator_alert": msg.requires_operator_alert,
+                "emotion_ts": time.time(),
+            }
+            self._agg.update_emotion(data)
+            self._emit("robot-status", "emotion_state_updated", data)
 
         def _on_battery(self, msg: BatteryState) -> None:
             # sensor_msgs/BatteryState.percentage is a 0.0-1.0 fraction (or

@@ -1,0 +1,22 @@
+# Operator dashboard frontend (ros2_ws/src/bonbon_operator_api/frontend) --
+# a React/Vite "test cockpit" for BonBon: live browser camera/mic testing,
+# LLM prompt testing, TTS dispatch, e-stop, robot status/diagnostics. Talks
+# to the dashboard-api service (docker-compose.pi2.yml, port 8080) over
+# whatever URL is set in the UI's "API Base URL" field -- it defaults to
+# http://127.0.0.1:8080, which only resolves correctly when the browser and
+# the API share a host. Viewing from another machine on the LAN: set that
+# field to http://<pi-ip>:8080 once (persisted in the browser's
+# localStorage), and also make sure BONBON_CORS_ORIGINS on the dashboard-api
+# service includes http://<pi-ip>:3000, or the browser's CORS preflight
+# rejects every request even though the URL itself is reachable.
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY ros2_ws/src/bonbon_operator_api/frontend/package.json ros2_ws/src/bonbon_operator_api/frontend/package-lock.json ./
+RUN npm ci
+COPY ros2_ws/src/bonbon_operator_api/frontend/ ./
+RUN npm run build
+
+FROM nginx:1.27-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY deployment/docker/dashboard-web.nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 3000

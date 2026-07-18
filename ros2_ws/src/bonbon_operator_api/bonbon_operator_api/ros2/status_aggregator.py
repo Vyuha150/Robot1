@@ -15,6 +15,7 @@ from bonbon_operator_api.models.robot_models import (
     ActuationData,
     BatteryData,
     ComponentFaultData,
+    ConversationData,
     ModuleStatus,
     NavigationData,
     PerceptionData,
@@ -80,6 +81,7 @@ class RobotStatusAggregator:
             current_text=None,
             queue_depth=0,
         )
+        self._conversation = ConversationData()
         self._actuation = ActuationData(
             linear_velocity_mps=0.0,
             angular_velocity_rps=0.0,
@@ -112,6 +114,7 @@ class RobotStatusAggregator:
                 navigation=self._navigation.model_copy(),
                 perception=self._perception.model_copy(),
                 tts=self._tts.model_copy(),
+                conversation=self._conversation.model_copy(),
                 actuation=self._actuation.model_copy(),
                 performance=self._performance.model_copy(),
                 modules={k: v.model_copy() for k, v in self._modules.items()},
@@ -169,6 +172,71 @@ class RobotStatusAggregator:
                 goal_y=data.get("goal_y", self._navigation.goal_y),
                 progress_pct=data.get("progress_pct", self._navigation.progress_pct),
                 active_map=data.get("active_map", self._navigation.active_map),
+            )
+            self._touch()
+
+    # conversation is fed by THREE independent topics (transcript, LLM
+    # response, emotion state) that arrive on their own schedule -- each
+    # update method merges only its own fields via model_copy(update=...)
+    # so an LLM response callback never clobbers the most recent transcript
+    # (or vice versa).
+
+    def update_transcript(self, data: dict[str, Any]) -> None:
+        with self._lock:
+            self._conversation = self._conversation.model_copy(
+                update={
+                    "transcript_text": data.get(
+                        "transcript_text", self._conversation.transcript_text
+                    ),
+                    "transcript_confidence": data.get(
+                        "transcript_confidence", self._conversation.transcript_confidence
+                    ),
+                    "transcript_speaker_id": data.get(
+                        "transcript_speaker_id", self._conversation.transcript_speaker_id
+                    ),
+                    "transcript_ts": data.get("transcript_ts", self._conversation.transcript_ts),
+                }
+            )
+            self._touch()
+
+    def update_llm_response(self, data: dict[str, Any]) -> None:
+        with self._lock:
+            self._conversation = self._conversation.model_copy(
+                update={
+                    "llm_response_text": data.get(
+                        "llm_response_text", self._conversation.llm_response_text
+                    ),
+                    "llm_status": data.get("llm_status", self._conversation.llm_status),
+                    "llm_confidence": data.get(
+                        "llm_confidence", self._conversation.llm_confidence
+                    ),
+                    "llm_model_name": data.get(
+                        "llm_model_name", self._conversation.llm_model_name
+                    ),
+                    "llm_ts": data.get("llm_ts", self._conversation.llm_ts),
+                }
+            )
+            self._touch()
+
+    def update_emotion(self, data: dict[str, Any]) -> None:
+        with self._lock:
+            self._conversation = self._conversation.model_copy(
+                update={
+                    "emotion_dominant": data.get(
+                        "emotion_dominant", self._conversation.emotion_dominant
+                    ),
+                    "emotion_confidence": data.get(
+                        "emotion_confidence", self._conversation.emotion_confidence
+                    ),
+                    "emotion_recommended_style": data.get(
+                        "emotion_recommended_style", self._conversation.emotion_recommended_style
+                    ),
+                    "emotion_requires_operator_alert": data.get(
+                        "emotion_requires_operator_alert",
+                        self._conversation.emotion_requires_operator_alert,
+                    ),
+                    "emotion_ts": data.get("emotion_ts", self._conversation.emotion_ts),
+                }
             )
             self._touch()
 

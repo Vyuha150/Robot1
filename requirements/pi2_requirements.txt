@@ -127,3 +127,15 @@ chromadb
 
 # TTS (bonbon_tts)
 piper-tts
+
+# Operator dashboard API (bonbon_operator_api) -- test/dev dashboard
+# backend, not rosdep-resolvable (package.xml deliberately leaves these
+# as a pip-install comment, same lazy-external-dep pattern as everything
+# else in this file).
+fastapi
+uvicorn[standard]
+PyJWT
+passlib[bcrypt]
+python-multipart
+prometheus-client
+httpx

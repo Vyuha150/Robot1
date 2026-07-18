@@ -352,6 +352,73 @@ type TabProps = {
   logs: LogEntry[]; checkBackend: () => Promise<void>;
 };
 
+// Robot's own onboard ASR/LLM/emotion pipeline, read from
+// RobotStatus.conversation (fed by ros2_bridge.py's real subscriptions to
+// /speech/transcription, /llm/response, /bonbon/affective/human_state).
+// Distinct from the module cards above, which reflect the OPERATOR's own
+// browser mic/one-shot LLM test calls, not what the robot itself heard.
+type ConversationSnapshot = {
+  transcript_text?: string; transcript_confidence?: number; transcript_speaker_id?: string; transcript_ts?: number | null;
+  llm_response_text?: string; llm_status?: string; llm_confidence?: number; llm_model_name?: string; llm_ts?: number | null;
+  emotion_dominant?: string; emotion_confidence?: number; emotion_recommended_style?: string; emotion_requires_operator_alert?: boolean; emotion_ts?: number | null;
+};
+
+function LiveConversationPanel({ api, token }: { api: ApiClient; token: string }) {
+  const [conv, setConv] = useState<ConversationSnapshot | null>(null);
+  const [online, setOnline] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const status = await api.robotStatus();
+        if (cancelled) return;
+        setConv((status.conversation as ConversationSnapshot | undefined) ?? null);
+        setOnline(Boolean(status.is_online));
+      } catch { /* robot offline / not authenticated yet -- keep last-known values */ }
+    };
+    void poll();
+    const id = window.setInterval(() => void poll(), 2000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, [api, token]);
+
+  const age = (ts?: number | null) => (ts ? `${Math.max(0, Math.round(Date.now() / 1000 - ts))}s ago` : "—");
+
+  return (
+    <div className="panel" style={{ marginTop: 18 }}>
+      <div className="section-title">
+        <span>Live Robot Conversation</span>
+        <small>{online ? "onboard ASR / LLM / emotion — real topics" : "robot offline or not yet heard from"}</small>
+      </div>
+      <div className="module-grid">
+        <div className={`module-card panel ${conv?.transcript_text ? "good" : "idle"}`}>
+          <div className="module-header"><span className="module-icon">🎧</span><strong>Heard (ASR)</strong></div>
+          <p style={{ minHeight: 40 }}>{conv?.transcript_text || "— nothing heard yet —"}</p>
+          <div className="kv-row"><span>Confidence</span><b>{conv?.transcript_confidence ? `${Math.round(conv.transcript_confidence * 100)}%` : "—"}</b></div>
+          <div className="kv-row"><span>Speaker</span><b>{conv?.transcript_speaker_id || "—"}</b></div>
+          <div className="kv-row"><span>Updated</span><b>{age(conv?.transcript_ts)}</b></div>
+        </div>
+        <div className={`module-card panel ${conv?.llm_response_text ? "good" : "idle"}`}>
+          <div className="module-header"><span className="module-icon">🧩</span><strong>Said (LLM)</strong></div>
+          <p style={{ minHeight: 40 }}>{conv?.llm_response_text || "— no response yet —"}</p>
+          <div className="kv-row"><span>Status</span><b>{conv?.llm_status || "—"}</b></div>
+          <div className="kv-row"><span>Model</span><b>{conv?.llm_model_name || "—"}</b></div>
+          <div className="kv-row"><span>Updated</span><b>{age(conv?.llm_ts)}</b></div>
+        </div>
+        <div className={`module-card panel ${conv?.emotion_requires_operator_alert ? "danger" : conv?.emotion_dominant && conv.emotion_dominant !== "unknown" ? "good" : "idle"}`}>
+          <div className="module-header"><span className="module-icon">🎭</span><strong>Felt (Emotion)</strong></div>
+          <div className="kv-row"><span>Dominant</span><b>{conv?.emotion_dominant || "unknown"}</b></div>
+          <div className="kv-row"><span>Confidence</span><b>{conv?.emotion_confidence ? `${Math.round(conv.emotion_confidence * 100)}%` : "—"}</b></div>
+          <div className="kv-row"><span>Response style</span><b>{conv?.emotion_recommended_style || "—"}</b></div>
+          <div className="kv-row"><span>Operator alert</span><b>{conv?.emotion_requires_operator_alert ? "⚠ yes" : "no"}</b></div>
+          <div className="kv-row"><span>Updated</span><b>{age(conv?.emotion_ts)}</b></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OverviewTab(p: TabProps) {
   return (
     <div className="tab-body">
@@ -394,6 +461,8 @@ function OverviewTab(p: TabProps) {
           </div>
         ))}
       </div>
+
+      <LiveConversationPanel api={p.api} token={p.token} />
 
       <div className="panel" style={{ marginTop: 18 }}>
         <div className="section-title"><span>Event Console</span><small>last 20 actions</small></div>

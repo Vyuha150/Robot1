@@ -40,6 +40,13 @@ COPY ros2_ws/src/bonbon_distributed_safety /opt/bonbon/ros2_ws/src/bonbon_distri
 COPY ros2_ws/src/bonbon_authority_manager /opt/bonbon/ros2_ws/src/bonbon_authority_manager
 COPY ros2_ws/src/bonbon_msgs /opt/bonbon/ros2_ws/src/bonbon_msgs
 COPY ros2_ws/src/bonbon_srvs /opt/bonbon/ros2_ws/src/bonbon_srvs
+# bonbon_operator_api -- test/dev operator dashboard backend (FastAPI +
+# ROS2 bridge). Not part of Pi-2's production bringup (that's Pi-1's
+# System UI/API role per the 3-Pi split) but co-located here so it can
+# read this Pi's real ROS2 topics directly over the shared DDS domain
+# during hardware testing, rather than a mock/offline dashboard. See
+# docker-compose.pi2.yml's dashboard-api service.
+COPY ros2_ws/src/bonbon_operator_api /opt/bonbon/ros2_ws/src/bonbon_operator_api
 # NOTE: apt-get update must run again here -- the first RUN above deletes
 # /var/lib/apt/lists/* at its end (standard image-size hygiene), so without
 # a fresh update rosdep's apt-backed installs (python3-opencv, python3-smbus2)
@@ -86,9 +93,10 @@ RUN python3 -m pip install --no-cache-dir \
     --extra-index-url https://pypi.org/simple \
     -r /opt/bonbon/requirements/pi2_requirements.txt
 
-# Pre-bake the two runtime-downloaded ML models (Silero VAD for
+# Pre-bake the three runtime-downloaded ML models (Silero VAD for
 # bonbon_speech, all-MiniLM-L6-v2 sentence-transformers embedder for
-# bonbon_llm's Chroma RAG backend) into the image at BUILD time, not
+# bonbon_llm's Chroma RAG backend, and the default Piper voice for
+# bonbon_tts) into the image at BUILD time, not
 # container-start time. Confirmed on real Pi-2 hardware: both
 # SentenceTransformer(...) and torch.hub.load(...) are synchronous,
 # unbounded network calls invoked from inside a ROS2 lifecycle
@@ -96,13 +104,14 @@ RUN python3 -m pip install --no-cache-dir \
 # the node's executor thread for minutes, past launch_ros's own
 # transition-wait patience, so launch reports "Failed to make
 # transition" while the node is actually still stuck mid-download in
-# the background. Baking both models in here makes container startup
+# the background. Baking all three models in here makes container startup
 # deterministic and network-independent (the one industry-grade fix;
 # just adding a timeout would still leave a slow-startup landmine).
 ENV HF_HOME=/opt/bonbon/.cache/huggingface \
     TORCH_HOME=/opt/bonbon/.cache/torch
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && \
-    python3 -c "import torch; torch.hub.load('snakers4/silero-vad', 'silero_vad', trust_repo=True)"
+    python3 -c "import torch; torch.hub.load('snakers4/silero-vad', 'silero_vad', trust_repo=True)" && \
+    python3 -m piper.download_voices en_US-lessac-medium
 # HF_HUB_OFFLINE is set only now (after the pre-download RUN above, which
 # needs network) so the final image never attempts a network call for
 # these already-cached models at runtime.
