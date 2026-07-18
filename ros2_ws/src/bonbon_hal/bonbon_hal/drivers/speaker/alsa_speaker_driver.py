@@ -194,13 +194,55 @@ class AlsaSpeakerDriver(SpeakerDriver):
             samples = np.frombuffer(chunk.data, dtype=np.int16).astype(np.float32) / 32768.0
             if chunk.channels > 1:
                 samples = samples.reshape(-1, chunk.channels)
-            sd.play(samples, samplerate=chunk.sample_rate, device=self._device_index, blocking=True)
+            play_rate = self._resolve_playable_rate(chunk.sample_rate)
+            if play_rate != chunk.sample_rate:
+                samples = self._resample(samples, chunk.sample_rate, play_rate)
+            sd.play(samples, samplerate=play_rate, device=self._device_index, blocking=True)
             self._playing = False
             self._record_success()
         except Exception as exc:
             self._playing = False
             self._record_fault("PLAY_ERROR", str(exc))
             raise DriverFault(str(exc), "PLAY_ERROR") from exc
+
+    def _resolve_playable_rate(self, requested_rate: int) -> int:
+        """
+        Return a sample rate this output device will actually accept.
+
+        Many USB audio class devices (confirmed on real Pi-2 hardware with
+        a generic USB headset standing in for the ReSpeaker/PAM8610 speaker
+        during testing) only support ONE fixed hardware rate -- commonly
+        48000 Hz -- and reject `sd.play()`'s stream-open call outright
+        (PortAudio error -9997, "Invalid sample rate") for anything else,
+        including the 22050 Hz Piper's default "medium" voice actually
+        synthesizes at. Falls back to the requested rate unqueried if the
+        device's own default can't be determined, so behavior is unchanged
+        on hardware that genuinely supports arbitrary rates.
+        """
+        if self._device_index is None:
+            return requested_rate
+        try:
+            device_default = int(sd.query_devices(self._device_index)["default_samplerate"])
+        except Exception:
+            return requested_rate
+        return device_default if device_default != requested_rate else requested_rate
+
+    @staticmethod
+    def _resample(samples: np.ndarray, from_rate: int, to_rate: int) -> np.ndarray:
+        """Linear-interpolation resample -- good enough for spoken-word TTS
+        audio; avoids adding a scipy dependency for this one conversion."""
+        if from_rate == to_rate or samples.shape[0] == 0:
+            return samples
+        duration = samples.shape[0] / float(from_rate)
+        new_length = max(1, int(round(duration * to_rate)))
+        old_idx = np.linspace(0.0, samples.shape[0] - 1, num=samples.shape[0])
+        new_idx = np.linspace(0.0, samples.shape[0] - 1, num=new_length)
+        if samples.ndim == 1:
+            return np.interp(new_idx, old_idx, samples).astype(np.float32)
+        return np.stack(
+            [np.interp(new_idx, old_idx, samples[:, ch]) for ch in range(samples.shape[1])],
+            axis=1,
+        ).astype(np.float32)
 
     def play_file(self, path: str) -> None:
         if not self.is_connected:

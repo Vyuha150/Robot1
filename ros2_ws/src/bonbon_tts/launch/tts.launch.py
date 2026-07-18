@@ -13,6 +13,7 @@ Launch arguments
 ----------------
 model_path       Path to Piper .onnx model (default: "").
 speaker_driver   "mock" or "hal" (default: "mock").
+speaker_device   ALSA/PortAudio output device name or substring (default: "default").
 volume_pct       Playback volume 0–100 (default: 80.0).
 filler_enabled   Enable filler clips (default: "true").
 health_rate_hz   Health publish rate (default: 1.0).
@@ -58,6 +59,18 @@ def generate_launch_description() -> LaunchDescription:
         default_value="80.0",
         description="Playback volume 0–100",
     )
+    speaker_device_arg = DeclareLaunchArgument(
+        "speaker_device",
+        default_value="default",
+        description=(
+            "ALSA/PortAudio output device name or substring (e.g. 'USB'). "
+            "'default' picks PortAudio's first output-capable device, which "
+            "is not necessarily the intended one when multiple output "
+            "devices are present (confirmed on real Pi-2 hardware: with an "
+            "HDMI output and a USB headset both enumerated, 'default' "
+            "silently selected the wrong one)."
+        ),
+    )
     filler_arg = DeclareLaunchArgument(
         "filler_enabled",
         default_value="true",
@@ -80,6 +93,7 @@ def generate_launch_description() -> LaunchDescription:
             {
                 "piper.model_path": LaunchConfiguration("model_path"),
                 "speaker.driver": LaunchConfiguration("speaker_driver"),
+                "speaker.device": LaunchConfiguration("speaker_device"),
                 "speaker.volume_pct": LaunchConfiguration("volume_pct"),
                 "filler.enabled": LaunchConfiguration("filler_enabled"),
                 "health_rate_hz": LaunchConfiguration("health_rate_hz"),
@@ -117,6 +131,7 @@ def generate_launch_description() -> LaunchDescription:
         [
             model_path_arg,
             speaker_driver_arg,
+            speaker_device_arg,
             volume_arg,
             filler_arg,
             health_rate_arg,

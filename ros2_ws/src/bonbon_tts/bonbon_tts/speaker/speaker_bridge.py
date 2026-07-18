@@ -76,7 +76,7 @@ class AbstractSpeakerBridge(ABC):
 
 class SpeakerBridge(AbstractSpeakerBridge):
     """
-    Production speaker bridge backed by ``bonbon_hal.SpeakerDriver``.
+    Production speaker bridge backed by ``bonbon_hal.AlsaSpeakerDriver``.
 
     Parameters
     ----------
@@ -85,14 +85,29 @@ class SpeakerBridge(AbstractSpeakerBridge):
     volume_pct:
         Initial volume (0–100).
     sample_rate:
-        Sample rate of WAV audio the driver will receive.
+        Unused — kept for backward-compatible construction; the real sample
+        rate is read from each WAV file's own header in ``play()``.
     channels:
-        Number of audio channels.
+        Unused — same reason as ``sample_rate``.
 
     Raises
     ------
     ImportError
         If ``bonbon_hal`` is not installed.
+
+    Notes
+    -----
+    Confirmed on real Pi-2 hardware: this previously imported a
+    non-existent ``bonbon_hal.drivers.speaker_driver.SpeakerDriver`` (the
+    real module is one level deeper, at
+    ``bonbon_hal.drivers.speaker.alsa_speaker_driver.AlsaSpeakerDriver``)
+    and called methods (``initialize()``, ``play_wav()``, ``is_playing()``,
+    ``is_available()``) that don't exist anywhere on the real driver or its
+    ``DriverBase`` parent (which instead has ``connect()``, ``play(chunk)``,
+    ``is_connected``). The import failure alone silently fell back to
+    ``MockSpeakerBridge`` in every deployment so far, so no audio was ever
+    actually played through hardware despite ``speaker_driver:=hal`` being
+    set.
     """
 
     def __init__(
@@ -103,32 +118,51 @@ class SpeakerBridge(AbstractSpeakerBridge):
         channels: int = 1,
     ) -> None:
         # Hard import — fail fast if HAL not available
-        from bonbon_hal.drivers.speaker_driver import SpeakerDriver  # type: ignore[import]
-
-        self._driver = SpeakerDriver(
-            device=device,
-            sample_rate=sample_rate,
-            channels=channels,
+        from bonbon_hal.drivers.speaker.alsa_speaker_driver import (  # type: ignore[import]
+            AlsaSpeakerDriver,
         )
-        self._driver.initialize()
+
+        self._driver = AlsaSpeakerDriver(device_name=device, volume_pct=volume_pct)
+        if not self._driver.connect():
+            raise RuntimeError(f"AlsaSpeakerDriver failed to connect (device={device!r})")
         self._volume_pct = volume_pct
-        self._driver.set_volume(volume_pct)
+        self._playing = False
+        self._lock = threading.Lock()
         logger.info("SpeakerBridge ready: device=%r volume=%.0f%%", device, volume_pct)
 
     # ── AbstractSpeakerBridge ──────────────────────────────────────────────────
 
     def play(self, wav_bytes: bytes) -> None:
-        self._driver.play_wav(wav_bytes)
+        import io
+        import wave
+
+        from bonbon_hal.drivers.microphone.mic_driver import AudioChunk  # type: ignore[import]
+
+        with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+            chunk = AudioChunk(
+                data=wf.readframes(wf.getnframes()),
+                sample_rate=wf.getframerate(),
+                channels=wf.getnchannels(),
+                bit_depth=wf.getsampwidth() * 8,
+            )
+        with self._lock:
+            self._playing = True
+        try:
+            self._driver.play(chunk)
+        finally:
+            with self._lock:
+                self._playing = False
 
     def stop(self) -> None:
         self._driver.stop()
 
     def is_playing(self) -> bool:
-        return self._driver.is_playing()
+        with self._lock:
+            return self._playing
 
     def is_available(self) -> bool:
         try:
-            return self._driver.is_available()
+            return self._driver.is_connected
         except Exception:
             return False
 
