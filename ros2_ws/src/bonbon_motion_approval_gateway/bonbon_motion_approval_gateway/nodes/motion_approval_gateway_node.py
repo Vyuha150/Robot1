@@ -18,6 +18,7 @@ core/approval_gateway.py (15 unit tests, fully verified here).
 
 from __future__ import annotations
 
+import math
 import uuid
 
 import rclpy
@@ -131,6 +132,13 @@ class MotionApprovalGatewayNode(LifecycleNode):
         )
 
     def _cb_proposal(self, msg: BehaviorProposal) -> None:
+        # Yaw from quaternion -- same conversion bonbon_navigation's own
+        # nodes use elsewhere in this repo, kept local here rather than a
+        # cross-package import (see resource_guard.py's docstring on why
+        # this repo keeps that convention for domain-to-domain code).
+        q = msg.nav_goal_pose.orientation
+        nav_goal_yaw = math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+
         proposal = ProposalInput(
             event_id=msg.event_id,
             source_module=msg.source_module,
@@ -140,6 +148,10 @@ class MotionApprovalGatewayNode(LifecycleNode):
             urgency=float(msg.urgency),
             justification=msg.justification,
             safety_check_required=bool(msg.safety_check_required),
+            nav_goal_x=float(msg.nav_goal_pose.position.x),
+            nav_goal_y=float(msg.nav_goal_pose.position.y),
+            nav_goal_yaw=nav_goal_yaw,
+            nav_goal_label=msg.nav_goal_label,
         )
         result = self._gateway.evaluate(proposal, self._latest_safety)
 
@@ -157,6 +169,11 @@ class MotionApprovalGatewayNode(LifecycleNode):
         decision.confidence = result.confidence
         decision.operator_alerted = result.operator_alerted
         decision.logged = result.logged
+        decision.nav_goal_label = result.nav_goal_label
+        decision.nav_goal_pose.position.x = result.nav_goal_x
+        decision.nav_goal_pose.position.y = result.nav_goal_y
+        decision.nav_goal_pose.orientation.z = math.sin(result.nav_goal_yaw * 0.5)
+        decision.nav_goal_pose.orientation.w = math.cos(result.nav_goal_yaw * 0.5)
 
         if result.decision == "approved" and self._pub_approval is not None:
             self._pub_approval.publish(decision)

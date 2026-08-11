@@ -1,0 +1,41 @@
+# config/models/offline_open_source_profile.yaml
+#
+# Overlay guaranteeing zero commercial/gated/cloud dependencies -- every
+# enabled model is open-source, license-clear, and runs fully offline.
+# This is close to model_registry.yaml's own base defaults already (the
+# base registry defaults to open-source choices), made explicit here so
+# a deployment can pin to "offline open source only" even if the base
+# registry's defaults change later, and so this profile can be diffed
+# against pi_ai_hat_plus_2_profile.yaml to see exactly what Hailo adds.
+
+overrides:
+  # Cloud/commercial/gated -- always off in this profile, regardless of
+  # whether access might otherwise be available.
+  asr_sarvam_edge: false
+  tts_sarvam_edge: false
+  translation_sarvam: false
+  wake_porcupine: false
+  face_insightface: false          # pretrained weights are non-commercial-restricted (GAP per license plan)
+  vision_ultralytics_direct: false # AGPL-3.0 commercial_allowed=unknown
+  vision_hailo_yolo: false         # Hailo Model Zoo license "mixed -- verify per compiled model", commercial_allowed=unknown; base registry now defaults this on (18-point edge-AI verification, check 1), this profile explicitly opts back out to its own vision_mock choice below
+  diarization_pyannote: false      # gated on HF token + unclear commercial terms
+
+  # Open-source, offline, already-real choices -- explicitly on.
+  llm_qwen25_05b: true
+  asr_faster_whisper: true
+  tts_piper_en: true
+  wake_openwakeword: true
+  vad_silero: true
+  gesture_mediapipe_holistic: true
+  rag_bonbon_llm_chroma: true
+  faq_hospital_deterministic: true
+  diarization_active_speaker_approx: true
+  face_mock: true
+  vision_mock: true
+  translation_none: true
+  # emotion_face_deepface / voice_emotion_speechbrain are NOT overridden
+  # here -- both are genuinely open-source (MIT/Apache) with no
+  # commercial/gated/cloud dependency, so they inherit the base
+  # registry's own enabled_by_default=true (GAP-1 fix) rather than being
+  # forced down to their mock/lighter fallbacks in an "open source only"
+  # profile that has no actual license reason to avoid them.

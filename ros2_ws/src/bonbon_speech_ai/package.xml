@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_speech_ai</name>
+  <version>1.0.0</version>
+  <description>
+    ASR/TTS routing layer sitting between bonbon_speech/bonbon_tts's real
+    backends and bonbon_ai_model_registry's capability registry.
+    Implements the ReSpeaker -> VAD/wake-word -> ASR router -> language
+    detector -> transcript normalizer -> intent detector -> RAG/LLM
+    gateway -> TTS router -> speaker output pipeline, with hospital
+    phrase boosting and entity correction (doctor names, room/token
+    numbers, departments). Does not re-implement VAD/wake-word/ASR/TTS
+    inference itself -- bonbon_speech and bonbon_tts already own that;
+    this package decides WHICH backend runs, in what order of
+    preference, honestly reflecting real availability (rule 1).
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>bonbon_ai_model_registry</exec_depend>
+  <exec_depend>bonbon_sarvam_adapter</exec_depend>
+  <exec_depend>bonbon_msgs</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

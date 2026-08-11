@@ -1,0 +1,48 @@
+# Edge AI Runtime brief, Phase 6. Cache policy per the brief's exact
+# rules. bonbon_edge_ai_runtime.cache_manager reads the RAG-cache
+# section; the LLM/TTS cache sections here document the ALREADY-REAL
+# policy those caches implement in bonbon_llm/bonbon_speech_ai (see
+# docs/DUPLICATE_PIPELINE_AUDIT.md) -- this file is their documented
+# contract, not a second config those modules actually read.
+
+rag_result_cache:
+  max_entries: 128
+  ttl_sec: 30.0
+  # A patient-specific query must be marked privacy_safe: false by the
+  # caller -- RagResultCache.put() refuses to store it, never caches
+  # anyway.
+  privacy_safe_by_default: true
+
+llm_response_cache:
+  # Documents bonbon_llm.core.response_cache.ResponseCache's real,
+  # already-implemented policy -- not read by that module, which has
+  # its own hardcoded defaults matching these values.
+  max_entries: 128
+  ttl_sec: 30.0
+  cacheable_statuses: [ok]
+  key_excludes_rag_results: true
+
+tts_phrase_cache:
+  # Documents bonbon_speech_ai.tts_router.HOSPITAL_PHRASE_CACHE_KEYS'
+  # real, already-implemented policy.
+  cached_phrase_keys:
+    - welcome_greeting
+    - token_called
+    - please_wait
+    - follow_me
+    - emergency_staff_alert
+    - navigation_arrived
+  cache_path_template: "models/tts_cache/{language}/{phrase_key}.wav"
+
+deterministic_data:
+  # FAQ/doctor/department/room lookups are NOT cached here -- they are
+  # recomputed from the source of truth on every call (no invalidation
+  # problem to solve since nothing is cached).
+  faq_hospital_deterministic:
+    cached: false
+    reason: "always resolved fresh from hospital data; caching would need admin-update invalidation this deterministic resolver already avoids by not caching"
+
+metrics:
+  # Event types bonbon_edge_ai_runtime.cache_manager.CacheManager.metrics()
+  # aggregates -- callers report hit/miss via CacheManager.record().
+  tracked_item_types: [llm, tts, rag, embedding, faq]

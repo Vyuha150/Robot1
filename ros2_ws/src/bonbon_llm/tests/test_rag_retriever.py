@@ -250,3 +250,56 @@ class TestEdgeCases:
         rag.load()
         count_after = len(rag.retrieve("robot"))
         assert count_before == count_after
+
+
+# ── GAP-E14: exact match first, vector search second ──────────────────────────
+
+
+class TestExactMatchFirst:
+    """docs/EDGE_AI_GAP_ANALYSIS.md GAP-E14: retrieve_with_scores() must
+    check for an exact question match (add_faq_document's metadata key)
+    before ever computing an embedding/cosine similarity."""
+
+    def test_exact_match_returns_the_faq_answer_with_score_one(self, rag):
+        rag.add_faq_document("What are your opening hours?", "We are open 8am to 8pm daily.")
+        results = rag.retrieve_with_scores("What are your opening hours?")
+        assert len(results) == 1
+        assert results[0].document.text == "We are open 8am to 8pm daily."
+        assert results[0].score == 1.0
+        assert results[0].rank == 1
+
+    def test_exact_match_is_case_and_whitespace_insensitive(self, rag):
+        rag.add_faq_document("What are your opening hours?", "We are open 8am to 8pm daily.")
+        results = rag.retrieve_with_scores("  what ARE your   opening hours?  ")
+        assert len(results) == 1
+        assert results[0].document.text == "We are open 8am to 8pm daily."
+
+    def test_exact_match_never_touches_embeddings(self, rag, monkeypatch):
+        rag.add_faq_document("What are your opening hours?", "We are open 8am to 8pm daily.")
+        called = []
+        monkeypatch.setattr(rag, "_embed", lambda *a, **k: called.append(1) or __import__("numpy").zeros(4))
+        rag.retrieve_with_scores("What are your opening hours?")
+        assert called == [], "exact match must short-circuit before _embed() is ever called"
+
+    def test_non_exact_query_falls_through_to_vector_search(self, rag):
+        rag.add_faq_document("What are your opening hours?", "We are open 8am to 8pm daily.")
+        results = rag.retrieve_with_scores("tell me about the menu")
+        # Falls through to normal vector search over the seeded default
+        # knowledge base -- must not return the unrelated FAQ answer.
+        assert all(r.document.text != "We are open 8am to 8pm daily." for r in results)
+
+    def test_documents_without_question_metadata_never_use_the_fast_path(self, rag, monkeypatch):
+        # add_document (not add_faq_document) never sets metadata["question"]
+        # -- existing callers and the default knowledge base must still
+        # go through _embed()/vector search exactly as before this fix.
+        rag.add_document("A totally unrelated fact about tables.", metadata={"category": "test"})
+        called = []
+        real_embed = rag._embed
+        monkeypatch.setattr(rag, "_embed", lambda *a, **k: called.append(1) or real_embed(*a, **k))
+        rag.retrieve_with_scores("A totally unrelated fact about tables.")
+        assert called, "a document with no metadata['question'] must still go through _embed()"
+
+    def test_add_faq_document_stores_answer_as_text_not_question(self, rag):
+        doc = rag.add_faq_document("Q?", "A.")
+        assert doc.text == "A."
+        assert doc.metadata["question"] == "Q?"

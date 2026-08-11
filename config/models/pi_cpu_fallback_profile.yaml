@@ -1,0 +1,17 @@
+# config/models/pi_cpu_fallback_profile.yaml
+#
+# Overlay for when no Hailo device is detected -- the REAL, current state
+# of the Pi-2 hardware as of the last hardware check (2026-07-06). This is
+# effectively the base model_registry.yaml's own defaults for vision (all
+# hailo_* entries already enabled_by_default: false there), made explicit
+# here so callers can apply it unconditionally without needing to know
+# that fact, and so a future change to the base registry's vision
+# defaults doesn't silently change what "CPU fallback mode" means.
+
+overrides:
+  vision_hailo_yolo: false
+  vision_cpu_onnx_runtime_adapter: false   # no .onnx model file exists in-repo yet either (GAP-10) -- honestly still off
+  vision_ultralytics_direct: false         # AGPL-3.0 commercial_allowed=unknown -- stays off pending a legal decision, not silently "the CPU option so it must be fine"
+  vision_mock: true                        # the honest active fallback until a real model file + license decision exist
+  vision_person_hailo_yolo: false
+  gesture_hailo_pose: false                # MediaPipe's own pose landmarks (already real, already enabled) cover pose_estimation without Hailo

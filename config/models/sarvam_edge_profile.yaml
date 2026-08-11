@@ -1,0 +1,22 @@
+# config/models/sarvam_edge_profile.yaml
+#
+# Overlay applied ONLY when bonbon_sarvam_adapter.sarvam_capability_detector
+# confirms real, official Sarvam access (an installed Edge package or a
+# real API key -- see bonbon_sarvam_adapter/sarvam_license_status.py).
+# As of this pass, NO Sarvam access of any kind has been detected in this
+# repository or environment (zero references anywhere, confirmed by two
+# independent repo-wide searches -- docs/AI_MODEL_CURRENT_AUDIT.md).
+#
+# This file must NEVER be applied unconditionally -- it is only ever
+# consumed after a real detector call returns True, matching rule 3/12
+# ("Sarvam AI must be treated as preferred Indian-language engine only if
+# official Edge/API access exists"). Applying it without that check would
+# be exactly the "fake model availability" rule 1 forbids.
+
+overrides:
+  asr_sarvam_edge: true
+  asr_faster_whisper: false     # demoted to first fallback, not disabled entirely -- still the real safety net
+  tts_sarvam_edge: true
+  tts_piper_en: false           # same demotion, not removal
+  translation_sarvam: true
+  translation_none: false

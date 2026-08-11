@@ -227,5 +227,80 @@ class TestVoiceEmotionAnalyzer(unittest.TestCase):
         self.assertGreater(msg.neutral_score, 0.5)
 
 
+# ── Temporal smoothing (18-point edge-AI verification, check 9) ───────────────
+
+
+class _VaryingVoiceBackend:
+    """Deterministic backend that alternates between two very different
+    readings across calls, so smoothing's averaging effect is observable
+    (MockVoiceBackend above always returns the same fixed result, which
+    can't distinguish 'smoothed' from 'not smoothed')."""
+
+    def __init__(self) -> None:
+        self._ready = False
+        self._call_count = 0
+
+    def warmup(self) -> None:
+        self._ready = True
+
+    @property
+    def is_ready(self) -> bool:
+        return self._ready
+
+    def analyze_segment(self, audio_array, sample_rate) -> dict:
+        self._call_count += 1
+        if self._call_count % 2 == 1:
+            return {
+                "dominant_emotion": "angry", "dominant_confidence": 1.0,
+                "arousal": 0.9, "valence": 0.1, "arousal_valid": True, "valence_valid": True,
+                "neutral_score": 0.0, "happy_score": 0.0, "sad_score": 0.0, "angry_score": 1.0,
+                "fearful_score": 0.0, "stressed_score": 0.0, "calm_score": 0.0,
+                "urgent_score": 0.0, "confused_score": 0.0,
+                "noisy_audio": False, "backend_used": "varying",
+            }
+        return {
+            "dominant_emotion": "calm", "dominant_confidence": 1.0,
+            "arousal": 0.1, "valence": 0.8, "arousal_valid": True, "valence_valid": True,
+            "neutral_score": 0.0, "happy_score": 0.0, "sad_score": 0.0, "angry_score": 0.0,
+            "fearful_score": 0.0, "stressed_score": 0.0, "calm_score": 1.0,
+            "urgent_score": 0.0, "confused_score": 0.0,
+            "noisy_audio": False, "backend_used": "varying",
+        }
+
+
+class TestVoiceEmotionTemporalSmoothing(unittest.TestCase):
+    def setUp(self) -> None:
+        self.backend = _VaryingVoiceBackend()
+        self.backend.warmup()
+        self.config = AffectiveConfig(voice_segment_min_sec=0.5, voice_temporal_window=4)
+        self.privacy = PrivacyGate(self.config)
+        self.analyzer = VoiceEmotionAnalyzer(self.config, self.backend, self.privacy, _FakeClock())
+
+    def _noisy_audio(self, duration_sec: float = 1.0) -> np.ndarray:
+        rng = np.random.default_rng(42)
+        return rng.uniform(-0.1, 0.1, int(16000 * duration_sec)).astype(np.float32)
+
+    def test_scores_are_averaged_not_raw_single_frame(self) -> None:
+        # Raw backend alternates angry_score 1.0/0.0 -- a smoothed reading
+        # over 2 calls must land strictly between the two raw extremes,
+        # never exactly 0.0 or 1.0.
+        self.analyzer.analyze_segment(self._noisy_audio(), 16000)
+        msg = self.analyzer.analyze_segment(self._noisy_audio(), 16000)
+        self.assertGreater(msg.angry_score, 0.0)
+        self.assertLess(msg.angry_score, 1.0)
+
+    def test_dominant_emotion_label_has_no_score_suffix(self) -> None:
+        msg = self.analyzer.analyze_segment(self._noisy_audio(), 16000)
+        self.assertNotIn("_score", msg.dominant_emotion)
+
+    def test_non_averaged_fields_still_pass_through(self) -> None:
+        # arousal/valence/backend_used are not part of the smoother's
+        # averaged field set -- confirm the merge in analyze_segment()
+        # still carries them onto the outgoing message.
+        msg = self.analyzer.analyze_segment(self._noisy_audio(), 16000)
+        self.assertEqual(msg.backend_used, "varying")
+        self.assertTrue(msg.arousal_valid)
+
+
 if __name__ == "__main__":
     unittest.main()

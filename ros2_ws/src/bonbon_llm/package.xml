@@ -28,6 +28,11 @@
   <!-- Required Python -->
   <exec_depend>python3-numpy</exec_depend>
 
+  <!-- llm_orchestrator_node's rule-engine short-circuit (GAP-E8 fix)
+       imports TaskRouter directly -- optional, degrades to None (no
+       behavior change) if this package isn't installed. -->
+  <exec_depend>bonbon_edge_ai_runtime</exec_depend>
+
   <!-- Optional backends (pip install) -->
   <!-- pip install langchain langchain-community langchain-chroma -->
   <!-- pip install chromadb                (vector store, recommended) -->

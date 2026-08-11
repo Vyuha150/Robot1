@@ -69,6 +69,7 @@ from ..classifiers.head_gesture_classifier import HeadGestureClassifier
 from ..config.gesture_config import GestureConfig
 from ..health.health_monitor import GestureHealthMonitor
 from ..logic.body_part_classifier import classify_body_part
+from ..logic.frame_gate import should_process_frame
 from ..logic.intent_mapper import GestureIntentMapper
 from ..logic.person_assigner import (
     GesturePersonAssigner,
@@ -149,6 +150,7 @@ class GestureNode(LifecycleNode):
         self._lock: threading.Lock = threading.Lock()
         self._executor: ThreadPoolExecutor | None = None
         self._person_positions: dict[str, Point] = {}  # person_id → position
+        self._persons_topic_ever_received: bool = False  # GAP-E12: distinguishes startup race from genuine absence
         self._in_flight: Future | None = None
 
         # Multi-person identity assignment (bonbon_multi_person_tracker integration)
@@ -361,13 +363,24 @@ class GestureNode(LifecycleNode):
 
         self._health.record_frame_received()
 
-        # Throttle: process every Nth frame
+        # Throttle + presence gate (GAP-E12): process every Nth frame, AND
+        # skip entirely when /bonbon/vision/persons has reported nobody
+        # present -- the VAD-equivalent event gate this capability was
+        # missing (previously ran on every Nth frame regardless of
+        # whether anyone was in view).
         with self._lock:
             self._frame_counter += 1
-            should_process = (self._frame_counter % self._config.frame_sample_rate) == 0
             in_flight = self._in_flight is not None and not self._in_flight.done()
+            should_process = should_process_frame(
+                frame_counter=self._frame_counter,
+                frame_sample_rate=self._config.frame_sample_rate,
+                in_flight=in_flight,
+                gate_on_person_presence=self._config.gate_on_person_presence,
+                persons_topic_ever_received=self._persons_topic_ever_received,
+                any_person_present=bool(self._person_positions),
+            )
 
-        if not should_process or in_flight:
+        if not should_process:
             return
 
         # Decode image on the callback thread (fast, numpy only)
@@ -391,6 +404,7 @@ class GestureNode(LifecycleNode):
         """
         with self._lock:
             self._person_positions = {p.track_id: p.position for p in msg.persons}
+            self._persons_topic_ever_received = True
 
     def _cb_person_track(self, msg: PersonTrack) -> None:
         """Cache the latest PersonTrack from bonbon_multi_person_tracker.
@@ -758,6 +772,7 @@ class GestureNode(LifecycleNode):
         self.declare_parameter("safety_gesture_immediate", defaults.safety_gesture_immediate)
         self.declare_parameter("processing_timeout_sec", defaults.processing_timeout_sec)
         self.declare_parameter("min_visibility_threshold", defaults.min_visibility_threshold)
+        self.declare_parameter("gate_on_person_presence", defaults.gate_on_person_presence)
 
     def _create_backend(self, name: str) -> GestureBackendInterface:
         """Instantiate the requested backend.

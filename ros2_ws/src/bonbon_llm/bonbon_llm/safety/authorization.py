@@ -105,12 +105,20 @@ class SafetySnapshot:
 
     @classmethod
     def safe_default(cls) -> SafetySnapshot:
-        """Permissive default — used before first SafetyState message arrives."""
+        """Fail-closed default -- used before the first real SafetyState
+        message arrives, or once the last one received has gone stale
+        (see llm_orchestrator_node._get_safety_snapshot's staleness
+        check). Navigation and actuation must never be authorized
+        without a live, current Safety Supervisor heartbeat -- this was
+        previously a permissive/fail-open default, which let a
+        BehaviorRecommendation reach real Nav2 goal dispatch before the
+        first heartbeat arrived (see docs/SAFETY_SEPARATION_AUDIT.md
+        Finding 1)."""
         return cls(
-            state_id=SAFETY_NORMAL,
-            state_name="NORMAL",
-            actuation_permitted=True,
-            navigation_permitted=True,
+            state_id=SAFETY_INITIALIZING,
+            state_name="INITIALIZING",
+            actuation_permitted=False,
+            navigation_permitted=False,
         )
 
 

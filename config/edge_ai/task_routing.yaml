@@ -1,0 +1,48 @@
+# Edge AI Runtime brief, Phase 4. Documents (does not re-derive) the
+# routing order bonbon_edge_ai_runtime.task_router.TaskRouter implements
+# in code. Keyword/regex lists stay in code (a YAML string-matching DSL
+# would be more fragile, not less, for this), but the COST ORDER and
+# thresholds live here so a change doesn't require touching Python.
+
+text_intent_priority:
+  # Checked in this exact order -- first match wins. Matches
+  # task_router.py's route_text_intent() method order.
+  - task_type: emergency
+    method: deterministic_rule
+    never_uses_llm: true
+    always_safety_required: true
+  - task_type: navigation
+    method: deterministic_rule
+    never_uses_llm: true
+    always_safety_required: true
+  - task_type: appointment
+    method: deterministic_rule
+    never_uses_llm: true
+    always_safety_required: false
+  - task_type: faq
+    method: cached_answer_then_rag_retrieval
+    llm_used_for: wording_only
+    always_safety_required: false
+  - task_type: small_talk
+    method: tiny_local_llm
+    model_id: llm_qwen25_05b
+    timeout_sec: 2.0
+    always_safety_required: false
+
+gesture_priority:
+  safety_classes: [stop_palm]
+  known_classes:
+    [
+      wave, raised_hand, stop_palm, pointing_left, pointing_right,
+      pointing_forward, pointing_at_object, thumbs_up, thumbs_down,
+      come_here, go_away, head_nod_yes, head_shake_no, namaste,
+    ]
+  unknown_or_low_confidence_action: ignore
+  min_confidence_for_action: 0.5
+
+affective_routing:
+  # Below this, an emotion reading is preserved as uncertain evidence
+  # for human-state fusion only -- it must never strongly change robot
+  # behavior on its own (Phase 4's explicit "low-confidence emotion"
+  # rule).
+  actionable_confidence_threshold: 0.6

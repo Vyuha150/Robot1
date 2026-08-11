@@ -33,6 +33,36 @@ class PiLinkState(str, Enum):
     LOST = "lost"
 
 
+# Mirrors bonbon_msgs/ModuleHealth's status constants without importing the
+# ROS2 message type into this pure-Python module.
+HEALTH_OK = 0
+HEALTH_WARN = 1
+HEALTH_ERROR = 2
+
+
+def local_health_status(
+    *,
+    critical_node_crashed: bool | None,
+    important_node_crashed: bool | None,
+    in_startup_grace: bool,
+) -> tuple[int, str]:
+    """GAP-E4: derive this Pi's own heartbeat status from watchdog_node's
+    already-published crash flags, instead of always reporting OK. `None`
+    means "no crash-flag message received yet" (tracked separately from
+    `False`, a real received "not crashed") -- honesty rule, same as
+    HeartbeatMonitor's own "never seen -> LOST, not ONLINE" default above.
+    """
+    if critical_node_crashed:
+        return HEALTH_ERROR, "critical local node crashed (watchdog_node)"
+    if important_node_crashed:
+        return HEALTH_WARN, "important local node crashed (watchdog_node)"
+    if critical_node_crashed is None or important_node_crashed is None:
+        if in_startup_grace:
+            return HEALTH_OK, "starting up -- no watchdog signal yet (within grace period)"
+        return HEALTH_WARN, "no watchdog_node crash-flag signal received -- health unknown"
+    return HEALTH_OK, "OK"
+
+
 @dataclass(frozen=True)
 class HeartbeatConfig:
     stale_after_sec: float = 1.5

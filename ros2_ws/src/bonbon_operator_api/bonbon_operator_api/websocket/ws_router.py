@@ -45,6 +45,17 @@ _CHANNEL_MIN_PERMISSION = {
     "safety-rejections": "robot:read",
     "degraded-mode": "diagnostics:read",
     "component-health": "diagnostics:read",
+    "ai-models": "diagnostics:read",
+    "speech-ai": "diagnostics:read",
+    "sarvam": "diagnostics:read",
+    "perception-ai": "diagnostics:read",
+    "affective-ai": "diagnostics:read",
+    "edge-ai-status": "diagnostics:read",
+    "edge-ai-models": "diagnostics:read",
+    "edge-ai-routes": "diagnostics:read",
+    "edge-ai-resources": "diagnostics:read",
+    "edge-ai-safety": "diagnostics:read",
+    "edge-ai-cache": "diagnostics:read",
 }
 
 ws_router = APIRouter(prefix="/ws", tags=["websocket"])

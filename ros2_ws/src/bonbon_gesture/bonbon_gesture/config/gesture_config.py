@@ -43,6 +43,11 @@ class GestureConfig:
             normalised frame width) between a landmark set's observed
             horizontal position and a tracked person's predicted position
             before the match is rejected rather than guessed.
+        gate_on_person_presence: GAP-E12 fix. When True (default), skip
+            gesture inference on frames where /bonbon/vision/persons has
+            reported zero tracked persons -- the VAD-equivalent event
+            gate this capability was missing (previously ran on every
+            Nth frame regardless of whether anyone was in view).
     """
 
     backend: str = "mediapipe"
@@ -60,6 +65,7 @@ class GestureConfig:
     min_visibility_threshold: float = 0.5
     camera_hfov_deg: float = 60.0
     person_assign_max_x_norm_delta: float = 0.35
+    gate_on_person_presence: bool = True
 
     @classmethod
     def from_ros_params(cls, node: "rclpy.node.Node") -> GestureConfig:  # noqa: F821, UP037
@@ -105,5 +111,8 @@ class GestureConfig:
             camera_hfov_deg=float(_get("camera_hfov_deg", defaults.camera_hfov_deg)),
             person_assign_max_x_norm_delta=float(
                 _get("person_assign_max_x_norm_delta", defaults.person_assign_max_x_norm_delta)
+            ),
+            gate_on_person_presence=_get(
+                "gate_on_person_presence", defaults.gate_on_person_presence
             ),
         )

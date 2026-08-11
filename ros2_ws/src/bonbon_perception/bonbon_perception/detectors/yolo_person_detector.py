@@ -20,6 +20,23 @@ Usage
   detections = det.detect(color_bgr, depth_m)
 
 Requires: pip install ultralytics  (or pip install torch torchvision yolov5)
+
+DEPRECATED (GAP-E10, see docs/EDGE_AI_GAP_ANALYSIS.md and
+docs/DUPLICATE_PIPELINE_AUDIT.md): this is a duplicate of
+bonbon_vision.detectors.yolo_detector.YoloDetector /
+bonbon_vision.detectors.runtime_adapter_detector.ObjectDetectorRuntimeAdapter,
+which is the canonical stack -- it is actually launched
+(ros2_ws/src/bonbon_vision/launch/vision.launch.py), registered in
+config/models/model_registry.yaml's object_detection/person_detection
+capabilities, and routed through bonbon_ai_runtime.RuntimeSelector for
+real Hailo/CPU/mock fallback (which this module has no equivalent of).
+bonbon_perception's detection_node.py that constructs this class appears
+in zero launch files repo-wide -- confirmed unwired, not a live path.
+Do not add new person-detection callers against this class; use
+bonbon_vision's stack (via bonbon_edge_ai_runtime.accelerator_manager
+for the unified capability surface) instead. Kept in place (not deleted)
+since its own tests (tests/test_person_detector.py) still exercise it
+directly and it may still serve as a reference implementation.
 """
 
 from __future__ import annotations

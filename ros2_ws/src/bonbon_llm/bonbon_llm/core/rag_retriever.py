@@ -152,6 +152,14 @@ def _cosine(a: np.ndarray, b: np.ndarray) -> float:
     return max(-1.0, min(1.0, n / (da * db)))
 
 
+def _normalize_for_exact_match(text: str) -> str:
+    """Case/whitespace-only normalization for GAP-E14's exact-match
+    check -- deliberately NOT fuzzy (no stemming/punctuation-stripping):
+    an "exact match" that silently fuzzy-matches would defeat the point
+    of having a fast, unambiguous path distinct from vector search."""
+    return re.sub(r"\s+", " ", text.strip().lower())
+
+
 # ── Retriever ─────────────────────────────────────────────────────────────────
 
 
@@ -211,6 +219,21 @@ class RAGRetriever:
             self._store_add(doc)
         return doc
 
+    def add_faq_document(
+        self,
+        question: str,
+        answer: str,
+        doc_id: str | None = None,
+        extra_metadata: dict[str, str] | None = None,
+    ) -> RAGDocument:
+        """GAP-E14: register a document with a canonical question, making
+        it eligible for retrieve_with_scores()'s exact-match short-circuit
+        (see that method). `answer` is what gets returned/embedded as the
+        document text -- `question` is stored in metadata only, purely as
+        the exact-match key, never embedded or returned as text itself."""
+        metadata = {**(extra_metadata or {}), "question": question, "type": "faq"}
+        return self.add_document(answer, metadata=metadata, doc_id=doc_id)
+
     def retrieve(
         self,
         query: str,
@@ -226,18 +249,35 @@ class RAGRetriever:
         k: int | None = None,
         threshold: float | None = None,
     ) -> list[RetrievalResult]:
-        """Return (document, score) pairs sorted by descending similarity."""
+        """Return (document, score) pairs sorted by descending similarity.
+
+        GAP-E14 fix: exact match first, vector search second. A document
+        registered via add_faq_document() carries its canonical question
+        in metadata["question"] -- if `query` normalizes (case/whitespace
+        only) to an exact match against one, that document is returned
+        immediately with score=1.0, never falling through to embedding-
+        based cosine similarity. Documents without a "question" key
+        (the default knowledge base, and every existing add_document()
+        caller) are never eligible and behave exactly as before this fix.
+        """
         self._ensure_loaded()
         top_k = k if k is not None else self._cfg.top_k
         min_score = threshold if threshold is not None else self._cfg.similarity_threshold
 
-        q_emb = self._embed(query)
         with self._lock:
             docs = list(self._docs)
 
         if not docs:
             return []
 
+        normalized_query = _normalize_for_exact_match(query)
+        if normalized_query:
+            for doc in docs:
+                question = doc.metadata.get("question")
+                if question and _normalize_for_exact_match(question) == normalized_query:
+                    return [RetrievalResult(document=doc, score=1.0, rank=1)]
+
+        q_emb = self._embed(query)
         scored = []
         for doc in docs:
             if doc.embedding is None:

@@ -91,7 +91,15 @@ class SQLiteMemoryStore:
             enabled=self._cfg.faiss.enabled,
         )
 
-        # RAG
+        # RAG -- DEPRECATED, see chroma_store.py's module docstring
+        # (GAP-E9): not wired to any live ROS2 topic/service. Real RAG is
+        # bonbon_llm.core.rag_retriever.RAGRetriever. Kept constructed
+        # (not deleted) for tests/test_backup.py + tests/test_rag_store.py.
+        logger.warning(
+            "SQLiteMemoryStore.chroma/.rag are DEPRECATED and not wired to any "
+            "live interface -- use bonbon_llm.core.rag_retriever.RAGRetriever "
+            "for real RAG (see docs/EDGE_AI_GAP_ANALYSIS.md GAP-E9)"
+        )
         self.chroma = ChromaRAGStore(
             persist_dir=self._cfg.chroma.persist_dir,
             collection_prefix=self._cfg.chroma.collection_prefix,

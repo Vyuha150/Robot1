@@ -43,6 +43,11 @@ class AffectiveConfig:
     voice_segment_min_sec: float = 0.5
     """Minimum audio segment length (seconds) before running voice analysis."""
 
+    voice_temporal_window: int = 5
+    """Number of recent segments used for temporal smoothing (18-point
+    edge-AI verification, check 9 -- voice emotion previously had no
+    smoothing at all, unlike face emotion's face_temporal_window)."""
+
     # ── Text analysis ────────────────────────────────────────────────────────
     text_backend: str = "rules"
     """Backend for text emotion: 'rules', 'transformer', or 'mock'."""
@@ -110,6 +115,7 @@ class AffectiveConfig:
             ("voice_confidence_threshold", defaults.voice_confidence_threshold),
             ("voice_enabled", defaults.voice_enabled),
             ("voice_segment_min_sec", defaults.voice_segment_min_sec),
+            ("voice_temporal_window", defaults.voice_temporal_window),
             ("text_backend", defaults.text_backend),
             ("text_confidence_threshold", defaults.text_confidence_threshold),
             ("text_enabled", defaults.text_enabled),
@@ -144,6 +150,7 @@ class AffectiveConfig:
             voice_confidence_threshold=float(_get("voice_confidence_threshold")),
             voice_enabled=bool(_get("voice_enabled")),
             voice_segment_min_sec=float(_get("voice_segment_min_sec")),
+            voice_temporal_window=int(_get("voice_temporal_window")),
             text_backend=_get("text_backend"),
             text_confidence_threshold=float(_get("text_confidence_threshold")),
             text_enabled=bool(_get("text_enabled")),

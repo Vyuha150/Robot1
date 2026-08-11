@@ -1,0 +1,31 @@
+# Edge AI Runtime brief, Phase 2/8. bonbon_edge_ai_runtime.degraded_mode_manager
+# delegates the real sustained-pressure activation logic to
+# bonbon_perception_efficiency's existing DegradedModeManager
+# (config/runtime/degraded_mode.yaml is ITS real config, unchanged --
+# see docs/DUPLICATE_PIPELINE_AUDIT.md). This file documents the
+# additional "per-capability fallback chain exhausted" meaning of
+# degraded that bonbon_ai_model_registry.model_fallback_policy already
+# implements (FallbackDecision.degraded) for the 3 capabilities this
+# package adds, so a dashboard caller can distinguish the two different
+# "degraded" concepts EdgeDegradedModeManager combines.
+
+perception_degraded_mode:
+  delegates_to: "bonbon_perception_efficiency.core.degraded_mode_manager.DegradedModeManager"
+  config_source: "config/runtime/degraded_mode.yaml"
+  never_disable:
+    [safety_supervisor, emergency_stop, hal, lidar_obstacle_safety, navigation_safety, active_person_tracking]
+
+capability_fallback_exhaustion:
+  # A capability enters this state when its entire fallback chain
+  # (config/models/model_registry.yaml or config/edge_ai/model_registry.yaml)
+  # has no available entry left -- reported honestly, never faked as
+  # "working" (rule 8).
+  human_state_fusion:
+    terminal_fallback: human_state_fusion_degraded
+    effect: "callers get raw per-modality signals, no cross-person fusion"
+  intent_classification:
+    terminal_fallback: intent_classification_unknown
+    effect: "task_router routes to staff escalation rather than guessing an intent"
+  assistant_guardrails:
+    terminal_fallback: assistant_guardrails_deny_all
+    effect: "every behavior denied, every response replaced with a safe template -- fail closed, not fail open"

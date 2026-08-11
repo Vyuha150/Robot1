@@ -1,0 +1,79 @@
+{
+  "generated_at": "2026-08-04T21:08:37.879696+00:00",
+  "environment": {
+    "hostname": "Kalyan150",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "note": "Run on the dev sandbox, not real Pi-2/Pi-3 hardware. Unlike scripts/ai_models/benchmark_all_models.py, every category here is pure-Python orchestration code with no external hardware dependency, so these numbers are real end-to-end timings on this machine -- not blocked/fabricated. Real Pi ARM CPU timing must still be measured separately before treating these as production-representative (see docs/EDGE_AI_BENCHMARK_REPORT.md)."
+  },
+  "categories_run": [
+    "task_routing",
+    "safety_separation",
+    "caching",
+    "resource_guard",
+    "inference_scheduling",
+    "accelerator_selection"
+  ],
+  "iterations_per_category": 200,
+  "results": [
+    {
+      "category": "task_routing",
+      "status": "pass",
+      "iterations": 200,
+      "minMs": 0.023100001271814108,
+      "meanMs": 0.02913300006184727,
+      "p95Ms": 0.045199994929134846,
+      "maxMs": 0.1942999952007085,
+      "detail": "ok"
+    },
+    {
+      "category": "safety_separation",
+      "status": "pass",
+      "iterations": 200,
+      "minMs": 0.006399990525096655,
+      "meanMs": 0.011034999770345166,
+      "p95Ms": 0.014999997802078724,
+      "maxMs": 0.18890001229010522,
+      "detail": "ok"
+    },
+    {
+      "category": "caching",
+      "status": "pass",
+      "iterations": 200,
+      "minMs": 0.010599993402138352,
+      "meanMs": 0.01157149876235053,
+      "p95Ms": 0.014399993233382702,
+      "maxMs": 0.06640001083724201,
+      "detail": "ok"
+    },
+    {
+      "category": "resource_guard",
+      "status": "pass",
+      "iterations": 200,
+      "minMs": 0.013899989426136017,
+      "meanMs": 0.024097999412333593,
+      "p95Ms": 0.03510000533424318,
+      "maxMs": 0.47530001029372215,
+      "detail": "ok"
+    },
+    {
+      "category": "inference_scheduling",
+      "status": "pass",
+      "iterations": 200,
+      "minMs": 0.007099995855242014,
+      "meanMs": 0.00798699984443374,
+      "p95Ms": 0.008300004992634058,
+      "maxMs": 0.057699973694980145,
+      "detail": "ok"
+    },
+    {
+      "category": "accelerator_selection",
+      "status": "pass",
+      "iterations": 200,
+      "minMs": 0.014499993994832039,
+      "meanMs": 0.01605650279088877,
+      "p95Ms": 0.01719998545013368,
+      "maxMs": 0.12169999536126852,
+      "detail": "mock runtime forced -- no real Hailo/OAK-D hardware on this sandbox, see docs/EDGE_AI_BENCHMARK_REPORT.md"
+    }
+  ]
+}

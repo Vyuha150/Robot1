@@ -2,6 +2,12 @@
 
 Provides a single ``query()`` method that searches one or all ChromaDB
 collections and returns merged, de-duplicated, score-sorted results.
+
+DEPRECATED (GAP-E9, see docs/EDGE_AI_GAP_ANALYSIS.md and
+chroma_store.py's own module docstring for the full explanation): built
+on the also-deprecated ChromaRAGStore, never wired to a live ROS2
+interface. The real, live RAG implementation is
+``bonbon_llm.core.rag_retriever.RAGRetriever``.
 """
 
 from __future__ import annotations

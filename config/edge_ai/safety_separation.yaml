@@ -1,0 +1,70 @@
+# Edge AI Runtime brief, Phase 7. Data-driven documentation of the rules
+# bonbon_edge_ai_runtime.safety_separation_guard.SafetySeparationGuard
+# enforces in code -- lets the dashboard display the rule table without
+# hardcoding a second copy of it, and gives a future reviewer one place
+# to see the full policy without reading Python.
+
+action_categories:
+  - TEXT_ONLY
+  - INFO_LOOKUP
+  - STAFF_ALERT
+  - NAVIGATION_REQUEST
+  - ACTUATION_REQUEST
+  - SAFETY_CRITICAL
+  - UNSAFE_DIRECT_CONTROL
+  - MEDICAL_DIAGNOSIS_RISK
+  - PRIVACY_RISK
+
+# Only these source modules may ever issue a direct hardware-control
+# action (direct_motor_command, direct_servo_command, raw_nav2_goal,
+# direct_navigation_command, emergency_override). Everything else --
+# llm, ui, ai_pi_gesture, ai_pi_perception, behavior_engine,
+# patient_kiosk, operator_dashboard -- may only ever submit a
+# NAVIGATION_REQUEST/ACTUATION_REQUEST proposal.
+authorized_direct_control_sources:
+  - safety_supervisor
+  - safety_gate
+  - motion_approval_gateway
+
+never_allow:
+  - from: llm
+    to: motor
+  - from: llm
+    to: servo
+  - from: llm
+    to: nav2_goal
+  - from: llm
+    to: emergency_override
+  - from: ui
+    to: motor
+  - from: ui
+    to: servo
+  - from: ui
+    to: raw_nav2_goal
+  - from: ai_pi
+    to: motor
+  - from: ai_pi
+    to: servo
+
+allowed_flow:
+  - "UI / AI request"
+  - "Behavior Proposal"
+  - "Safety Gateway on Navigation Pi"
+  - "Validated navigation/actuation command"
+  - "Execution"
+
+# See docs/SAFETY_SEPARATION_AUDIT.md for the concrete gap this
+# describes (Finding 2): step 3 (Safety Gateway) currently has no
+# subscriber on its decision topic for navigation dispatch specifically
+# -- the allowed_flow above is the TARGET state, not yet fully wired for
+# every action type. GAP-E1 (the fail-open authorization bug) is fixed;
+# Finding 2/5 remain open, tracked for the full Phase 7 pass.
+known_gaps:
+  - id: GAP-E2
+    description: "bonbon_motion_approval_gateway's BehaviorDecision has no subscriber on /bonbon/motion/approved_command"
+    status: fixed
+    fix_summary: "navigation_node now dispatches Nav2 goals only from gateway-approved BehaviorDecision; bonbon_behavior_engine bridges BehaviorRecommendation to a real BehaviorProposal; pose data threaded through the gateway's dataclasses and BehaviorDecision.msg"
+  - id: GAP-E5
+    description: "Nav2-to-wheel-motor velocity path is dead code (topic name mismatch + missing .publish() call)"
+    status: fixed
+    fix_summary: "added the real /bonbon/cmd_vel_raw publisher matching safety_gate_node's actual subscription; _publish_gated_vel now actually publishes"

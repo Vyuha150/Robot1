@@ -1,0 +1,871 @@
+# config/models/model_registry.yaml
+#
+# Single source of truth for every AI model BonBon can use, across all 16
+# capabilities named in the AI model upgrade brief. Loaded by
+# bonbon_ai_model_registry.model_registry.ModelRegistry.
+#
+# Every entry's facts are sourced from either (a) real code/config already
+# in this repo (docs/AI_MODEL_CURRENT_AUDIT.md), or (b) publicly documented
+# licenses/sizes for models not yet integrated (docs/AI_MODEL_DOWNLOAD_AND_LICENSE_PLAN.md).
+# Nothing here is invented. `enabled_by_default: true` means "this pass
+# recommends it as the active choice," NOT "this pass downloaded it" --
+# see the download/license plan for what was actually fetched (only
+# qwen2.5:0.5b, already done on real Pi-2 hardware before this pass).
+#
+# fallback_model_id chains implement the router priority order from
+# Phase 3 of the brief, with one documented deviation: ASR's real #2 slot
+# is faster-whisper (already the repo's tested, deployed choice -- itself
+# one of the brief's own sanctioned ASR fallbacks), not sherpa-onnx, which
+# has zero prior integration in this repo. sherpa-onnx/whisper.cpp are
+# still registered, just below faster-whisper, pending an actual
+# benchmark that would justify reordering.
+
+models:
+  # ── A. Local LLM ──────────────────────────────────────────────────────
+  llm_qwen25_05b:
+    capability: local_llm
+    provider: ollama
+    model_name: "qwen2.5:0.5b"
+    version: "0.5b"
+    purpose: "Short conversational replies and RAG-grounded wording only -- never robot control (rule 5/6)."
+    license: "Apache-2.0"
+    commercial_allowed: "true"
+    download_type: ollama
+    download_command: "ollama pull qwen2.5:0.5b"
+    hardware_target: pi_cpu
+    runtime: ollama_http
+    expected_ram_mb: 1400
+    expected_storage_mb: 397
+    expected_latency_ms: 3800
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["en"]
+    notes: "PRIMARY. Already pulled + benchmarked on real Pi-2 hardware 2026-07-06 (7/7 prompts, 0 timeouts, 0 safety violations, avg 3.80s). Known limitation: unreliable Telugu output at this model size (see docs/PI2_QWEN25_05B_SETUP_REPORT.md) -- flagged honestly, not hidden. No fallback: if unavailable, local_llm capability reports degraded/unavailable rather than silently substituting a bigger, unapproved model."
+
+  llm_llama32_1b:
+    capability: local_llm
+    provider: ollama
+    model_name: "llama3.2:1b"
+    version: "1b"
+    purpose: "Benchmark-only candidate, not for production use without explicit approval."
+    license: "Llama 3.2 Community License (Meta) -- acceptable-use conditions apply, not a plain permissive license"
+    commercial_allowed: "true"
+    download_type: ollama
+    download_command: "ollama pull llama3.2:1b"
+    hardware_target: pi_cpu
+    runtime: ollama_http
+    expected_ram_mb: 2000
+    expected_storage_mb: 1300
+    expected_latency_ms: 5000
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en"]
+    notes: "Rule: do not download without explicit approval. Never auto-enabled; license_checker blocks it unless explicit_approval=True is passed by a human-initiated call."
+
+  llm_qwen25_15b:
+    capability: local_llm
+    provider: ollama
+    model_name: "qwen2.5:1.5b"
+    version: "1.5b"
+    purpose: "Benchmark-only candidate, not for production use without explicit approval."
+    license: "Apache-2.0"
+    commercial_allowed: "true"
+    download_type: ollama
+    download_command: "ollama pull qwen2.5:1.5b"
+    hardware_target: pi_cpu
+    runtime: ollama_http
+    expected_ram_mb: 2200
+    expected_storage_mb: 986
+    expected_latency_ms: 6000
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "zh"]
+    notes: "Same rule as llama3.2:1b -- benchmark-only, never auto-downloaded."
+
+  # ── B. ASR ────────────────────────────────────────────────────────────
+  asr_sarvam_edge:
+    capability: asr
+    provider: sarvam
+    model_name: "Saaras v3 (Sarvam Edge ASR)"
+    version: "unknown -- no access to check"
+    purpose: "English/Hindi/Telugu/code-mixed speech recognition, if official access exists."
+    license: "Commercial (Sarvam AI proprietary)"
+    commercial_allowed: "unknown"
+    download_type: api
+    download_command: "N/A -- requires Sarvam Edge package or API credentials; no official access detected in this environment"
+    hardware_target: external_api
+    runtime: sarvam_edge_or_api
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 0
+    fallback_model_id: asr_faster_whisper
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    notes: "Gated by bonbon_sarvam_adapter.sarvam_capability_detector -- never auto-enabled without a confirmed real access check (rule 3/12). Zero prior Sarvam integration found in this repo."
+
+  asr_faster_whisper:
+    capability: asr
+    provider: guillaumekln
+    model_name: "faster-whisper (base, multilingual)"
+    version: "base"
+    purpose: "Real, already-deployed offline ASR fallback -- event-driven after VAD, never continuous."
+    license: "MIT (faster-whisper wrapper); underlying Whisper weights are MIT (OpenAI)"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install faster-whisper"
+    hardware_target: pi_cpu
+    runtime: ctranslate2
+    expected_ram_mb: 600
+    expected_storage_mb: 145
+    expected_latency_ms: 2000
+    fallback_model_id: asr_sherpa_onnx
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["en", "hi", "te", "auto"]
+    import_name: faster_whisper
+    notes: "Already the real, deployed choice in requirements/pi2_requirements.txt (openai-whisper deliberately excluded there for CUDA/triton bloat -- see docs/AI_MODEL_DOWNLOAD_AND_LICENSE_PLAN.md). STTConfig.backend defaults to 'mock' in bonbon_speech's own package -- this registry's pi_ai_hat_plus_2_profile.yaml enables the real backend by default (GAP-6), without changing bonbon_speech's own conservative package-level default."
+
+  asr_sherpa_onnx:
+    capability: asr
+    provider: k2-fsa
+    model_name: "sherpa-onnx streaming zipformer (multilingual)"
+    version: "unpinned -- not yet selected"
+    purpose: "Candidate embedded ASR engine per the brief's stated preference; not yet benchmarked against faster-whisper."
+    license: "Apache-2.0"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install sherpa-onnx && python -m sherpa_onnx.download_model --help  # exact model URL TBD at benchmark time, see scripts/ai_models/install_sherpa_onnx.sh"
+    hardware_target: pi_cpu
+    runtime: onnxruntime
+    expected_ram_mb: 300
+    expected_storage_mb: 150
+    expected_latency_ms: 1500
+    fallback_model_id: asr_whisper_cpp
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    import_name: sherpa_onnx
+    notes: "Zero prior references anywhere in this repo (GAP-7). Not installed, not benchmarked. Registered per the brief's explicit request but ranked below faster-whisper, which is real and already deployed."
+
+  asr_whisper_cpp:
+    capability: asr
+    provider: ggerganov
+    model_name: "whisper.cpp (tiny/base, ggml)"
+    version: "tiny"
+    purpose: "Benchmark-fallback ASR engine per the brief."
+    license: "MIT (whisper.cpp) + MIT (OpenAI Whisper weights)"
+    commercial_allowed: "true"
+    download_type: git
+    download_command: "git clone https://github.com/ggerganov/whisper.cpp && cd whisper.cpp && bash ./models/download-ggml-model.sh tiny"
+    hardware_target: pi_cpu
+    runtime: ggml
+    expected_ram_mb: 200
+    expected_storage_mb: 75
+    expected_latency_ms: 2500
+    fallback_model_id: asr_degraded_template
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te", "auto"]
+    notes: "Requires a C++ build step (git clone + make), not a pip install -- download_type=git reflects that honestly rather than pretending it's pip-installable."
+
+  asr_degraded_template:
+    capability: asr
+    provider: bonbon
+    model_name: "degraded template input (typed/pre-set phrases only)"
+    version: "n/a"
+    purpose: "Terminal fallback when no real ASR engine is available -- the kiosk still functions via touch input."
+    license: "N/A (no model)"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A -- no download, always available"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 0
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    notes: "The honest end of the ASR chain -- never fabricates a transcript, hands off to typed/touch UI input instead."
+
+  # ── C. TTS ────────────────────────────────────────────────────────────
+  tts_sarvam_edge:
+    capability: tts
+    provider: sarvam
+    model_name: "Bulbul v3 (Sarvam Edge TTS)"
+    version: "unknown"
+    purpose: "English/Hindi/Telugu TTS, if official access exists."
+    license: "Commercial (Sarvam AI proprietary)"
+    commercial_allowed: "unknown"
+    download_type: api
+    download_command: "N/A -- no official access detected"
+    hardware_target: external_api
+    runtime: sarvam_edge_or_api
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 0
+    fallback_model_id: tts_piper_en
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    notes: "Same gating as asr_sarvam_edge -- never auto-enabled without confirmed access."
+
+  tts_piper_en:
+    capability: tts
+    provider: rhasspy
+    model_name: "en_US-lessac-medium (Piper)"
+    asset_filename: "en_US-lessac-medium"
+    version: "medium"
+    purpose: "Real, already-deployed English TTS voice."
+    license: "MIT (Piper) + CC0/MIT (piper-voices model card)"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install piper-tts"
+    hardware_target: pi_cpu
+    runtime: piper_subprocess_or_api
+    expected_ram_mb: 200
+    expected_storage_mb: 63
+    expected_latency_ms: 400
+    fallback_model_id: tts_sherpa_onnx
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["en"]
+    import_name: piper
+    notes: "Already the real choice (piper-tts in pi2_requirements.txt), verified working on real Pi-2 hardware earlier this session (TTS speaker fix task). English only -- no Hindi/Telugu voice configured anywhere yet (GAP-8)."
+
+  tts_piper_hi:
+    capability: tts
+    provider: rhasspy
+    model_name: "hi_IN community voice (Piper)"
+    # Matches scripts/ai_models/install_piper_tts.sh's --with-hindi
+    # candidate exactly -- not yet fetched/benchmarked by default (that
+    # flag is opt-in), so this is "what would download today", not a
+    # claim that this file is present or verified.
+    asset_filename: "hi_IN-pratham-medium"
+    version: "unpinned -- specific voice TBD"
+    purpose: "Hindi TTS -- currently missing entirely (GAP-8)."
+    license: "Piper voice licensing, CC0/MIT per-voice (verify exact voice card before use)"
+    commercial_allowed: "true"
+    download_type: wget
+    download_command: "wget -P models/piper/ https://huggingface.co/rhasspy/piper-voices/resolve/main/hi/hi_IN/<voice>/medium/<voice>.onnx"
+    hardware_target: pi_cpu
+    runtime: piper_subprocess_or_api
+    expected_ram_mb: 200
+    expected_storage_mb: 80
+    expected_latency_ms: 400
+    fallback_model_id: tts_cached_phrase
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["hi"]
+    notes: "Not downloaded this pass -- exact voice identifier needs a deliberate choice + a real benchmark, not a placeholder URL guess. download_command's <voice> placeholder must be filled in before this is dispatchable."
+
+  tts_sherpa_onnx:
+    capability: tts
+    provider: k2-fsa
+    model_name: "sherpa-onnx VITS TTS"
+    version: "unpinned"
+    purpose: "Candidate offline TTS engine, not yet benchmarked."
+    license: "Apache-2.0"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install sherpa-onnx"
+    hardware_target: pi_cpu
+    runtime: onnxruntime
+    expected_ram_mb: 150
+    expected_storage_mb: 50
+    expected_latency_ms: 500
+    fallback_model_id: tts_cached_phrase
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    import_name: sherpa_onnx
+    notes: "Not installed, not benchmarked -- same status as asr_sherpa_onnx."
+
+  tts_cached_phrase:
+    capability: tts
+    provider: bonbon
+    model_name: "pre-recorded hospital phrase cache"
+    version: "n/a"
+    purpose: "Frequent hospital phrases (greetings, token numbers, department names) played from cached audio, no synthesis needed."
+    license: "N/A (recorded audio, internal asset)"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A -- recorded once, cached locally"
+    hardware_target: mock
+    runtime: audio_playback
+    expected_ram_mb: 0
+    expected_storage_mb: 20
+    expected_latency_ms: 50
+    fallback_model_id: tts_text_only
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    notes: "Cache-hit path is intentionally the fastest fallback (rank 13 in pi_efficiency_profile.yaml) -- see Phase 6 for the actual phrase list."
+
+  tts_text_only:
+    capability: tts
+    provider: bonbon
+    model_name: "text-only UI fallback (no audio)"
+    version: "n/a"
+    purpose: "Terminal fallback -- kiosk shows text instead of speaking."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A -- always available"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 0
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    notes: "Never blocks the interaction just because audio failed -- rule 'TTS must not block safety.'"
+
+  # ── D. Wake word / VAD ───────────────────────────────────────────────
+  wake_openwakeword:
+    capability: wake_word
+    provider: dscripka
+    model_name: "openWakeWord"
+    version: "unpinned"
+    purpose: "Local wake-word detection, no cloud."
+    license: "Apache-2.0"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install openwakeword"
+    hardware_target: pi_cpu
+    runtime: onnxruntime
+    expected_ram_mb: 100
+    expected_storage_mb: 10
+    expected_latency_ms: 50
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    import_name: openwakeword
+    notes: "Real code already exists (bonbon_speech/wake_word/wake_word_detector.py) but WakeWordConfig.enabled=False by default in the package (GAP-6) -- this registry enables it by default for the Pi-2 profile without changing the package's own conservative default."
+
+  wake_porcupine:
+    capability: wake_word
+    provider: picovoice
+    model_name: "Porcupine"
+    version: "unpinned"
+    purpose: "Optional wake-word alternative, only if licensing is acceptable."
+    license: "Commercial (Picovoice) -- free tier has usage limits, not unconditionally open"
+    commercial_allowed: "unknown"
+    download_type: api
+    download_command: "N/A -- requires a Picovoice access key; licensing decision not made"
+    hardware_target: external_api
+    runtime: picovoice_sdk
+    expected_ram_mb: 20
+    expected_storage_mb: 5
+    expected_latency_ms: 50
+    fallback_model_id: wake_openwakeword
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    notes: "Explicitly named as 'placeholder -- not yet implemented' in the real code (bonbon_speech/wake_word/wake_word_detector.py). Never auto-enabled -- conditional commercial license."
+
+  vad_silero:
+    capability: vad
+    provider: snakers4
+    model_name: "Silero VAD"
+    version: "unpinned (torch.hub latest)"
+    purpose: "Real-time voice activity detection, gates ASR so it never runs continuously."
+    license: "MIT"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "python -c \"import torch; torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad')\""
+    hardware_target: pi_cpu
+    runtime: torch
+    expected_ram_mb: 150
+    expected_storage_mb: 2
+    expected_latency_ms: 20
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    import_name: torch
+    notes: "Already the REAL default in bonbon_speech (unlike ASR/wake-word, VAD's default backend is genuinely 'silero', not 'mock')."
+
+  # ── E. Translation ───────────────────────────────────────────────────
+  translation_sarvam:
+    capability: translation
+    provider: sarvam
+    model_name: "Sarvam Translate"
+    version: "unknown"
+    purpose: "English/Hindi/Telugu translation, if official access exists."
+    license: "Commercial (Sarvam AI proprietary)"
+    commercial_allowed: "unknown"
+    download_type: api
+    download_command: "N/A -- no official access detected"
+    hardware_target: external_api
+    runtime: sarvam_edge_or_api
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 0
+    fallback_model_id: translation_none
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    notes: "No open-source translation model has been evaluated/selected yet (MISSING per Phase 1 audit) -- Sarvam is the only candidate named in the brief; no fallback open-source model chosen in this pass since none is currently justified as needed (ASR/TTS already handle each language natively rather than translating)."
+
+  translation_none:
+    capability: translation
+    provider: bonbon
+    model_name: "no translation (pass-through)"
+    version: "n/a"
+    purpose: "Honest terminal state -- translation capability is not yet implemented."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 0
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["en", "hi", "te"]
+    notes: "enabled_by_default=true because it's the honest CURRENT state (MISSING), not because it does anything -- the dashboard should show 'translation: not implemented,' never silently hide the capability."
+
+  # ── F/G. Object / person detection ──────────────────────────────────
+  vision_hailo_yolo:
+    capability: object_detection
+    provider: hailo
+    model_name: "Hailo Model Zoo YOLO (object/person, exact model TBD)"
+    version: "unpinned -- no .hef compiled yet"
+    purpose: "Primary object/person detection once AI HAT+2 hardware + compiled .hef are available."
+    license: "Hailo Model Zoo license (mixed -- verify per compiled model, many are Apache-2.0 upstream YOLO recompiled)"
+    commercial_allowed: "unknown"
+    download_type: manual
+    download_command: "N/A -- requires Hailo Dataflow Compiler + a real AI HAT+2 device to produce a .hef; see docs/AI_MODEL_DOWNLOAD_AND_LICENSE_PLAN.md GAP-10"
+    hardware_target: hailo_8
+    runtime: hailort
+    expected_ram_mb: 300
+    expected_storage_mb: 30
+    expected_latency_ms: 40
+    fallback_model_id: vision_cpu_onnx_runtime_adapter
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    notes: "HARDWARE_BLOCKED, not MISSING -- config/runtime/model_runtime.yaml already has the plumbing (bonbon_ai_runtime.RuntimeSelector), but no .hef file exists anywhere in the repo and no Hailo device was detected as of the last real hardware check (2026-07-06). enabled_by_default flipped true (18-point edge-AI verification, check 1): with no default registered for this capability, FallbackPolicy.resolve() returned immediately with 'no registered default' and never even walked the chain to vision_mock -- object_detection had zero working path, not just no Hailo. This is the head of the real chain (hailo -> cpu onnx -> ultralytics -> mock), matching every other capability's default-is-the-chain-head convention; availability checking still honestly reports this entry unavailable off real Hailo hardware and the resolver correctly falls through."
+
+  vision_cpu_onnx_runtime_adapter:
+    capability: object_detection
+    provider: bonbon
+    model_name: "bonbon_ai_runtime CPU ONNX fallback (ObjectDetectorRuntimeAdapter)"
+    version: "n/a"
+    purpose: "CPU fallback for object/person detection, routed through the same RuntimeSelector as the Hailo path (the ONE of three detector implementations that actually does this, GAP-2)."
+    license: "Depends on the .onnx model loaded -- no file present yet, same as the Hailo entry"
+    commercial_allowed: "unknown"
+    download_type: manual
+    download_command: "N/A -- no .onnx model file present in the repo yet"
+    hardware_target: pi_cpu
+    runtime: onnxruntime
+    expected_ram_mb: 400
+    expected_storage_mb: 25
+    expected_latency_ms: 150
+    fallback_model_id: vision_ultralytics_direct
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    notes: "This is the recommended path going forward (GAP-2's fix direction) -- registered as not-yet-enabled only because no model file exists to load, not because the plumbing is wrong."
+
+  vision_ultralytics_direct:
+    capability: object_detection
+    provider: ultralytics
+    model_name: "YOLOv8n (direct, bypasses bonbon_ai_runtime)"
+    version: "8n"
+    purpose: "Existing duplicate implementation (bonbon_vision.YoloDetector + bonbon_perception.YoloPersonDetector, GAP-2) -- registered honestly, not hidden, even though it's not the recommended long-term path."
+    license: "AGPL-3.0 (Ultralytics) -- OR a paid Ultralytics Enterprise license for closed-source commercial distribution"
+    commercial_allowed: "unknown"
+    download_type: pip
+    download_command: "pip install ultralytics  # weights auto-download on first use (yolov8n.pt, ~6MB)"
+    hardware_target: pi_cpu
+    runtime: ultralytics_direct
+    expected_ram_mb: 350
+    expected_storage_mb: 6
+    expected_latency_ms: 200
+    fallback_model_id: vision_mock
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    notes: "AGPL-3.0's copyleft terms need a legal decision before this can be commercial_allowed=true for a closed-source BonBon deployment -- already an existing dependency (pi2_requirements.txt), this registry does not silently mark it 'allowed,' it surfaces the real license question (GAP per download/license plan section E)."
+
+  vision_mock:
+    capability: object_detection
+    provider: bonbon
+    model_name: "mock detector (empty detections)"
+    version: "n/a"
+    purpose: "Guaranteed final fallback -- tests and CI use this, never a fabricated detection."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A -- always available, no model"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 1
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    notes: "Returns zero detections, never a hallucinated class -- matches bonbon_ai_runtime's own MockRuntime behavior."
+
+  vision_person_hailo_yolo:
+    capability: person_detection
+    provider: hailo
+    model_name: "Hailo Model Zoo person detection (exact model TBD)"
+    version: "unpinned"
+    purpose: "Primary person detection once hardware is available."
+    license: "Hailo Model Zoo license (verify per model)"
+    commercial_allowed: "unknown"
+    download_type: manual
+    download_command: "N/A -- same hardware blocker as vision_hailo_yolo"
+    hardware_target: hailo_8
+    runtime: hailort
+    expected_ram_mb: 300
+    expected_storage_mb: 30
+    expected_latency_ms: 35
+    fallback_model_id: vision_mock
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    notes: "HARDWARE_BLOCKED, mirrors vision_hailo_yolo's status for the person-detection capability specifically. enabled_by_default flipped true (18-point edge-AI verification, check 1) -- person_detection had only this one entry and no registered default, so FallbackPolicy.resolve() never even attempted vision_mock; the capability had zero working path at all, not merely no Hailo hardware."
+
+  # ── H. Gesture / pose ────────────────────────────────────────────────
+  gesture_mediapipe_holistic:
+    capability: gesture_recognition
+    provider: google
+    model_name: "MediaPipe Holistic (pose + both hands + face-mesh)"
+    version: "unpinned"
+    purpose: "Real, already-wired-in gesture detection -- 10 of 16 requested gesture classes genuinely work (GAP-9)."
+    license: "Apache-2.0"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install mediapipe"
+    hardware_target: pi_cpu
+    runtime: mediapipe
+    expected_ram_mb: 250
+    expected_storage_mb: 30
+    expected_latency_ms: 60
+    fallback_model_id: gesture_mock
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    import_name: mediapipe
+    notes: "Already the real, default backend (bonbon_gesture). aarch64 Linux wheel availability was flagged as a real installation risk in pi2_requirements.txt -- not assumed to 'just work' on the actual Pi. come_here/go_away are wired downstream but never actually detected (dead placeholder logic); pointing_at_object/namaste have zero implementation."
+
+  gesture_hailo_pose:
+    capability: pose_estimation
+    provider: hailo
+    model_name: "Hailo pose backbone (exact model TBD)"
+    version: "unpinned"
+    purpose: "Pose backbone acceleration if Hailo hardware is available and benchmarked against MediaPipe's own pose estimation."
+    license: "Hailo Model Zoo license (verify per model)"
+    commercial_allowed: "unknown"
+    download_type: manual
+    download_command: "N/A -- config/runtime/model_runtime.yaml already names a pose_gesture_backbone slot, no .hef compiled yet"
+    hardware_target: hailo_8
+    runtime: hailort
+    expected_ram_mb: 200
+    expected_storage_mb: 20
+    expected_latency_ms: 30
+    fallback_model_id: gesture_mediapipe_holistic
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    notes: "HARDWARE_BLOCKED -- MediaPipe's own pose landmarks (part of Holistic, already real) are the working pose_estimation path today; this entry exists for when/if Hailo acceleration is benchmarked as worthwhile. enabled_by_default flipped true (18-point edge-AI verification, check 1) -- pose_estimation had only this one entry and no registered default, so FallbackPolicy.resolve() never even attempted the real, working gesture_mediapipe_holistic fallback; the capability had zero working path at all."
+
+  gesture_mock:
+    capability: gesture_recognition
+    provider: bonbon
+    model_name: "mock gesture classifier"
+    version: "n/a"
+    purpose: "Guaranteed fallback -- always reports 'unknown', never a fabricated gesture."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 1
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    notes: ""
+
+  # ── I. Face recognition ──────────────────────────────────────────────
+  face_insightface:
+    capability: face_recognition
+    provider: deepinsight
+    model_name: "InsightFace (buffalo_l detection + ArcFace recognition)"
+    version: "buffalo_l"
+    purpose: "Face detection + recognition, real code exists (bonbon_vision.face_pipeline) but defaults to mock."
+    license: "Code is open (BSD-ish); PRETRAINED MODEL WEIGHTS are under a non-commercial research license per InsightFace's own model zoo terms"
+    commercial_allowed: "false"
+    download_type: pip
+    download_command: "pip install insightface  # model weights auto-download from InsightFace's model zoo on first use -- verify the specific model's license before any commercial deployment"
+    hardware_target: pi_cpu
+    runtime: onnxruntime
+    expected_ram_mb: 500
+    expected_storage_mb: 250
+    expected_latency_ms: 100
+    fallback_model_id: face_deepface
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    import_name: insightface
+    notes: "commercial_allowed explicitly 'false' for the pretrained weights, even though the package is already an existing dependency (pi2_requirements.txt) -- this registry does not silently inherit that as 'allowed' (see docs/AI_MODEL_DOWNLOAD_AND_LICENSE_PLAN.md section F). No enrollment/consent mechanism exists anywhere in the codebase for this capability (GAP-3) -- flagged, not fixed, in this pass."
+
+  face_deepface:
+    capability: face_recognition
+    provider: serengil
+    model_name: "DeepFace (Facenet512 backend)"
+    version: "Facenet512"
+    purpose: "Development/test-tier face recognition backend."
+    license: "MIT (DeepFace wrapper); Facenet512 weights are MIT/BSD-derivative"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install deepface"
+    hardware_target: pi_cpu
+    runtime: tensorflow_keras
+    expected_ram_mb: 600
+    expected_storage_mb: 200
+    expected_latency_ms: 150
+    fallback_model_id: face_mock
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    import_name: deepface
+    notes: "Deliberately NOT in pi2_requirements.txt today (that file's author reasoned insightface alone covers face recognition -- true for THIS capability, though see face_emotion below for where DeepFace is actually needed and also missing, GAP-1)."
+
+  face_mock:
+    capability: face_recognition
+    provider: bonbon
+    model_name: "mock face recognizer"
+    version: "n/a"
+    purpose: "Guaranteed fallback -- reports 'unknown person', never fabricates an identity match."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 1
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    notes: "enabled_by_default=true -- this IS the honest current default (both real backends default to mock in bringup launch files)."
+
+  # ── J. Face emotion ──────────────────────────────────────────────────
+  emotion_face_deepface:
+    capability: face_emotion
+    provider: serengil
+    model_name: "DeepFace emotion CNN"
+    version: "default emotion model"
+    purpose: "Per-person face emotion analysis, real code default, privacy-gated (3 levels)."
+    license: "MIT"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install deepface"
+    hardware_target: pi_cpu
+    runtime: tensorflow_keras
+    expected_ram_mb: 500
+    expected_storage_mb: 90
+    expected_latency_ms: 120
+    fallback_model_id: emotion_face_mock
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    import_name: deepface
+    notes: "GAP-1, FIXED this pass: requirements/pi2_requirements.txt now lists deepface (previously missing despite being bonbon_affective_ai's code default, warmed up on activate). enabled_by_default=true now reflects the intended post-fix state -- the runtime selector will still honestly report MOCK_ONLY on any machine (including this dev sandbox) where deepface genuinely isn't importable, this flag only changes preference order once it is."
+
+  emotion_face_mock:
+    capability: face_emotion
+    provider: bonbon
+    model_name: "mock face emotion (always 'neutral', zero confidence)"
+    version: "n/a"
+    purpose: "Guaranteed fallback -- never overclaims emotion (rule: 'emotion is uncertain evidence, not truth')."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 1
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    notes: "No longer the default now that GAP-1 is fixed (emotion_face_deepface is enabled_by_default) -- stays registered as the fallback the chain lands on if deepface genuinely isn't importable on a given machine."
+
+  # ── K. Voice emotion ─────────────────────────────────────────────────
+  voice_emotion_speechbrain:
+    capability: voice_emotion
+    provider: speechbrain
+    model_name: "emotion-recognition-wav2vec2-IEMOCAP"
+    version: "IEMOCAP"
+    purpose: "Voice emotion on speech segments only, never continuous."
+    license: "Apache-2.0 (SpeechBrain) + MIT (wav2vec2 base, Meta)"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install speechbrain  # model weights auto-download from HuggingFace Hub on first use"
+    hardware_target: pi_cpu
+    runtime: torch
+    expected_ram_mb: 1200
+    expected_storage_mb: 1200
+    expected_latency_ms: 300
+    fallback_model_id: voice_emotion_text_sentiment
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["en"]
+    import_name: speechbrain
+    notes: "GAP-1, FIXED this pass: requirements/pi2_requirements.txt now lists speechbrain. 1.2GB is still a real RAM concern on a 4-core/8GB Pi-2 already running LLM+vision+ASR concurrently -- see pi_efficiency_profile.yaml's rank/FPS policy (Phase 10) for how this is bounded, not disabled outright."
+
+  voice_emotion_text_sentiment:
+    capability: voice_emotion
+    provider: bonbon
+    model_name: "text-sentiment fallback (derived from transcript, not audio)"
+    version: "n/a"
+    purpose: "Lighter fallback when SpeechBrain is too heavy for current load."
+    license: "N/A -- reuses existing transcript/intent pipeline, no new model"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 5
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en", "hi", "te"]
+    notes: "No longer the default now that GAP-1 is fixed (voice_emotion_speechbrain is enabled_by_default) -- stays registered as the lighter fallback if speechbrain is too heavy under real load or genuinely unavailable."
+
+  # ── L. Speaker diarization ───────────────────────────────────────────
+  diarization_pyannote:
+    capability: speaker_diarization
+    provider: pyannote
+    model_name: "speaker-diarization-3.1"
+    version: "3.1"
+    purpose: "Multi-speaker diarization, disabled by default, gated on a HuggingFace token."
+    license: "Gated on Hugging Face -- requires accepting pyannote's own model terms + a personal HF access token; commercial-use terms are historically restrictive without a paid plan"
+    commercial_allowed: "unknown"
+    download_type: api
+    download_command: "huggingface-cli login  # then the model downloads on first use once the gated-model terms are accepted at https://huggingface.co/pyannote/speaker-diarization-3.1"
+    hardware_target: pi_cpu
+    runtime: torch
+    expected_ram_mb: 800
+    expected_storage_mb: 150
+    expected_latency_ms: 2000
+    fallback_model_id: diarization_active_speaker_approx
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["n/a"]
+    notes: "Already correctly disabled by default in the real code (DiarizationConfig.enabled=False) and deliberately excluded from pi2_requirements.txt (protobuf version conflict with mediapipe -- a real, documented tradeoff). This registry does not change that default. Rule: 'benchmark before enabling' -- no benchmark has been run."
+
+  diarization_active_speaker_approx:
+    capability: speaker_diarization
+    provider: bonbon
+    model_name: "active-speaker approximation (proximity + audio-direction heuristic, no real diarization model)"
+    version: "n/a"
+    purpose: "Simple speaker-turn fallback per the brief: 'if unavailable, still support active speaker approximation.'"
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A -- reuses existing multi-person tracking + ReSpeaker DoA, no new model"
+    hardware_target: mock
+    runtime: none
+    expected_ram_mb: 0
+    expected_storage_mb: 0
+    expected_latency_ms: 10
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["n/a"]
+    notes: "enabled_by_default=true -- the honest current active fallback."
+
+  # ── M. Local RAG / hospital FAQ ──────────────────────────────────────
+  rag_bonbon_llm_chroma:
+    capability: local_rag
+    provider: bonbon
+    model_name: "bonbon_llm RAG retriever (ChromaDB -> FAISS -> NumPy fallback chain)"
+    version: "n/a"
+    purpose: "Grounds LLM wording in real hospital knowledge -- never the source of deterministic decisions (Phase 9)."
+    license: "N/A (application code) -- chromadb is Apache-2.0, sentence-transformers is Apache-2.0"
+    commercial_allowed: "true"
+    download_type: pip
+    download_command: "pip install chromadb sentence-transformers"
+    hardware_target: pi_cpu
+    runtime: in_process_python
+    expected_ram_mb: 400
+    expected_storage_mb: 200
+    expected_latency_ms: 100
+    fallback_model_id: rag_numpy_fallback
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["en"]
+    import_name: chromadb
+    notes: "The ACTIVE RAG implementation (llm_orchestrator_node calls this one). bonbon_data_stores/rag/chroma_store.py is a second, unused, dead-code RAG implementation (GAP-5) -- deliberately NOT registered here since nothing imports it; registering it would imply it's a real option when it isn't."
+
+  rag_numpy_fallback:
+    capability: local_rag
+    provider: bonbon
+    model_name: "NumPy brute-force cosine similarity (no external dependency)"
+    version: "n/a"
+    purpose: "Always-available RAG fallback when chromadb/faiss aren't installed."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A -- numpy is already a hard dependency repo-wide"
+    hardware_target: pi_cpu
+    runtime: in_process_python
+    expected_ram_mb: 50
+    expected_storage_mb: 0
+    expected_latency_ms: 50
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+    languages: ["en"]
+    notes: "Real code path (bonbon_llm/core/rag_retriever.py's _hash_embed), always the guaranteed terminal fallback."
+
+  faq_hospital_deterministic:
+    capability: hospital_faq
+    provider: bonbon
+    model_name: "deterministic FAQ/doctor/department/room resolver (no ML model)"
+    version: "n/a"
+    purpose: "Rule: appointment/token/emergency/navigation/queue/health/safety decisions must NEVER go through the LLM -- this is the deterministic Python service that handles them (Phase 9)."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: manual
+    download_command: "N/A -- application code, not a model"
+    hardware_target: pi_cpu
+    runtime: in_process_python
+    expected_ram_mb: 10
+    expected_storage_mb: 0
+    expected_latency_ms: 5
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: true
+    languages: ["en", "hi", "te"]
+    notes: "This entry exists so the registry/dashboard can show that hospital_faq's deterministic core is always active regardless of LLM/RAG availability -- see docs/AI_MODEL_GAP_ANALYSIS.md Phase 9 discussion."

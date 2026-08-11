@@ -118,6 +118,23 @@ mediapipe
 # Affective AI (bonbon_affective_ai)
 transformers
 sentence-transformers
+# GAP-1 fix (AI model upgrade pass, see docs/AI_MODEL_GAP_ANALYSIS.md):
+# bonbon_affective_ai's CODE DEFAULT backends are DeepFace (face_backend,
+# emotion CNN) and SpeechBrain (voice_backend, emotion-recognition-wav2vec2-IEMOCAP)
+# -- both were warmed up on node activation by the existing code, but
+# NEITHER was ever listed here, meaning the real Pi-2 Docker build would
+# silently fail their lazy import and fall back to mock despite the
+# code's own assumption that they were active. deepface's earlier
+# exclusion from this file (see the ARM64/CPU-only notes above) was
+# specifically about FACE RECOGNITION (insightface already covers that,
+# no need for a second heavy face stack there) -- it does not apply to
+# deepface's separate, smaller EMOTION analysis use in bonbon_affective_ai.
+# speechbrain (~1.2GB with its wav2vec2 base weights) is a real RAM cost
+# on a Pi-2 already running LLM+vision+ASR concurrently -- flagged for
+# the resource-policy/Pi-efficiency-profile owner to weigh in on FPS/rank
+# terms, not silently absorbed here.
+deepface
+speechbrain
 
 # Local LLM gateway + RAG (bonbon_llm)
 ollama

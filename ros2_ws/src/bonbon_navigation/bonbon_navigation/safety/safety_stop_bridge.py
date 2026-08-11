@@ -8,11 +8,12 @@ Architecture constraint
 The navigation node NEVER publishes directly to /cmd_vel.
 All velocity commands pass through:
 
-  NavigationNode → /navigation/cmd_vel_request
+  NavigationNode._publish_gated_vel()
   ↓
   SafetyStopBridge → checks SafetyState
   ↓
-  /bonbon/safety_gate/cmd_vel  (consumed by Safety Gate node)
+  /bonbon/cmd_vel_raw  (consumed by Safety Gate node -- GAP-E5 fix,
+                        was previously a name mismatch nothing published to)
   ↓
   SafetyGateNode → /cmd_vel  (to motor controllers)
 

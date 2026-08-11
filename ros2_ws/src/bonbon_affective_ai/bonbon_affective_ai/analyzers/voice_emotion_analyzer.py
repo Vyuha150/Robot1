@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from ..fusion.temporal_smoother import VOICE_EMOTION_FIELDS, TemporalSmoother
+
 if TYPE_CHECKING:
     from ..backends.voice_backend_interface import VoiceBackendInterface
     from ..config.affective_config import AffectiveConfig
@@ -49,6 +51,11 @@ class VoiceEmotionAnalyzer:
         self._backend = backend
         self._privacy = privacy_gate
         self._clock = node_clock
+        # 18-point edge-AI verification, check 9: voice emotion previously
+        # had no temporal smoothing at all (face emotion did, via the
+        # identical TemporalSmoother class) -- a single noisy backend
+        # frame could dominate the published dominant_emotion.
+        self._smoother = TemporalSmoother(window=config.voice_temporal_window, fields=VOICE_EMOTION_FIELDS)
 
     # ── Public interface ──────────────────────────────────────────────────────
 
@@ -96,7 +103,14 @@ class VoiceEmotionAnalyzer:
             return self._make_failed_msg(tracking_id, person_id, duration_sec)
 
         result["silence_detected"] = silence or result.get("silence_detected", False)
-        return self._build_msg(result, tracking_id, person_id, duration_sec)
+
+        # Temporal smoothing over the *_score fields + re-derived
+        # dominant_emotion/dominant_confidence; smoother output is merged
+        # over the raw result so non-averaged fields (arousal, valence,
+        # *_valid, backend_used, ...) still reach _build_msg unchanged.
+        smoothed = self._smoother.smooth(tracking_id, result)
+        merged = {**result, **smoothed}
+        return self._build_msg(merged, tracking_id, person_id, duration_sec)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

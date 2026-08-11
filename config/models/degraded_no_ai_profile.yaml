@@ -1,0 +1,52 @@
+# config/models/degraded_no_ai_profile.yaml
+#
+# Overlay for a fully degraded deployment -- every real ML model
+# disabled, only deterministic/mock/pass-through entries active. Used
+# when the Pi is under sustained thermal/CPU load (see
+# pi_efficiency_profile.yaml's DegradedModeManager) or when an operator
+# explicitly needs a "no AI, everything still works via touch/deterministic
+# rules" mode for a hospital rollout's first day. Never a test-only
+# concept: this is the same honest MOCK_ONLY state every capability's
+# own fallback chain already terminates in, applied to all of them at
+# once rather than one at a time.
+
+overrides:
+  llm_qwen25_05b: false
+  asr_sarvam_edge: false
+  asr_faster_whisper: false
+  asr_sherpa_onnx: false
+  asr_whisper_cpp: false
+  asr_degraded_template: true
+  tts_sarvam_edge: false
+  tts_piper_en: false
+  tts_piper_hi: false
+  tts_sherpa_onnx: false
+  tts_cached_phrase: true
+  wake_openwakeword: false
+  wake_porcupine: false
+  vad_silero: false
+  translation_sarvam: false
+  translation_none: true
+  vision_hailo_yolo: false
+  vision_cpu_onnx_runtime_adapter: false
+  vision_ultralytics_direct: false
+  vision_mock: true
+  vision_person_hailo_yolo: false
+  gesture_mediapipe_holistic: false
+  gesture_hailo_pose: false
+  gesture_mock: true
+  face_insightface: false
+  face_deepface: false
+  face_mock: true
+  emotion_face_deepface: false
+  emotion_face_mock: true
+  voice_emotion_speechbrain: false
+  voice_emotion_text_sentiment: false  # even the light fallback is off -- this profile is intentionally the floor
+  diarization_pyannote: false
+  diarization_active_speaker_approx: false
+  rag_bonbon_llm_chroma: false
+  rag_numpy_fallback: false
+  # faq_hospital_deterministic is NOT overridden -- it has no ML
+  # dependency at all and must stay active even in degraded_no_ai mode
+  # (rule: appointment/token/emergency/queue/health/safety decisions are
+  # deterministic Python, never gated on AI model availability).

@@ -1,0 +1,134 @@
+# Edge AI Runtime brief, Phase 2/3. Extends (does not replace)
+# config/models/model_registry.yaml. Contains ONLY the 3 capabilities
+# that brief names but the earlier 16-function AI model stack pass had
+# no entry for: human_state_fusion, intent_classification,
+# assistant_guardrails. Every other capability (VAD, ASR, TTS, local
+# LLM, RAG, object/person/face/gesture/pose/emotion/diarization) is
+# already fully covered by config/models/model_registry.yaml --
+# bonbon_edge_ai_runtime.model_registry loads both files into one merged
+# ModelRegistry rather than duplicating those 39 entries here. See
+# docs/DUPLICATE_PIPELINE_AUDIT.md.
+#
+# None of these three need a real ML model: human-state fusion is pure
+# fusion logic over other modules' already-model-backed outputs;
+# intent classification and assistant guardrails are deterministic
+# rule/regex engines by design (an LLM must never be the thing deciding
+# whether its own output is safe -- that would defeat the guardrail).
+
+models:
+  human_state_fusion_bonbon:
+    capability: human_state_fusion
+    provider: bonbon
+    model_name: "bonbon_human_state_fusion engine (per-person state fusion, no ML model)"
+    version: "1.0.0"
+    purpose: "Fuses person tracks, face/voice emotion, gesture, speaker turn, and intent into one HumanState per person, bridging 3 different ID spaces."
+    license: "N/A (application code)"
+    commercial_allowed: "true"
+    download_type: unavailable
+    download_command: "n/a -- already present in ros2_ws/src/bonbon_human_state_fusion"
+    hardware_target: pi_cpu
+    runtime: deterministic_fusion
+    expected_ram_mb: 50
+    expected_storage_mb: 0
+    expected_latency_ms: 20
+    fallback_model_id: human_state_fusion_degraded
+    dashboard_visible: true
+    enabled_by_default: true
+    notes: "Real, working (confirmed in Phase 1 audit). Not itself model-backed -- inherits the fallback status of whichever upstream signal (emotion/gesture/tracking) degrades."
+
+  human_state_fusion_degraded:
+    capability: human_state_fusion
+    provider: bonbon
+    model_name: "degraded fusion -- per-modality raw signals only, no cross-person bridging"
+    version: "1.0.0"
+    purpose: "Terminal fallback when the fusion engine itself cannot run (crash, missing upstream topics) -- callers get raw per-modality signals instead of a fused HumanState, never a fabricated one."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: unavailable
+    download_command: "n/a"
+    hardware_target: mock
+    runtime: passthrough
+    expected_ram_mb: 5
+    expected_storage_mb: 0
+    expected_latency_ms: 1
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+
+  intent_classification_rule_based:
+    capability: intent_classification
+    provider: bonbon
+    model_name: "keyword/rule-based intent classifier (deterministic, no ML)"
+    version: "1.0.0"
+    purpose: "Classifies a transcript into an intent class (navigation, appointment, FAQ, emergency, small_talk, ...) BEFORE the task router decides whether a rule/cache/RAG/LLM handles it -- must be fast and cheap since it runs on every utterance."
+    license: "N/A (application code)"
+    commercial_allowed: "true"
+    download_type: unavailable
+    download_command: "n/a"
+    hardware_target: pi_cpu
+    runtime: deterministic_rules
+    expected_ram_mb: 10
+    expected_storage_mb: 0
+    expected_latency_ms: 5
+    fallback_model_id: intent_classification_unknown
+    dashboard_visible: true
+    enabled_by_default: true
+    notes: "Deliberately not an ML/LLM classifier -- rule 15 (\"intent classification\") sits upstream of the LLM in the router; using the LLM to classify intent before deciding whether to call the LLM would be circular and defeats the cost-routing purpose of task_router.py."
+
+  intent_classification_unknown:
+    capability: intent_classification
+    provider: bonbon
+    model_name: "unknown_intent fallback (routes to clarification or staff escalation)"
+    version: "1.0.0"
+    purpose: "Terminal fallback when no rule matches -- never silently guesses an intent class it isn't confident about."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: unavailable
+    download_command: "n/a"
+    hardware_target: mock
+    runtime: passthrough
+    expected_ram_mb: 1
+    expected_storage_mb: 0
+    expected_latency_ms: 1
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false
+
+  assistant_guardrails_bonbon:
+    capability: assistant_guardrails
+    provider: bonbon
+    model_name: "SafetyCommandFilter + HallucinationGuard + CommandAuthorizer (regex/rule-based, no ML)"
+    version: "1.0.0"
+    purpose: "Guards raw LLM output before it reaches TTS or behavior dispatch -- pattern-blocks unsafe text, flags likely hallucinations, and authorizes/denies behavior classes against live SafetyState (see GAP-E1 fix, docs/SAFETY_SEPARATION_AUDIT.md)."
+    license: "N/A (application code)"
+    commercial_allowed: "true"
+    download_type: unavailable
+    download_command: "n/a -- already present in ros2_ws/src/bonbon_llm/bonbon_llm/safety"
+    hardware_target: pi_cpu
+    runtime: deterministic_rules
+    expected_ram_mb: 10
+    expected_storage_mb: 0
+    expected_latency_ms: 2
+    fallback_model_id: assistant_guardrails_deny_all
+    dashboard_visible: true
+    enabled_by_default: true
+    notes: "An LLM must never be the thing deciding whether its own output is safe -- this capability is deliberately rule-based, not model-based, by design, not by current limitation."
+
+  assistant_guardrails_deny_all:
+    capability: assistant_guardrails
+    provider: bonbon
+    model_name: "deny-all fallback (fail closed if guardrail modules fail to load)"
+    version: "1.0.0"
+    purpose: "Terminal fallback -- if the real guardrail modules cannot be imported/constructed, every behavior is denied and every response is replaced with a safe template rather than letting unguarded LLM output through."
+    license: "N/A"
+    commercial_allowed: "true"
+    download_type: unavailable
+    download_command: "n/a"
+    hardware_target: mock
+    runtime: fail_closed
+    expected_ram_mb: 1
+    expected_storage_mb: 0
+    expected_latency_ms: 1
+    fallback_model_id: null
+    dashboard_visible: true
+    enabled_by_default: false

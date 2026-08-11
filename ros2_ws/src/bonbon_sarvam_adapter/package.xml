@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_sarvam_adapter</name>
+  <version>1.0.0</version>
+  <description>
+    Honest Sarvam AI capability detector and client adapter for Indic-
+    language ASR/TTS/translation. Sarvam is only ever used as the
+    preferred Indic-language engine when official Edge package or API
+    access is genuinely confirmed present in this environment (rule
+    3/12) -- this package never invents a download URL, never assumes
+    access, and fails closed to the open-source fallback chain
+    (sherpa-onnx / faster-whisper / Piper / whisper.cpp, see
+    bonbon_ai_model_registry) whenever access cannot be confirmed. As of
+    this pass, zero prior Sarvam integration exists anywhere in this
+    repository -- every detector in this package reports `unavailable`
+    honestly in this environment.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>bonbon_ai_model_registry</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

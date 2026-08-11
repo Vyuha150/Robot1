@@ -1,0 +1,49 @@
+# Edge AI Runtime brief, Phase 8. bonbon_edge_ai_runtime.resource_guard
+# and .inference_scheduler read the REAL, single-source-of-truth
+# thresholds from config/pi_efficiency_profile.yaml (priority_order,
+# queue_limits, thresholds) -- this file does not duplicate those
+# values. It documents the resource POLICIES the brief asks for that
+# aren't already expressed as a threshold number in that file, i.e. the
+# ACTION taken at each condition.
+
+policies:
+  - condition: cpu_above_80_percent
+    action: "disable background emotion, reduce vision FPS, restrict LLM"
+    implemented_by: "bonbon_perception_efficiency.LoadSheddingController (FPS/confidence scale) + bonbon_llm.Pi2LLMGuard (LLM restriction)"
+  - condition: temperature_high
+    action: "disable local LLM, reduce non-critical AI"
+    implemented_by: "bonbon_llm.Pi2LLMGuard.should_disable() + LoadSheddingController thermal_overloaded input"
+  - condition: throttling_detected
+    action: "enter degraded mode"
+    implemented_by: "bonbon_perception_efficiency.DegradedModeManager (sustained-pressure activation)"
+  - condition: memory_low
+    action: "cancel LLM and diarization"
+    implemented_by: "bonbon_llm.Pi2LLMGuard (memory_pressure feeds should_disable via LoadSheddingController) -- diarization is enabled_by_default:false already (config/models/model_registry.yaml), so it has nothing running to cancel by default"
+  - condition: battery_low
+    action: "reduce AI, stop navigation if needed"
+    implemented_by: "bonbon_navigation.BatteryRouter (routes to charger) + bonbon_safety (SafetyState escalation)"
+  - condition: queue_too_long
+    action: "drop old non-critical requests"
+    implemented_by: "bonbon_edge_ai_runtime.inference_scheduler.InferenceScheduler (bounded per-module FIFO, oldest dropped first)"
+  - condition: stale_frame
+    action: "reject result"
+    implemented_by: "bonbon_edge_ai_runtime.accelerator_manager.VisionOutputEnvelope.stale_result + bonbon_vision.FrameThrottler"
+  - condition: ai_pi_unhealthy
+    action: "disable new HRI behavior"
+    implemented_by: "bonbon_distributed_safety heartbeat -> bonbon_authority_manager"
+  - condition: navigation_pi_unhealthy
+    action: "movement unavailable"
+    implemented_by: "bonbon_safety_gate fail-closed watchdog (2s no heartbeat = motion blocked)"
+  - condition: ui_pi_unhealthy
+    action: "robot safety unaffected"
+    implemented_by: "Pi-1 owns no safety-critical or actuation code by design (config/distributed/pi_ui_api.yaml forbidden list)"
+
+# Additional bounded-queue depths for capabilities
+# config/pi_efficiency_profile.yaml's queue_limits doesn't cover yet
+# (the 3 new bonbon_edge_ai_runtime capabilities) -- merged with that
+# file's queue_limits by inference_scheduler.SchedulerConfig at load
+# time via the DEFAULT_QUEUE_SIZE fallback, not overridden here.
+additional_queue_limits:
+  intent_classification: 12
+  assistant_guardrails: 4
+  human_state_fusion: 8

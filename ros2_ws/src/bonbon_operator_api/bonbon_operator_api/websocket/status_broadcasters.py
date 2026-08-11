@@ -239,3 +239,17 @@ CHANNEL_SNAPSHOTS = {
     "degraded-mode": degraded_mode_snapshot,
     "component-health": component_health_snapshot,
 }
+
+# AI model registry / speech / Sarvam / perception / affective channels --
+# kept in their own module (ai_model_snapshots.py) since they belong to
+# the AI model upgrade pass, merged here so main.py's single broadcaster
+# loop doesn't need to know there are two source modules.
+from bonbon_operator_api.websocket.ai_model_snapshots import AI_MODEL_CHANNEL_SNAPSHOTS  # noqa: E402
+
+CHANNEL_SNAPSHOTS.update(AI_MODEL_CHANNEL_SNAPSHOTS)
+
+# Edge AI Runtime brief Phase 12 -- same "kept in its own module, merged
+# here" reasoning as AI_MODEL_CHANNEL_SNAPSHOTS above.
+from bonbon_operator_api.websocket.edge_ai_snapshots import EDGE_AI_CHANNEL_SNAPSHOTS  # noqa: E402
+
+CHANNEL_SNAPSHOTS.update(EDGE_AI_CHANNEL_SNAPSHOTS)

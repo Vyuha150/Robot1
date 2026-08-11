@@ -40,9 +40,14 @@ def _make_filter(block_all: bool = False) -> SafetyCommandFilter:
 
 
 def _normal_snap() -> SafetySnapshot:
-    snap = SafetySnapshot.safe_default()
+    # Explicitly construct "everything permitted" rather than starting
+    # from safe_default() -- that default is intentionally fail-closed
+    # (GAP-E1 fix) and no longer implies navigation/actuation permitted.
+    snap = SafetySnapshot()
     snap.state_id = SAFETY_NORMAL
     snap.state_name = "NORMAL"
+    snap.navigation_permitted = True
+    snap.actuation_permitted = True
     return snap
 
 

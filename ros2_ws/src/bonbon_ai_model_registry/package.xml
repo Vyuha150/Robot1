@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_ai_model_registry</name>
+  <version>1.0.0</version>
+  <description>
+    Capability-wide AI model registry, router, license guard, downloader,
+    benchmark runner, health monitor, and dashboard publisher for every
+    BonBon AI capability (LLM, ASR, TTS, VAD/wake-word, object/person
+    detection, gesture, face recognition, face/voice emotion, diarization,
+    RAG). Loads config/models/*.yaml as the single source of truth for
+    which model backs which capability, on which hardware target, under
+    which license. Delegates vision-model runtime selection to the
+    existing bonbon_ai_runtime.RuntimeSelector (hailo/cpu/mock) rather
+    than duplicating it -- this package adds the missing cross-cutting
+    concerns (license tracking, download management, benchmark results,
+    unified dashboard status) that no existing package covers across all
+    capabilities at once. Never downloads a model without checking its
+    license and declared storage cost first; never fabricates model
+    availability.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

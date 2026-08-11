@@ -141,6 +141,20 @@ _TOPIC_PI3_HEARTBEAT = "/bonbon/pi3/heartbeat"  # bonbon_distributed_safety, Mod
 _TOPIC_OPERATOR_PROPOSAL = (
     "/bonbon/operator/proposal"  # THIS bridge publishes, bonbon_msgs/BehaviorProposal
 )
+# edge_ai_runtime_node (Pi-2, bonbon_edge_ai_runtime) -- 6 JSON-over-String
+# status topics, Edge AI Runtime brief Phase 12. Same "String + json.loads"
+# pattern already used for _TOPIC_TTS_HEALTH above -- these carry
+# STATEFUL data (accumulated safety-block counts, cache hit rates, live
+# resource readings) that only the real, persistent Pi-2 process has;
+# see docs/EDGE_AI_DASHBOARD_REPORT.md for why the REST endpoints read
+# this cache rather than constructing a fresh (and therefore always-empty)
+# EdgeAIDashboardPublisher per request.
+_TOPIC_EDGE_AI_STATUS = "/bonbon/edge_ai/status"
+_TOPIC_EDGE_AI_MODELS = "/bonbon/edge_ai/models"
+_TOPIC_EDGE_AI_ROUTES = "/bonbon/edge_ai/routes"
+_TOPIC_EDGE_AI_RESOURCES = "/bonbon/edge_ai/resources"
+_TOPIC_EDGE_AI_SAFETY = "/bonbon/edge_ai/safety"
+_TOPIC_EDGE_AI_CACHE = "/bonbon/edge_ai/cache"
 
 # Curated set of ModuleHealth topics surfaced as dashboard module cards.
 # There is no single aggregate "/bonbon/modules/status" topic anywhere in
@@ -397,6 +411,16 @@ class ROS2DashboardBridge:
         tracker = self._node._distributed if self._ready() else self._offline_distributed_tracker
         return {"bridge_ready": self._ready(), **tracker.snapshot()}
 
+    def get_edge_ai_snapshot(self, channel: str) -> dict[str, Any] | None:
+        """Latest JSON status edge_ai_runtime_node (Pi-2) published on
+        /bonbon/edge_ai/<channel>, or None if no message has been
+        received yet -- never fabricates a zero/empty snapshot just
+        because the bridge happens to be running (rule 11: dashboard
+        must show real status, not a fake green default)."""
+        if not self._ready():
+            return None
+        return self._node._edge_ai_status.get(channel)
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -452,6 +476,12 @@ if _ROS2_AVAILABLE:
             self._emit = emit_cb
             self._person_track_ids: set[str] = set()
             self._distributed = DistributedStatusTracker()
+            # channel name ("status"|"models"|"routes"|"resources"|"safety"|"cache")
+            # -> latest parsed JSON dict from edge_ai_runtime_node, or
+            # absent if no message has been received yet -- never
+            # defaulted to an empty dict here, so callers can honestly
+            # distinguish "not received yet" from "received, empty".
+            self._edge_ai_status: dict[str, dict] = {}
 
             _best_effort = QoSProfile(
                 depth=10,
@@ -556,6 +586,22 @@ if _ROS2_AVAILABLE:
                 lambda msg: self._distributed.record_heartbeat("pi3"),
                 _best_effort,
             )
+
+            # edge_ai_runtime_node status (Edge AI Runtime brief Phase 12)
+            for _channel, _topic in (
+                ("status", _TOPIC_EDGE_AI_STATUS),
+                ("models", _TOPIC_EDGE_AI_MODELS),
+                ("routes", _TOPIC_EDGE_AI_ROUTES),
+                ("resources", _TOPIC_EDGE_AI_RESOURCES),
+                ("safety", _TOPIC_EDGE_AI_SAFETY),
+                ("cache", _TOPIC_EDGE_AI_CACHE),
+            ):
+                self.create_subscription(
+                    String,
+                    _topic,
+                    lambda msg, ch=_channel: self._on_edge_ai_status(ch, msg),
+                    _best_effort,
+                )
 
             # Service clients — only for commands with a confirmed real target.
             self._cli_navigate = self.create_client(NavigateTo, _SVC_NAVIGATE)
@@ -688,6 +734,14 @@ if _ROS2_AVAILABLE:
                 "queue_depth": payload.get("queue_depth", 0),
             }
             self._agg.update_tts(data)
+
+        def _on_edge_ai_status(self, channel: str, msg: String) -> None:
+            try:
+                payload = _json.loads(msg.data)
+            except (ValueError, TypeError) as exc:
+                self.get_logger().warning(f"edge_ai/{channel}: failed to parse JSON: {exc}")
+                return
+            self._edge_ai_status[channel] = payload
 
         def _on_actuation(self, msg: ActuationStatus) -> None:
             data = {

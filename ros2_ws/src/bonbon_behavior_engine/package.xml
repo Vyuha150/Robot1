@@ -23,6 +23,11 @@
   <exec_depend>bonbon_msgs</exec_depend>
   <exec_depend>bonbon_srvs</exec_depend>
 
+  <!-- behavior_engine_node's Finding-8 defense-in-depth check imports
+       SafetySeparationGuard directly -- optional, degrades to None (no
+       behavior change) if this package isn't installed. -->
+  <exec_depend>bonbon_edge_ai_runtime</exec_depend>
+
   <exec_depend>python3-pyyaml</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

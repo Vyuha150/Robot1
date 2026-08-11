@@ -23,6 +23,8 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from bonbon_operator_api.api.ai_model_status_api import ai_model_status_router
+from bonbon_operator_api.api.edge_ai_status_api import edge_ai_status_router
 from bonbon_operator_api.api.auth_api import auth_router
 from bonbon_operator_api.api.command_api import cmd_router
 from bonbon_operator_api.api.config_api import _ConfigStore, config_router
@@ -181,6 +183,8 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
     app.include_router(llm_router, prefix="/api/v1")
     app.include_router(testbench_router, prefix="/api/v1")
     app.include_router(validation_router, prefix="/api/v1")
+    app.include_router(ai_model_status_router, prefix="/api/v1")
+    app.include_router(edge_ai_status_router, prefix="/api/v1")
     app.include_router(ws_router)
 
     # ------------------------------------------------------------------ #

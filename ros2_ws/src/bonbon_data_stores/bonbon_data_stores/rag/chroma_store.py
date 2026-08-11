@@ -10,6 +10,22 @@ bonbon_conversations      — conversation templates / examples
 
 When ``chromadb`` is not installed the store operates in degraded mode:
 ``query()`` returns empty results; ``add()`` is a no-op.
+
+DEPRECATED (GAP-E9, see docs/EDGE_AI_GAP_ANALYSIS.md): this class is
+constructed by SQLiteMemoryStore.__init__ but is not wired to any live
+ROS2 topic/service anywhere in this repo -- ``data_store_node.py`` only
+exposes ``health_check``/``create_backup`` services, neither of which
+touches ``store.chroma``/``store.rag``. Confirmed via repo-wide grep: no
+production caller queries it. The real, live RAG implementation every
+production caller actually uses is
+``bonbon_llm.core.rag_retriever.RAGRetriever``
+(ros2_ws/src/bonbon_llm/bonbon_llm/core/rag_retriever.py). Do not build
+new RAG-consuming code (including bonbon_edge_ai_runtime.task_router's
+FAQ routing) against this class -- it will silently return nothing
+useful. Kept in place (not deleted) because tests/test_backup.py and
+tests/test_rag_store.py still exercise it directly and deleting it would
+require an unrelated refactor of SQLiteMemoryStore's storage-facade
+contract, out of scope for the pass that identified this gap.
 """
 
 from __future__ import annotations

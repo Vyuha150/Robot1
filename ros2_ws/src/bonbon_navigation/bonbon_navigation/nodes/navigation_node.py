@@ -37,7 +37,12 @@ Safety contract
 * If safety_state becomes DANGER/FAULT/SAFE_STOP, the active Nav2 goal
   is immediately cancelled.
 * The node never directly writes to /cmd_vel — all motion goes through
-  /bonbon/safety_gate/cmd_vel.
+  /bonbon/cmd_vel_raw, which safety_gate_node relays to /cmd_vel only
+  after its own independent check.
+* Navigation goal dispatch never acts on a raw /perception/behavior
+  BehaviorRecommendation directly -- only on a BehaviorDecision approved
+  by bonbon_motion_approval_gateway on /bonbon/motion/approved_command
+  (GAP-E1/E2 fix, see docs/SAFETY_SEPARATION_AUDIT.md).
 """
 
 from __future__ import annotations
@@ -77,6 +82,7 @@ from bonbon_navigation.core.map_manager import MapManager
 from bonbon_navigation.core.recovery_executor import RecoveryExecutor, RecoveryOutcome
 from bonbon_navigation.core.stuck_detector import StuckDetector
 from bonbon_navigation.planners.human_aware_costmap import HumanAwareCostmapLayer
+from bonbon_navigation.safety.approved_command_gate import should_dispatch_navigation
 from bonbon_navigation.safety.safety_stop_bridge import (
     SAFETY_DANGER,
     SAFETY_FAULT,
@@ -101,6 +107,18 @@ _QOS_SENSOR = QoSProfile(
 )
 
 _QOS_DEFAULT = QoSProfile(depth=10)
+
+# Matches bonbon_safety.safety_gate_node's real /bonbon/cmd_vel_raw
+# subscription exactly (BEST_EFFORT_D1) -- GAP-E5 fix, see
+# docs/SAFETY_SEPARATION_AUDIT.md Finding 5. The topic name previously
+# used in this file's own docstring/comments (/bonbon/safety_gate/cmd_vel)
+# never matched what safety_gate_node actually subscribes to.
+_QOS_VEL_RAW = QoSProfile(
+    reliability=QoSReliabilityPolicy.BEST_EFFORT,
+    durability=QoSDurabilityPolicy.VOLATILE,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    depth=1,
+)
 
 
 # ── Navigation states (mirrors NavigationStatus.msg constants) ────────────────
@@ -188,6 +206,7 @@ class NavigationNode(LifecycleNode):
         self._pub_recovery = None
         self._pub_health = None
         self._pub_tts = None
+        self._pub_cmd_vel_raw = None
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -270,6 +289,12 @@ class NavigationNode(LifecycleNode):
             self._pub_tts = self.create_publisher(
                 self._import_msg("TTSRequest"), "/bonbon/tts/request", _QOS_DEFAULT
             )
+            try:
+                from geometry_msgs.msg import Twist as _Twist
+
+                self._pub_cmd_vel_raw = self.create_publisher(_Twist, "/bonbon/cmd_vel_raw", _QOS_VEL_RAW)
+            except ImportError:
+                self.get_logger().warn("[navigation] geometry_msgs unavailable — cmd_vel_raw publisher skipped")
 
             # Subscribers
             self.create_subscription(
@@ -277,6 +302,12 @@ class NavigationNode(LifecycleNode):
                 "/perception/behavior",
                 self._on_behavior_recommendation,
                 _QOS_DEFAULT,
+            )
+            self.create_subscription(
+                self._import_msg("BehaviorDecision"),
+                "/bonbon/motion/approved_command",
+                self._on_approved_command,
+                _QOS_RELIABLE_TL,
             )
             self.create_subscription(
                 self._import_msg("SafetyState"),
@@ -646,40 +677,65 @@ class NavigationNode(LifecycleNode):
     # ── Subscriber callbacks ───────────────────────────────────────────────────
 
     def _on_behavior_recommendation(self, msg) -> None:
+        """GAP-E1/E2 fix (docs/SAFETY_SEPARATION_AUDIT.md): this handler
+        used to extract goal params directly from a raw
+        BehaviorRecommendation and enqueue a Nav2 goal itself, gated only
+        by a locally-cached safety flag -- no approval step at all. It
+        now handles ONLY stop_navigation (a cancellation, which reduces
+        risk and doesn't need an approval round-trip). Every navigation
+        REQUEST (navigate_to_goal/approach_person) is instead bridged by
+        bonbon_behavior_engine into a real BehaviorProposal for
+        bonbon_motion_approval_gateway to approve -- see
+        _on_approved_command below, which is the only path that now
+        actually enqueues a goal from a behavior recommendation.
+
+        serve_item is deliberately NOT bridged/dispatched anywhere yet
+        (previously treated as a plain nav goal, which was never a
+        correct model of "deliver an item" as an actuation+navigation
+        composite) -- left unimplemented rather than dispatching
+        something semantically wrong."""
         if not self._active:
             return
-        bc = msg.behavior_class
-        if bc not in ("navigate_to_goal", "approach_person", "serve_item", "stop_navigation"):
-            return
-
-        if bc == "stop_navigation":
+        if msg.behavior_class == "stop_navigation":
             self._goal_manager.cancel_goal(reason="stop_navigation command")
             self._cancel_nav2_goal()
             self._transition_state(STATE_CANCELLED)
+
+    def _on_approved_command(self, msg) -> None:
+        """The ONLY path that enqueues a Nav2 goal from a behavior
+        recommendation -- fed exclusively by bonbon_motion_approval_gateway's
+        real approval decision on /bonbon/motion/approved_command
+        (BehaviorDecision), never directly from /perception/behavior.
+        GAP-E2 fix."""
+        if not self._active:
+            return
+        if not should_dispatch_navigation(msg.decision, msg.approved_action):
             return
 
-        # Extract goal parameters from param_names/param_values
-        params: dict[str, str] = {}
-        for name, val in zip(msg.param_names, msg.param_values):
-            params[name] = val
+        named = msg.nav_goal_label
+        goal_x = float(msg.nav_goal_pose.position.x)
+        goal_y = float(msg.nav_goal_pose.position.y)
+        q = msg.nav_goal_pose.orientation
+        goal_yaw = math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
 
-        named = params.get("named_location", params.get("destination", ""))
-        goal_x = float(params.get("goal_x", 0.0))
-        goal_y = float(params.get("goal_y", 0.0))
-        goal_yaw = float(params.get("goal_yaw", 0.0))
-
-        # Resolve named location
+        # Resolve named location -- an approved proposal may carry only a
+        # label (the gateway doesn't re-resolve locations), so this
+        # lookup still happens here, same as before.
         if named:
             pose = self._map_manager.resolve_location(named)
             if pose:
                 goal_x, goal_y, goal_yaw = pose.x, pose.y, pose.yaw
-            else:
+            elif goal_x == 0.0 and goal_y == 0.0:
                 self.get_logger().warning(f"[navigation] Unknown location: {named!r}")
                 return
 
-        # Check safety
+        # Defense-in-depth: the gateway already checked SafetyState before
+        # approving, but this local check (same watchdog-backed,
+        # fail-closed bridge used by _publish_gated_vel) is kept as a
+        # second, independent guard -- matches this repo's established
+        # "belt and suspenders" pattern (bonbon_safety's estop_node).
         if self._safety_bridge and self._safety_bridge.is_motion_blocked:
-            self.get_logger().warning("[navigation] Goal rejected: safety blocked")
+            self.get_logger().warning("[navigation] Approved goal rejected: safety blocked locally")
             return
 
         goal_id = self._goal_manager.enqueue(
@@ -687,14 +743,14 @@ class NavigationNode(LifecycleNode):
             target_y=goal_y,
             target_yaw=goal_yaw,
             goal_type=2 if named and named.startswith("charger") else 1,
-            priority=int(msg.priority),
+            priority=1,
             named_location=named,
-            requester_id="behavior_engine",
-            recommendation_id=msg.recommendation_id,
-            preempt=(int(msg.priority) >= 2),  # HIGH+ preempts
+            requester_id="motion_approval_gateway",
+            recommendation_id=msg.proposal_event_id,
+            preempt=False,
         )
         self.get_logger().info(
-            f"[navigation] Goal accepted: {goal_id[:8]} → {named!r} ({goal_x:.2f}, {goal_y:.2f})"
+            f"[navigation] Approved goal accepted: {goal_id[:8]} → {named!r} ({goal_x:.2f}, {goal_y:.2f})"
         )
 
     def _on_safety_state(self, msg) -> None:
@@ -842,11 +898,23 @@ class NavigationNode(LifecycleNode):
     # ── Velocity publishing ───────────────────────────────────────────────────
 
     def _publish_gated_vel(self, linear: float, angular: float) -> None:
-        """Apply safety gate and publish velocity command."""
+        """Apply this node's own SafetyStopBridge cap/block, then publish
+        to /bonbon/cmd_vel_raw -- safety_gate_node applies its OWN,
+        independent check on that topic before relaying to /cmd_vel.
+        Never publishes directly to /cmd_vel (rule: this node has no
+        direct path to the motors).
+
+        GAP-E5 fix (docs/SAFETY_SEPARATION_AUDIT.md Finding 5): this
+        used to build a Twist message and never call .publish() on
+        anything -- no publisher for the topic even existed, so
+        Nav2-driven wheel velocity could never reach the motors at all.
+        It was "safe" only by being broken, not by being gated."""
         if self._safety_bridge is None:
             return
         gated = self._safety_bridge.gate(linear, angular)
         if gated.was_blocked:
+            return
+        if self._pub_cmd_vel_raw is None:
             return
         try:
             from geometry_msgs.msg import Twist
@@ -854,8 +922,7 @@ class NavigationNode(LifecycleNode):
             twist = Twist()
             twist.linear.x = gated.linear_mps
             twist.angular.z = gated.angular_rps
-            # Published to safety gate topic — NOT directly to /cmd_vel
-            # (safety_gate_node relays to /cmd_vel after its own checks)
+            self._pub_cmd_vel_raw.publish(twist)
         except ImportError:
             pass
 

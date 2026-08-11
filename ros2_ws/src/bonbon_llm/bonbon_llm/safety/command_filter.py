@@ -171,7 +171,28 @@ class SafetyCommandFilter:
         Scan arbitrary text for blocked / risky patterns.
 
         Used to pre-screen the LLM's raw output before any dispatch.
+
+        GAP-E5 fix (docs/EDGE_AI_GAP_ANALYSIS.md): an internal error while
+        scanning (e.g. a malformed pattern from SafetyFilterConfig) must
+        fail closed, not propagate an uncaught exception a caller might
+        not handle safely. This is the ONE deliberate exception to this
+        method's own documented "escalate to RISKY, not BLOCKED" design
+        principle above -- that principle covers genuine SAFE-vs-RISKY
+        judgment calls on real text; it was never meant to cover "the
+        filter itself broke and couldn't actually scan the text at all."
         """
+        try:
+            return self._filter_text_inner(text)
+        except Exception as exc:  # noqa: BLE001 -- a broken filter must never silently pass content through
+            logger.error(f"SafetyCommandFilter internal error, failing closed: {exc}")
+            return FilterResult(
+                status=FilterStatus.BLOCKED,
+                reason=f"filter error (failing closed): {exc}",
+                sanitized_text="",
+                original_text=str(text),
+            )
+
+    def _filter_text_inner(self, text: str) -> FilterResult:
         # 1. Hard block check
         blocked, pattern, reason = self._check_blocked(text)
         if blocked:

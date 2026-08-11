@@ -30,8 +30,14 @@ from bonbon_srvs.srv import HealthCheck
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.lifecycle import Publisher as LifecyclePublisher
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
+from std_msgs.msg import Bool
 
-from bonbon_distributed_safety.core.heartbeat_monitor import HeartbeatConfig, HeartbeatMonitor, PiId
+from bonbon_distributed_safety.core.heartbeat_monitor import (
+    HeartbeatConfig,
+    HeartbeatMonitor,
+    PiId,
+    local_health_status,
+)
 
 _SOURCE_MODULE = "bonbon_distributed_safety"
 _ALL_PI_IDS = {"pi1": PiId.PI1, "pi2": PiId.PI2, "pi3": PiId.PI3}
@@ -58,6 +64,10 @@ class DistributedSafetyNode(LifecycleNode):
         self.declare_parameter("heartbeat_rate_hz", 2.0)
         self.declare_parameter("stale_after_sec", 1.5)
         self.declare_parameter("lost_after_sec", 5.0)
+        # Matches watchdog_node's own startup_grace_sec default -- before
+        # this window elapses, "no crash-flag message received yet" is
+        # treated as still-starting-up, not unknown/unhealthy.
+        self.declare_parameter("watchdog_grace_sec", 30.0)
 
         self._monitor: HeartbeatMonitor | None = None
         self._self_id: PiId = PiId.PI3
@@ -67,6 +77,20 @@ class DistributedSafetyNode(LifecycleNode):
         self._heartbeat_timer = None
         self._eval_timer = None
         self._srv_health = None
+
+        # GAP-E4 fix: reflect this Pi's REAL local component health in the
+        # heartbeat rather than always publishing OK. bonbon_safety's
+        # watchdog_node already monitors every managed node's liveness on
+        # this Pi and publishes these two flags -- this node does not
+        # duplicate that monitoring, it only relays the verdict. `None`
+        # (never received) is tracked separately from `False` (received,
+        # healthy) so a heartbeat published before the watchdog's first
+        # publish is never dishonestly reported as confirmed-OK.
+        self._critical_node_crashed: bool | None = None
+        self._important_node_crashed: bool | None = None
+        self._sub_critical_crash = None
+        self._sub_important_crash = None
+        self._node_start_monotonic: float = time.monotonic()
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -93,7 +117,14 @@ class DistributedSafetyNode(LifecycleNode):
                 self._make_heartbeat_cb(peer),
                 _QOS_HEARTBEAT,
             )
+        self._sub_critical_crash = self.create_subscription(
+            Bool, "/bonbon/safety/critical_node_crashed", self._cb_critical_crash, _QOS_RELIABLE
+        )
+        self._sub_important_crash = self.create_subscription(
+            Bool, "/bonbon/safety/important_node_crashed", self._cb_important_crash, _QOS_RELIABLE
+        )
         self._srv_health = self.create_service(HealthCheck, "~/health_check", self._cb_health_check)
+        self._node_start_monotonic = time.monotonic()
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -124,12 +155,27 @@ class DistributedSafetyNode(LifecycleNode):
 
         return _cb
 
+    def _cb_critical_crash(self, msg: Bool) -> None:
+        self._critical_node_crashed = bool(msg.data)
+
+    def _cb_important_crash(self, msg: Bool) -> None:
+        self._important_node_crashed = bool(msg.data)
+
     def _cb_publish_heartbeat(self) -> None:
         if self._pub_heartbeat is None:
             return
+        in_grace = (
+            time.monotonic() - self._node_start_monotonic
+        ) < float(self.get_parameter("watchdog_grace_sec").get_parameter_value().double_value)
+        status, status_text = local_health_status(
+            critical_node_crashed=self._critical_node_crashed,
+            important_node_crashed=self._important_node_crashed,
+            in_startup_grace=in_grace,
+        )
         msg = ModuleHealth()
         msg.module_name = _SOURCE_MODULE
-        msg.status = 0  # OK — unconditional heartbeat regardless of local component health
+        msg.status = status
+        msg.status_text = status_text
         self._pub_heartbeat.publish(msg)
 
     def _cb_evaluate(self) -> None:

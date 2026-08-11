@@ -57,6 +57,15 @@ class ProposalInput:
     urgency: float
     justification: str = ""
     safety_check_required: bool = True
+    # Navigation destination, populated when proposal_type is
+    # navigate/approach/retreat -- GAP-E2 fix. Previously dropped before
+    # reaching evaluate() even though BehaviorProposal.msg already
+    # carried nav_goal_pose/nav_goal_label, which meant an approved
+    # navigation decision had no destination to act on.
+    nav_goal_x: float = 0.0
+    nav_goal_y: float = 0.0
+    nav_goal_yaw: float = 0.0
+    nav_goal_label: str = ""
 
 
 @dataclass(frozen=True)
@@ -81,6 +90,13 @@ class DecisionResult:
     confidence: float
     operator_alerted: bool
     logged: bool
+    # Only populated (non-zero/non-empty) when decision == "approved" and
+    # approved_action is a motion type -- GAP-E2 fix, mirrors
+    # ProposalInput's nav_goal_* fields.
+    nav_goal_x: float = 0.0
+    nav_goal_y: float = 0.0
+    nav_goal_yaw: float = 0.0
+    nav_goal_label: str = ""
 
 
 class MotionApprovalGateway:
@@ -137,6 +153,7 @@ class MotionApprovalGateway:
             modification_note = (
                 f"velocity capped at {safety.max_velocity_mps:.2f} m/s by safety state"
             )
+        is_motion = proposal.proposal_type in _MOTION_TYPES
         return DecisionResult(
             event_id=self._event_id_factory(),
             proposal_event_id=proposal.event_id,
@@ -149,6 +166,13 @@ class MotionApprovalGateway:
             confidence=1.0,
             operator_alerted=False,
             logged=True,
+            # Destination only carried through for motion types -- a
+            # non-motion approval (e.g. "speak") must never appear to
+            # carry a navigation goal just because the field exists.
+            nav_goal_x=proposal.nav_goal_x if is_motion else 0.0,
+            nav_goal_y=proposal.nav_goal_y if is_motion else 0.0,
+            nav_goal_yaw=proposal.nav_goal_yaw if is_motion else 0.0,
+            nav_goal_label=proposal.nav_goal_label if is_motion else "",
         )
 
     def _reject(self, proposal: ProposalInput, reason: str) -> DecisionResult:

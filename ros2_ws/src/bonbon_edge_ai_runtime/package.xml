@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_edge_ai_runtime</name>
+  <version>1.0.0</version>
+  <description>
+    Cross-capability edge AI orchestration layer for BonBon: a task
+    router that picks the cheapest safe route for every request (rule
+    -&gt; cache -&gt; RAG -&gt; tiny LLM -&gt; ASR/TTS/vision -&gt; degraded
+    fallback -&gt; escalation), a safety separation guard that classifies
+    every proposed action and blocks unsafe direct-control paths, and
+    thin facades over resource guarding, caching, and accelerator
+    selection.
+
+    Deliberately NOT a from-scratch reimplementation of everything the
+    Edge AI Runtime brief names: per
+    docs/DUPLICATE_PIPELINE_AUDIT.md, real working implementations
+    already exist for model registry/fallback/runtime-selection
+    (bonbon_ai_model_registry), resource guarding
+    (bonbon_safety.core.resource_monitor,
+    bonbon_perception_efficiency.core.load_shedding_controller,
+    bonbon_llm.core.pi2_llm_guard), degraded mode
+    (bonbon_perception_efficiency.core.degraded_mode_manager), LLM/TTS
+    caching (bonbon_llm.core.response_cache,
+    bonbon_speech_ai.tts_router), and Hailo/CPU/mock vision runtime
+    selection (bonbon_ai_runtime). This package delegates to those
+    rather than duplicating them, and adds only what genuinely didn't
+    exist before: the cross-capability task router, the centralized
+    safety separation classifier, a RAG result cache, and a unified
+    dashboard/metrics view spanning all of the above.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>bonbon_ai_model_registry</exec_depend>
+  <exec_depend>bonbon_ai_runtime</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

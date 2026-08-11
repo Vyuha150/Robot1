@@ -26,6 +26,14 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>python3-pydantic</exec_depend>
+  <!-- AI model registry / speech / Sarvam / perception / affective status
+       endpoints (api/ai_model_status_api.py, websocket/ai_model_snapshots.py)
+       import these two packages directly. -->
+  <exec_depend>bonbon_ai_model_registry</exec_depend>
+  <exec_depend>bonbon_sarvam_adapter</exec_depend>
+  <!-- api/edge_ai_status_api.py's /vision-ai/status endpoint imports
+       EdgeAIDashboardPublisher directly. -->
+  <exec_depend>bonbon_edge_ai_runtime</exec_depend>
 
   <!-- pip install fastapi uvicorn[standard] PyJWT passlib[bcrypt] prometheus-client -->
 

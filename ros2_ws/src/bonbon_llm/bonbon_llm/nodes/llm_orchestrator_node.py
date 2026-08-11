@@ -86,6 +86,20 @@ _BEST_EFFORT = QoSProfile(
     depth=10,
 )
 
+# /bonbon/safety/state publishes at 10 Hz when the Safety Supervisor is
+# alive (see module docstring). If no message has been received within
+# this window, treat the safety snapshot as stale rather than reusing a
+# possibly-outdated one forever -- mirrors
+# SafetyStopBridge.watchdog_timeout_sec in bonbon_navigation (GAP-E1 fix,
+# see docs/SAFETY_SEPARATION_AUDIT.md Finding 1).
+_SAFETY_STALE_SEC = 2.0
+
+# Mirrors bonbon_msgs/TTSRequest.msg's PRIORITY_HIGH = 10 -- a plain
+# constant rather than importing the message class for its attribute, so
+# this stays correct even where bonbon_msgs isn't a fully compiled ROS2
+# package (matches bonbon_perception_ai's own PRIORITY_HIGH convention).
+_TTS_PRIORITY_HIGH = 10
+
 
 class LLMOrchestratorNode(LifecycleNode):
     """Full LLM + Response Generation pipeline as a ROS2 LifecycleNode."""
@@ -109,10 +123,18 @@ class LLMOrchestratorNode(LifecycleNode):
         self._logger_svc = None
         self._lc_chain = None  # LangChain chain (may be None if unavailable)
         self._response_cache = None  # ResponseCache; wired in _init_pipeline
+        self._task_router = None  # bonbon_edge_ai_runtime.TaskRouter; wired in _init_pipeline (GAP-E8 fix)
 
         # Cached incoming state
         self._last_scene = None
         self._last_safety = None
+        # Monotonic timestamp of the last /bonbon/safety/state message --
+        # without this, a stale (but non-None) _last_safety would be
+        # reused forever if the Safety Supervisor died or the network
+        # partitioned, silently granting navigation/actuation on
+        # outdated safety data (GAP-E1 fix, see
+        # docs/SAFETY_SEPARATION_AUDIT.md Finding 1).
+        self._last_safety_at: float = 0.0
         self._last_risks: list = []
         self._lock = threading.Lock()
 
@@ -181,6 +203,23 @@ class LLMOrchestratorNode(LifecycleNode):
         from bonbon_llm.core.response_cache import ResponseCache
 
         self._response_cache = ResponseCache()
+
+        # GAP-E8 fix: pi_human_ai.yaml's resolution_order: [rule_engine,
+        # rag, llm] was declared but read by zero live code -- an
+        # utterance always went straight into the cache/RAG/LLM pipeline
+        # below, even for phrases task_router.py's deterministic rule
+        # engine (e.g. an emergency phrase) should short-circuit before
+        # ever reaching the LLM. Wired here as the rule_engine stage;
+        # degrades to None (pipeline behaves exactly as before this fix)
+        # if bonbon_edge_ai_runtime isn't installed -- never blocks
+        # startup over an optional routing enhancement.
+        try:
+            from bonbon_edge_ai_runtime.task_router import TaskRouter
+
+            self._task_router = TaskRouter()
+        except Exception as exc:  # noqa: BLE001 -- optional dependency, must never break the pipeline
+            self.get_logger().warning(f"task_router unavailable ({exc}); rule-engine short-circuit disabled")
+            self._task_router = None
 
         # Wire tool registry
         from bonbon_llm.tools.tool_registry import ToolRegistry
@@ -272,6 +311,7 @@ class LLMOrchestratorNode(LifecycleNode):
         with self._lock:
             self._last_scene = None
             self._last_safety = None
+            self._last_safety_at = 0.0
             self._last_risks = []
         return TransitionCallbackReturn.SUCCESS
 
@@ -295,6 +335,7 @@ class LLMOrchestratorNode(LifecycleNode):
     def _on_safety(self, msg) -> None:
         with self._lock:
             self._last_safety = msg
+            self._last_safety_at = time.monotonic()
 
     def _on_risk(self, msg) -> None:
         with self._lock:
@@ -344,110 +385,142 @@ class LLMOrchestratorNode(LifecycleNode):
             context_str = build_context_string(scene, safety_snap)
             prompt = self._build_prompt(intent_msg)
 
-            # 3. Cache check — BEFORE RAG retrieval, so a hit skips RAG AND the
-            # LLM call, not just the LLM call. Keyed on (question, context_str)
-            # — scene+safety only, not RAG results: within the cache's short
-            # TTL (30s default) the local knowledge base is static enough that
-            # re-retrieving identical RAG results for a repeated question is
-            # pure waste. Any scene/safety change still correctly misses the
-            # cache. The safety filter and hallucination guard below still run
-            # on every cache hit too — a hit only ever skips RAG + inference.
-            t_rag = time.perf_counter()
-            t_llm = time.perf_counter()
-            cached = (
-                self._response_cache.get(intent_msg.raw_text, context_str)
-                if self._response_cache
-                else None
-            )
+            # 2b. Rule-engine short-circuit (GAP-E8 fix) — task_router's
+            # deterministic rule stage, tried BEFORE cache/RAG/LLM, matching
+            # pi_human_ai.yaml's resolution_order: [rule_engine, rag, llm].
+            # Only the emergency case is currently short-circuited here:
+            # it is the one case with zero existing deterministic handling
+            # anywhere in this pipeline (confirmed: no "emergency" branch
+            # existed before this fix) and the one this brief's Phase 4
+            # names explicitly ("no LLM involved"). Every other routing
+            # outcome (navigation/appointment/FAQ/small-talk) falls through
+            # to the existing, unchanged, already-tested pipeline below —
+            # this fix intentionally does not change behavior for those.
+            route_decision = self._route_text_intent(intent_msg)
+            is_emergency_route = route_decision is not None and route_decision.task_type == "emergency"
+
             rag_results: list = []
-            if cached is not None:
-                raw_llm_out, llm_error = cached.text, None
-                full_context = context_str
-                rag_latency = 0.0
-            else:
-                # 3a. RAG retrieval
-                if self._rag:
-                    try:
-                        rag_results = self._rag.retrieve_with_scores(intent_msg.raw_text)
-                        rag_context = self._rag.build_context_string(rag_results)
-                        full_context = context_str + "\n\n" + rag_context
-                    except Exception as exc:
-                        self.get_logger().debug(f"RAG error (non-fatal): {exc}")
-                        full_context = context_str
-                else:
-                    full_context = context_str
-                rag_latency = (time.perf_counter() - t_rag) * 1000.0
-
-                # 3b. LLM call
-                raw_llm_out, llm_error = self._call_llm(prompt, full_context)
-                if raw_llm_out and not llm_error and self._response_cache:
-                    self._response_cache.put(intent_msg.raw_text, context_str, raw_llm_out, "ok")
-            llm_latency = (time.perf_counter() - t_llm) * 1000.0
-
-            # 4. Safety filter
-            filter_result = self._filter.filter_text(raw_llm_out) if raw_llm_out else None
-            safety_status = "SAFE"
-            safety_reason = ""
-
-            if llm_error or not raw_llm_out:
-                final_text, status = self._fallback("llm_error"), "llm_error"
+            if is_emergency_route:
+                final_text = self._fallback("emergency")
+                status = "emergency"
                 safety_status = "SAFE"
-            elif filter_result and filter_result.status.value == "BLOCKED":
-                final_text = self._fallback("safety_block")
-                status = "safety_block"
-                safety_status = "BLOCKED"
-                safety_reason = filter_result.reason
-                self._error_count += 1
-                self.get_logger().warning(
-                    f"LLM output blocked [{filter_result.reason}]: {raw_llm_out[:60]}"
-                )
+                safety_reason = ""
+                raw_llm_out = None  # no LLM involved -- required for step 10's log call below
+                rag_latency = 0.0
+                llm_latency = 0.0
+                # TTSRequest.PRIORITY_HIGH == 10 (bonbon_msgs/TTSRequest.msg)
+                # -- a literal, not the message class attribute, matching
+                # this repo's established convention (see
+                # bonbon_perception_ai's own PRIORITY_HIGH module constant)
+                # so this doesn't depend on a fully compiled bonbon_msgs.
+                self._dispatch_tts(final_text, priority=_TTS_PRIORITY_HIGH)
+                auth = self._authorizer.authorize("alert_safety", safety_snap, confidence=float(intent_msg.confidence))
+                if auth.granted:
+                    self._dispatch_behavior("alert_safety", {"reason": "emergency_phrase_detected"}, float(intent_msg.confidence))
             else:
-                sanitized = filter_result.sanitized_text if filter_result else raw_llm_out
-
-                # 5. Hallucination guard
-                guard_result = self._guard.check(
-                    sanitized,
-                    rag_results,
-                    llm_confidence=float(intent_msg.confidence),
+                # 3. Cache check — BEFORE RAG retrieval, so a hit skips RAG AND the
+                # LLM call, not just the LLM call. Keyed on (question, context_str)
+                # — scene+safety only, not RAG results: within the cache's short
+                # TTL (30s default) the local knowledge base is static enough that
+                # re-retrieving identical RAG results for a repeated question is
+                # pure waste. Any scene/safety change still correctly misses the
+                # cache. The safety filter and hallucination guard below still run
+                # on every cache hit too — a hit only ever skips RAG + inference.
+                t_rag = time.perf_counter()
+                t_llm = time.perf_counter()
+                cached = (
+                    self._response_cache.get(intent_msg.raw_text, context_str)
+                    if self._response_cache
+                    else None
                 )
-                if not guard_result.is_grounded:
-                    self.get_logger().warning(f"Hallucination flagged: {guard_result.reason}")
-                    sanitized = guard_result.safe_response or self._fallback("hallucination")
-                    status = "hallucination"
+                if cached is not None:
+                    raw_llm_out, llm_error = cached.text, None
+                    full_context = context_str
+                    rag_latency = 0.0
                 else:
-                    status = "ok"
-
-                # 6. Personality layer
-                use_aff = intent_msg.intent_class in ("greeting", "order_item")
-                final_text = self._personality.apply(
-                    sanitized, user_text=intent_msg.raw_text, use_affirmation=use_aff
-                )
-
-                # 7. Dispatch TTS
-                self._dispatch_tts(final_text, priority=5)
-
-                # 8. Behavior dispatch (from tool calls or intent mapping)
-                behavior_class = self._resolve_behavior(intent_msg, safety_snap)
-                if behavior_class:
-                    auth = self._authorizer.authorize(
-                        behavior_class,
-                        safety_snap,
-                        confidence=float(intent_msg.confidence),
-                    )
-                    if auth.granted:
-                        slots = dict(zip(intent_msg.slot_names, intent_msg.slot_values))
-                        self._dispatch_behavior(behavior_class, slots, float(intent_msg.confidence))
+                    # 3a. RAG retrieval
+                    if self._rag:
+                        try:
+                            rag_results = self._rag.retrieve_with_scores(intent_msg.raw_text)
+                            rag_context = self._rag.build_context_string(rag_results)
+                            full_context = context_str + "\n\n" + rag_context
+                        except Exception as exc:
+                            self.get_logger().debug(f"RAG error (non-fatal): {exc}")
+                            full_context = context_str
                     else:
-                        self.get_logger().info(
-                            f"Behavior {behavior_class!r} {auth.status.value}: {auth.reason}"
+                        full_context = context_str
+                    rag_latency = (time.perf_counter() - t_rag) * 1000.0
+
+                    # 3b. LLM call
+                    raw_llm_out, llm_error = self._call_llm(prompt, full_context)
+                    if raw_llm_out and not llm_error and self._response_cache:
+                        self._response_cache.put(intent_msg.raw_text, context_str, raw_llm_out, "ok")
+                llm_latency = (time.perf_counter() - t_llm) * 1000.0
+
+                # 4. Safety filter
+                filter_result = self._filter.filter_text(raw_llm_out) if raw_llm_out else None
+                safety_status = "SAFE"
+                safety_reason = ""
+
+                if llm_error or not raw_llm_out:
+                    final_text, status = self._fallback("llm_error"), "llm_error"
+                    safety_status = "SAFE"
+                elif filter_result and filter_result.status.value == "BLOCKED":
+                    final_text = self._fallback("safety_block")
+                    status = "safety_block"
+                    safety_status = "BLOCKED"
+                    safety_reason = filter_result.reason
+                    self._error_count += 1
+                    self.get_logger().warning(
+                        f"LLM output blocked [{filter_result.reason}]: {raw_llm_out[:60]}"
+                    )
+                else:
+                    sanitized = filter_result.sanitized_text if filter_result else raw_llm_out
+
+                    # 5. Hallucination guard
+                    guard_result = self._guard.check(
+                        sanitized,
+                        rag_results,
+                        llm_confidence=float(intent_msg.confidence),
+                    )
+                    if not guard_result.is_grounded:
+                        self.get_logger().warning(f"Hallucination flagged: {guard_result.reason}")
+                        sanitized = guard_result.safe_response or self._fallback("hallucination")
+                        status = "hallucination"
+                    else:
+                        status = "ok"
+
+                    # 6. Personality layer
+                    use_aff = intent_msg.intent_class in ("greeting", "order_item")
+                    final_text = self._personality.apply(
+                        sanitized, user_text=intent_msg.raw_text, use_affirmation=use_aff
+                    )
+
+                    # 7. Dispatch TTS
+                    self._dispatch_tts(final_text, priority=5)
+
+                    # 8. Behavior dispatch (from tool calls or intent mapping)
+                    behavior_class = self._resolve_behavior(intent_msg, safety_snap)
+                    if behavior_class:
+                        auth = self._authorizer.authorize(
+                            behavior_class,
+                            safety_snap,
+                            confidence=float(intent_msg.confidence),
                         )
-                        if auth.status.value == "DENIED":
-                            denial_text = self._fallback(
-                                "navigation_denied"
-                                if "navigat" in behavior_class
-                                else "actuation_denied"
+                        if auth.granted:
+                            slots = dict(zip(intent_msg.slot_names, intent_msg.slot_values))
+                            self._dispatch_behavior(behavior_class, slots, float(intent_msg.confidence))
+                        else:
+                            self.get_logger().info(
+                                f"Behavior {behavior_class!r} {auth.status.value}: {auth.reason}"
                             )
-                            self._dispatch_tts(denial_text, priority=5)
+                            if auth.status.value == "DENIED":
+                                denial_text = self._fallback(
+                                    "navigation_denied"
+                                    if "navigat" in behavior_class
+                                    else "actuation_denied"
+                                )
+                                self._dispatch_tts(denial_text, priority=5)
 
             # 9. Publish LLMResponse
             self._publish_response(
@@ -543,6 +616,24 @@ class LLMOrchestratorNode(LifecycleNode):
         }
         return _MAP.get(intent_msg.intent_class)
 
+    def _route_text_intent(self, intent_msg):
+        """GAP-E8 fix: consult TaskRouter's rule-engine stage before the
+        cache/RAG/LLM pipeline runs. Never lets a routing-layer failure
+        block the pipeline -- returns None on any error or when
+        task_router is unavailable, in which case callers must fall
+        through to the pipeline exactly as before this fix."""
+        if self._task_router is None:
+            return None
+        try:
+            return self._task_router.route_text_intent(
+                intent_msg.raw_text,
+                intent_class=intent_msg.intent_class or None,
+                source_module="llm_orchestrator",
+            )
+        except Exception as exc:  # noqa: BLE001 -- routing must degrade, never crash the pipeline
+            self.get_logger().debug(f"task_router routing error (non-fatal): {exc}")
+            return None
+
     def _fallback(self, situation: str) -> str:
         from bonbon_llm.prompts.response_templates import get_fallback
 
@@ -567,7 +658,11 @@ class LLMOrchestratorNode(LifecycleNode):
 
         with self._lock:
             msg = self._last_safety
-        if msg is None:
+            age_sec = time.monotonic() - self._last_safety_at
+        if msg is None or age_sec > _SAFETY_STALE_SEC:
+            # No SafetyState received yet, or the Safety Supervisor has
+            # gone quiet (crashed, network partition) -- never authorize
+            # navigation/actuation against a stale or absent heartbeat.
             return SafetySnapshot.safe_default()
         return SafetySnapshot.from_ros_msg(msg)
 

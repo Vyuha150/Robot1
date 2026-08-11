@@ -216,10 +216,29 @@ class TestResultFields:
 class TestSafetySnapshot:
 
     def test_safe_default(self):
+        # GAP-E1 fix: safe_default() must be fail-closed -- used before
+        # the first real SafetyState arrives (or once stale), so it must
+        # never grant navigation/actuation. See
+        # docs/SAFETY_SEPARATION_AUDIT.md Finding 1.
         snap = SafetySnapshot.safe_default()
-        assert snap.navigation_permitted is True
-        assert snap.actuation_permitted is True
-        assert snap.state_id == SAFETY_NORMAL
+        assert snap.navigation_permitted is False
+        assert snap.actuation_permitted is False
+        assert snap.state_id == SAFETY_INITIALIZING
+
+    def test_safe_default_denies_navigation_and_actuation_via_authorizer(self, auth: CommandAuthorizer):
+        # Structural proof, not just a field check: an authorizer given
+        # the fail-closed default must actually deny real behavior
+        # classes, not just carry the right flags.
+        snap = SafetySnapshot.safe_default()
+        nav_result = auth.authorize("navigate_to_goal", snap)
+        assert nav_result.status == AuthStatus.DENIED
+
+        act_result = auth.authorize("serve_item", snap)
+        assert act_result.status == AuthStatus.DENIED
+
+        # Speech must remain unaffected -- it never requires safety authorization.
+        speech_result = auth.authorize("speak_greeting", snap)
+        assert speech_result.status == AuthStatus.GRANTED
 
     def test_default_snapshot(self):
         snap = SafetySnapshot()

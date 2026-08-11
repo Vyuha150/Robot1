@@ -193,7 +193,7 @@ def bench_rag_retriever() -> dict:
 
 
 def bench_tool_registry_readonly() -> dict:
-    snap = SafetySnapshot.safe_default()
+    snap = SafetySnapshot()  # dataclass defaults: NORMAL, everything permitted
     snap.state_id = SAFETY_NORMAL
     snap.state_name = "NORMAL"
 

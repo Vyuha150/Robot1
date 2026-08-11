@@ -250,6 +250,28 @@ Safety rule:
 
 - Dashboard commands must pass `CommandValidator` and `SafetyCommandGate`.
 
+## bonbon_patient_kiosk
+
+Patient/customer-facing kiosk API for a hospital reception deployment.
+Separate from `bonbon_operator_api` (staff-only) — see its own README.
+
+Responsibilities:
+
+- Anonymous, session-scoped patient interaction (no accounts).
+- Patient history intake with in-memory-only drafts + encrypted-at-rest submit.
+- Appointment booking and walk-in queue/token issuance.
+- RAG-grounded chat (proxies `bonbon_llm`'s `/llm/query`) and wayfinding/escort.
+- Staff-only, export-only Facility Map Editor (room/doctor labeling → `named_locations` YAML).
+- PHI-access audit logging; JWT auth for the staff/admin slice only.
+
+Safety rule:
+
+- Navigation/panic requests pass through its own `KioskSafetyGate` before
+  reaching `/navigation/navigate_to` — the same safety-gated service
+  `bonbon_operator_api` calls. Never bypasses `bonbon_safety` or
+  `bonbon_navigation`'s own pipeline, never live-writes bonbon_navigation's
+  named-location registry.
+
 ## bonbon_simulation
 
 Simulation validation package.

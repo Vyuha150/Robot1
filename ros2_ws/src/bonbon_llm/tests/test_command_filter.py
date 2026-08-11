@@ -192,3 +192,17 @@ class TestEdgeCases:
         long_text = "Hello! " * 200  # 1400 chars
         result = filt.filter_text(long_text)
         assert result.status == FilterStatus.SAFE
+
+
+# ── GAP-E5: an internal filter error must fail closed, not propagate ──────────
+
+
+class TestInternalErrorFailsClosed:
+    def test_internal_error_returns_blocked_not_an_exception(self, filt, monkeypatch):
+        def _boom(*args, **kwargs):
+            raise RuntimeError("simulated internal filter failure")
+
+        monkeypatch.setattr(filt, "_check_blocked", _boom)
+        result = filt.filter_text("perfectly ordinary text")
+        assert result.status == FilterStatus.BLOCKED
+        assert "failing closed" in result.reason

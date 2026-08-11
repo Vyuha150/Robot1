@@ -25,6 +25,7 @@ These tests verify
 """
 
 import sys
+import time
 import types
 from unittest.mock import MagicMock
 
@@ -437,8 +438,175 @@ class TestProcessIntentCacheSkipsRagAndLlm:
             max_velocity_mps=0.5,
             requires_manual_reset=False,
         )
+        # A real /bonbon/safety/state callback (_on_safety) sets this
+        # timestamp alongside the message -- GAP-E1's staleness check
+        # means an untouched _last_safety_at (still 0.0 from __init__)
+        # would make _get_safety_snapshot() always fall back to
+        # safe_default(), masking this test's intent (a genuinely NEW,
+        # fresh safety message arriving) as a stale/absent one instead.
+        node._last_safety_at = time.monotonic()
         node._process_intent(self._make_intent())
         assert node._rag.retrieve_with_scores.call_count == 2, (
             "a changed safety context must miss the cache, not reuse a "
             "response computed under different safety conditions"
         )
+
+
+# ── GAP-E8: task_router rule-engine short-circuit for emergency phrases ───────
+
+
+class TestEmergencyRuleEngineShortCircuit:
+    """pi_human_ai.yaml's resolution_order: [rule_engine, rag, llm] must be
+    real, live behavior, not just a declared config key. An emergency
+    phrase must never reach RAG or the LLM -- see docs/EDGE_AI_GAP_ANALYSIS.md
+    GAP-E8 and docs/EDGE_AI_TASK_ROUTER_REPORT.md."""
+
+    def _make_node(self, with_task_router: bool):
+        from bonbon_llm.config.llm_config import (
+            AuthorizationConfig,
+            HallucinationConfig,
+            PersonalityConfig,
+            SafetyFilterConfig,
+        )
+        from bonbon_llm.core.response_cache import ResponseCache
+        from bonbon_llm.nodes.llm_orchestrator_node import LLMOrchestratorNode
+        from bonbon_llm.personality.personality_layer import PersonalityLayer
+        from bonbon_llm.safety.authorization import CommandAuthorizer
+        from bonbon_llm.safety.command_filter import SafetyCommandFilter
+        from bonbon_llm.safety.hallucination_guard import HallucinationGuard
+
+        node = LLMOrchestratorNode("test_llm_orchestrator")
+        node._response_cache = ResponseCache()
+        node._rag = MagicMock()
+        node._rag.retrieve_with_scores.return_value = []
+        node._rag.build_context_string.return_value = ""
+        node._filter = SafetyCommandFilter(SafetyFilterConfig())
+        node._guard = HallucinationGuard(HallucinationConfig(enabled=False))
+        node._authorizer = CommandAuthorizer(AuthorizationConfig())
+        node._personality = PersonalityLayer(PersonalityConfig())
+        node._logger_svc = MagicMock()
+        node._tool_reg = None
+        node._cfg = None
+        node._pub_response = MagicMock()
+        node._pub_tts = MagicMock()
+        node._pub_behavior = MagicMock()
+        node._last_scene = None
+        node._last_safety = None
+        node._last_risks = []
+        node._call_llm = MagicMock(return_value=("A real answer.", None))
+        if with_task_router:
+            from bonbon_edge_ai_runtime.task_router import TaskRouter
+
+            node._task_router = TaskRouter()
+        else:
+            node._task_router = None
+        return node
+
+    def _make_intent(self, text):
+        intent = MagicMock()
+        intent.is_ambiguous = False
+        intent.raw_text = text
+        intent.intent_class = "general_query"
+        intent.confidence = 0.9
+        intent.speaker_id = ""
+        intent.slot_names = []
+        intent.slot_values = []
+        intent.intent_id = "intent-1"
+        return intent
+
+    def test_emergency_phrase_never_reaches_rag_or_llm(self):
+        node = self._make_node(with_task_router=True)
+        node._process_intent(self._make_intent("help, someone collapsed"))
+        assert node._rag.retrieve_with_scores.call_count == 0
+        assert node._call_llm.call_count == 0
+
+    def test_emergency_phrase_dispatches_high_priority_tts(self):
+        node = self._make_node(with_task_router=True)
+        node._process_intent(self._make_intent("help, someone collapsed"))
+        assert node._pub_tts.publish.call_count == 1
+        published = node._pub_tts.publish.call_args[0][0]
+        assert published.priority == 10  # TTSRequest.PRIORITY_HIGH
+
+    def test_emergency_phrase_dispatches_alert_safety_behavior(self):
+        node = self._make_node(with_task_router=True)
+        node._process_intent(self._make_intent("help, someone collapsed"))
+        assert node._pub_behavior.publish.call_count == 1
+        published = node._pub_behavior.publish.call_args[0][0]
+        assert published.behavior_class == "alert_safety"
+
+    def test_non_emergency_phrase_is_unaffected_by_task_router(self):
+        node = self._make_node(with_task_router=True)
+        node._process_intent(self._make_intent("what time is it"))
+        assert node._rag.retrieve_with_scores.call_count == 1
+        assert node._call_llm.call_count == 1
+
+    def test_without_task_router_pipeline_behaves_exactly_as_before(self):
+        # Degradation guard: if bonbon_edge_ai_runtime is unavailable
+        # (_task_router is None), an emergency phrase must fall through
+        # to the ordinary RAG+LLM pipeline unchanged, never crash.
+        node = self._make_node(with_task_router=False)
+        node._process_intent(self._make_intent("help, someone collapsed"))
+        assert node._rag.retrieve_with_scores.call_count == 1
+        assert node._call_llm.call_count == 1
+
+
+# ── GAP-E1: _get_safety_snapshot must fail closed, not fail open ──────────────
+
+
+class TestGetSafetySnapshotFailsClosed:
+    """See docs/SAFETY_SEPARATION_AUDIT.md Finding 1: an LLM-originated
+    BehaviorRecommendation could previously reach real Nav2 goal dispatch
+    before the first SafetyState message arrived, because
+    SafetySnapshot.safe_default() was permissive (navigation/actuation
+    both True). These tests exercise the REAL _get_safety_snapshot method
+    on a real (non-mocked) node, not a re-implementation."""
+
+    def _make_node(self):
+        from bonbon_llm.nodes.llm_orchestrator_node import LLMOrchestratorNode
+
+        node = LLMOrchestratorNode("test_llm_orchestrator")
+        node._last_scene = None
+        node._last_safety = None
+        node._last_safety_at = 0.0
+        node._last_risks = []
+        return node
+
+    def test_no_safety_message_yet_is_fail_closed(self):
+        node = self._make_node()
+        snap = node._get_safety_snapshot()
+        assert snap.navigation_permitted is False
+        assert snap.actuation_permitted is False
+
+    def test_fresh_safety_message_passes_through(self):
+        node = self._make_node()
+        node._last_safety = MagicMock(
+            state=1,  # NORMAL
+            state_name="NORMAL",
+            actuation_permitted=True,
+            navigation_permitted=True,
+            max_velocity_mps=0.8,
+            requires_manual_reset=False,
+        )
+        node._last_safety_at = time.monotonic()
+        snap = node._get_safety_snapshot()
+        assert snap.navigation_permitted is True
+        assert snap.actuation_permitted is True
+        assert snap.state_name == "NORMAL"
+
+    def test_stale_safety_message_falls_back_to_fail_closed(self):
+        # A real SafetyState was received once, then the Safety
+        # Supervisor went silent (crashed, network partition) -- must
+        # NOT keep reusing the old permissive snapshot forever.
+        node = self._make_node()
+        node._last_safety = MagicMock(
+            state=1,  # NORMAL
+            state_name="NORMAL",
+            actuation_permitted=True,
+            navigation_permitted=True,
+            max_velocity_mps=0.8,
+            requires_manual_reset=False,
+        )
+        node._last_safety_at = time.monotonic() - 10.0  # 10s old, well past the 2s staleness window
+        snap = node._get_safety_snapshot()
+        assert snap.navigation_permitted is False
+        assert snap.actuation_permitted is False

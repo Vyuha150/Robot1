@@ -1,0 +1,51 @@
+# Edge AI Runtime brief, Phase 2/10. Maps this brief's naming (UI/
+# Supervisor Pi, AI Interaction Pi, Navigation/Safety Pi) onto the
+# REAL, already-deployed roles in config/distributed/*.yaml (ui_api,
+# human_ai, navigation_safety) -- see docs/THREE_PI_RUNTIME_AUDIT.md.
+# Does not redefine per-Pi package lists (those already exist and are
+# correct); adds the AI-Pi model load priority this brief's Phase 10
+# asks for, cross-referencing the one that already exists rather than
+# duplicating it.
+
+pi_roles:
+  ui_supervisor_pi:
+    maps_to: "config/distributed/pi_ui_api.yaml (role: ui_api)"
+    address: "192.168.10.11"
+    runs: [bonbon_operator_dashboard, bonbon_dashboard_api]
+    forbidden: [direct_motor_control, camera_or_microphone_access, llm_hosting]
+  ai_interaction_pi:
+    maps_to: "config/distributed/pi_human_ai.yaml (role: human_ai)"
+    address: "192.168.10.12"
+    hardware: "Raspberry Pi 5 8GB + AI HAT/AI HAT+/AI HAT+2"
+    runs:
+      [
+        bonbon_oakd_vision, bonbon_respeaker_audio, bonbon_asr,
+        bonbon_local_llm_gateway, bonbon_face_recognition,
+        bonbon_multi_person_tracker, bonbon_object_intelligence,
+        bonbon_gesture_intelligence, bonbon_affective_ai,
+        bonbon_human_state_fusion, bonbon_tts,
+        bonbon_edge_ai_runtime,
+      ]
+    behavior_output: "/bonbon/behavior/proposal only -- never a direct motor command (see docs/SAFETY_SEPARATION_AUDIT.md)"
+  navigation_safety_pi:
+    maps_to: "config/distributed/pi_navigation_safety.yaml (role: navigation_safety)"
+    address: "192.168.10.13"
+    runs:
+      [
+        bonbon_navigation_bringup, bonbon_lidar_rplidar, bonbon_hal,
+        bonbon_base_controller, bonbon_stepper_controller,
+        bonbon_servo_controller, bonbon_motion_safety,
+        bonbon_safety_supervisor, bonbon_navigation_monitor,
+      ]
+    sole_motion_command_publisher: bonbon_safety_supervisor
+
+# AI-Pi model load priority -- already exists at
+# config/models/pi_ai_hat_plus_2_profile.yaml's ai_pi_model_load_priority
+# list; referenced here, not duplicated, per docs/DUPLICATE_PIPELINE_AUDIT.md.
+ai_pi_model_load_priority_source: "config/models/pi_ai_hat_plus_2_profile.yaml#ai_pi_model_load_priority"
+
+# Resource policy bullets this brief's Phase 10 names -- cross-
+# referencing where each is actually implemented rather than repeating
+# the logic (see config/edge_ai/resource_limits.yaml for the full
+# condition -> action -> implemented_by table).
+resource_policy_source: "config/edge_ai/resource_limits.yaml"

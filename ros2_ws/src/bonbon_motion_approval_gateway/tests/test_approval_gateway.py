@@ -139,5 +139,54 @@ class TestMotionApprovalGateway(unittest.TestCase):
         self.assertEqual(d.proposal_event_id, "ev-42")
 
 
+class TestNavigationPosePassthrough(unittest.TestCase):
+    """GAP-E2 fix (docs/SAFETY_SEPARATION_AUDIT.md Finding 2): an
+    approved navigation decision must carry the actual destination, not
+    just an approve/reject verdict -- previously ProposalInput/
+    DecisionResult dropped nav_goal_x/y/yaw/label entirely."""
+
+    def setUp(self):
+        self.gw = MotionApprovalGateway()
+
+    def test_approved_navigate_carries_destination_through(self):
+        d = self.gw.evaluate(
+            _proposal(
+                proposal_type="navigate",
+                nav_goal_x=3.5,
+                nav_goal_y=-1.2,
+                nav_goal_yaw=1.57,
+                nav_goal_label="cardiology",
+            ),
+            _safety(),
+        )
+        self.assertEqual(d.decision, "approved")
+        self.assertEqual(d.nav_goal_x, 3.5)
+        self.assertEqual(d.nav_goal_y, -1.2)
+        self.assertEqual(d.nav_goal_yaw, 1.57)
+        self.assertEqual(d.nav_goal_label, "cardiology")
+
+    def test_approved_speak_never_carries_a_stray_navigation_goal(self):
+        # Pose fields must only ever appear on a genuine motion approval
+        # -- a "speak" approval carrying leftover nav_goal_x/y from a
+        # default-constructed ProposalInput would be a real bug (the
+        # dashboard/navigation_node could mistake it for a real goal).
+        d = self.gw.evaluate(
+            _proposal(proposal_type="speak", nav_goal_x=3.5, nav_goal_y=-1.2, nav_goal_label="cardiology"),
+            _safety(),
+        )
+        self.assertEqual(d.decision, "approved")
+        self.assertEqual(d.nav_goal_x, 0.0)
+        self.assertEqual(d.nav_goal_y, 0.0)
+        self.assertEqual(d.nav_goal_label, "")
+
+    def test_rejected_navigate_carries_no_destination(self):
+        d = self.gw.evaluate(
+            _proposal(proposal_type="navigate", nav_goal_label="cardiology"),
+            _safety(navigation_permitted=False),
+        )
+        self.assertEqual(d.decision, "rejected")
+        self.assertEqual(d.nav_goal_label, "")
+
+
 if __name__ == "__main__":
     unittest.main()

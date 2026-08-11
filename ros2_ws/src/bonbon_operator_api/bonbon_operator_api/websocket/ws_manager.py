@@ -52,6 +52,20 @@ VALID_CHANNELS: set[str] = {
     "safety-rejections",
     "degraded-mode",
     "component-health",
+    # AI model registry / speech / Sarvam / perception / affective status
+    # -- see websocket/ai_model_snapshots.py and docs/AI_MODEL_GAP_ANALYSIS.md
+    "ai-models",
+    "speech-ai",
+    "sarvam",
+    "perception-ai",
+    "affective-ai",
+    # Edge AI Runtime brief Phase 12 -- see websocket/edge_ai_snapshots.py
+    "edge-ai-status",
+    "edge-ai-models",
+    "edge-ai-routes",
+    "edge-ai-resources",
+    "edge-ai-safety",
+    "edge-ai-cache",
 }
 
 

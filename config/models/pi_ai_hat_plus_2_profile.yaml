@@ -1,0 +1,46 @@
+# config/models/pi_ai_hat_plus_2_profile.yaml
+#
+# Overlay applied via ModelRegistry.apply_profile_overrides() when a real
+# AI HAT+2 (Hailo-10H) has been detected (bonbon_ai_runtime.hailo_device_detector
+# returns True). Only overrides `enabled_by_default` per model_id -- the
+# base model_registry.yaml entry is otherwise unchanged. As of this pass,
+# NO Hailo device has ever been detected on the real Pi-2 hardware
+# (docs/PI2_HARDWARE_CHECK_REPORT.md, 2026-07-06: "hailortcli not
+# installed") -- this profile is written and ready, not yet exercised
+# against real hardware.
+
+# AI-Pi (Pi-2) model LOAD/warm-up priority order, per Phase 10 of the AI
+# model upgrade brief -- distinct from pi_efficiency_profile.yaml's own
+# SHED order (which governs what gets disabled under CPU/thermal load,
+# and is safety-scoped across all three Pis, not just Pi-2; changing that
+# tested, 10-scenario-proven order was judged too risky to touch in this
+# pass without a hardware benchmark to justify it). This list instead
+# governs the order AI-Pi's own capabilities should warm up in at boot,
+# reflecting the brief's exact requested priority:
+ai_pi_model_load_priority:
+  - wake_word
+  - vad
+  - asr
+  - person_detection   # "human tracking"
+  - gesture_recognition  # gates safety-relevant events (stop_palm etc)
+  - object_detection
+  - tts
+  - local_rag
+  - local_llm
+  - face_emotion
+  - voice_emotion
+  - speaker_diarization  # last -- disabled by default, heaviest, gated on a benchmark + HF token
+
+overrides:
+  # Vision moves to Hailo when the HAT is present.
+  vision_hailo_yolo: true
+  vision_cpu_onnx_runtime_adapter: false
+  vision_ultralytics_direct: false
+  vision_person_hailo_yolo: true
+  gesture_hailo_pose: true
+
+  # Everything else (LLM/ASR/TTS/wake-word/VAD/face/emotion/diarization/RAG)
+  # is CPU-bound regardless of Hailo presence -- Hailo accelerates vision
+  # inference only, per this repo's real bonbon_ai_runtime scope. Their
+  # enabled_by_default values are intentionally NOT overridden here; they
+  # inherit the base registry's defaults.

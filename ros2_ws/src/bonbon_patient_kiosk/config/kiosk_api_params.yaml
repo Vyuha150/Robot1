@@ -1,0 +1,9 @@
+bonbon_patient_kiosk:
+  ros__parameters:
+    # Server settings
+    host: "0.0.0.0"
+    port: 8090
+    log_level: "INFO"
+
+    # ROS2 bridge
+    ros2_enabled: true

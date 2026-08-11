@@ -34,6 +34,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+import math
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -42,6 +43,7 @@ from bonbon_msgs.msg import (
     ActuationGesture,
     BehaviorDecision,
     BehaviorProposal,
+    BehaviorRecommendation,
     GestureEvent,
     HumanEmotionState,
     HumanState,
@@ -58,6 +60,9 @@ from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Header
 
+from bonbon_behavior_engine.core.behavior_recommendation_bridge import (
+    recommendation_to_proposal,
+)
 from bonbon_behavior_engine.core.behavior_state_machine import (
     BehaviorState,
     BehaviorStateMachine,
@@ -115,6 +120,26 @@ class BehaviorEngineNode(LifecycleNode):
         self._clf = CommandRiskClassifier()
         self._llm_gate = LLMCommandGate(risk_classifier=self._clf)
         self._evaluator = ProposalEvaluator(risk_classifier=self._clf)
+
+        # Finding 8 fix (docs/SAFETY_SEPARATION_AUDIT.md): _dispatch_proposal
+        # only ever ran ProposalEvaluator/CommandRiskClassifier -- and
+        # CommandRiskClassifier is only actually invoked when
+        # source=="llm" (see ProposalEvaluator.evaluate()), so gesture-
+        # and speech-intent-sourced proposals (the majority of calls into
+        # _dispatch_proposal) never had ANY content-risk screening at
+        # all. SafetySeparationGuard is added here as an independent,
+        # additional check -- defense-in-depth, not a replacement for
+        # ProposalEvaluator or the real, tested, fail-closed
+        # ActuationSafetyGate downstream of /bonbon/behavior/actuation.
+        # Degrades to None (dispatch behaves exactly as before this fix)
+        # if bonbon_edge_ai_runtime isn't installed.
+        try:
+            from bonbon_edge_ai_runtime.safety_separation_guard import SafetySeparationGuard
+
+            self._safety_guard = SafetySeparationGuard()
+        except Exception as exc:  # noqa: BLE001 -- optional dependency, must never break the node
+            self.get_logger().warning(f"safety_separation_guard unavailable ({exc}); Finding-8 defense-in-depth check disabled")
+            self._safety_guard = None
         self._emotion_planner = EmotionAwareResponsePlanner()
         self._spatial_planner = SpatialResponsePlanner()
         self._operator_alerter = OperatorAlerter()
@@ -201,6 +226,7 @@ class BehaviorEngineNode(LifecycleNode):
             sub(SpeechCommand, "/speech/command", self._on_speech_command),
             sub(HumanState, "/bonbon/human/state", self._on_human_state),
             sub(PersonTrack, "/bonbon/persons/tracks", self._on_person_track),
+            sub(BehaviorRecommendation, "/perception/behavior", self._on_behavior_recommendation, _QOS_DEFAULT),
         ]
 
         # ── Services ─────────────────────────────────────────────────────
@@ -462,6 +488,59 @@ class BehaviorEngineNode(LifecycleNode):
                 0.2,
             )
 
+    # ── Behavior recommendation bridge (GAP-E2 fix) ──────────────────────────
+
+    def _on_behavior_recommendation(self, msg: BehaviorRecommendation) -> None:
+        """Forwards a navigation-relevant BehaviorRecommendation (from
+        bonbon_perception_ai or bonbon_llm.llm_orchestrator_node) to
+        bonbon_motion_approval_gateway as a real BehaviorProposal --
+        previously nothing did this, so bonbon_navigation's own direct
+        subscription to /perception/behavior was the ONLY thing acting
+        on these messages, with no approval step at all (GAP-E1/E2, see
+        docs/SAFETY_SEPARATION_AUDIT.md). This node's BehaviorProposal
+        publisher already existed (self._pubs["proposal"]) but was never
+        called until this handler.
+
+        stop_navigation and other non-navigation behavior classes are
+        deliberately NOT bridged here -- recommendation_to_proposal()
+        returns None for them, and bonbon_navigation still handles
+        stop_navigation directly (a cancellation is a de-escalation, not
+        new motion, so it doesn't need approval-gate round-trip latency).
+        """
+        fields = recommendation_to_proposal(
+            behavior_class=msg.behavior_class,
+            param_names=list(msg.param_names),
+            param_values=list(msg.param_values),
+            confidence=float(msg.confidence),
+            priority=int(msg.priority),
+        )
+        if fields is None:
+            return
+        if "proposal" not in self._pubs:
+            return
+
+        proposal = BehaviorProposal()
+        proposal.header = Header()
+        proposal.header.stamp = self.get_clock().now().to_msg()
+        proposal.event_id = msg.recommendation_id or str(uuid.uuid4())[:8]
+        proposal.proposed_at = self.get_clock().now().to_msg()
+        proposal.source_module = "llm" if msg.trigger_type == "llm" else "rule_engine"
+        proposal.person_id = ""
+        proposal.tracking_id = -1
+        proposal.proposal_type = fields.proposal_type
+        proposal.proposal_content = fields.proposal_content
+        proposal.urgency = fields.urgency
+        proposal.justification = fields.justification
+        proposal.nav_goal_pose.position.x = fields.nav_goal_x
+        proposal.nav_goal_pose.position.y = fields.nav_goal_y
+        proposal.nav_goal_pose.orientation.z = math.sin(fields.nav_goal_yaw * 0.5)
+        proposal.nav_goal_pose.orientation.w = math.cos(fields.nav_goal_yaw * 0.5)
+        proposal.nav_goal_label = fields.nav_goal_label
+        proposal.safety_check_required = fields.safety_check_required
+        proposal.raw_llm_command = msg.behavior_class
+
+        self._pubs["proposal"].publish(proposal)
+
     # ── Multi-person state callbacks (bonbon_multi_person_tracker / fusion) ──
 
     def _on_person_track(self, msg: PersonTrack) -> None:
@@ -676,11 +755,38 @@ class BehaviorEngineNode(LifecycleNode):
             return
 
         if result.approved_action == "speak" and self._tts_enabled:
+            if self._safety_check_blocks(person_id, "text_response", result.approved_content):
+                return
             self._dispatch_tts(result.approved_content, "neutral", person_id, tracking_id)
         elif result.approved_action == "gesture" and self._actuation_enabled:
+            if self._safety_check_blocks(person_id, "actuation_request", result.approved_content):
+                return
             self._dispatch_actuation_gesture(
                 result.approved_content, person_id, tracking_id, priority=5
             )
+
+    def _safety_check_blocks(self, person_id: str, action_type: str, content: str) -> bool:
+        """Finding 8 fix: independent SafetySeparationGuard check, on top
+        of ProposalEvaluator's own (LLM-source-only) risk classification.
+        Returns True if the shared safety-separation authority says this
+        specific action must not be dispatched -- content-risk categories
+        (medical-diagnosis-sounding text, leaked privacy fields) mainly,
+        since actuation_request/text_response are never in the guard's
+        direct-hardware-control blocklist on their own."""
+        if self._safety_guard is None:
+            return False
+        try:
+            classified = self._safety_guard.classify(
+                "behavior_engine", action_type, {"text": content, "person_id": person_id}
+            )
+        except Exception as exc:  # noqa: BLE001 -- a guard failure must never crash dispatch
+            self.get_logger().debug(f"safety_separation_guard check error (non-fatal): {exc}")
+            return False
+        if classified.blocked:
+            self.get_logger().warning(
+                f"Dispatch blocked by safety_separation_guard: {classified.category.value} — {classified.reason}"
+            )
+        return classified.blocked
 
     def _dispatch_actuation_gesture(
         self,

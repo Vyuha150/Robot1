@@ -1,0 +1,28 @@
+# Edge AI Runtime brief, Phase 5. Names which capabilities
+# bonbon_edge_ai_runtime.accelerator_manager.AcceleratorManager manages
+# a unified selection view for. The actual hailo/cpu/tensorrt/mock
+# selection logic and priority lists live in
+# config/runtime/model_runtime.yaml (bonbon_ai_runtime's own config,
+# unchanged) -- this file does not duplicate that, it only says which
+# capabilities are in scope for the unified accelerator_manager call
+# surface vs. handled by capability-specific selection (ASR/TTS/LLM go
+# through bonbon_edge_ai_runtime.runtime_selector.ModelRuntimeSelector
+# instead, since they aren't vision/accelerator-bound the same way).
+
+managed_vision_capabilities:
+  - object_detection
+  - person_detection
+  - gesture_recognition
+  - pose_estimation
+
+# Vision output staleness window before a caller must treat a detection
+# as too old to act on. Matches bonbon_vision's own frame-throttling
+# cadence (see docs/THREE_PI_RUNTIME_AUDIT.md's FrameThrottler finding)
+# rather than an invented number.
+stale_after_sec: 0.5
+
+# OAK-D Lite is the confirmed real camera/depth source on Pi-2 (BOM),
+# feeding whichever runtime accelerator_manager selects -- this is a
+# camera SOURCE, not a separate inference runtime; do not create a
+# second camera pipeline for it (rule 7).
+camera_source: oak_d_lite
