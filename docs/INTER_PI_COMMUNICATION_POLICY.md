@@ -93,9 +93,21 @@ benefit.
 Because heartbeat staleness and cross-Pi event ordering are time-based
 (`config/distributed/robot_network.yaml`'s `stale_after_sec`/
 `lost_after_sec`), clock drift between Pis directly degrades failure
-detection accuracy. `bonbon_distributed_network_monitor` (Phase 7) must
-alert (not silently tolerate) when observed clock offset exceeds
+detection accuracy. `bonbon_distributed_network_monitor` alerts (does
+not silently tolerate) when observed clock offset exceeds
 `alert_offset_ms`.
+
+Implemented: `nodes/network_monitor_node.py` runs `chronyc tracking`
+locally on every Pi (not just the chrony server), parses it via
+`core/chrony_offset.py`, and publishes a real `bonbon_msgs/HalFault` on
+the already-existing `/bonbon/hal/fault` ingestion topic when offset
+exceeds `max_offset_ms` (WARN, `CLOCK_OFFSET_ELEVATED`) or
+`alert_offset_ms` (ERROR, `CLOCK_OFFSET_ALERT`), plus honest
+`CHRONY_UNAVAILABLE`/`CLOCK_NOT_SYNCHRONISED` triggers rather than
+fabricating a 0ms reading when chronyc can't be read or chronyd hasn't
+synced yet. See `docs/HARDWARE_TELEMETRY_METRICS_PLAN.md`'s sibling
+package (`bonbon_hardware_telemetry`) for the same JSON-status +
+HalFault-forwarding pattern this package reuses.
 
 ## Rule 10 — this policy applies identically regardless of which Pi initiates
 

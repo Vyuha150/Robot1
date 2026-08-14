@@ -13,21 +13,44 @@ import re
 _FILLER_TOKENS = {"en": {"um", "uh", "erm"}, "hi": {"matlab", "haan"}, "te": {"ante", "kada"}}
 
 _WORD_DIGITS = {
-    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
-    "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
 }
 
 
-def normalize(text: str, language_code: str = "en") -> str:
+def normalize(text: str, language_code: str = "en", is_code_mixed: bool = False) -> str:
+    """`is_code_mixed` (from `language_detector.detect()`) means `text`
+    genuinely contains tokens from more than one language, not just the
+    dominant `language_code` -- e.g. a Hindi-dominant utterance with an
+    embedded English "room number seven". Per-token rules must then draw
+    from every language's rules, not just the dominant one: filler words
+    from any language get stripped, and digit-words get converted
+    regardless of which language "won" the dominant-script vote (English
+    digit-words are the common code-switch pattern for hospital room/
+    token numbers, and dropping the conversion because Hindi happened to
+    dominate silently breaks hospital_entity_corrector's room/token
+    number extraction downstream).
+    """
     if not text:
         return ""
 
     collapsed = re.sub(r"\s+", " ", text.strip())
 
-    fillers = _FILLER_TOKENS.get(language_code, set())
+    if is_code_mixed:
+        fillers: set[str] = set().union(*_FILLER_TOKENS.values())
+    else:
+        fillers = _FILLER_TOKENS.get(language_code, set())
     tokens = [t for t in collapsed.split(" ") if t.lower().strip(".,!?") not in fillers]
 
-    if language_code == "en":
+    if language_code == "en" or is_code_mixed:
         tokens = [_WORD_DIGITS.get(t.lower().strip(".,!?"), t) for t in tokens]
 
     normalized = " ".join(tokens)

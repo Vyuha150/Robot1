@@ -244,7 +244,9 @@ CHANNEL_SNAPSHOTS = {
 # kept in their own module (ai_model_snapshots.py) since they belong to
 # the AI model upgrade pass, merged here so main.py's single broadcaster
 # loop doesn't need to know there are two source modules.
-from bonbon_operator_api.websocket.ai_model_snapshots import AI_MODEL_CHANNEL_SNAPSHOTS  # noqa: E402
+from bonbon_operator_api.websocket.ai_model_snapshots import (
+    AI_MODEL_CHANNEL_SNAPSHOTS,  # noqa: E402
+)
 
 CHANNEL_SNAPSHOTS.update(AI_MODEL_CHANNEL_SNAPSHOTS)
 
@@ -253,3 +255,11 @@ CHANNEL_SNAPSHOTS.update(AI_MODEL_CHANNEL_SNAPSHOTS)
 from bonbon_operator_api.websocket.edge_ai_snapshots import EDGE_AI_CHANNEL_SNAPSHOTS  # noqa: E402
 
 CHANNEL_SNAPSHOTS.update(EDGE_AI_CHANNEL_SNAPSHOTS)
+
+# Same "kept in its own module, merged here" reasoning -- see
+# websocket/hardware_telemetry_snapshots.py.
+from bonbon_operator_api.websocket.hardware_telemetry_snapshots import (  # noqa: E402
+    HARDWARE_TELEMETRY_CHANNEL_SNAPSHOTS,
+)
+
+CHANNEL_SNAPSHOTS.update(HARDWARE_TELEMETRY_CHANNEL_SNAPSHOTS)

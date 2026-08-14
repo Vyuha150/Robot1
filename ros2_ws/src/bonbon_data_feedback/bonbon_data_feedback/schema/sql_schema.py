@@ -63,4 +63,13 @@ MIGRATIONS: list[tuple[int, str, str]] = [
         );
         """,
     ),
+    (
+        2,
+        "add site_id + language_code to failure_cases for per-site/per-language analysis",
+        """
+        ALTER TABLE failure_cases ADD COLUMN site_id TEXT NOT NULL DEFAULT '';
+        ALTER TABLE failure_cases ADD COLUMN language_code TEXT NOT NULL DEFAULT '';
+        CREATE INDEX IF NOT EXISTS idx_failure_cases_site_id ON failure_cases(site_id);
+        """,
+    ),
 ]

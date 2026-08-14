@@ -10,3 +10,9 @@ data_feedback_node:
     hard_negative_confidence_threshold: 0.7
     retention_sweep_rate_hz: 0.000277  # ~hourly
     health_rate_hz: 1.0
+
+    # Which hospital deployment this instance belongs to -- stamped onto
+    # every failure case for multi-site per-site failure-rate analysis.
+    # "" is honest for a single-site dev/lab deployment; set per real site
+    # at launch (e.g. "site_id:=hospital_pune_01").
+    site_id: ""

@@ -78,6 +78,8 @@ def test_all_channel_snapshots_registered():
         "edge-ai-resources",
         "edge-ai-safety",
         "edge-ai-cache",
+        # bonbon_hardware_telemetry -- see websocket/hardware_telemetry_snapshots.py
+        "hardware-telemetry",
     }
 
 

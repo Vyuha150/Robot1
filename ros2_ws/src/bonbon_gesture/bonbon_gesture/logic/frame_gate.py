@@ -8,6 +8,13 @@ This module adds the missing "is there anyone to gesture at all" check,
 the same class of event-gating bonbon_speech_ai's VAD gate and
 bonbon_vision's FrameThrottler already apply to their own modalities.
 
+min_interval_sec/time_since_last_processed_sec (Phase 5 fix scope item 4,
+docs/GESTURE_RECOGNITION_FAILURE_ANALYSIS.md) add a second, independent
+rate cap sourced from config/pi_efficiency_profile.yaml's
+fps_limits.gesture_recognition -- frame_sample_rate alone only throttles
+relative to the camera's own frame rate, never the shared Pi-wide budget
+that value represents. Both caps apply; whichever is stricter wins.
+
 Pure Python, no rclpy dependency -- fully unit-testable.
 """
 
@@ -22,6 +29,8 @@ def should_process_frame(
     gate_on_person_presence: bool,
     persons_topic_ever_received: bool,
     any_person_present: bool,
+    min_interval_sec: float = 0.0,
+    time_since_last_processed_sec: float = float("inf"),
 ) -> bool:
     """Returns True if this frame should be dispatched for gesture
     inference.
@@ -33,10 +42,17 @@ def should_process_frame(
     checked and nobody is there -- safe to gate). Matches this repo's
     established "never seen -> don't assume, not never seen -> assume
     absent" honesty pattern (see HeartbeatMonitor's own docstring).
+
+    `min_interval_sec` <= 0.0 (the default) disables the Pi-wide FPS cap
+    entirely -- the caller passes a real value only once
+    PiEfficiencyProfile.fps_limit("gesture_recognition") has actually
+    been loaded, never a guessed number.
     """
     if in_flight:
         return False
     if frame_sample_rate <= 0 or (frame_counter % frame_sample_rate) != 0:
+        return False
+    if min_interval_sec > 0.0 and time_since_last_processed_sec < min_interval_sec:
         return False
     if gate_on_person_presence and persons_topic_ever_received and not any_person_present:
         return False

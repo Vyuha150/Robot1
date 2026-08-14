@@ -13,6 +13,9 @@ string person_track_id     # "" if not person-scoped
 string context_json        # small JSON object; forbidden keys are stripped server-side
 bool   was_correct         # used to decide hard-negative classification
 string raw_snapshot_path   # only honored if the server's debug mode is enabled
+string language_code       # "" if not language-scoped or caller has no detector wired
+                            # (e.g. "en"/"hi"/"te" from bonbon_speech_ai's
+                            # language_detector, once a caller is wired to it)
 ---
 bool   accepted
 string case_id

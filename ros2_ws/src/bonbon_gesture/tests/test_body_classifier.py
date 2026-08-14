@@ -170,3 +170,50 @@ class TestBodyGestureClassifier:
         for hand_g in ["none", "stop_palm", "pointing", "thumbs_up", "wave_candidate"]:
             _, conf = self.clf.classify(pose, hand_g)
             assert 0.0 <= conf <= 1.0, f"Confidence out of range for {hand_g}: {conf}"
+
+    # ── go_away (Phase 5 fix scope) ───────────────────────────────────────
+
+    def test_go_away_right_arm_extended(self):
+        """Open hand + right wrist far right of right shoulder, wrist kept
+        at its natural (below-elbow) height so the wave check can't claim
+        it first → go_away."""
+        pose = _standing_pose()
+        rs_x = pose[12][0]
+        wrist_y = pose[16][1]
+        pose[16] = (rs_x + 150, wrist_y, 0.0, 0.95)
+        gesture, conf = self.clf.classify(pose, "wave_candidate")
+        assert gesture == "go_away", f"Expected go_away, got {gesture}"
+        assert 0.0 <= conf <= 1.0
+
+    def test_go_away_left_arm_extended(self):
+        """Open hand + left wrist far left of left shoulder, not raised → go_away."""
+        pose = _standing_pose()
+        ls_x = pose[11][0]
+        wrist_y = pose[15][1]
+        pose[15] = (ls_x - 150, wrist_y, 0.0, 0.95)
+        gesture, conf = self.clf.classify(pose, "wave_candidate")
+        assert gesture == "go_away", f"Expected go_away, got {gesture}"
+
+    def test_go_away_not_triggered_without_open_hand(self):
+        """Same extended-arm pose but hand_gesture isn't wave_candidate → not go_away."""
+        pose = _standing_pose()
+        rs_x = pose[12][0]
+        wrist_y = pose[16][1]
+        pose[16] = (rs_x + 150, wrist_y, 0.0, 0.95)
+        gesture, _ = self.clf.classify(pose, "none")
+        assert gesture != "go_away"
+
+    def test_go_away_not_triggered_by_baseline_standing_pose(self):
+        """Default standing-pose arm spread is below the extension threshold."""
+        pose = _standing_pose()
+        gesture, _ = self.clf.classify(pose, "wave_candidate")
+        assert gesture != "go_away"
+
+    def test_go_away_does_not_override_raised_hand(self):
+        """Arm extended AND raised well above shoulder stays raised_hand
+        (dispatch order: raised_hand is checked before go_away)."""
+        pose = _standing_pose()
+        rs_x, rs_y = pose[12][0], pose[12][1]
+        pose[16] = (rs_x + 150, rs_y - 120, 0.0, 0.95)
+        gesture, _ = self.clf.classify(pose, "wave_candidate")
+        assert gesture == "raised_hand"

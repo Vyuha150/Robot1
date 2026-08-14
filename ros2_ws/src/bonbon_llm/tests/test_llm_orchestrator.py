@@ -452,6 +452,122 @@ class TestProcessIntentCacheSkipsRagAndLlm:
         )
 
 
+# ── Ambiguous-but-not-silent speech must use fallback_response, not RAG/LLM ───
+
+
+class TestProcessIntentAmbiguousUnknownSkipsRagAndLlm:
+    """A real bug this round caught: `intent_engine`'s "clarify"
+    ambiguity_policy forces `intent_class` to "unknown" and computes a
+    per-intent `fallback_response` specifically so genuinely-heard-but-
+    unclassifiable speech can be answered honestly. But `_process_intent`
+    only special-cased TRUE silence (`is_ambiguous and not raw_text`) --
+    a non-empty low-confidence utterance fell straight into the full
+    RAG/LLM pipeline as if it were a normal, confidently-classified
+    query, risking a hallucinated answer and never speaking the
+    fallback_response that was already computed for exactly this case."""
+
+    def _make_node(self):
+        from bonbon_llm.config.llm_config import (
+            AuthorizationConfig,
+            HallucinationConfig,
+            PersonalityConfig,
+            SafetyFilterConfig,
+        )
+        from bonbon_llm.core.response_cache import ResponseCache
+        from bonbon_llm.nodes.llm_orchestrator_node import LLMOrchestratorNode
+        from bonbon_llm.personality.personality_layer import PersonalityLayer
+        from bonbon_llm.safety.authorization import CommandAuthorizer
+        from bonbon_llm.safety.command_filter import SafetyCommandFilter
+        from bonbon_llm.safety.hallucination_guard import HallucinationGuard
+
+        node = LLMOrchestratorNode("test_llm_orchestrator")
+        node._response_cache = ResponseCache()
+        node._rag = MagicMock()
+        node._rag.retrieve_with_scores.return_value = []
+        node._rag.build_context_string.return_value = ""
+        node._filter = SafetyCommandFilter(SafetyFilterConfig())
+        node._guard = HallucinationGuard(HallucinationConfig(enabled=False))
+        node._authorizer = CommandAuthorizer(AuthorizationConfig())
+        node._personality = PersonalityLayer(PersonalityConfig())
+        node._logger_svc = MagicMock()
+        node._tool_reg = None
+        node._cfg = None
+        node._pub_response = MagicMock()
+        node._pub_tts = MagicMock()
+        node._pub_behavior = MagicMock()
+        node._last_scene = None
+        node._last_safety = None
+        node._last_risks = []
+        node._call_llm = MagicMock(return_value=("A real answer.", None))
+        return node
+
+    def _make_intent(
+        self, text="mumble mumble", is_ambiguous=True, intent_class="unknown", fallback_response=""
+    ):
+        intent = MagicMock()
+        intent.is_ambiguous = is_ambiguous
+        intent.raw_text = text
+        intent.intent_class = intent_class
+        intent.fallback_response = fallback_response
+        intent.confidence = 0.15
+        intent.speaker_id = ""
+        intent.slot_names = []
+        intent.slot_values = []
+        intent.intent_id = "intent-1"
+        return intent
+
+    def test_ambiguous_unknown_skips_rag_and_llm(self):
+        node = self._make_node()
+        node._process_intent(self._make_intent())
+        assert node._rag.retrieve_with_scores.call_count == 0
+        assert node._call_llm.call_count == 0
+
+    def test_ambiguous_unknown_speaks_the_computed_fallback_response(self):
+        node = self._make_node()
+        node._process_intent(self._make_intent(fallback_response="Where would you like to go?"))
+        assert node._pub_tts.publish.call_count == 1
+        published = node._pub_tts.publish.call_args[0][0]
+        assert published.text == "Where would you like to go?"
+
+    def test_ambiguous_unknown_with_empty_fallback_uses_low_confidence_template(self):
+        node = self._make_node()
+        node._process_intent(self._make_intent(fallback_response=""))
+        assert node._pub_tts.publish.call_count == 1
+        published = node._pub_tts.publish.call_args[0][0]
+        assert len(published.text) > 0
+        assert published.text != ""
+
+    def test_ambiguous_best_guess_with_real_intent_class_still_uses_full_pipeline(self):
+        # "best_guess" ambiguity_policy keeps a usable intent_class (not
+        # forced to "unknown") even though is_ambiguous=True -- this case
+        # must NOT be short-circuited, or the best_guess policy's whole
+        # purpose (proceed with the best guess rather than always asking
+        # to clarify) would be defeated.
+        node = self._make_node()
+        node._process_intent(
+            self._make_intent(
+                text="where is the bathroom",
+                is_ambiguous=True,
+                intent_class="navigate_to",
+                fallback_response="Where would you like to go?",
+            )
+        )
+        assert node._rag.retrieve_with_scores.call_count == 1
+        assert node._call_llm.call_count == 1
+
+    def test_non_ambiguous_intent_is_unaffected(self):
+        node = self._make_node()
+        node._process_intent(
+            self._make_intent(
+                text="what time is it",
+                is_ambiguous=False,
+                intent_class="general_query",
+            )
+        )
+        assert node._rag.retrieve_with_scores.call_count == 1
+        assert node._call_llm.call_count == 1
+
+
 # ── GAP-E8: task_router rule-engine short-circuit for emergency phrases ───────
 
 

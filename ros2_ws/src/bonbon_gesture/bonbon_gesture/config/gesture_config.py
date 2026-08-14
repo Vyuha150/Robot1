@@ -48,6 +48,16 @@ class GestureConfig:
             reported zero tracked persons -- the VAD-equivalent event
             gate this capability was missing (previously ran on every
             Nth frame regardless of whether anyone was in view).
+        pi_efficiency_profile_path: Override path to
+            config/pi_efficiency_profile.yaml. Empty string (default)
+            means "resolve the repo-relative default path" -- see
+            gesture_node.py's on_configure. That file's own
+            fps_limits.gesture_recognition value becomes a second,
+            independent rate cap alongside frame_sample_rate (Phase 5
+            fix scope item 4,
+            docs/GESTURE_RECOGNITION_FAILURE_ANALYSIS.md) -- previously
+            declared in that shared config but never actually read by
+            this package.
     """
 
     backend: str = "mediapipe"
@@ -66,6 +76,7 @@ class GestureConfig:
     camera_hfov_deg: float = 60.0
     person_assign_max_x_norm_delta: float = 0.35
     gate_on_person_presence: bool = True
+    pi_efficiency_profile_path: str = ""
 
     @classmethod
     def from_ros_params(cls, node: "rclpy.node.Node") -> GestureConfig:  # noqa: F821, UP037
@@ -114,5 +125,8 @@ class GestureConfig:
             ),
             gate_on_person_presence=_get(
                 "gate_on_person_presence", defaults.gate_on_person_presence
+            ),
+            pi_efficiency_profile_path=_get(
+                "pi_efficiency_profile_path", defaults.pi_efficiency_profile_path
             ),
         )

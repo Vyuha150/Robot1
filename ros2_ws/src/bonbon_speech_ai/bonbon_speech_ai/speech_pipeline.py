@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from bonbon_ai_model_registry.model_registry import ModelRegistry
+
 from bonbon_speech_ai.asr_router import ASRRouter, TranscriptionResult
 from bonbon_speech_ai.hospital_entity_corrector import HospitalVocabulary, correct
 from bonbon_speech_ai.language_detector import detect
@@ -52,11 +53,15 @@ class SpeechPipeline:
         method refuses to run ASR at all otherwise, rather than trusting
         a caller who skipped the VAD gate."""
         if not vad_confirmed:
-            raise ValueError("process_utterance() called without vad_confirmed=True -- ASR must never run continuously, only after a real VAD event")
+            raise ValueError(
+                "process_utterance() called without vad_confirmed=True -- ASR must never run continuously, only after a real VAD event"
+            )
 
         asr_result: TranscriptionResult = self._asr.transcribe(audio_path)
         lang = detect(asr_result.text, asr_result.language_code)
-        normalized = normalize(asr_result.text, lang.language_code)
+        normalized = normalize(
+            asr_result.text, lang.language_code, is_code_mixed=lang.is_code_mixed
+        )
         entities = correct(normalized, self._vocabulary)
 
         return PipelineTurnResult(
@@ -73,7 +78,9 @@ class SpeechPipeline:
             asr_fallback_active=asr_result.fallback_active,
         )
 
-    def speak_response(self, text: str, language_code: str = "en", phrase_key: str | None = None) -> SpeechResult:
+    def speak_response(
+        self, text: str, language_code: str = "en", phrase_key: str | None = None
+    ) -> SpeechResult:
         """Rule: 'TTS must not block safety' -- TTSRouter.speak() already
         never raises (see its own docstring); this method is a thin
         passthrough so callers only need to know about SpeechPipeline,

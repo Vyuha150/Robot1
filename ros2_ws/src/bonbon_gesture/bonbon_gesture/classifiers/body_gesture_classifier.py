@@ -30,6 +30,7 @@ _RAISED_HAND_MARGIN_PX = 50  # wrist must be this far above shoulder
 _POINTING_SIDE_MARGIN_PX = 80  # wrist must be this far left/right of nose
 _FALLEN_NOSE_HIP_PX = 60  # max y-distance for "fallen" heuristic
 _WRIST_ELBOW_WAVE_PX = 0  # wrist y strictly less than elbow y
+_GO_AWAY_ARM_EXTENSION_PX = 100  # wrist must be this far horizontally from same-side shoulder
 
 
 class BodyGestureClassifier:
@@ -92,6 +93,14 @@ class BodyGestureClassifier:
         # ── Come here ───────────────────────────────────────────────────────
         if self._is_beckoning(pose):
             return ("come_here", 0.78)
+
+        # ── Go away ─────────────────────────────────────────────────────────
+        # Only considered for an open hand the earlier rules didn't already
+        # claim (stop_palm/wave already returned above) -- see _is_go_away's
+        # own docstring for why this is a best-effort static-pose proxy, not
+        # a validated motion detector.
+        if hand_gesture == "wave_candidate" and self._is_go_away(pose):
+            return ("go_away", 0.70)
 
         # ── Fall-through: propagate meaningful hand result ───────────────────
         if hand_gesture not in ("none", "wave_candidate", "unknown_gesture"):
@@ -217,3 +226,38 @@ class BodyGestureClassifier:
             Always False in the current implementation.
         """
         return False  # requires multi-frame temporal analysis
+
+    def _is_go_away(self, pose: List[Tuple[float, float, float, float]]) -> bool:
+        """Best-effort single-frame proxy for a dismissive 'go away' gesture.
+
+        A genuine go-away gesture is typically a pushing-away motion
+        (temporal, like beckoning) that a single frame cannot see. This
+        checks a static-pose proxy instead: an open hand (caller already
+        filters to hand_gesture == "wave_candidate") with the arm extended
+        sideways/forward away from the torso at or below shoulder height --
+        distinct from raised_hand (wrist well above shoulder) and wave
+        (wrist above elbow). This is a documented proxy, not a validated
+        detector -- it needs field validation against real gesture data
+        this dev sandbox has no camera or dataset access to provide (see
+        docs/GESTURE_RECOGNITION_FAILURE_ANALYSIS.md's Fix scope item 1).
+
+        Args:
+            pose: 33-point pose landmark list.
+
+        Returns:
+            True when at least one arm is extended away from the torso at
+            or below shoulder height.
+        """
+        right_extended = (
+            pose[16][3] > _VIS_MIN
+            and pose[12][3] > _VIS_MIN
+            and abs(pose[16][0] - pose[12][0]) > _GO_AWAY_ARM_EXTENSION_PX
+            and pose[16][1] >= pose[12][1] - _RAISED_HAND_MARGIN_PX
+        )
+        left_extended = (
+            pose[15][3] > _VIS_MIN
+            and pose[11][3] > _VIS_MIN
+            and abs(pose[15][0] - pose[11][0]) > _GO_AWAY_ARM_EXTENSION_PX
+            and pose[15][1] >= pose[11][1] - _RAISED_HAND_MARGIN_PX
+        )
+        return right_extended or left_extended

@@ -51,3 +51,18 @@ class TestCollect:
         collector, store = _collector(tmp_path, threshold=0.7)
         collector.collect("gesture", "wave_detector", "wave", 0.2, was_correct=False)
         assert store.count_failure_cases() == 0
+
+    def test_collect_persists_site_id_and_language_code(self, tmp_path):
+        collector, store = _collector(tmp_path, threshold=0.7)
+        case_id = collector.collect(
+            "gesture",
+            "wave_detector",
+            "wave",
+            0.95,
+            was_correct=False,
+            site_id="hospital_pune_01",
+            language_code="te",
+        )
+        got = store.get_failure_case(case_id)
+        assert got.site_id == "hospital_pune_01"
+        assert got.language_code == "te"

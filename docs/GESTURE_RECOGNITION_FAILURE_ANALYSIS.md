@@ -78,19 +78,45 @@ safety-routing) is solid.
 
 ## Fix scope (Phase 5)
 
-1. Add a `go_away` classification rule (likely in `body_gesture_classifier.py`,
-   as a pushing-away-motion or backward-step-with-palm-out heuristic
-   symmetric to the existing `come_here` beckoning-motion rule).
-2. Add `pointing_at_object` by fusing gesture direction with active
-   tracked-object bearings from `bonbon_object_intelligence` when
-   available; fall back to the existing directional-pointing types when
-   no object is in the pointed-at direction.
-3. Add a `folded_hands`/`namaste` hand-landmark geometry check.
-4. Wire `bonbon_gesture` to read the shared Pi perception profile (see
-   Phase 7's `config/pi_perception_profile.yaml`) instead of only its own
-   local `frame_sample_rate`, and add a degraded-mode fallback when
-   MediaPipe is unavailable.
+1. **Done.** `go_away` classification added in
+   `body_gesture_classifier.py`'s `_is_go_away()`. `_is_beckoning()`
+   (come_here) turned out to be an honest, documented stub that always
+   returns False -- mirroring it literally would not have fixed
+   anything, so this is instead a genuine single-frame static-pose
+   proxy (open hand, arm extended sideways/forward away from the torso,
+   at or below shoulder height), clearly documented as a best-effort
+   proxy for what's fundamentally a motion-based gesture, pending field
+   validation this dev sandbox has no camera/dataset access to provide.
+   5 new tests in `test_body_classifier.py`.
+2. **Deferred, not fabricated.** `pointing_at_object` genuinely needs
+   cross-package fusion with `bonbon_object_intelligence`'s tracked-
+   object bearings -- a larger, separately-scoped change. Not attempted
+   here rather than faked with an ungrounded heuristic.
+3. **Done.** `folded_hands`/`namaste` added as
+   `HandGestureClassifier.classify_folded_hands()` -- a deliberately
+   separate two-hand method (both palms open and pressed close
+   together), since every other rule in that class classifies one hand
+   at a time and namaste genuinely needs both hands' landmarks at once.
+   Wired into `gesture_node.py` (checked before the existing per-hand
+   left/right pick) and `intent_mapper.py` (`"greeting_request"`, same
+   intent as `wave`). 6 new tests in `test_hand_classifier.py`.
+4. **Done**, using what actually exists. `config/pi_perception_profile.yaml`
+   (referenced above as "Phase 7's" file) does not exist yet -- checked
+   and confirmed absent, not fabricated. `config/pi_efficiency_profile.yaml`
+   already has the real `fps_limits.gesture_recognition: 8` value and an
+   existing, previously-unused `PiEfficiencyProfile` loader class
+   (`bonbon_perception_efficiency`); `bonbon_gesture` is now its first
+   real consumer, via `GestureNode._load_pi_wide_fps_cap()` and a new
+   `min_interval_sec`/`time_since_last_processed_sec` pair on
+   `frame_gate.should_process_frame()` -- a second, independent cap
+   alongside `frame_sample_rate`, not a replacement for it. 4 new tests
+   in `test_frame_gate.py`. The MediaPipe-unavailable degraded-mode
+   fallback this item also asked for already existed
+   (`gesture_node.py`'s `on_configure` already falls back to
+   `MockBackend` and records it via `GestureHealthMonitor`) -- confirmed,
+   not rebuilt.
 
-None of this requires changing `PerPersonGestureAssigner`,
-`GestureTemporalSmoother`, `GestureSafetyClassifier`, or the existing 94
-tests for the 12 gestures that already work correctly.
+None of this required changing `PerPersonGestureAssigner`,
+`GestureTemporalSmoother`, `GestureSafetyClassifier`, or the pre-existing
+tests for the 12 gestures that already worked correctly -- 116 tests pass
+across the whole `bonbon_gesture` suite after this fix (up from ~94).

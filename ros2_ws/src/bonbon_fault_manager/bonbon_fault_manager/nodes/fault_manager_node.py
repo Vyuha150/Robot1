@@ -14,6 +14,14 @@ Subscribes:
                           a late-starting fault_manager gets current state
                           immediately, same as every other SafetyState
                           subscriber in this repo.
+  /bonbon/system/failure_events (bonbon_msgs/SafetyEvent) -- REAL,
+                          already-published by
+                          bonbon_distributed_safety.distributed_safety_node
+                          on every peer-Pi link-state transition (that
+                          detection already exists and is tested); this
+                          node only relays the pi_link_state_change ones
+                          into the unified dashboard registry, which
+                          previously never saw them at all.
 
 Publishes:
   /bonbon/fault_manager/registry (bonbon_msgs/ComponentFaultArray) --
@@ -36,7 +44,13 @@ in core/fault_taxonomy.py, core/component_rules.py, core/fault_registry.py
 from __future__ import annotations
 
 import rclpy
-from bonbon_msgs.msg import ComponentFault, ComponentFaultArray, HalFault, SafetyState
+from bonbon_msgs.msg import (
+    ComponentFault,
+    ComponentFaultArray,
+    HalFault,
+    SafetyEvent,
+    SafetyState,
+)
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
@@ -54,6 +68,14 @@ _QOS_TRANSIENT = QoSProfile(
     history=HistoryPolicy.KEEP_LAST,
     depth=1,
 )
+# Matches distributed_safety_node.py's own _QOS_RELIABLE publisher QoS
+# for /bonbon/system/failure_events exactly (RELIABLE/VOLATILE/depth-20).
+_QOS_RELIABLE_D20 = QoSProfile(
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.VOLATILE,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=20,
+)
 
 
 class FaultManagerNode(LifecycleNode):
@@ -64,6 +86,7 @@ class FaultManagerNode(LifecycleNode):
         self._registry = FaultRegistry()
         self._sub_hal_fault = None
         self._sub_safety_state = None
+        self._sub_failure_events = None
         self._pub_registry = None
         self._timer = None
 
@@ -79,6 +102,12 @@ class FaultManagerNode(LifecycleNode):
         )
         self._sub_safety_state = self.create_subscription(
             SafetyState, "/bonbon/safety/state", self._on_safety_state, _QOS_TRANSIENT
+        )
+        self._sub_failure_events = self.create_subscription(
+            SafetyEvent,
+            "/bonbon/system/failure_events",
+            self._on_failure_event,
+            _QOS_RELIABLE_D20,
         )
         self._pub_registry = self.create_lifecycle_publisher(
             ComponentFaultArray, "/bonbon/fault_manager/registry", _QOS_TRANSIENT
@@ -96,6 +125,7 @@ class FaultManagerNode(LifecycleNode):
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         self._sub_hal_fault = None
         self._sub_safety_state = None
+        self._sub_failure_events = None
         self._pub_registry = None
         return TransitionCallbackReturn.SUCCESS
 
@@ -120,6 +150,23 @@ class FaultManagerNode(LifecycleNode):
         )
         self._registry.sync_degraded_modules(list(msg.degraded_modules), reason=msg.reason)
         self._publish_registry()
+
+    def _on_failure_event(self, msg: SafetyEvent) -> None:
+        # update_from_pi_link_event() itself ignores every SafetyEvent
+        # that isn't a pi_link_state_change (returns None, no-op) -- this
+        # node deliberately does not react to every SafetyEvent trigger,
+        # only the one bonbon_distributed_safety publishes that this
+        # registry previously had no path for. Republish on ANY
+        # pi_link_state_change, not just when a record is returned -- a
+        # peer coming back online also returns None (the record is
+        # REMOVED, not updated), and that removal is exactly the kind of
+        # change the dashboard needs to see promptly, not just on the
+        # next periodic republish_registry() tick.
+        self._registry.update_from_pi_link_event(
+            msg.trigger_name, msg.description, msg.new_state_name
+        )
+        if msg.trigger_name == "pi_link_state_change":
+            self._publish_registry()
 
     # ── Publish ──────────────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@
   <depend>geometry_msgs</depend>
   <depend>bonbon_msgs</depend>
   <depend>bonbon_srvs</depend>
+  <exec_depend>bonbon_perception_efficiency</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-opencv</exec_depend>
   <test_depend>pytest</test_depend>

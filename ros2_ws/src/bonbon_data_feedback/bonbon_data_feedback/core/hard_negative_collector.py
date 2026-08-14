@@ -34,6 +34,8 @@ class HardNegativeCollector:
         expected_label: str = "",
         person_track_id: str = "",
         context: dict | None = None,
+        site_id: str = "",
+        language_code: str = "",
     ) -> str | None:
         """Returns the case_id if this met the hard-negative bar, else None
         (a non-hard-negative failure should go through FailureCaseLogger
@@ -53,5 +55,7 @@ class HardNegativeCollector:
             person_track_id=person_track_id,
             context=sanitize_result.sanitized,
             is_hard_negative=True,
+            site_id=site_id,
+            language_code=language_code,
         )
         return self._store.insert_failure_case(record)

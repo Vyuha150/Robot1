@@ -123,7 +123,9 @@ class LLMOrchestratorNode(LifecycleNode):
         self._logger_svc = None
         self._lc_chain = None  # LangChain chain (may be None if unavailable)
         self._response_cache = None  # ResponseCache; wired in _init_pipeline
-        self._task_router = None  # bonbon_edge_ai_runtime.TaskRouter; wired in _init_pipeline (GAP-E8 fix)
+        self._task_router = (
+            None  # bonbon_edge_ai_runtime.TaskRouter; wired in _init_pipeline (GAP-E8 fix)
+        )
 
         # Cached incoming state
         self._last_scene = None
@@ -217,8 +219,12 @@ class LLMOrchestratorNode(LifecycleNode):
             from bonbon_edge_ai_runtime.task_router import TaskRouter
 
             self._task_router = TaskRouter()
-        except Exception as exc:  # noqa: BLE001 -- optional dependency, must never break the pipeline
-            self.get_logger().warning(f"task_router unavailable ({exc}); rule-engine short-circuit disabled")
+        except (
+            Exception
+        ) as exc:  # noqa: BLE001 -- optional dependency, must never break the pipeline
+            self.get_logger().warning(
+                f"task_router unavailable ({exc}); rule-engine short-circuit disabled"
+            )
             self._task_router = None
 
         # Wire tool registry
@@ -250,9 +256,7 @@ class LLMOrchestratorNode(LifecycleNode):
             self.get_logger().info("LangChain RAG chain built OK")
             return chain
         except Exception as exc:
-            self.get_logger().warning(
-                f"LangChain unavailable ({exc}); using OllamaClient directly"
-            )
+            self.get_logger().warning(f"LangChain unavailable ({exc}); using OllamaClient directly")
             return None
 
     def _create_interfaces(self) -> None:
@@ -373,6 +377,21 @@ class LLMOrchestratorNode(LifecycleNode):
                 self._handle_silence(intent_msg, response_id)
                 return
 
+            # 1b. Genuinely-heard-but-unclassifiable speech. intent_engine's
+            # "clarify" ambiguity_policy forces intent_class to "unknown" and
+            # computes a per-intent fallback_response specifically so this
+            # case can be spoken honestly -- without this branch, "unknown"
+            # fell straight into the full RAG/LLM pipeline like any normal
+            # query, risking a hallucinated answer to garbled/unintelligible
+            # speech and never using the fallback_response the pipeline
+            # already computed. Deliberately keyed on intent_class=="unknown"
+            # rather than is_ambiguous alone: "best_guess" ambiguity_policy
+            # sets is_ambiguous=True too but keeps a usable intent_class, and
+            # that case must still proceed through the pipeline as designed.
+            if intent_msg.is_ambiguous and intent_msg.intent_class == "unknown":
+                self._handle_ambiguous(intent_msg, response_id)
+                return
+
             # 2. Build context
             with self._lock:
                 scene = self._last_scene
@@ -397,7 +416,9 @@ class LLMOrchestratorNode(LifecycleNode):
             # to the existing, unchanged, already-tested pipeline below —
             # this fix intentionally does not change behavior for those.
             route_decision = self._route_text_intent(intent_msg)
-            is_emergency_route = route_decision is not None and route_decision.task_type == "emergency"
+            is_emergency_route = (
+                route_decision is not None and route_decision.task_type == "emergency"
+            )
 
             rag_results: list = []
             if is_emergency_route:
@@ -414,9 +435,15 @@ class LLMOrchestratorNode(LifecycleNode):
                 # bonbon_perception_ai's own PRIORITY_HIGH module constant)
                 # so this doesn't depend on a fully compiled bonbon_msgs.
                 self._dispatch_tts(final_text, priority=_TTS_PRIORITY_HIGH)
-                auth = self._authorizer.authorize("alert_safety", safety_snap, confidence=float(intent_msg.confidence))
+                auth = self._authorizer.authorize(
+                    "alert_safety", safety_snap, confidence=float(intent_msg.confidence)
+                )
                 if auth.granted:
-                    self._dispatch_behavior("alert_safety", {"reason": "emergency_phrase_detected"}, float(intent_msg.confidence))
+                    self._dispatch_behavior(
+                        "alert_safety",
+                        {"reason": "emergency_phrase_detected"},
+                        float(intent_msg.confidence),
+                    )
             else:
                 # 3. Cache check — BEFORE RAG retrieval, so a hit skips RAG AND the
                 # LLM call, not just the LLM call. Keyed on (question, context_str)
@@ -454,7 +481,9 @@ class LLMOrchestratorNode(LifecycleNode):
                     # 3b. LLM call
                     raw_llm_out, llm_error = self._call_llm(prompt, full_context)
                     if raw_llm_out and not llm_error and self._response_cache:
-                        self._response_cache.put(intent_msg.raw_text, context_str, raw_llm_out, "ok")
+                        self._response_cache.put(
+                            intent_msg.raw_text, context_str, raw_llm_out, "ok"
+                        )
                 llm_latency = (time.perf_counter() - t_llm) * 1000.0
 
                 # 4. Safety filter
@@ -509,7 +538,9 @@ class LLMOrchestratorNode(LifecycleNode):
                         )
                         if auth.granted:
                             slots = dict(zip(intent_msg.slot_names, intent_msg.slot_values))
-                            self._dispatch_behavior(behavior_class, slots, float(intent_msg.confidence))
+                            self._dispatch_behavior(
+                                behavior_class, slots, float(intent_msg.confidence)
+                            )
                         else:
                             self.get_logger().info(
                                 f"Behavior {behavior_class!r} {auth.status.value}: {auth.reason}"
@@ -642,6 +673,10 @@ class LLMOrchestratorNode(LifecycleNode):
 
     def _handle_silence(self, intent_msg, response_id: str) -> None:
         text = self._fallback("silent")
+        self._dispatch_tts(text, priority=1)
+
+    def _handle_ambiguous(self, intent_msg, response_id: str) -> None:
+        text = intent_msg.fallback_response or self._fallback("low_confidence")
         self._dispatch_tts(text, priority=1)
 
     def _get_scene_text(self) -> str:

@@ -218,10 +218,16 @@ list (sourced live from `devops/project-status/known_issues.json`, not
 duplicated here to avoid the two drifting apart). Headline items: 7 of 11
 dashboard commands have no real ROS2 backend yet (honestly report
 unavailable); `bonbon_vision`'s test suite needs a real `colcon build`
-(generated interfaces) to collect in a non-ROS2-sourced environment; the
-`bonbon_vision._build_detector()` → `RuntimeSelector` adapter is not yet
-wired (Hailo/CPU selection is proven at the runtime-abstraction layer, not
-yet consumed by the live vision node).
+(generated interfaces) to collect in a non-ROS2-sourced environment.
+
+**Update (2026-08-14):** the `bonbon_vision._build_detector()` →
+`RuntimeSelector` adapter referenced as not-yet-wired below (this section
+is a frozen snapshot from this doc's original writing, left unedited
+otherwise) was completed in a later round —
+`ObjectDetectorRuntimeAdapter` in `bonbon_vision/detectors/
+runtime_adapter_detector.py`, 6/6 tests passing. See
+[AI_HAT_RUNTIME_STRATEGY.md](AI_HAT_RUNTIME_STRATEGY.md)'s status table
+for the current, live state.
 
 ## POST-RELEASE (explicitly out of scope for this release candidate)
 

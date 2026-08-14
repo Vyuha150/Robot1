@@ -154,16 +154,21 @@ class TestEmotionFusionEngine(unittest.TestCase):
         """Convenience wrapper for engine.fuse."""
         return self.engine.fuse(face, voice, text, gesture, person_id, tracking_id)
 
-    # ── Angry face + angry voice + complaint text → frustrated ───────────────
+    # ── Angry face + angry voice + complaint text → angry ─────────────────────
+    # EMOTION_TO_STATE maps raw "anger"/"angry" to the "angry" state (not
+    # "frustrated" -- see emotion_fusion_engine.py's own comment, part of
+    # docs/MULTI_HUMAN_EMOTION_FAILURE_ANALYSIS.md's Phase 4 fix: "angry"
+    # was previously unreachable from any real analyzer output because
+    # every anger-shaped signal was silently collapsed into "frustrated").
 
-    def test_angry_triple_gives_frustrated_state(self) -> None:
-        """Angry face + angry voice + complaint text → 'frustrated' state."""
+    def test_angry_triple_gives_angry_state(self) -> None:
+        """Angry face + angry voice + complaint text → 'angry' state."""
         msg = self._fuse(
             face=_make_angry_face(),
             voice=_make_angry_voice(),
             text=_make_complaint_text(),
         )
-        self.assertEqual(msg.dominant_state, "frustrated")
+        self.assertEqual(msg.dominant_state, "angry")
 
     def test_angry_triple_gives_apologetic_style(self) -> None:
         """Frustrated state maps to 'apologetic' response style."""

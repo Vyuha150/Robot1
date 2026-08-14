@@ -66,7 +66,15 @@ class DataFeedbackNode(LifecycleNode):
         self.declare_parameter("hard_negative_confidence_threshold", 0.7)
         self.declare_parameter("retention_sweep_rate_hz", 1.0 / 3600.0)  # hourly
         self.declare_parameter("health_rate_hz", 1.0)
+        # Which hospital deployment this instance belongs to -- stamped onto
+        # every failure case so multi-site deployments can query per-site
+        # failure rates instead of a single undifferentiated pool. "" (the
+        # default) is honest for a single-site dev/lab deployment; set per
+        # real hospital site at launch, same pattern as other packages'
+        # deployment-time params (e.g. distributed_network_monitor's pi_role).
+        self.declare_parameter("site_id", "")
 
+        self._site_id = ""
         self._store: FeedbackStore | None = None
         self._policy: PrivacySafeDataPolicy | None = None
         self._failure_logger: FailureCaseLogger | None = None
@@ -110,6 +118,7 @@ class DataFeedbackNode(LifecycleNode):
                 .get_parameter_value()
                 .double_value
             )
+            self._site_id = self.get_parameter("site_id").get_parameter_value().string_value
 
             self._store = FeedbackStore(db_path)
             self._policy = PrivacySafeDataPolicy(debug_mode_enabled=debug_mode)
@@ -244,6 +253,9 @@ class DataFeedbackNode(LifecycleNode):
                 confidence=confidence,
                 person_track_id=person_track_id,
                 context={"hand_side": hand_side, "body_part": body_part},
+                site_id=self._site_id,
+                # No language_code here -- GestureEvent carries no language
+                # signal; leaving it "" is honest, not a placeholder guess.
             )
             self._cases_logged += 1
         except Exception as exc:  # noqa: BLE001
@@ -278,6 +290,8 @@ class DataFeedbackNode(LifecycleNode):
                     expected_label=request.expected_label,
                     person_track_id=request.person_track_id,
                     context=context,
+                    site_id=self._site_id,
+                    language_code=request.language_code,
                 )
             else:
                 case_id = self._failure_logger.log(
@@ -289,6 +303,8 @@ class DataFeedbackNode(LifecycleNode):
                     person_track_id=request.person_track_id,
                     context=context,
                     raw_snapshot_path=request.raw_snapshot_path,
+                    site_id=self._site_id,
+                    language_code=request.language_code,
                 )
             self._cases_logged += 1
             response.accepted = True

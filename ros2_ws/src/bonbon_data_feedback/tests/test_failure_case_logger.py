@@ -27,6 +27,29 @@ class TestBasicLogging:
         assert cases[0].expected_label == "bottle"
 
 
+class TestSiteAndLanguageCode:
+    def test_site_id_and_language_code_reach_the_stored_record(self, tmp_path):
+        logger, store = _logger(tmp_path)
+        case_id = logger.log(
+            "speaker",
+            "low_confidence",
+            "unknown",
+            0.3,
+            site_id="hospital_pune_01",
+            language_code="hi",
+        )
+        got = store.get_failure_case(case_id)
+        assert got.site_id == "hospital_pune_01"
+        assert got.language_code == "hi"
+
+    def test_defaults_to_empty_when_not_supplied(self, tmp_path):
+        logger, store = _logger(tmp_path)
+        case_id = logger.log("gesture", "low_confidence", "wave", 0.4)
+        got = store.get_failure_case(case_id)
+        assert got.site_id == ""
+        assert got.language_code == ""
+
+
 class TestPrivacyGating:
     def test_context_forbidden_keys_stripped_before_storage(self, tmp_path):
         logger, store = _logger(tmp_path)

@@ -75,5 +75,5 @@ ros2 run bonbon_ai_runtime ai_runtime_bench --mode auto \
 | Runtime abstraction (Hailo/CPU/TensorRT/Mock + selector + fail-open) | **implemented, tested off-hardware** |
 | Device detection (`HailoDeviceDetector`) | **implemented, tested with injected + real detector paths** |
 | Dashboard visibility (`/ai-runtime/status`, `/ai-runtime/benchmark`) | **implemented, real live data** |
-| `bonbon_vision._build_detector()` → `RuntimeSelector` wiring | **not yet done** — documented POST-RELEASE item in [ARCHITECTURE_FREEZE.md](ARCHITECTURE_FREEZE.md); the runtime abstraction is proven independently of this wiring |
-| Real Hailo inference on physical hardware | **BLOCKED** — no Pi 5 + AI HAT in this environment |
+| `bonbon_vision._build_detector()` → `RuntimeSelector` wiring | **implemented, tested** — `ObjectDetectorRuntimeAdapter` (`bonbon_vision/detectors/runtime_adapter_detector.py`, 6/6 tests passing), re-verified 2026-08-14. Superseded the earlier POST-RELEASE note in [ARCHITECTURE_FREEZE.md](ARCHITECTURE_FREEZE.md). Real gap remaining: `vision_params.yaml` ships with `detector.backend: "mock"` and no launch/compose file overrides it to `"runtime"` — the wired path is inert until that's flipped, deliberately left for whoever installs the physical HAT to verify the CPU-ONNX fallback tier's real cost first. |
+| Real Hailo inference on physical hardware | **BLOCKED** — no Pi 5 + AI HAT physically installed in this environment (real `.hef` file also does not exist anywhere in the repo — `config/runtime/model_runtime.yaml`'s Hailo paths are placeholders) |

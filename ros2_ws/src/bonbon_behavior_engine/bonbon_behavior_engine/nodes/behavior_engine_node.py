@@ -32,9 +32,9 @@ cleanup    → reset all state
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
-import math
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -138,7 +138,9 @@ class BehaviorEngineNode(LifecycleNode):
 
             self._safety_guard = SafetySeparationGuard()
         except Exception as exc:  # noqa: BLE001 -- optional dependency, must never break the node
-            self.get_logger().warning(f"safety_separation_guard unavailable ({exc}); Finding-8 defense-in-depth check disabled")
+            self.get_logger().warning(
+                f"safety_separation_guard unavailable ({exc}); Finding-8 defense-in-depth check disabled"
+            )
             self._safety_guard = None
         self._emotion_planner = EmotionAwareResponsePlanner()
         self._spatial_planner = SpatialResponsePlanner()
@@ -226,7 +228,12 @@ class BehaviorEngineNode(LifecycleNode):
             sub(SpeechCommand, "/speech/command", self._on_speech_command),
             sub(HumanState, "/bonbon/human/state", self._on_human_state),
             sub(PersonTrack, "/bonbon/persons/tracks", self._on_person_track),
-            sub(BehaviorRecommendation, "/perception/behavior", self._on_behavior_recommendation, _QOS_DEFAULT),
+            sub(
+                BehaviorRecommendation,
+                "/perception/behavior",
+                self._on_behavior_recommendation,
+                _QOS_DEFAULT,
+            ),
         ]
 
         # ── Services ─────────────────────────────────────────────────────
@@ -365,9 +372,7 @@ class BehaviorEngineNode(LifecycleNode):
         severity = int(getattr(msg, "severity", 2))
         subject = getattr(msg, "subject_id", "") or "scene"
         response = self._spatial_planner.plan_for_alert(risk_type, severity)
-        self.get_logger().info(
-            f"Spatial alert '{risk_type}' (sev={severity}) → {response.reason}"
-        )
+        self.get_logger().info(f"Spatial alert '{risk_type}' (sev={severity}) → {response.reason}")
         self._executor.submit(self._apply_spatial_response, response, subject)
 
     def _apply_spatial_response(self, response, subject_id: str) -> None:
@@ -582,11 +587,22 @@ class BehaviorEngineNode(LifecycleNode):
         # Rule 6 — safety gesture from ANYONE nearby, regardless of focus.
         candidate = self._behavior_selector.decide_safety_gesture_response(all_states)
 
+        # Rule 3 — a person's own departure is always worth acting on,
+        # regardless of who currently has "focus". select_focus_person()
+        # deliberately excludes left_scene people from its `present` list
+        # (a departed person can never BE the focus), so gating this on
+        # focus_id would make decide_departure_close_session() permanently
+        # unreachable -- confirmed by direct testing
+        # (test_human_state_integration.py), not a hypothetical.
+        if candidate is None and msg.lifecycle_state == "left_scene":
+            candidate = self._behavior_selector.decide_departure_close_session(msg)
+
         if candidate is None:
             focus_id = select_focus_person(all_states)
             if focus_id != msg.person_track_id:
                 # This update isn't about the current focus person and isn't
-                # a safety gesture — nothing new to decide this cycle.
+                # a safety gesture or departure — nothing new to decide this
+                # cycle.
                 return
             candidate = (
                 self._behavior_selector.decide_arrival_greeting(msg)
@@ -596,7 +612,6 @@ class BehaviorEngineNode(LifecycleNode):
                 or self._behavior_selector.decide_confused_question_response(msg)
                 or self._behavior_selector.decide_calm_supportive_response(msg)
                 or self._behavior_selector.decide_pointing_confirmation(msg)
-                or self._behavior_selector.decide_departure_close_session(msg)
             )
 
         if candidate is None:
@@ -624,6 +639,7 @@ class BehaviorEngineNode(LifecycleNode):
                 candidate.person_track_id,
                 -1,
                 candidate.urgency,
+                tts_emotion=candidate.tts_emotion,
             )
             return
         self._dispatch_proposal(
@@ -633,6 +649,7 @@ class BehaviorEngineNode(LifecycleNode):
             candidate.person_track_id,
             -1,
             candidate.urgency,
+            tts_emotion=candidate.tts_emotion,
         )
 
     # ── Idle tick ─────────────────────────────────────────────────────────
@@ -649,12 +666,20 @@ class BehaviorEngineNode(LifecycleNode):
     # ── Dispatch helpers ──────────────────────────────────────────────────────
 
     def _dispatch_greeting(self, person_id: str, tracking_id: int) -> None:
-        """Send greeting gesture + TTS."""
+        """Send greeting gesture + TTS. This callback only fires on the
+        `not was_present` transition in `_on_spatial_entity` -- i.e. every
+        call here is genuinely a first contact for this session, so the
+        orientation text (not just "hello") is always appropriate, unlike
+        `multi_person_behavior_selector.decide_arrival_greeting` which
+        distinguishes known vs first-time visitors."""
         if self._actuation_enabled:
             self._dispatch_actuation_gesture("greeting_pose", person_id, tracking_id, priority=5)
         if self._tts_enabled:
             self._dispatch_tts(
-                "Hello! I'm BonBon. How can I help you today?",
+                "Hello! I'm BonBon, the hospital's assistant robot. "
+                "I can help you find a department, check your appointment or "
+                "token, or answer questions about the hospital. "
+                "How can I help you today?",
                 "warm",
                 person_id,
                 tracking_id,
@@ -734,8 +759,21 @@ class BehaviorEngineNode(LifecycleNode):
         tracking_id: int,
         urgency: float,
         raw_llm_command: str = "",
+        tts_emotion: str = "neutral",
     ) -> None:
-        """Evaluate a proposal and dispatch if approved."""
+        """Evaluate a proposal and dispatch if approved.
+
+        tts_emotion defaults to "neutral" for existing callers that don't
+        carry per-rule emotional context (LLM/legacy proposals). Callers
+        that DO know the right tone (the multi-person rule chain's
+        BehaviorCandidate.tts_emotion, the single-person
+        EmotionAwareResponsePlanner path's plan.tts_emotion) pass it
+        explicitly -- this was previously silently dropped for the
+        multi-person path only (docs/HUMAN_STATE_FUSION.md /
+        bonbon_behavior_engine.core.multi_person_behavior_selector
+        computed a real per-rule tts_emotion on every BehaviorCandidate
+        that never reached _dispatch_tts).
+        """
         result = self._evaluator.evaluate(
             proposal_type, proposal_content, source, urgency, raw_llm_command
         )
@@ -757,7 +795,7 @@ class BehaviorEngineNode(LifecycleNode):
         if result.approved_action == "speak" and self._tts_enabled:
             if self._safety_check_blocks(person_id, "text_response", result.approved_content):
                 return
-            self._dispatch_tts(result.approved_content, "neutral", person_id, tracking_id)
+            self._dispatch_tts(result.approved_content, tts_emotion, person_id, tracking_id)
         elif result.approved_action == "gesture" and self._actuation_enabled:
             if self._safety_check_blocks(person_id, "actuation_request", result.approved_content):
                 return

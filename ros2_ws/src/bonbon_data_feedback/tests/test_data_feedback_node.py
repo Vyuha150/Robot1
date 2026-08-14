@@ -186,3 +186,89 @@ class TestNonBlockingAutomaticWritePath:
         node._cb_gesture_event(_make_intent_gesture(confidence=0.1))
         assert _wait_for(lambda: node._gesture_log_queue.depth == 0)
         assert node._error_count == 1
+
+    def test_gesture_failure_case_is_stamped_with_configured_site_id(self):
+        """Continuous-improvement audit fix: automatic gesture failure
+        cases must carry the node's configured site_id so multi-site
+        deployments can query per-site failure rates."""
+        node = self._make_node()
+        node._site_id = "hospital_pune_01"
+        node._cb_gesture_event(_make_intent_gesture(confidence=0.1))
+        assert _wait_for(lambda: node._failure_logger.log.call_count == 1)
+        _, kwargs = node._failure_logger.log.call_args
+        assert kwargs["site_id"] == "hospital_pune_01"
+
+
+def _make_report_request(**overrides):
+    req = MagicMock()
+    defaults = dict(
+        category="speaker",
+        signal_name="low_confidence_asr",
+        expected_label="",
+        actual_label="unclear",
+        confidence=0.3,
+        person_track_id="ptrk_1",
+        context_json="",
+        was_correct=False,
+        raw_snapshot_path="",
+        language_code="hi",
+    )
+    defaults.update(overrides)
+    for k, v in defaults.items():
+        setattr(req, k, v)
+    return req
+
+
+class TestHandleReportFailureCaseSiteAndLanguage:
+    """Exercises the REAL _handle_report_failure_case method against the
+    ~/report_failure_case service handler, verifying site_id (from the
+    node's own config, not the caller) and language_code (from the
+    caller's request, since only the caller knows the detected language)
+    both reach the underlying logger/collector calls."""
+
+    def _make_node(self):
+        node = DataFeedbackNode("test_data_feedback")
+        node._site_id = "hospital_hyderabad_02"
+        node._failure_logger = MagicMock()
+        node._failure_logger.log.return_value = "case-123"
+        node._hard_negative_collector = MagicMock()
+        node._hard_negative_collector.is_hard_negative.return_value = False
+        return node
+
+    def test_normal_failure_case_receives_configured_site_id_and_request_language(self):
+        node = self._make_node()
+        request = _make_report_request(language_code="te")
+        response = MagicMock()
+
+        node._handle_report_failure_case(request, response)
+
+        _, kwargs = node._failure_logger.log.call_args
+        assert kwargs["site_id"] == "hospital_hyderabad_02"
+        assert kwargs["language_code"] == "te"
+
+    def test_hard_negative_case_receives_configured_site_id_and_request_language(self):
+        node = self._make_node()
+        node._hard_negative_collector.is_hard_negative.return_value = True
+        node._hard_negative_collector.collect.return_value = "case-456"
+        request = _make_report_request(language_code="en", was_correct=False, confidence=0.9)
+        response = MagicMock()
+
+        node._handle_report_failure_case(request, response)
+
+        _, kwargs = node._hard_negative_collector.collect.call_args
+        assert kwargs["site_id"] == "hospital_hyderabad_02"
+        assert kwargs["language_code"] == "en"
+
+    def test_empty_language_code_from_caller_is_passed_through_honestly(self):
+        # A caller with no language detector wired (the common case today
+        # -- see docs/SPEECH_AI_UPGRADE_REPORT.md) sends "" rather than a
+        # fabricated guess; this must reach storage unchanged, not default
+        # to something misleading like "en".
+        node = self._make_node()
+        request = _make_report_request(language_code="")
+        response = MagicMock()
+
+        node._handle_report_failure_case(request, response)
+
+        _, kwargs = node._failure_logger.log.call_args
+        assert kwargs["language_code"] == ""

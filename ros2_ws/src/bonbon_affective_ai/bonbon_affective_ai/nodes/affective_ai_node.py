@@ -8,10 +8,26 @@ import time
 import uuid
 from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 from bonbon_perception_efficiency.core.bounded_inference_queue import BoundedInferenceQueue
+
+
+@dataclass(frozen=True)
+class SpeakerTurnVoiceEmotion:
+    """Duck-typed stand-in for a VoiceEmotion message, built from a
+    SpeakerTurn's own voice_emotion/emotion_confidence fields.
+    EmotionFusionEngine.fuse() only ever reads dominant_emotion/
+    dominant_confidence/model_failed off a "voice" object via getattr(),
+    so this minimal shape is sufficient -- no real VoiceEmotion message
+    is fabricated or re-published from this."""
+
+    dominant_emotion: str
+    dominant_confidence: float
+    model_failed: bool = False
+
 
 try:
     import rclpy
@@ -108,6 +124,20 @@ class AffectiveAINode(LifecycleNode):
         self._latest_text_msg: Optional[Any] = None
         self._latest_gesture_states: Dict[str, str] = defaultdict(lambda: "none")
         self._tracked_persons: List[Any] = []  # PersonState list
+
+        # person_track_id (bonbon_multi_person_tracker's stable, cross-frame
+        # ID space) -> raw_track_id (bonbon_vision's per-frame PersonState.
+        # track_id space, what this node's own person_id keys are in --
+        # see bonbon_msgs/PersonTrack.msg's own raw_track_id field comment).
+        # Needed because /bonbon/speaker/turns (SpeakerTurn) attributes voice
+        # emotion in person_track_id space, but _latest_voice_msgs/
+        # _fuse_and_publish key everything in raw_track_id space -- without
+        # this bridge, storing SpeakerTurn's voice_emotion would silently
+        # never match any lookup here (the same dead-lookup shape this fix
+        # targets, just moved one level up). Entries are removed (not kept
+        # stale) whenever raw_track_id goes empty (temporarily_lost), since
+        # a stale raw id could misattribute a future frame's re-used number.
+        self._person_track_to_raw_id: Dict[str, str] = {}
 
         # Audio accumulation buffer.
         self._audio_buffer: List[float] = []
@@ -278,7 +308,9 @@ class AffectiveAINode(LifecycleNode):
             AudioChunk,
             GestureEvent,
             PersonStateArray,
+            PersonTrack,  # type: ignore[import]
             SafetyState,  # type: ignore[import]
+            SpeakerTurn,  # type: ignore[import]
             SpeechCommand,  # type: ignore[import]
         )
 
@@ -310,6 +342,18 @@ class AffectiveAINode(LifecycleNode):
             GestureEvent,
             "/bonbon/gesture/events",
             self._cb_gesture,
+            _RELIABLE_QOS,
+        )
+        self._sub_person_track = self.create_subscription(
+            PersonTrack,
+            "/bonbon/persons/tracks",
+            self._cb_person_track,
+            _RELIABLE_QOS,
+        )
+        self._sub_speaker_turn = self.create_subscription(
+            SpeakerTurn,
+            "/bonbon/speaker/turns",
+            self._cb_speaker_turn,
             _RELIABLE_QOS,
         )
 
@@ -495,6 +539,64 @@ class AffectiveAINode(LifecycleNode):
                 {"person_id": person_id, "gesture": msg.gesture_type},
             )
 
+    def _cb_person_track(self, msg: Any) -> None:
+        """Maintain the person_track_id -> raw_track_id bridge from PersonTrack.
+
+        Args:
+            msg: ``PersonTrack`` message from bonbon_multi_person_tracker.
+        """
+        person_track_id = str(getattr(msg, "person_track_id", "") or "")
+        raw_track_id = str(getattr(msg, "raw_track_id", "") or "")
+        if not person_track_id:
+            return
+        if raw_track_id:
+            self._person_track_to_raw_id[person_track_id] = raw_track_id
+        else:
+            # temporarily_lost (or otherwise no current raw detection) --
+            # drop rather than keep a stale mapping that could misattribute
+            # a future frame's re-used raw_track_id number.
+            self._person_track_to_raw_id.pop(person_track_id, None)
+
+    def _cb_speaker_turn(self, msg: Any) -> None:
+        """Attribute a completed speaker turn's voice emotion to a person.
+
+        SpeakerTurn.voice_emotion is bonbon_speaker_intelligence's own
+        best-effort mirror of the most recent (still globally-buffered)
+        VoiceEmotion reading, linked to person_track_id via DOA-to-bearing
+        association -- see bonbon_speaker_intelligence's
+        core/voice_emotion_cache.py for the honest limitation this
+        inherits (not a verified per-utterance emotion, the closest
+        available attribution). Bridged here to raw_track_id via
+        _person_track_to_raw_id so it lands in the same key space
+        _fuse_and_publish already looks up -- previously nothing ever
+        populated that per-person key, so voice emotion silently fell back
+        to (or never reached) the unscoped "_global" entry for every
+        person alike.
+
+        Args:
+            msg: ``SpeakerTurn`` message from bonbon_speaker_intelligence.
+        """
+        if not self._processing_enabled:
+            return
+        person_track_id = str(getattr(msg, "person_track_id", "") or "")
+        voice_emotion = str(getattr(msg, "voice_emotion", "") or "")
+        if not person_track_id or not voice_emotion:
+            return
+
+        raw_track_id = self._person_track_to_raw_id.get(person_track_id)
+        if not raw_track_id:
+            self.get_logger().debug(
+                f"Speaker turn for person_track_id={person_track_id} has no current "
+                "raw_track_id mapping yet -- cannot attribute voice emotion to a "
+                "specific person this cycle."
+            )
+            return
+
+        self._latest_voice_msgs[raw_track_id] = SpeakerTurnVoiceEmotion(
+            dominant_emotion=voice_emotion,
+            dominant_confidence=float(getattr(msg, "emotion_confidence", 0.0) or 0.0),
+        )
+
     # ── Analysis runners (called from thread pool) ────────────────────────────
 
     def _run_voice_analysis(self, audio: np.ndarray, sample_rate: int) -> None:
@@ -509,6 +611,15 @@ class AffectiveAINode(LifecycleNode):
                 audio, sample_rate, tracking_id=0, person_id=""
             )
             if result is not None:
+                # AudioChunk carries no speaker attribution at this stage --
+                # this raw analyzer result genuinely cannot be scoped to a
+                # person here (that only becomes possible downstream, once
+                # bonbon_speaker_intelligence links it to a person_track_id
+                # via DOA-to-bearing association -- see _cb_speaker_turn,
+                # which stores the ATTRIBUTED reading under the real
+                # raw_track_id key). "_global" is kept only as the
+                # unattributed last-resort _fuse_and_publish falls back to
+                # when no per-person entry exists yet.
                 self._latest_voice_msgs["_global"] = result
                 if not result.model_failed:
                     self._health_monitor.record_voice_success()

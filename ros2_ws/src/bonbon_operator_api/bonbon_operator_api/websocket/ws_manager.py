@@ -66,6 +66,8 @@ VALID_CHANNELS: set[str] = {
     "edge-ai-resources",
     "edge-ai-safety",
     "edge-ai-cache",
+    # hardware_telemetry_node -- see websocket/hardware_telemetry_snapshots.py
+    "hardware-telemetry",
 }
 
 

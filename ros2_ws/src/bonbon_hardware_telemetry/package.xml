@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_hardware_telemetry</name>
+  <version>1.0.0</version>
+  <description>
+    Unified real-hardware metrics and threshold triggers for BonBon:
+    base-mobility wheel motors, arm joints (shoulder/elbow/wrist), head
+    joints (pan/tilt), battery, and per-Pi (UI/AI/Navigation-Safety)
+    system resources.
+
+    Tier 1 only (see docs/HARDWARE_TELEMETRY_METRICS_PLAN.md): every
+    metric here comes from a real, already-wired sensor/driver reading
+    -- wheel commanded velocity/distance (bonbon_hal motor_node), servo/
+    stepper position/torque/stall-lost_sync (bonbon_hal servo_node,
+    stepper_node -- reused unchanged, not duplicated), battery voltage/
+    current/percent (bonbon_hal battery_node), and per-Pi CPU/RAM/disk
+    (bonbon_safety.core.resource_monitor, sampled locally on each Pi).
+    Fields the current hardware genuinely cannot measure (per-motor
+    current draw, motor/servo temperature, wheel encoders, Pi CPU temp)
+    are NOT fabricated here -- they are a documented Tier 2 follow-up
+    that needs new sensor hardware before any software can report them.
+
+    This package does not reimplement any driver or the existing
+    fault-classification pipeline: it aggregates real driver-level
+    topics into per-component-group dashboard views, and publishes real
+    bonbon_msgs/HalFault events into the ALREADY-EXISTING
+    bonbon_fault_manager pipeline when a threshold is crossed, rather
+    than building a second, competing alerting mechanism.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>bonbon_msgs</exec_depend>
+  <!-- hardware_telemetry_node's per-Pi CPU/RAM/disk sampling reuses the
+       real bonbon_safety.core.resource_monitor.ResourceMonitor directly
+       -- same cross-cutting aggregation-layer exception documented in
+       bonbon_edge_ai_runtime/resource_guard.py. -->
+  <exec_depend>bonbon_safety</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

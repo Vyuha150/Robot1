@@ -61,9 +61,22 @@ ros2 run bonbon_ai_runtime ai_runtime_bench --mode auto \
 
 ## Honest residual
 
-`bonbon_vision`'s `_build_detector()` does not yet construct a runtime-backed
-detector (the thin adapter wiring `RuntimeSelector` into `vision_node` +
-supplying YOLO letterbox/NMS via the pre/post hooks). The tested foundation
-is complete; the adapter is the documented next integration step
-(PI_AI_HAT_MODEL_CONFIG.md). Producing the `.hef` files is
-HAILO_MODEL_PREPARATION_GUIDE.md.
+**Update (2026-08-14 re-verification):** the adapter described below as a
+future step now exists and is wired —
+`bonbon_vision/detectors/runtime_adapter_detector.py`'s
+`ObjectDetectorRuntimeAdapter` is constructed by `vision_node._build_detector()`
+when `detector.backend == "runtime"`, and is covered by
+`ros2_ws/src/bonbon_vision/tests/test_runtime_adapter_detector.py` (6/6
+passing). It was not re-verified as done in this doc at the time it was
+written, only later. One item remains genuinely open: the shipped
+`vision_params.yaml` still defaults `detector.backend` to `"mock"`, not
+`"runtime"` — no launch file or compose config sets it to `"runtime"`
+anywhere in this repo, so even on a Pi with a real AI HAT installed, this
+path is not engaged unless someone explicitly overrides the parameter at
+launch. Flipping that default is a deployment-time decision (verify the
+CPU-ONNX fallback tier's real resource cost on the target Pi first, since
+it's heavier than `mock`), not something to change without hardware to
+verify against — left for whoever performs the physical Hailo
+installation.
+
+Producing the `.hef` files is HAILO_MODEL_PREPARATION_GUIDE.md.

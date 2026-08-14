@@ -306,6 +306,8 @@ def _install_stubs() -> None:
             "HumanEmotionState",
             "PersonState",
             "PersonStateArray",
+            "PersonTrack",
+            "SpeakerTurn",
             "AudioChunk",
             "GestureEvent",
             "SafetyState",

@@ -110,6 +110,73 @@ class TestSafetySupervisor:
         assert rec.fault_level == FaultLevel.DEGRADED
 
 
+class TestUpdateFromPiLinkEvent:
+    def test_non_pi_link_trigger_is_ignored(self):
+        reg = FaultRegistry(clock=_clock_seq(1.0))
+        rec = reg.update_from_pi_link_event("some_other_trigger", "irrelevant", "lost")
+        assert rec is None
+        assert reg.snapshot() == []
+
+    def test_lost_peer_creates_critical_record(self):
+        reg = FaultRegistry(clock=_clock_seq(1.0))
+        rec = reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi2: stale -> lost", "lost"
+        )
+        assert rec is not None
+        assert rec.component_id == "pi_link:pi2"
+        assert rec.affected_pi == "pi2"
+        assert rec.fault_level == FaultLevel.CRITICAL
+        assert rec.dashboard_visible is True
+
+    def test_stale_peer_creates_warning_record(self):
+        reg = FaultRegistry(clock=_clock_seq(1.0))
+        rec = reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi1: online -> stale", "stale"
+        )
+        assert rec.fault_level == FaultLevel.WARNING
+
+    def test_peer_back_online_removes_the_record(self):
+        reg = FaultRegistry(clock=_clock_seq(1.0, 2.0))
+        reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi2: stale -> lost", "lost"
+        )
+        rec = reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi2: lost -> online", "online"
+        )
+        assert rec is None
+        assert reg.get("pi_link:pi2") is None
+
+    def test_repeated_loss_increments_occurrence(self):
+        reg = FaultRegistry(clock=_clock_seq(1.0, 2.0, 3.0))
+        reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi2: online -> stale", "stale"
+        )
+        reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi2: stale -> lost", "lost"
+        )
+        rec = reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi2: stale -> lost", "lost"
+        )
+        assert rec.occurrence_count == 3
+
+    def test_unparseable_description_falls_back_honestly_not_a_guess(self):
+        reg = FaultRegistry(clock=_clock_seq(1.0))
+        rec = reg.update_from_pi_link_event("pi_link_state_change", "garbled text", "lost")
+        assert rec.component_id == "pi_link:unknown_peer"
+        assert rec.affected_pi == "unknown_peer"
+
+    def test_two_different_peers_tracked_independently(self):
+        reg = FaultRegistry(clock=_clock_seq(1.0, 2.0))
+        reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi1: online -> lost", "lost"
+        )
+        reg.update_from_pi_link_event(
+            "pi_link_state_change", "pi3 observed pi2: online -> lost", "lost"
+        )
+        ids = {r.component_id for r in reg.snapshot()}
+        assert ids == {"pi_link:pi1", "pi_link:pi2"}
+
+
 class TestSnapshotAndWorstLevel:
     def test_empty_registry_worst_is_ok(self):
         reg = FaultRegistry()

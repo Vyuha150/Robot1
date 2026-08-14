@@ -49,6 +49,7 @@ import time
 import traceback
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
+from pathlib import Path
 
 import numpy as np
 import rclpy
@@ -80,6 +81,9 @@ from ..logic.person_assigner import (
 )
 from ..logic.safety_classifier import GestureSafetyClassifier
 from ..logic.temporal_smoother import GestureTemporalSmoother
+
+_REPO_ROOT = Path(__file__).resolve().parents[5]
+_DEFAULT_PI_EFFICIENCY_PROFILE_PATH = _REPO_ROOT / "config" / "pi_efficiency_profile.yaml"
 
 _LOG = logging.getLogger(__name__)
 
@@ -146,11 +150,15 @@ class GestureNode(LifecycleNode):
 
         # State
         self._frame_counter: int = 0
+        self._min_interval_sec: float = 0.0  # Pi-wide FPS cap; 0.0 = disabled
+        self._last_processed_at: float = 0.0
         self._safety_blocked: bool = False
         self._lock: threading.Lock = threading.Lock()
         self._executor: ThreadPoolExecutor | None = None
         self._person_positions: dict[str, Point] = {}  # person_id → position
-        self._persons_topic_ever_received: bool = False  # GAP-E12: distinguishes startup race from genuine absence
+        self._persons_topic_ever_received: bool = (
+            False  # GAP-E12: distinguishes startup race from genuine absence
+        )
         self._in_flight: Future | None = None
 
         # Multi-person identity assignment (bonbon_multi_person_tracker integration)
@@ -180,6 +188,7 @@ class GestureNode(LifecycleNode):
         try:
             self._config = GestureConfig.from_ros_params(self)
             self._health = GestureHealthMonitor(start_time=time.monotonic())
+            self._min_interval_sec = self._load_pi_wide_fps_cap(self._config)
 
             # Classifiers
             self._hand_cls = HandGestureClassifier()
@@ -218,6 +227,41 @@ class GestureNode(LifecycleNode):
                 f"GestureNode configure failed: {exc}\n{traceback.format_exc()}"
             )
             return TransitionCallbackReturn.FAILURE
+
+    def _load_pi_wide_fps_cap(self, config: GestureConfig) -> float:
+        """Returns the minimum seconds between processed frames implied by
+        config/pi_efficiency_profile.yaml's fps_limits.gesture_recognition,
+        or 0.0 (disabled) if that file/key is missing or unreadable --
+        never a guessed number (Phase 5 fix scope item 4,
+        docs/GESTURE_RECOGNITION_FAILURE_ANALYSIS.md). frame_sample_rate
+        stays in effect regardless; this is an ADDITIONAL cap, not a
+        replacement.
+        """
+        try:
+            from bonbon_perception_efficiency.core.pi_efficiency_profile import (
+                PiEfficiencyProfile,
+            )
+
+            path = config.pi_efficiency_profile_path or _DEFAULT_PI_EFFICIENCY_PROFILE_PATH
+            profile = PiEfficiencyProfile.load(path)
+            fps = profile.fps_limit("gesture_recognition")
+            if fps and fps > 0.0:
+                self.get_logger().info(
+                    f"GestureNode: Pi-wide FPS cap loaded from {path} -> {fps} FPS "
+                    f"(min_interval_sec={1.0 / fps:.3f})"
+                )
+                return 1.0 / fps
+            self.get_logger().warning(
+                f"GestureNode: no fps_limits.gesture_recognition in {path} -- "
+                "Pi-wide FPS cap disabled, frame_sample_rate still applies."
+            )
+            return 0.0
+        except Exception as exc:
+            self.get_logger().warning(
+                f"GestureNode: could not load pi_efficiency_profile ({exc}) -- "
+                "Pi-wide FPS cap disabled, frame_sample_rate still applies."
+            )
+            return 0.0
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         """Create publishers, subscribers, services, and thread pool."""
@@ -371,6 +415,7 @@ class GestureNode(LifecycleNode):
         with self._lock:
             self._frame_counter += 1
             in_flight = self._in_flight is not None and not self._in_flight.done()
+            now = time.monotonic()
             should_process = should_process_frame(
                 frame_counter=self._frame_counter,
                 frame_sample_rate=self._config.frame_sample_rate,
@@ -378,7 +423,11 @@ class GestureNode(LifecycleNode):
                 gate_on_person_presence=self._config.gate_on_person_presence,
                 persons_topic_ever_received=self._persons_topic_ever_received,
                 any_person_present=bool(self._person_positions),
+                min_interval_sec=self._min_interval_sec,
+                time_since_last_processed_sec=now - self._last_processed_at,
             )
+            if should_process:
+                self._last_processed_at = now
 
         if not should_process:
             return
@@ -546,20 +595,30 @@ class GestureNode(LifecycleNode):
         pointing_dir = Vector3()
 
         if self._config.hand_gesture_enabled:
-            # Prefer whichever hand is more visible (right-hand bias as tie-break)
-            right_result = self._hand_cls.classify(
-                lm.right_hand, is_right=True, pose_landmarks=lm.pose
+            # folded_hands/namaste needs both hands at once -- checked
+            # first since it's a more specific signal than either single
+            # hand's own best-effort classification.
+            folded_gesture, folded_conf = self._hand_cls.classify_folded_hands(
+                lm.left_hand, lm.right_hand
             )
-            left_result = self._hand_cls.classify(
-                lm.left_hand, is_right=False, pose_landmarks=lm.pose
-            )
-
-            if right_result[1] >= left_result[1]:
-                hand_gesture, hand_conf = right_result
+            if folded_gesture == "folded_hands":
+                hand_gesture, hand_conf = folded_gesture, folded_conf
                 pointing_is_right = True
             else:
-                hand_gesture, hand_conf = left_result
-                pointing_is_right = False
+                # Prefer whichever hand is more visible (right-hand bias as tie-break)
+                right_result = self._hand_cls.classify(
+                    lm.right_hand, is_right=True, pose_landmarks=lm.pose
+                )
+                left_result = self._hand_cls.classify(
+                    lm.left_hand, is_right=False, pose_landmarks=lm.pose
+                )
+
+                if right_result[1] >= left_result[1]:
+                    hand_gesture, hand_conf = right_result
+                    pointing_is_right = True
+                else:
+                    hand_gesture, hand_conf = left_result
+                    pointing_is_right = False
         else:
             pointing_is_right = True
 

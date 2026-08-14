@@ -77,6 +77,46 @@ machine, not a hardcoded engine id) and
 (structural — forces `_invoke` to raise via mocking, independent of what
 happens to be installed).
 
+## A third bug found and fixed (India-readiness audit round)
+
+`speech_pipeline.py` computed `language_detector.detect()`'s
+`is_code_mixed` flag but never passed it anywhere — `transcript_normalizer
+.normalize()` only had a `language_code` parameter, and applied
+English-digit-word conversion (`"seven"` → `"7"`) only when
+`language_code == "en"` exactly. For a Hindi-dominant code-mixed
+utterance like "mera room number seven hai," `language_code` resolves to
+`"hi"` (Hindi is the majority script), so `"seven"` never got converted —
+`hospital_entity_corrector`'s `_ROOM_PATTERN` (which requires `\d{1,4}`)
+then silently failed to extract the room number, with no error anywhere
+in the chain. This is exactly the kind of real-world phrasing code-mixed
+Indian speech to a hospital robot commonly produces. Fixed by threading
+`is_code_mixed` through `normalize()`: when set, digit-word conversion
+runs regardless of the dominant language, and filler-word stripping uses
+the union of all languages' filler sets rather than just the dominant
+one's. 11 new tests in `tests/speech_ai/test_transcript_normalizer.py`,
+including one that reproduces the pre-fix failure
+(`test_room_number_extraction_fails_without_code_mixed_flag`) so a
+regression here is caught immediately.
+
+## Known architecture gap: two disconnected speech stacks (not fixed this round)
+
+`bonbon_speech_ai` (this report's subject: `asr_router.py` /
+`tts_router.py` / `language_detector.py` / `transcript_normalizer.py` /
+`hospital_entity_corrector.py` / `speech_pipeline.py`) is library code
+with no ROS2 node or launch file of its own, and is **never imported by**
+`bonbon_speech/nodes/speech_node.py` — the actual live ROS2 node wired to
+VAD/wake-word/STT via `WhisperSTT`. Confirmed by grep: no cross-reference
+either direction. This means everything in this report — the ASR
+priority chain, the code-mix fix above, all of it — is real, tested, and
+correct, but **not yet running in the live speech pipeline**; it's
+exercised only by direct unit tests today.
+
+Wiring `bonbon_speech_ai` into `speech_node.py` is an architecture
+decision (which of two parallel implementations becomes "the" production
+ASR/TTS path) deliberately left for an explicit choice rather than done
+silently as part of this audit — same posture as the Sarvam
+licensing/access blocker: flagged, not fabricated or worked around.
+
 ## Language detection (`language_detector.py`)
 
 Deterministic, no ML model, no network call: Devanagari codepoints
@@ -95,4 +135,4 @@ unavailable (not installed) — chain correctly cascades to
 `docs/AI_MODEL_BENCHMARK_REPORT.md`'s benchmark run. This is the honest,
 correct behavior for this machine, not a defect.
 
-## Verdict: **PARTIAL** — router/fallback/language-detection logic is complete, tested, and correct. Real transcription requires installing one real ASR backend and running on Pi-2 hardware with a real microphone (ReSpeaker XVF3800, per the BOM).
+## Verdict: **PARTIAL** — router/fallback/language-detection/code-mix-normalization logic is complete, tested, and correct. Real transcription requires installing one real ASR backend and running on Pi-2 hardware with a real microphone (ReSpeaker XVF3800, per the BOM). Separately, `bonbon_speech_ai` is not yet wired into the live `bonbon_speech` ROS2 node — see "Known architecture gap" above; that decision is flagged for the user, not made here.

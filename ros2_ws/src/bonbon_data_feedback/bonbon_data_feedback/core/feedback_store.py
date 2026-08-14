@@ -40,6 +40,14 @@ class FailureCaseRecord:
     reviewed: bool = False
     review_label: str = ""
     reviewed_at: float | None = None
+    # Which deployment site this case came from ("" if not configured —
+    # single-site dev environments) and the detected language of the
+    # interaction ("" if not language-scoped, e.g. gesture/face cases, or
+    # if the caller hasn't been wired to a language detector yet). Added
+    # for the continuous-improvement audit: per-site model performance and
+    # per-language failure rates were previously not queryable at all.
+    site_id: str = ""
+    language_code: str = ""
 
 
 class FeedbackStore:
@@ -61,8 +69,8 @@ class FeedbackStore:
                 case_id, category, signal_name, expected_label, actual_label,
                 confidence, person_track_id, context_json, is_hard_negative,
                 has_raw_snapshot, raw_snapshot_path, created_at, reviewed,
-                review_label, reviewed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                review_label, reviewed_at, site_id, language_code
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 case_id,
@@ -80,6 +88,8 @@ class FeedbackStore:
                 int(record.reviewed),
                 record.review_label,
                 record.reviewed_at,
+                record.site_id,
+                record.language_code,
             ),
         )
         self._conn.commit()
@@ -110,6 +120,8 @@ class FeedbackStore:
                     int(r.reviewed),
                     r.review_label,
                     r.reviewed_at,
+                    r.site_id,
+                    r.language_code,
                 )
             )
         self._conn.executemany(
@@ -118,8 +130,8 @@ class FeedbackStore:
                 case_id, category, signal_name, expected_label, actual_label,
                 confidence, person_track_id, context_json, is_hard_negative,
                 has_raw_snapshot, raw_snapshot_path, created_at, reviewed,
-                review_label, reviewed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                review_label, reviewed_at, site_id, language_code
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows,
         )
@@ -137,6 +149,8 @@ class FeedbackStore:
         category: str | None = None,
         is_hard_negative: bool | None = None,
         reviewed: bool | None = None,
+        site_id: str | None = None,
+        language_code: str | None = None,
         limit: int = 100,
     ) -> list[FailureCaseRecord]:
         clauses = []
@@ -150,6 +164,12 @@ class FeedbackStore:
         if reviewed is not None:
             clauses.append("reviewed = ?")
             params.append(int(reviewed))
+        if site_id is not None:
+            clauses.append("site_id = ?")
+            params.append(site_id)
+        if language_code is not None:
+            clauses.append("language_code = ?")
+            params.append(language_code)
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         rows = self._conn.execute(
             f"SELECT * FROM failure_cases {where} ORDER BY created_at DESC LIMIT ?",
@@ -265,4 +285,6 @@ class FeedbackStore:
             reviewed=bool(d["reviewed"]),
             review_label=d["review_label"],
             reviewed_at=d["reviewed_at"],
+            site_id=d["site_id"],
+            language_code=d["language_code"],
         )

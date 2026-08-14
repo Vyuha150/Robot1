@@ -29,6 +29,8 @@ class FailureCaseLogger:
         person_track_id: str = "",
         context: dict | None = None,
         raw_snapshot_path: str = "",
+        site_id: str = "",
+        language_code: str = "",
     ) -> str:
         sanitize_result = self._policy.sanitize_context(context or {})
 
@@ -45,5 +47,7 @@ class FailureCaseLogger:
             context=sanitize_result.sanitized,
             has_raw_snapshot=snapshot_allowed,
             raw_snapshot_path=raw_snapshot_path if snapshot_allowed else "",
+            site_id=site_id,
+            language_code=language_code,
         )
         return self._store.insert_failure_case(record)

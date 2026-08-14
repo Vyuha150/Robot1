@@ -12,7 +12,16 @@ from ..config.affective_config import AffectiveConfig
 # ── Mapping tables ────────────────────────────────────────────────────────────
 
 EMOTION_TO_STATE: dict[str, str] = {
-    "anger": "frustrated",
+    # "anger"/"angry" map to the "angry" state, not "frustrated" -- the
+    # HumanEmotionState.msg contract, and STATE_TO_RESPONSE_STYLE/
+    # STATE_TO_DISTANCE/STATE_TO_TTS_EMOTION/STATE_TO_PATIENCE below,
+    # already treat "angry" as its own distinct, higher-severity state
+    # (larger recommended_distance_m, "apologetic" response, etc.) --
+    # collapsing a genuine anger reading into "frustrated" silently
+    # softened it and made "angry" unreachable from any real analyzer
+    # output. "disgust" stays mapped to "frustrated": a different raw
+    # emotion, not a synonym for anger.
+    "anger": "angry",
     "disgust": "frustrated",
     "fear": "fearful",
     "happiness": "happy",
@@ -24,7 +33,7 @@ EMOTION_TO_STATE: dict[str, str] = {
     "confused": "confused",
     "calm": "engaged",
     "happy": "happy",
-    "angry": "frustrated",
+    "angry": "angry",
     "sad": "distressed",
     "fearful": "fearful",
 }

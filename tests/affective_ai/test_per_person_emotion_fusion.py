@@ -40,17 +40,24 @@ rclpy_gated = pytest.mark.skipif(
 
 
 def _face(emotion="happiness", confidence=0.8, suppressed=False):
-    return SimpleNamespace(dominant_emotion=emotion, dominant_confidence=confidence, privacy_suppressed=suppressed)
+    return SimpleNamespace(
+        dominant_emotion=emotion, dominant_confidence=confidence, privacy_suppressed=suppressed
+    )
 
 
 def _voice(emotion="calm", confidence=0.6, failed=False):
-    return SimpleNamespace(dominant_emotion=emotion, dominant_confidence=confidence, model_failed=failed)
+    return SimpleNamespace(
+        dominant_emotion=emotion, dominant_confidence=confidence, model_failed=failed
+    )
 
 
 def _text(emotion="neutral", confidence=0.5, emergency=False, distress=False, safety=False):
     return SimpleNamespace(
-        dominant_emotion=emotion, dominant_confidence=confidence,
-        emergency_detected=emergency, distress_detected=distress, safety_concern_detected=safety,
+        dominant_emotion=emotion,
+        dominant_confidence=confidence,
+        emergency_detected=emergency,
+        distress_detected=distress,
+        safety_concern_detected=safety,
     )
 
 
@@ -67,10 +74,17 @@ class TestPerPersonFusionIsIndependentAcrossPeople(unittest.TestCase):
         self.engine = EmotionFusionEngine(AffectiveConfig())
 
     def test_two_people_with_different_face_emotions_compute_independent_states(self):
-        state_a, conf_a = self.engine._compute_weighted_state(_face("happiness", 0.9), None, None, "none")
-        state_b, conf_b = self.engine._compute_weighted_state(_face("anger", 0.9), None, None, "none")
+        state_a, conf_a = self.engine._compute_weighted_state(
+            _face("happiness", 0.9), None, None, "none"
+        )
+        state_b, conf_b = self.engine._compute_weighted_state(
+            _face("anger", 0.9), None, None, "none"
+        )
         self.assertEqual(state_a, "happy")
-        self.assertEqual(state_b, "frustrated")
+        # "anger" maps to the "angry" state, not "frustrated" -- see
+        # emotion_fusion_engine.EMOTION_TO_STATE's own comment
+        # (docs/MULTI_HUMAN_EMOTION_FAILURE_ANALYSIS.md Phase 4 fix).
+        self.assertEqual(state_b, "angry")
         self.assertNotEqual(state_a, state_b)
 
     def test_state_history_dict_is_keyed_per_person_not_shared(self):
@@ -78,7 +92,9 @@ class TestPerPersonFusionIsIndependentAcrossPeople(unittest.TestCase):
         history_b = self.engine._state_history["person_B"]
         history_a.append("happy")
         self.assertEqual(list(history_a), ["happy"])
-        self.assertEqual(list(history_b), [], "person_B's history must not see person_A's appended state")
+        self.assertEqual(
+            list(history_b), [], "person_B's history must not see person_A's appended state"
+        )
 
 
 class TestWeightedVotingAcrossModalities(unittest.TestCase):
@@ -94,11 +110,17 @@ class TestWeightedVotingAcrossModalities(unittest.TestCase):
         self.assertEqual(conf, 0.0)
 
     def test_privacy_suppressed_face_is_excluded_from_voting(self):
-        state, conf = self.engine._compute_weighted_state(_face("happiness", 0.99, suppressed=True), None, None, "none")
-        self.assertEqual(state, "neutral")  # face vote excluded -> falls back to no signal -> neutral
+        state, conf = self.engine._compute_weighted_state(
+            _face("happiness", 0.99, suppressed=True), None, None, "none"
+        )
+        self.assertEqual(
+            state, "neutral"
+        )  # face vote excluded -> falls back to no signal -> neutral
 
     def test_failed_voice_model_is_excluded_from_voting(self):
-        state, _ = self.engine._compute_weighted_state(None, _voice("angry", 0.99, failed=True), None, "none")
+        state, _ = self.engine._compute_weighted_state(
+            None, _voice("angry", 0.99, failed=True), None, "none"
+        )
         self.assertEqual(state, "neutral")
 
     def test_gesture_alone_contributes_a_vote(self):
@@ -155,7 +177,11 @@ class TestRegistryEnablesRealBackendsNotMockByDefault(unittest.TestCase):
         for cap in ("face_emotion", "voice_emotion", "gesture_recognition"):
             entry = self.registry.default_for_capability(cap)
             self.assertIsNotNone(entry)
-            self.assertNotEqual(entry.runtime, "ollama_http", f"{cap} default {entry.model_id} must not be LLM-routed -- rule 6")
+            self.assertNotEqual(
+                entry.runtime,
+                "ollama_http",
+                f"{cap} default {entry.model_id} must not be LLM-routed -- rule 6",
+            )
 
 
 class TestFuseProducesARealMessage(unittest.TestCase):

@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>bonbon_distributed_network_monitor</name>
+  <version>1.0.0</version>
+  <description>
+    Chrony clock-offset monitoring for the three-Pi deployment -- the
+    package config/distributed/robot_network.yaml's own header and
+    docs/INTER_PI_COMMUNICATION_POLICY.md's Rule 9 have named since the
+    three-Pi architecture was designed, but that was never actually built
+    until now.
+
+    Distinct from bonbon_distributed_safety (which already does real,
+    tested peer-Pi liveness detection via heartbeat staleness) -- this
+    package answers a different question: "are the three Pis' clocks
+    still within config/distributed/robot_network.yaml's time_sync
+    .alert_offset_ms of each other," which heartbeat staleness alone
+    cannot detect (a Pi can be heartbeating on time while its clock has
+    drifted, which silently corrupts cross-Pi event ordering and
+    heartbeat-staleness math itself -- see Rule 9's own rationale).
+
+    Runs on every Pi (chrony's own offset applies locally to whichever
+    Pi it's sampled on, not just Pi-3 the NTP server) via `chronyc
+    tracking`, parsed by core/chrony_offset.py (pure Python, no
+    subprocess dependency at parse time so it's fully unit-testable),
+    and forwards a real bonbon_msgs/HalFault into the ALREADY-EXISTING
+    /bonbon/hal/fault ingestion topic bonbon_fault_manager consumes --
+    no second alerting mechanism is built here.
+  </description>
+  <maintainer email="venka@bonbon-robotics.local">BonBon Robotics</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>bonbon_msgs</exec_depend>
+  <exec_depend>python3-pyyaml</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

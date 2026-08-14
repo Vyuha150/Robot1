@@ -17,6 +17,7 @@ from typing import Dict
 
 GESTURE_TO_INTENT: Dict[str, str] = {
     "wave": "greeting_request",
+    "folded_hands": "greeting_request",  # namaste -- same intent as wave
     "raised_hand": "attention_request",
     "stop_palm": "stop_request",
     "pointing_left": "direction_left",

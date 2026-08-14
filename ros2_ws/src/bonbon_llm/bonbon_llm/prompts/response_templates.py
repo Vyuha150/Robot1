@@ -73,27 +73,29 @@ _reg(
     "unknown_request",
     "I didn't catch that. What would you like?",
     "I'm not sure what you'd like. Could you tell me again? "
-    "I can take orders, answer menu questions, or help you navigate the café.",
+    "I can help you find a department, check appointment or token details, "
+    "or answer questions about the hospital.",
 )
 
 _reg(
     "navigation_denied",
-    "I can't navigate right now. Please ask a staff member.",
-    "Navigation isn't available at the moment — my safety system requires a staff check first. "
-    "A team member will be with you shortly.",
+    "I can't guide you right now. Please ask a staff member nearby.",
+    "Guiding you isn't available at the moment — my safety system requires a staff check first. "
+    "A staff member will be with you shortly.",
 )
 
 _reg(
     "actuation_denied",
-    "I can't serve items right now. Please ask a staff member.",
-    "Serving is paused at the moment due to the safety state. "
+    "I can't do that right now. Please ask a staff member nearby.",
+    "That action is paused at the moment due to the current safety state. "
     "A staff member will help you right away.",
 )
 
 _reg(
     "silent",
     "I'm here if you need anything!",
-    "I'm here and listening. Feel free to ask me anything about our menu or the café.",
+    "I'm here and listening. Feel free to ask me for directions, appointment help, "
+    "or any questions about the hospital.",
 )
 
 _reg(
@@ -111,24 +113,28 @@ _reg(
 
 _reg(
     "out_of_scope",
-    "I can't help with that, but I can take orders and answer café questions.",
-    "That's outside what I'm able to help with as a café robot. "
-    "I'm best at taking orders, explaining the menu, and navigating the café. "
-    "Is there anything like that I can help you with?",
+    "I can't help with that, but I can help with directions and hospital questions.",
+    "That's outside what I'm able to help with as a hospital assistant robot. "
+    "I'm best at guiding you to departments, helping with appointments or tokens, "
+    "and answering general hospital questions. "
+    "Is there anything like that I can help you with? "
+    "For any medical question, please ask a member of staff.",
 )
 
 _reg(
     "emergency",
-    "Please speak to staff immediately. Help is on the way.",
-    "This sounds urgent. Please speak to a staff member right away. "
-    "If this is a medical emergency, please call 995.",
+    "I've alerted our staff — please stay calm, help is coming.",
+    "This sounds urgent. I've alerted our staff and they are on their way. "
+    "Please stay calm and speak to any staff member nearby. "
+    "If needed, the national emergency number in India is 112.",
 )
 
 _reg(
     "greeting",
-    "Hello! Welcome to the café. What can I get you today?",
-    "Hello! I'm BonBon, your robot assistant. "
-    "I can take your order, answer menu questions, or help you find a table. "
+    "Hello! I'm BonBon. How can I help you today?",
+    "Hello! I'm BonBon, the hospital's assistant robot. "
+    "I can help you find a department, check your appointment or token, "
+    "or answer general questions about the hospital. "
     "What can I do for you today?",
 )
 

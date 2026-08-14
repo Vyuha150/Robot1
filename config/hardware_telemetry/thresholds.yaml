@@ -1,0 +1,43 @@
+# bonbon_hardware_telemetry thresholds. Tier 1 only -- every value below
+# gates a real, already-wired sensor reading (see
+# bonbon_hardware_telemetry.core.threshold_config for why each number is
+# what it is, and docs/HARDWARE_TELEMETRY_METRICS_PLAN.md for the Tier 2
+# fields -- per-motor current, motor/servo temperature, wheel encoders,
+# Pi CPU temp -- that have no threshold here because there is no sensor
+# behind them yet).
+#
+# This file is read by bonbon_hardware_telemetry.core.threshold_config
+# .ThresholdConfig.load(); missing keys fall back to that module's
+# dataclass defaults, so this file only needs to list values an operator
+# wants to override.
+
+liveness:
+  # Applies to /bonbon/motor/wheel_state, /bonbon/stepper/state,
+  # /bonbon/servo/neck/state, /bonbon/servo/arm/state,
+  # /bonbon/battery/state -- all publish at >=1Hz.
+  stale_after_sec: 2.0
+
+battery:
+  # 3S LiPo, 11.1V nominal (bonbon_hal.drivers.battery.battery_driver
+  # ._VOLTAGE_TABLE). percent/voltage pairs below land on that table's
+  # own 20%/10.8V and 5%/10.2V rows, not independently chosen numbers.
+  percent_warn: 20.0
+  percent_error: 5.0
+  voltage_warn_v: 10.8
+  voltage_error_v: 10.2
+  # Headroom under Ina226Driver's own max_a=20.0 calibration ceiling.
+  current_overcurrent_a: 18.0
+
+pi_resources:
+  # Mirrors bonbon_safety.core.resource_monitor.ResourceSnapshot's own
+  # cpu_overloaded/memory_pressure/disk_low properties and
+  # ResourceMonitor.recommended_load_shed's 75% elevated tier exactly --
+  # do not change these without also changing resource_monitor.py, or a
+  # Pi will read "fine" here and "overloaded" there at the same sample.
+  cpu_elevated_percent: 75.0
+  cpu_overloaded_percent: 90.0
+  memory_pressure_percent: 85.0
+  disk_low_percent: 10.0
+  # Mirrors bonbon_distributed_safety.core.heartbeat_monitor
+  # .HeartbeatConfig.stale_after_sec's own 1.5s default.
+  heartbeat_stale_after_sec: 1.5

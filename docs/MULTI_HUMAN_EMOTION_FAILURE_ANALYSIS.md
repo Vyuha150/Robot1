@@ -69,19 +69,40 @@ exist yet.
 
 ## Fix scope (Phase 4)
 
-1. Link voice analysis to `person_track_id` via the speaker turn's
-   audio-visual association (already computed in
-   `bonbon_speaker_intelligence`, see `SpeakerTurn.person_track_id`) —
-   store per-person, not under `"_global"`.
-2. Handle the off-camera/unknown-speaker case explicitly (voice signal
-   exists, no person to attach it to) rather than dumping it into a
-   pseudo-person key that silently poisons lookups.
-3. Add `"angry"` as its own state (distinct severity from `"frustrated"`)
-   and implement `EmotionUncertaintyHandler` to emit `"uncertain"` when
-   confidence is low or signals conflict, per the existing temporal-
-   smoothing/stability infrastructure already in place.
+1. **Done.** Link voice analysis to `person_track_id` via the speaker
+   turn's audio-visual association (`SpeakerTurn.person_track_id`).
+   `affective_ai_node.py` now subscribes to `/bonbon/persons/tracks`
+   (`_cb_person_track`) to maintain a `person_track_id -> raw_track_id`
+   bridge (needed because `SpeakerTurn` attributes in
+   `person_track_id` space but `_latest_voice_msgs`/`_fuse_and_publish`
+   key everything in `raw_track_id` space -- bridging was required, not
+   optional, or the same dead-lookup bug would just move one level up)
+   and `/bonbon/speaker/turns` (`_cb_speaker_turn`) to store the
+   attributed reading under the real `raw_track_id` key. `"_global"` is
+   kept only as the explicit last-resort fallback for a person with no
+   attribution yet -- unchanged, still correct.
+2. **Done.** The off-camera/unknown-speaker case (no `raw_track_id`
+   mapping yet) is handled explicitly: `_cb_speaker_turn` drops the
+   turn and logs a debug message rather than storing it under any
+   pseudo-person key.
+3. **Partially done.** `"angry"` now maps to its own state (was
+   silently collapsed into `"frustrated"` for every real analyzer
+   output; `STATE_TO_RESPONSE_STYLE`/`STATE_TO_DISTANCE`/
+   `STATE_TO_TTS_EMOTION`/`STATE_TO_PATIENCE` already had `"angry"`
+   entries waiting, unused, before this fix).
+   **`"uncertain"`/`EmotionUncertaintyHandler` is NOT implemented** --
+   checked against `bonbon_msgs/HumanEmotionState.msg`'s own
+   `dominant_state` field comment (the authoritative, real message
+   contract), which lists only 11 states and does not include
+   `"uncertain"`. Adding it would mean widening a shared message
+   contract's documented value set (plus new `STATE_TO_*` table
+   entries for consistent downstream behavior) -- a real, separately-
+   scoped decision, not fabricated here just to close this line item.
 
-None of this requires changing `FaceEmotionAnalyzer`,
-`TemporalEmotionSmoother`, or the existing 105 tests for parts that are
-already correct — it's a targeted fix to the voice-emotion storage key
-and the fusion vocabulary.
+None of this required changing `FaceEmotionAnalyzer`,
+`TemporalEmotionSmoother`, or the pre-existing tests for parts that
+were already correct -- it was a targeted fix to the voice-emotion
+storage key and the anger/angry fusion vocabulary. See
+`ros2_ws/src/bonbon_affective_ai/tests/test_voice_emotion_attribution.py`
+(11 new tests) and the updated `test_angry_triple_gives_angry_state` in
+`test_fusion.py`.

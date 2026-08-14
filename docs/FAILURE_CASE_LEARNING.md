@@ -83,11 +83,54 @@ which `HardNegativeCollector` classifies as a hard negative given the
 confidence is ≥ 0.7. A reviewer marks it reviewed with `review_label="wave"`.
 The next `gesture_dataset_vN` export includes it.
 
+## Per-site and per-language capture (continuous-improvement audit fix)
+
+Before this fix, `failure_cases` had no `site_id` or `language_code`
+column at all — for a robot deployed across multiple hospital sites in
+India with different dominant regional languages, there was no way to
+query "which site has the worst gesture-recognition rate" or "does ASR
+fail more often on code-mixed Hindi-English speech than pure English."
+
+- **`site_id`** is a deployment-time node parameter
+  (`data_feedback_node`'s `site_id` param, `""` default — set per real
+  hospital at launch, e.g. `site_id:=hospital_pune_01`), stamped onto
+  every failure case automatically by the node itself. It is never
+  supplied per-call, matching the config-not-per-message pattern other
+  packages use for deployment identity (e.g.
+  `bonbon_distributed_network_monitor`'s `pi_role`).
+- **`language_code`** is caller-supplied on `ReportFailureCase.srv`
+  (new field, `""` default) — the node has no ASR/speech subscription of
+  its own and does no language detection itself; it only persists
+  whatever the calling node already knows.
+- `FeedbackStore.query_failure_cases()` gained `site_id`/`language_code`
+  filter parameters for exactly this analysis.
+- Added as migration v2 (`ALTER TABLE ... ADD COLUMN`, both `NOT NULL
+  DEFAULT ''`) — existing rows get an honest empty value, not a
+  fabricated guess; forward-only, matches this repo's only other
+  migration precedent (`bonbon_data_stores`).
+
+**Deliberately NOT done in this round:** wiring `language_code` from a
+real detector. `bonbon_speech_ai`'s `language_detector.py` computes
+`language_code`/`is_code_mixed` per utterance (see
+[SPEECH_AI_UPGRADE_REPORT.md](SPEECH_AI_UPGRADE_REPORT.md)), but no node
+anywhere calls `~/report_failure_case` at all yet — not for ASR
+low-confidence, not for `intent_engine`'s `is_ambiguous`/
+`fallback_response`, not for `bonbon_llm`'s `safety_block`/
+`hallucination` events. The `report_failure_case` service has existed
+since this package's original build with zero external callers
+(confirmed by repo-wide grep). Wiring those callers is a larger,
+cross-package decision (which failure signals are worth the write
+volume, whether every one needs human review) left for a dedicated task
+rather than added silently here — the `language_code` field exists now
+specifically so that future wiring doesn't require another schema
+migration.
+
 ## Tests
 
-55 tests across all 7 core modules — `failure_case_logger.py` and
-`hard_negative_collector.py` specifically have 9 + 9 tests covering the
-classification boundary and privacy gating. See
+74 tests across the package (was 62 before the site_id/language_code fix
+above) — `failure_case_logger.py` and `hard_negative_collector.py`
+specifically have 8 + 8 tests covering the classification boundary,
+privacy gating, and the site_id/language_code fix. See
 [OPTIMIZATION_TESTING.md](OPTIMIZATION_TESTING.md).
 
 ## Troubleshooting

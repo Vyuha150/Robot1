@@ -12,6 +12,15 @@ docs/DUPLICATE_PIPELINE_AUDIT.md for why this brief's "AI Pi" launch
 does not reimplement ASR/TTS/LLM/vision/gesture/affective bringup that
 already exists and is already tested.
 
+ALSO launches hardware_telemetry_node with pi_role=ai_interaction_pi --
+this Pi has no HAL hardware either, so it only samples this Pi's own
+CPU/memory/disk (see bonbon_hardware_telemetry.nodes
+.hardware_telemetry_node's docstring for the pi_role gating).
+
+ALSO launches network_monitor_node -- every Pi runs its own local
+chrony offset check (see bonbon_distributed_network_monitor's own
+docstring).
+
 Usage:
   ros2 launch launch/edge_ai/ai_pi_edge.launch.py driver_mode:=real
   ros2 launch launch/edge_ai/ai_pi_edge.launch.py   # mock, dev/CI
@@ -25,11 +34,12 @@ from __future__ import annotations
 import os
 
 from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+from launch import LaunchDescription
 
 
 def _include(pkg: str, launch_file: str, launch_arguments: dict | None = None):
@@ -68,6 +78,31 @@ def generate_launch_description() -> LaunchDescription:
         output="screen",
     )
 
+    hardware_telemetry = Node(
+        package="bonbon_hardware_telemetry",
+        executable="hardware_telemetry_node",
+        name="hardware_telemetry_node",
+        namespace="",
+        parameters=[
+            {
+                "pi_role": "ai_interaction_pi",
+                "publish_interval_sec": LaunchConfiguration(
+                    "hardware_telemetry_publish_interval_sec"
+                ),
+            }
+        ],
+        output="screen",
+    )
+
+    network_monitor = Node(
+        package="bonbon_distributed_network_monitor",
+        executable="network_monitor_node",
+        name="network_monitor_node",
+        namespace="",
+        parameters=[{"pi_role": "ai_interaction_pi"}],
+        output="screen",
+    )
+
     return LaunchDescription(
         [
             DeclareLaunchArgument("driver_mode", default_value="mock", description="real|mock"),
@@ -86,7 +121,14 @@ def generate_launch_description() -> LaunchDescription:
                 default_value="2.0",
                 description="How often edge_ai_runtime_node republishes dashboard status",
             ),
+            DeclareLaunchArgument(
+                "hardware_telemetry_publish_interval_sec",
+                default_value="2.0",
+                description="How often hardware_telemetry_node republishes dashboard status",
+            ),
             human_ai,
             edge_ai_runtime,
+            hardware_telemetry,
+            network_monitor,
         ]
     )

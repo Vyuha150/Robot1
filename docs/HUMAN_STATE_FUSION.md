@@ -81,11 +81,40 @@ topic-name mismatch meaning the Behavior Engine had never actually received
 an emotion message from `bonbon_affective_ai` in any deployment. Fixed as
 part of this round's integration work.
 
+## Consumption-side bugs found writing integration tests (later round)
+
+Publishing `HumanState` correctly wasn't the whole story — new
+node-level integration tests for `behavior_engine_node`'s
+`_on_human_state` → `_decide_multi_person_behavior` → `_dispatch_multi_person_candidate`
+path (`bonbon_behavior_engine/tests/test_human_state_integration.py`)
+found two more real bugs on the consuming side:
+
+- **`tts_emotion` was dropped at dispatch.** `_dispatch_proposal()`
+  hardcoded `"neutral"` regardless of the `tts_emotion` a
+  `BehaviorCandidate` (warm/calm/neutral per rule) actually computed, so
+  multi-person responses never varied their spoken tone. The older
+  single-person path (`EmotionAwareResponsePlanner`) already threaded
+  this correctly, confirming it was a multi-person-path-specific
+  regression. Fixed by adding a `tts_emotion` parameter to
+  `_dispatch_proposal` and passing `candidate.tts_emotion` from
+  `_dispatch_multi_person_candidate`.
+- **Departure routing was unreachable.** `select_focus_person()`
+  excludes `left_scene` people from its candidate list, so the
+  focus-gate check in `_decide_multi_person_behavior`
+  (`if focus_id != msg.person_track_id: return`) could never pass for a
+  person's own departure event — making `decide_departure_close_session`
+  permanently dead code on that path. Fixed by special-casing
+  `left_scene` before the focus-gate runs.
+
 ## Tests
 
 64 tests across 5 core modules. Plus 3 of the 25 cross-package scenarios
 (emotion differs per person, robot does not mix identities, new/existing
-speaker transitions).
+speaker transitions). Plus 7 node-level integration tests in
+`bonbon_behavior_engine/tests/test_human_state_integration.py` covering
+arrival greeting, focus-person routing, safety-gesture override, child
+safety modifier, and left-scene departure dispatch — full
+`bonbon_behavior_engine` suite: 177 tests passing.
 
 ## Performance tuning
 

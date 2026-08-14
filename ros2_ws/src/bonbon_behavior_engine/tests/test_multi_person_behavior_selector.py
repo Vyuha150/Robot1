@@ -108,6 +108,27 @@ class TestRule1ArrivalGreeting:
         hs2 = _HS("ptrk_2", lifecycle_state="present", current_gesture="wave")
         assert sel.decide_arrival_greeting(hs2) is not None
 
+    def test_first_time_visitor_gets_capability_orientation(self):
+        # UX fix: a first-time visitor (no known_person_id) has likely
+        # never interacted with a service robot before and needs more
+        # than "Hello" to know what to ask it for.
+        sel = MultiPersonBehaviorSelector()
+        hs = _HS("ptrk_1", known_person_id="", lifecycle_state="present", current_gesture="wave")
+        candidate = sel.decide_arrival_greeting(hs)
+        assert candidate is not None
+        assert "department" in candidate.content or "appointment" in candidate.content
+
+    def test_known_visitor_gets_short_greeting_not_full_orientation(self):
+        # A recognized returning visitor already knows what BonBon does --
+        # repeating the full orientation every visit would be tedious.
+        sel = MultiPersonBehaviorSelector()
+        hs = _HS(
+            "ptrk_1", known_person_id="Alice", lifecycle_state="present", current_gesture="wave"
+        )
+        candidate = sel.decide_arrival_greeting(hs)
+        assert candidate is not None
+        assert candidate.content == "Hello! I'm BonBon. How can I help you today?"
+
 
 class TestRule2KnownPersonGreeting:
     def test_known_person_speaking_greeted_by_name(self):

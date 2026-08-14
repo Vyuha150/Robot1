@@ -228,6 +228,7 @@ services:
       - >
         (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_safety distributed_safety_node --ros-args -p self_id:=pi2) &
         (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_authority_manager authority_manager_node --ros-args -p self_id:=pi2) &
+        (source /opt/ros/humble/setup.bash && source /opt/bonbon/install/setup.bash && ros2 run bonbon_distributed_network_monitor network_monitor_node --ros-args -p pi_role:=ai_interaction_pi) &
         wait
     security_opt: ["no-new-privileges:true"]
 

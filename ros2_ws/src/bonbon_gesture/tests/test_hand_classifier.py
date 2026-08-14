@@ -180,3 +180,50 @@ class TestHandGestureClassifier:
         ]:
             _, conf = self.clf.classify(lm_fn(), is_right=True)
             assert 0.0 <= conf <= 1.0, f"Confidence out of range: {conf}"
+
+
+class TestFoldedHandsNamaste:
+    """classify_folded_hands() is a separate two-hand method -- Phase 5
+    fix scope item 3 (docs/GESTURE_RECOGNITION_FAILURE_ANALYSIS.md)."""
+
+    def setup_method(self):
+        self.clf = HandGestureClassifier()
+
+    def test_two_open_hands_pressed_together_is_folded_hands(self):
+        left = _open_palm(cx=300.0, cy=240.0)
+        right = _open_palm(cx=310.0, cy=240.0)
+        gesture, conf = self.clf.classify_folded_hands(left, right)
+        assert gesture == "folded_hands", f"Expected folded_hands, got {gesture}"
+        assert 0.0 <= conf <= 1.0
+
+    def test_two_open_hands_far_apart_is_not_folded_hands(self):
+        left = _open_palm(cx=200.0, cy=240.0)
+        right = _open_palm(cx=500.0, cy=240.0)
+        gesture, _ = self.clf.classify_folded_hands(left, right)
+        assert gesture != "folded_hands"
+
+    def test_missing_left_hand_is_not_folded_hands(self):
+        right = _open_palm(cx=310.0, cy=240.0)
+        gesture, conf = self.clf.classify_folded_hands(None, right)
+        assert gesture == "none"
+        assert conf == 0.0
+
+    def test_missing_right_hand_is_not_folded_hands(self):
+        left = _open_palm(cx=300.0, cy=240.0)
+        gesture, conf = self.clf.classify_folded_hands(left, None)
+        assert gesture == "none"
+        assert conf == 0.0
+
+    def test_closed_fists_pressed_together_is_not_folded_hands(self):
+        """Fingers must be extended -- pressed fists (e.g. a different
+        greeting or a fight stance) must not be misclassified."""
+        left = _closed_fist(cx=300.0, cy=240.0)
+        right = _closed_fist(cx=310.0, cy=240.0)
+        gesture, _ = self.clf.classify_folded_hands(left, right)
+        assert gesture != "folded_hands"
+
+    def test_one_open_one_closed_is_not_folded_hands(self):
+        left = _open_palm(cx=300.0, cy=240.0)
+        right = _closed_fist(cx=310.0, cy=240.0)
+        gesture, _ = self.clf.classify_folded_hands(left, right)
+        assert gesture != "folded_hands"

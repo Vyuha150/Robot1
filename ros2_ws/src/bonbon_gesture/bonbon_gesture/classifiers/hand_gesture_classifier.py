@@ -227,3 +227,63 @@ class HandGestureClassifier:
         # Middle, ring, pinky must be curled
         others_curled = all(lm[t][1] > lm[p][1] for t, p in zip([12, 16, 20], [10, 14, 18]))
         return index_up and others_curled
+
+    # ------------------------------------------------------------------
+    # Two-hand gestures
+    # ------------------------------------------------------------------
+    # Deliberately a SEPARATE method, not a change to classify()'s
+    # single-hand contract -- every other rule in this class classifies
+    # one hand at a time (matching how gesture_node.py calls classify()
+    # once per hand). folded_hands/namaste is the one gesture that
+    # genuinely needs both hands' landmarks simultaneously (palms pressed
+    # together in front of the chest), so gesture_node.py calls this
+    # method separately, passing both already-in-scope hand landmark
+    # sets (see docs/GESTURE_RECOGNITION_FAILURE_ANALYSIS.md's Fix scope
+    # item 3).
+
+    def classify_folded_hands(
+        self,
+        left_hand_landmarks: Optional[List[Tuple[float, float, float]]],
+        right_hand_landmarks: Optional[List[Tuple[float, float, float]]],
+    ) -> Tuple[str, float]:
+        """Detect a folded-hands / namaste greeting: both hands open with
+        fingers extended upward, palms pressed close together in front of
+        the chest.
+
+        Args:
+            left_hand_landmarks: 21-point landmark list for the left hand,
+                or ``None`` if not detected.
+            right_hand_landmarks: 21-point landmark list for the right
+                hand, or ``None`` if not detected.
+
+        Returns:
+            A ``(gesture_name, confidence)`` tuple -- ``'folded_hands'`` or
+            ``'none'``.
+        """
+        if left_hand_landmarks is None or right_hand_landmarks is None:
+            return ("none", 0.0)
+        if len(left_hand_landmarks) < 21 or len(right_hand_landmarks) < 21:
+            return ("none", 0.0)
+
+        left_fingers = self._count_fingers_up(left_hand_landmarks, is_right=False)
+        right_fingers = self._count_fingers_up(right_hand_landmarks, is_right=True)
+        if left_fingers < 4 or right_fingers < 4:
+            return ("none", 0.0)
+
+        left_scale = _dist(left_hand_landmarks[0], left_hand_landmarks[9])
+        right_scale = _dist(right_hand_landmarks[0], right_hand_landmarks[9])
+        hand_scale = (left_scale + right_scale) / 2.0
+        if hand_scale <= 0:
+            return ("none", 0.0)
+
+        # Both wrists close together AND both middle-fingertips close
+        # together -- requires the whole hand to be pressed close, not
+        # just fingertips touching while wrists stay apart (which would
+        # be two separate open hands raised near each other, not namaste).
+        wrist_gap = _dist(left_hand_landmarks[0], right_hand_landmarks[0])
+        fingertip_gap = _dist(left_hand_landmarks[12], right_hand_landmarks[12])
+        hands_pressed_together = wrist_gap < hand_scale * 1.5 and fingertip_gap < hand_scale * 1.5
+
+        if hands_pressed_together:
+            return ("folded_hands", 0.75)
+        return ("none", 0.0)

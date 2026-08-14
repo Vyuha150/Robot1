@@ -114,9 +114,26 @@ class MultiPersonBehaviorSelector:
         if hs.current_gesture not in _ARRIVAL_GESTURES:
             return None
         self._greeted_arrival.add(hs.person_track_id)
+        # First-time visitors (no known_person_id -- see rule2's recall
+        # buffer) get a brief orientation to what the robot can actually
+        # do, not just a generic "hello": many people in an Indian
+        # hospital setting will never have interacted with a service
+        # robot before and won't know to ask it anything specific.
+        # Returning/recognized people keep the short greeting -- they
+        # already know what BonBon does, and repeating the orientation
+        # on every visit would be tedious rather than helpful.
+        if hs.known_person_id:
+            content = "Hello! I'm BonBon. How can I help you today?"
+        else:
+            content = (
+                "Hello! I'm BonBon, the hospital's assistant robot. "
+                "I can help you find a department, check your appointment or "
+                "token, or answer questions about the hospital. "
+                "How can I help you today?"
+            )
         return BehaviorCandidate(
             proposal_type="speak",
-            content="Hello! I'm BonBon. How can I help you today?",
+            content=content,
             source="rule1_arrival_wave",
             urgency=0.2,
             person_track_id=hs.person_track_id,

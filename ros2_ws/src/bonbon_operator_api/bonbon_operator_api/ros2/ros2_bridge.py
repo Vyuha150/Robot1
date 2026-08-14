@@ -155,6 +155,12 @@ _TOPIC_EDGE_AI_ROUTES = "/bonbon/edge_ai/routes"
 _TOPIC_EDGE_AI_RESOURCES = "/bonbon/edge_ai/resources"
 _TOPIC_EDGE_AI_SAFETY = "/bonbon/edge_ai/safety"
 _TOPIC_EDGE_AI_CACHE = "/bonbon/edge_ai/cache"
+# hardware_telemetry_node -- one JSON-over-String status topic (base
+# wheels/arm+head joints/battery/per-Pi CPU-mem-disk), same "String +
+# json.loads" pattern as the edge_ai/tts topics above. Only one channel
+# (unlike edge_ai's 6) since hardware_telemetry_node publishes a single
+# combined snapshot per tick rather than splitting by concern.
+_TOPIC_HARDWARE_TELEMETRY_STATUS = "/bonbon/hardware_telemetry/status"
 
 # Curated set of ModuleHealth topics surfaced as dashboard module cards.
 # There is no single aggregate "/bonbon/modules/status" topic anywhere in
@@ -421,6 +427,14 @@ class ROS2DashboardBridge:
             return None
         return self._node._edge_ai_status.get(channel)
 
+    def get_hardware_telemetry_snapshot(self) -> dict[str, Any] | None:
+        """Latest JSON status hardware_telemetry_node published on
+        /bonbon/hardware_telemetry/status, or None if no message has
+        been received yet -- same honesty rule as get_edge_ai_snapshot."""
+        if not self._ready():
+            return None
+        return self._node._hardware_telemetry_status
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -482,6 +496,10 @@ if _ROS2_AVAILABLE:
             # defaulted to an empty dict here, so callers can honestly
             # distinguish "not received yet" from "received, empty".
             self._edge_ai_status: dict[str, dict] = {}
+            # Latest parsed JSON from hardware_telemetry_node, or None if
+            # no message has been received yet -- same honesty rule as
+            # _edge_ai_status above.
+            self._hardware_telemetry_status: dict | None = None
 
             _best_effort = QoSProfile(
                 depth=10,
@@ -602,6 +620,14 @@ if _ROS2_AVAILABLE:
                     lambda msg, ch=_channel: self._on_edge_ai_status(ch, msg),
                     _best_effort,
                 )
+
+            # hardware_telemetry_node status
+            self.create_subscription(
+                String,
+                _TOPIC_HARDWARE_TELEMETRY_STATUS,
+                self._on_hardware_telemetry_status,
+                _best_effort,
+            )
 
             # Service clients — only for commands with a confirmed real target.
             self._cli_navigate = self.create_client(NavigateTo, _SVC_NAVIGATE)
@@ -742,6 +768,14 @@ if _ROS2_AVAILABLE:
                 self.get_logger().warning(f"edge_ai/{channel}: failed to parse JSON: {exc}")
                 return
             self._edge_ai_status[channel] = payload
+
+        def _on_hardware_telemetry_status(self, msg: String) -> None:
+            try:
+                payload = _json.loads(msg.data)
+            except (ValueError, TypeError) as exc:
+                self.get_logger().warning(f"hardware_telemetry: failed to parse JSON: {exc}")
+                return
+            self._hardware_telemetry_status = payload
 
         def _on_actuation(self, msg: ActuationStatus) -> None:
             data = {

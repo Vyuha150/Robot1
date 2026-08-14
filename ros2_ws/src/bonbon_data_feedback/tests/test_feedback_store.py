@@ -81,6 +81,54 @@ class TestBatchInsert:
         assert store.count_failure_cases() == 50
 
 
+class TestSiteAndLanguageFields:
+    """Continuous-improvement audit: failure_cases previously had no way to
+    distinguish which hospital site or which language an interaction came
+    from, making per-site/per-language failure-rate analysis impossible."""
+
+    def test_site_id_and_language_code_round_trip(self, tmp_path):
+        store = _make_store(tmp_path)
+        case_id = store.insert_failure_case(_record(site_id="hospital_pune_01", language_code="hi"))
+        got = store.get_failure_case(case_id)
+        assert got.site_id == "hospital_pune_01"
+        assert got.language_code == "hi"
+
+    def test_defaults_are_empty_not_fabricated(self, tmp_path):
+        store = _make_store(tmp_path)
+        case_id = store.insert_failure_case(_record())
+        got = store.get_failure_case(case_id)
+        assert got.site_id == ""
+        assert got.language_code == ""
+
+    def test_query_filters_by_site_id(self, tmp_path):
+        store = _make_store(tmp_path)
+        store.insert_failure_case(_record(site_id="hospital_pune_01"))
+        store.insert_failure_case(_record(site_id="hospital_hyderabad_02"))
+        results = store.query_failure_cases(site_id="hospital_hyderabad_02")
+        assert len(results) == 1
+        assert results[0].site_id == "hospital_hyderabad_02"
+
+    def test_query_filters_by_language_code(self, tmp_path):
+        store = _make_store(tmp_path)
+        store.insert_failure_case(_record(language_code="hi"))
+        store.insert_failure_case(_record(language_code="te"))
+        results = store.query_failure_cases(language_code="te")
+        assert len(results) == 1
+        assert results[0].language_code == "te"
+
+    def test_batch_insert_preserves_site_id_and_language_code(self, tmp_path):
+        store = _make_store(tmp_path)
+        store.insert_failure_cases_batch(
+            [
+                _record(site_id="hospital_pune_01", language_code="hi"),
+                _record(site_id="hospital_hyderabad_02", language_code="te"),
+            ]
+        )
+        results = store.query_failure_cases(site_id="hospital_pune_01")
+        assert len(results) == 1
+        assert results[0].language_code == "hi"
+
+
 class TestQuery:
     def test_query_filters_by_category(self, tmp_path):
         store = _make_store(tmp_path)

@@ -1,6 +1,6 @@
 # bonbon_llm — LLM + Response Generation Module
 
-LLM-powered conversation and response generation for the **BonBon** café service
+LLM-powered conversation and response generation for the **BonBon** hospital service
 robot. Wraps a local **Ollama** model with a full safety stack, RAG knowledge
 grounding, tool/function calling, hallucination prevention, and a spoken-output
 personality layer — all as a ROS2 LifecycleNode.
