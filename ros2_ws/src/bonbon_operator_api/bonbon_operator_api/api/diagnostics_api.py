@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from bonbon_operator_api.api.command_api import _check_bridge_result
 from bonbon_operator_api.auth.dependencies import require_permission
 from bonbon_operator_api.models.auth_models import TokenPayload
 from bonbon_operator_api.models.response_models import APIResponse
@@ -19,7 +20,7 @@ _RESTARTABLE_MODULES = frozenset(
     {
         "bonbon_tts",
         "bonbon_navigation",
-        "bonbon_perception",
+        "bonbon_vision",
         "bonbon_actuation",
         "bonbon_data_stores",
         "bonbon_safety",
@@ -71,7 +72,13 @@ async def restart_module(
         ip_address=ip,
     )
     request.app.state.metrics.record_audit_event()
-    return APIResponse.ok({"module": module_name, "restart_requested": True})
+    # Must not claim restart_requested=True when the bridge itself reports
+    # failure (e.g. NOT_IMPLEMENTED) -- the audit log above already records
+    # the honest outcome; the HTTP response was previously unconditional,
+    # contradicting its own audit entry. Mirrors command_api.py's
+    # _check_bridge_result fix for the same class of bug.
+    message = _check_bridge_result(request, "restart_module", result, "Restart requested")
+    return APIResponse.ok({"module": module_name, "restart_requested": True, "message": message})
 
 
 @diag_router.get("/audit", response_model=APIResponse)

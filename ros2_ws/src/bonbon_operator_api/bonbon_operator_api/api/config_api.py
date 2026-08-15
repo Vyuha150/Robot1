@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from bonbon_operator_api.api.command_api import _check_bridge_result
 from bonbon_operator_api.auth.dependencies import get_current_user, require_permission
 from bonbon_operator_api.config.api_config import CRITICAL_CONFIG_KEYS, LIMITED_CONFIG_KEYS
 from bonbon_operator_api.models.auth_models import TokenPayload
@@ -136,9 +137,15 @@ async def set_config_key(
     store = _get_config_store(request)
     store.set(key, body.value)
 
-    # Propagate to ROS2 if bridge is available
+    # Propagate to ROS2 -- previously discarded entirely, so a config
+    # change (including safety-critical keys like emergency distance or
+    # watchdog thresholds) that never reached the live robot was still
+    # reported as updated=True. The local store write above is real and
+    # durable regardless, but a caller must be able to tell whether the
+    # change actually took effect on the robot, not just in the dashboard's
+    # own JSON file. Mirrors command_api.py's _check_bridge_result fix.
     bridge = request.app.state.ros2_bridge
-    bridge.call_set_config(key, body.value)
+    result = bridge.call_set_config(key, body.value)
 
     audit.log(
         actor_id=current_user.sub,
@@ -147,8 +154,9 @@ async def set_config_key(
         action="config:write",
         target=key,
         request_data={"key": key, "value": str(body.value)[:200]},
-        outcome="success",
+        outcome="success" if result.get("success") else "failure",
         ip_address=ip,
     )
     request.app.state.metrics.record_audit_event()
-    return APIResponse.ok({"key": key, "value": body.value, "updated": True})
+    message = _check_bridge_result(request, "set_config", result, "Config updated")
+    return APIResponse.ok({"key": key, "value": body.value, "updated": True, "message": message})

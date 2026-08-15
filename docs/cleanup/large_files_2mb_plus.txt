@@ -1,0 +1,17 @@
+63201294 ./models/piper/en_US-lessac-medium.onnx
+11153641 ./ros2_ws/src/bonbon_operator_api/frontend/public/models/gesture/wasm/vision_wasm_module_internal.wasm
+11153641 ./ros2_ws/src/bonbon_operator_api/frontend/dist/models/gesture/wasm/vision_wasm_module_internal.wasm
+11153617 ./ros2_ws/src/bonbon_operator_api/frontend/public/models/gesture/wasm/vision_wasm_internal.wasm
+11153617 ./ros2_ws/src/bonbon_operator_api/frontend/dist/models/gesture/wasm/vision_wasm_internal.wasm
+10481398 ./ros2_ws/src/bonbon_operator_api/frontend/public/models/gesture/wasm/vision_wasm_nosimd_internal.wasm
+10481398 ./ros2_ws/src/bonbon_operator_api/frontend/dist/models/gesture/wasm/vision_wasm_nosimd_internal.wasm
+8373440 ./ros2_ws/src/bonbon_operator_api/frontend/public/models/gesture/gesture_recognizer.task
+8373440 ./ros2_ws/src/bonbon_operator_api/frontend/dist/models/gesture/gesture_recognizer.task
+6026259 ./ros2_ws/src/bonbon_operator_api/frontend/public/models/hands/hands_solution_simd_wasm_bin.wasm
+6026259 ./ros2_ws/src/bonbon_operator_api/frontend/dist/models/hands/hands_solution_simd_wasm_bin.wasm
+5478688 ./ros2_ws/src/bonbon_operator_api/frontend/public/models/hands/hand_landmark_full.tflite
+5478688 ./ros2_ws/src/bonbon_operator_api/frontend/dist/models/hands/hand_landmark_full.tflite
+4326731 ./ros2_ws/src/bonbon_operator_api/frontend/public/models/hands/hands_solution_packed_assets.data
+4326731 ./ros2_ws/src/bonbon_operator_api/frontend/dist/models/hands/hands_solution_packed_assets.data
+2596864 ./.mypy_cache/3.11/cache.4.db
+2138112 ./.mypy_cache/3.11/cache.3.db

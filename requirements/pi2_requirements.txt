@@ -109,7 +109,6 @@ onnxruntime
 # ASR / VAD / diarization (bonbon_speech)
 faster-whisper
 torch
-torchaudio
 sounddevice
 
 # Gesture recognition (bonbon_gesture) -- see aarch64 wheel risk note above
@@ -153,6 +152,5 @@ fastapi
 uvicorn[standard]
 PyJWT
 passlib[bcrypt]
-python-multipart
 prometheus-client
 httpx

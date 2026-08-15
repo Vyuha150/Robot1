@@ -7,7 +7,6 @@ Channels:
   safety-events      — safety state changes (immediate)
   navigation-events  — navigation goal and progress updates
   diagnostics        — module health / log events
-  live-logs          — raw log stream (engineer+ only)
 
 Auth: Bearer token passed as ?token= query param (browser WS limitation).
 """
@@ -31,7 +30,6 @@ _CHANNEL_MIN_PERMISSION = {
     "safety-events": "robot:read",
     "navigation-events": "robot:read",
     "diagnostics": "diagnostics:read",
-    "live-logs": "diagnostics:read",
     "boot-topology": "diagnostics:read",
     "ai-runtime": "diagnostics:read",
     "pi-efficiency": "diagnostics:read",

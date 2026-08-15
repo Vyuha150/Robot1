@@ -34,6 +34,23 @@ def test_engineer_restart_valid_module(client: TestClient, engineer_token: str):
     assert resp.json()["data"]["restart_requested"] is True
 
 
+# Cleanup-audit fix: a bridge result with success=False must surface as an
+# HTTP error, never a fake 200 "restart_requested". Mirrors command_api.py's
+# _check_bridge_result tests for the same class of bug.
+def test_restart_reports_bridge_dispatch_failure(
+    client: TestClient, engineer_token: str, mock_bridge
+):
+    mock_bridge.call_restart_module.return_value = {
+        "success": False,
+        "error": "NOT_IMPLEMENTED",
+    }
+    resp = client.post(
+        "/api/v1/diagnostics/modules/bonbon_tts/restart",
+        headers={"Authorization": f"Bearer {engineer_token}"},
+    )
+    assert resp.status_code == 503
+
+
 # Scenario 4: Restarting unknown module returns 400
 def test_restart_unknown_module(client: TestClient, engineer_token: str):
     resp = client.post(
