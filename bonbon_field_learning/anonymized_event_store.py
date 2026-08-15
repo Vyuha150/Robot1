@@ -33,6 +33,18 @@ class FailureCategory(StrEnum):
     NAVIGATION_FAILURE = "navigation_failure"
     DASHBOARD_MISMATCH = "dashboard_mismatch"
     DEGRADED_MODE_FAILURE = "degraded_mode_failure"
+    # Added for the data/training/fine-tuning pipeline brief's failure
+    # category list (Phase 3): these four were previously only reachable
+    # through the generic WRONG_RESPONSE bucket, which made ASR transcript
+    # errors, RAG answer errors, intent-classification errors, and semantic
+    # location errors indistinguishable in the failure-rate breakdown and
+    # in generated regression test IDs. Purely additive -- existing values
+    # and every existing caller/test keeps working unchanged.
+    WRONG_ASR_TRANSCRIPT = "wrong_asr_transcript"
+    WRONG_INTENT = "wrong_intent"
+    WRONG_RAG_ANSWER = "wrong_rag_answer"
+    WRONG_SEMANTIC_LOCATION = "wrong_semantic_location"
+    STAFF_INTERVENTION = "staff_intervention"
 
 
 # Any metadata key containing one of these substrings is rejected -- defense

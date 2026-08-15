@@ -1,0 +1,68 @@
+# config/data/model_export_targets.yaml
+#
+# Per-capability required edge export format. Loaded by
+# bonbon_data_pipeline.export_for_edge.ExportTargetRegistry. Phase 6's
+# format list: Hailo HEF for vision where possible, ONNX for CPU fallback,
+# TFLite/ONNX for small classifiers, GGUF/Ollama-compatible only for LLM
+# experiments, SQLite/vector index for RAG, cached WAV/PCM for TTS phrases.
+
+targets:
+  object_detection:
+    export_format: hailo_hef
+    hardware_target: hailo_8
+    fallback_export_format: onnx
+    notes: "ONNX fallback runs on Pi CPU via bonbon_ai_runtime's cpu/mock runtime chain when Hailo hardware is absent -- never a hard failure."
+
+  person_detection:
+    export_format: hailo_hef
+    hardware_target: hailo_8
+    fallback_export_format: onnx
+    notes: ""
+
+  gesture_recognition:
+    export_format: tflite
+    hardware_target: pi_cpu
+    fallback_export_format: onnx
+    notes: "Small classifier over landmark sequences -- no Hailo compile needed."
+
+  face_emotion:
+    export_format: onnx
+    hardware_target: pi_cpu
+    fallback_export_format: null
+    notes: "DeepFace backend already runs via ONNX Runtime on CPU; no separate Hailo path exists for this capability."
+
+  voice_emotion:
+    export_format: onnx
+    hardware_target: pi_cpu
+    fallback_export_format: null
+    notes: ""
+
+  asr:
+    export_format: onnx
+    hardware_target: pi_cpu
+    fallback_export_format: null
+    notes: "faster-whisper's CTranslate2 runtime; GGUF does not apply to ASR models in this stack."
+
+  tts:
+    export_format: wav_cache
+    hardware_target: pi_cpu
+    fallback_export_format: onnx
+    notes: "Hospital phrase set is pre-rendered to cached WAV/PCM (scripts/data/build_tts_phrase_cache.py); ONNX fallback is the live Piper/sherpa-onnx voice model for uncached text."
+
+  local_llm:
+    export_format: gguf
+    hardware_target: pi_cpu
+    fallback_export_format: null
+    notes: "GGUF/Ollama-compatible only, per Phase 6 -- LLM experiments never target Hailo HEF (LLM must not control motors/servos/Nav2/safety regardless of export format -- see bonbon_llm's blocked_patterns)."
+
+  hospital_knowledge_rag:
+    export_format: sqlite_vector
+    hardware_target: pi_cpu
+    fallback_export_format: null
+    notes: "bonbon_data_stores.rag.chroma_store + a SQLite exact-match table for the FAQ fast path."
+
+  navigation:
+    export_format: onnx
+    hardware_target: pi_cpu
+    fallback_export_format: null
+    notes: "Costmap/planner parameter tuning only -- never a HEF/GGUF artifact; the Safety Supervisor and Motion Approval Gateway are not exported models at all."

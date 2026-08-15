@@ -27,6 +27,7 @@ from bonbon_operator_api.api.ai_model_status_api import ai_model_status_router
 from bonbon_operator_api.api.auth_api import auth_router
 from bonbon_operator_api.api.command_api import cmd_router
 from bonbon_operator_api.api.config_api import _ConfigStore, config_router
+from bonbon_operator_api.api.data_api import data_router
 from bonbon_operator_api.api.deployment_api import deployment_router
 from bonbon_operator_api.api.diagnostics_api import diag_router
 from bonbon_operator_api.api.distributed_api import distributed_router
@@ -187,6 +188,7 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
     app.include_router(ai_model_status_router, prefix="/api/v1")
     app.include_router(edge_ai_status_router, prefix="/api/v1")
     app.include_router(hardware_telemetry_router, prefix="/api/v1")
+    app.include_router(data_router, prefix="/api/v1")
     app.include_router(ws_router)
 
     # ------------------------------------------------------------------ #

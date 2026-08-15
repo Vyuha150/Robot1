@@ -1,0 +1,83 @@
+# config/data/training_targets.yaml
+#
+# Per-capability training/fine-tuning plan. Loaded by
+# bonbon_data_pipeline.training_manifest.TrainingManifest. Backs
+# docs/TRAINING_AND_FINE_TUNING_PLAN.md -- this file is the checkable
+# structure, that doc is the prose explanation. Every dataset_ids entry
+# must exist in config/data/dataset_registry.yaml (validated by
+# TrainingManifest.validate_against_registry, not just assumed).
+#
+# training_machine never names a Pi/edge board -- rule 7 (Pi is for
+# inference/logging, never heavy training) is enforced structurally by
+# validate_against_registry, which fails any target that does.
+
+targets:
+  asr:
+    baseline_model: "faster-whisper (bonbon_speech_ai deployed baseline)"
+    dataset_ids: [common_voice_en, common_voice_hi, common_voice_te, hospital_phrase_list]
+    training_machine: workstation_gpu
+    training_method: "Phase 5 recommendation: phrase-boost vocabulary + corrected-text feedback loop FIRST (scripts/data/build_asr_phrase_dictionary.py); full acoustic-model fine-tuning only if phrase-boost alone does not close the WER gap."
+    evaluation_metric: word_error_rate
+    acceptance_threshold: 0.15  # WER must be <= 15% on the hospital phrase-list eval set to become default
+    edge_export_format: onnx
+    rollback_plan: "bonbon_data_pipeline.export_for_edge.EdgeDeploymentTracker.rollback('asr') restores the previous faster-whisper model+vocabulary version recorded as fallback."
+
+  tts:
+    baseline_model: "Piper en_US-lessac-medium (bonbon_ai_model_registry, deployed)"
+    dataset_ids: [sarvam_bulbul_tts_api, hospital_phrase_list]
+    training_machine: workstation_gpu
+    training_method: "Phase 5 recommendation: cached hospital phrases + selected existing Piper/sherpa-onnx voices FIRST (scripts/data/build_tts_phrase_cache.py); training a new TTS voice is out of scope until cached-phrase coverage is proven insufficient."
+    evaluation_metric: mos_naturalness
+    acceptance_threshold: 3.5  # mean opinion score, 1-5 scale
+    edge_export_format: wav_cache
+    rollback_plan: "EdgeDeploymentTracker.rollback('tts') restores the previous cached-phrase set and/or voice model version."
+
+  object_detection:
+    baseline_model: "yolov8n (Hailo Model Zoo baseline)"
+    dataset_ids: [hailo_model_zoo_object_detection, coco_2017, bonbon_hospital_images, synthetic_hospital_objects]
+    training_machine: workstation_gpu
+    training_method: "Fine-tune on workstation/GPU (never on-Pi per rule 7), export ONNX first for CPU-fallback validation, then compile to Hailo HEF (scripts/data/export_object_model_to_hailo.sh)."
+    evaluation_metric: map_50_95
+    acceptance_threshold: 0.55
+    edge_export_format: hailo_hef
+    rollback_plan: "EdgeDeploymentTracker.rollback('object_detection') restores the previous HEF+ONNX pair; bonbon_ai_runtime's cpu/mock fallback chain remains available regardless."
+
+  gesture_recognition:
+    baseline_model: "landmark-sequence classifier (bonbon_gesture, deployed)"
+    dataset_ids: [mediapipe_landmark_extraction, bonbon_camera_gesture_samples, synthetic_gesture_variations]
+    training_machine: workstation_gpu
+    training_method: "Train from MediaPipe landmark sequences (not raw video) on workstation/GPU, export ONNX/TFLite (scripts/data/export_gesture_model_onnx.sh). public_gesture_dataset_jester is registered but BLOCKED (non-commercial license) -- excluded from this target's dataset_ids on purpose."
+    evaluation_metric: f1_score
+    acceptance_threshold: 0.85
+    edge_export_format: tflite
+    rollback_plan: "EdgeDeploymentTracker.rollback('gesture_recognition') restores the previous TFLite/ONNX classifier version."
+
+  face_emotion:
+    baseline_model: "DeepFace backend (bonbon_affective_ai, deployed)"
+    dataset_ids: [bonbon_field_emotion_signals]
+    training_machine: workstation_gpu
+    training_method: "Phase 5 recommendation: improve fusion/rule weighting and uncertainty calibration using field signals FIRST; fer2013_face_emotion stays NEEDS_REVIEW (unknown license) and is deliberately excluded from this target until resolved. Overtraining a from-scratch face-emotion model is explicitly out of scope."
+    evaluation_metric: uncertainty_calibration_error
+    acceptance_threshold: 0.20  # lower is better
+    edge_export_format: onnx
+    rollback_plan: "EdgeDeploymentTracker.rollback('face_emotion') restores the previous fusion-weight configuration."
+
+  navigation:
+    baseline_model: "Nav2 costmap + planner (bonbon_navigation, deployed)"
+    dataset_ids: [bonbon_lidar_maps, bonbon_nav2_logs, simulated_hospital_maps, bonbon_blocked_path_failure_logs]
+    training_machine: workstation_gpu
+    training_method: "Simulation-first evaluation (simulated_hospital_maps) before any real-site data influences costmap/planner tuning; any change that would alter obstacle/path DECISIONS requires safety_verified=true per rule 5 -- see dataset_license_checker._SAFETY_RELEVANT_CAPABILITIES. This gate never trains the Safety Supervisor itself, only navigation planning parameters that the Motion Approval Gateway still checks at runtime."
+    evaluation_metric: path_success_rate
+    acceptance_threshold: 0.98
+    edge_export_format: onnx
+    rollback_plan: "EdgeDeploymentTracker.rollback('navigation') restores the previous costmap/planner parameter set; the Safety Supervisor and Motion Approval Gateway are never part of the rollback (they are not trained artifacts)."
+
+  hospital_knowledge_rag:
+    baseline_model: "bonbon_data_stores RAG (Chroma + SQLite exact-match)"
+    dataset_ids: [hospital_approved_documents, hospital_directory_data, semantic_map_manual_labels, hospital_faq_table]
+    training_machine: workstation_gpu
+    training_method: "Phase 5 recommendation: improve structured hospital data (FAQ table, directory, semantic map) FIRST via scripts/data/update_rag_index.py; this is index-building, not model training, so 'workstation_gpu' here means 'not run on the Pi's limited resources', consistent with rule 7 even though no GPU is strictly required for index construction."
+    evaluation_metric: retrieval_precision_at_k
+    acceptance_threshold: 0.90
+    edge_export_format: sqlite_vector
+    rollback_plan: "EdgeDeploymentTracker.rollback('hospital_knowledge_rag') restores the previous SQLite/vector index version; update_rag_index.py always writes a new index file rather than overwriting the active one in place, so the previous file is the rollback target."

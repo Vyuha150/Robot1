@@ -1,0 +1,58 @@
+# config/data/annotation_schema.yaml
+#
+# Reference copy of the field definitions in
+# bonbon_data_pipeline.annotation_schema (the dataclasses are the actual
+# validated schema; this file is what the dashboard/annotation tooling
+# reads to render a labeling form without importing Python). Keep the two
+# in sync -- test_dataset_registry-adjacent tests catch drift.
+
+schemas:
+  object:
+    required_fields:
+      - {name: image_id, type: string}
+      - {name: object_class, type: string}
+      - {name: bounding_box, type: "[x, y, w, h] normalized 0.0-1.0"}
+      - {name: occlusion, type: "enum: none | partial | heavy"}
+      - {name: lighting, type: "enum: good | dim | backlit | overexposed"}
+      - {name: confidence, type: "float 0.0-1.0"}
+      - {name: reviewer, type: string}
+
+  gesture:
+    required_fields:
+      - {name: video_clip_id_or_landmark_sequence_id, type: string, note: "at least one of the two is required"}
+      - {name: person_track_id, type: string}
+      - {name: gesture_class, type: string}
+      - {name: start_time_sec, type: float}
+      - {name: end_time_sec, type: float}
+      - {name: confidence, type: "float 0.0-1.0"}
+      - {name: reviewer, type: string}
+
+  asr:
+    required_fields:
+      - {name: audio_id, type: string}
+      - {name: language, type: string}
+      - {name: transcript, type: string}
+      - {name: noisy, type: boolean}
+      - {name: speaker_distance_m, type: float}
+      - {name: corrected_text, type: string}
+      - {name: reviewer, type: string}
+
+  emotion:
+    required_fields:
+      - {name: person_track_id, type: string}
+      - {name: face_cue, type: "string, empty if unavailable"}
+      - {name: voice_cue, type: "string, empty if unavailable"}
+      - {name: text_cue, type: "string, empty if unavailable"}
+      - {name: final_human_state, type: string}
+      - {name: uncertainty, type: "float 0.0 (certain) - 1.0 (fully uncertain)"}
+      - {name: reviewer, type: string}
+
+  navigation:
+    required_fields:
+      - {name: map_id, type: string}
+      - {name: start, type: "[x, y]"}
+      - {name: goal, type: "[x, y]"}
+      - {name: failure_reason, type: string}
+      - {name: obstacle_type, type: string}
+      - {name: correction, type: string}
+      - {name: reviewer, type: string, note: "optional -- some navigation logs are machine-generated pending human review"}

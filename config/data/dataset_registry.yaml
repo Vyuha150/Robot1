@@ -1,0 +1,533 @@
+# config/data/dataset_registry.yaml
+#
+# Every candidate SOURCE TRAINING DATASET for BonBon's AI capabilities,
+# across the 8 categories in the data pipeline brief's Phase 2. Loaded by
+# bonbon_data_pipeline.dataset_registry.DatasetRegistry.
+#
+# Honesty discipline (matches config/dataset_license_checklist.yaml, which
+# this registry supersedes at the per-dataset level while that file keeps
+# tracking per-capability rollup status): `status: APPROVED` here means
+# this repo has actually verified the license/privacy facts below and
+# signed off on use, NOT "this looks fine at a glance." As of this
+# registry's creation, only fully synthetic/internally-authored datasets
+# (no external rights question, no personal data) are APPROVED by default.
+# Every real external corpus starts NEEDS_REVIEW even when its public
+# license is well documented, because "documented" is not the same as
+# "this repo's maintainers reviewed and accepted it" -- that review is a
+# human governance step this file records the OUTCOME of, not a step this
+# file performs. commercial_allowed reflects the dataset's actual public
+# license where known; "unknown" means genuinely mixed/unclear licensing
+# (e.g. per-image licensing in image scrapes), not "we didn't check."
+
+datasets:
+  # ── 1. ASR: English / Hindi / Telugu ──────────────────────────────────
+  common_voice_en:
+    name: "Mozilla Common Voice -- English"
+    source_url: "https://commonvoice.mozilla.org/en/datasets"
+    capability: asr
+    domain: english
+    license: "CC0-1.0"
+    commercial_allowed: "true"
+    privacy_risk: contains_raw_audio
+    download_allowed: false
+    intended_use: "ASR acoustic/language model fine-tuning and evaluation, English"
+    prohibited_use: "no re-identification attempts on contributor voice clips"
+    preprocessing_needed: "resample to 16kHz mono; strip Common Voice metadata not needed for training"
+    target_model: "faster-whisper (fine-tune) / vocabulary augmentation"
+    evaluation_metric: "word_error_rate"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: "License is genuinely CC0 (public domain); NEEDS_REVIEW reflects this repo has not yet run the actual download+corpus review, not a license concern."
+
+  common_voice_hi:
+    name: "Mozilla Common Voice -- Hindi"
+    source_url: "https://commonvoice.mozilla.org/hi/datasets"
+    capability: asr
+    domain: hindi
+    license: "CC0-1.0"
+    commercial_allowed: "true"
+    privacy_risk: contains_raw_audio
+    download_allowed: false
+    intended_use: "ASR fine-tuning and evaluation, Hindi and code-mixed Hindi-English"
+    prohibited_use: "no re-identification attempts on contributor voice clips"
+    preprocessing_needed: "resample to 16kHz mono; code-mix tagging pass before training"
+    target_model: "faster-whisper (fine-tune) / vocabulary augmentation"
+    evaluation_metric: "word_error_rate"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: ""
+
+  common_voice_te:
+    name: "Mozilla Common Voice -- Telugu"
+    source_url: "https://commonvoice.mozilla.org/te/datasets"
+    capability: asr
+    domain: telugu
+    license: "CC0-1.0"
+    commercial_allowed: "true"
+    privacy_risk: contains_raw_audio
+    download_allowed: false
+    intended_use: "ASR fine-tuning and evaluation, Telugu"
+    prohibited_use: "no re-identification attempts on contributor voice clips"
+    preprocessing_needed: "resample to 16kHz mono; volume is smaller than en/hi -- pair with phrase-list augmentation"
+    target_model: "faster-whisper (fine-tune) / vocabulary augmentation"
+    evaluation_metric: "word_error_rate"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: "Telugu coverage in Common Voice is sparser than en/hi as of this writing -- do not assume parity without checking current corpus size."
+
+  sarvam_asr_api:
+    name: "Sarvam ASR (official Edge/API access)"
+    source_url: "https://docs.sarvam.ai"
+    capability: asr
+    domain: "hindi,telugu,english,code_mixed"
+    license: "Proprietary -- commercial API/Edge SDK, governed by Sarvam's terms of service"
+    commercial_allowed: "unknown"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "inference only via bonbon_sarvam_adapter, gated on a confirmed official access check (never scraped/reverse-engineered)"
+    prohibited_use: "no use without a confirmed official API key or Edge SDK license; no redistribution of Sarvam outputs as a training corpus without separate written permission"
+    preprocessing_needed: "n/a -- API access, not a downloadable corpus"
+    target_model: "bonbon_sarvam_adapter"
+    evaluation_metric: "word_error_rate"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: "commercial_allowed is 'unknown' deliberately -- terms are account/contract-specific; bonbon_ai_model_registry's LicenseChecker already fails closed on the 'sarvam' provider for this exact reason."
+
+  bonbon_mic_consent_debug:
+    name: "BonBon ReSpeaker mic recordings (consent/debug mode only)"
+    source_url: "internal -- BonBon deployment sites"
+    capability: asr
+    domain: "site_specific"
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: contains_raw_audio
+    download_allowed: false
+    intended_use: "field ASR error analysis, ONLY when a site's debug/consent mode is explicitly active -- see privacy_guard.PrivacyPolicy.raw_audio_storage_enabled"
+    prohibited_use: "no collection outside explicit debug/consent mode; no use as a default always-on data source"
+    preprocessing_needed: "must pass bonbon_data_pipeline.privacy_guard.PrivacyGuard.check_dataset before any training use"
+    target_model: "faster-whisper (fine-tune)"
+    evaluation_metric: "word_error_rate"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: "No deployment site currently has raw_audio_storage_enabled=true; this entry exists so the pipeline has a defined, gated path when one does, not as an active collection today."
+
+  hospital_phrase_list:
+    name: "BonBon hospital phrase list (hand-authored)"
+    source_url: "internal -- authored by BonBon hospital operations team"
+    capability: asr
+    domain: "english,hindi,telugu"
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "ASR vocabulary/phrase-boost list and TTS cached-phrase source (see scripts/data/build_asr_phrase_dictionary.py, build_tts_phrase_cache.py)"
+    prohibited_use: "none beyond standard internal-data handling"
+    preprocessing_needed: "not yet compiled in this repo -- a real, reviewed phrase list file does not exist yet; this entry documents the intended source, not a delivered asset"
+    target_model: "faster-whisper phrase-boost, piper/sherpa-onnx TTS phrase cache"
+    evaluation_metric: "phrase_recognition_rate"
+    edge_export_format: wav_cache
+    status: NEEDS_REVIEW
+    notes: "Genuine gap, stated plainly: hospital ops has not yet supplied a reviewed phrase list to this repo."
+
+  # ── 2. TTS: English / Hindi / Telugu ──────────────────────────────────
+  sarvam_bulbul_tts_api:
+    name: "Sarvam Bulbul TTS (official Edge/API access)"
+    source_url: "https://docs.sarvam.ai"
+    capability: tts
+    domain: "hindi,telugu,english"
+    license: "Proprietary -- commercial API/Edge SDK, governed by Sarvam's terms of service"
+    commercial_allowed: "unknown"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "inference only via bonbon_sarvam_adapter, gated on a confirmed official access check"
+    prohibited_use: "no use without confirmed official access; no redistribution of generated audio as a training corpus without separate permission"
+    preprocessing_needed: "n/a -- API access"
+    target_model: "bonbon_sarvam_adapter"
+    evaluation_metric: "mos_naturalness"
+    edge_export_format: wav_cache
+    status: NEEDS_REVIEW
+    notes: "Piper/sherpa-onnx voices (already deployed, see models/piper/) are tracked in bonbon_ai_model_registry as MODEL artifacts, not here -- this registry only lists source training/inference DATA, and Piper's training corpus is upstream, not BonBon-collected."
+
+  # ── 3. Object Detection ────────────────────────────────────────────────
+  hailo_model_zoo_object_detection:
+    name: "Hailo Model Zoo -- object detection models"
+    source_url: "https://github.com/hailo-ai/hailo_model_zoo"
+    capability: object_detection
+    domain: hospital_general_objects
+    license: "MIT (Hailo Model Zoo repo tooling); individual pretrained weights carry their own upstream license, checked per model before use"
+    commercial_allowed: "unknown"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "Hailo-8/8L-compatible baseline object detector, fine-tuned on BonBon hospital images"
+    prohibited_use: "do not assume every model in the zoo shares one license -- must be checked per selected model_id"
+    preprocessing_needed: "n/a for baseline weights; fine-tuning data (bonbon_hospital_images) needs COCO-format conversion"
+    target_model: "yolov8n / yolov5s Hailo-compatible export"
+    evaluation_metric: "map_50_95"
+    edge_export_format: hailo_hef
+    status: NEEDS_REVIEW
+    notes: ""
+
+  coco_2017:
+    name: "COCO 2017 (Common Objects in Context)"
+    source_url: "https://cocodataset.org"
+    capability: object_detection
+    domain: general_objects
+    license: "CC-BY 4.0 for annotations; source images retain mixed original Flickr licenses"
+    commercial_allowed: "unknown"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "general object-detection pretraining baseline before hospital-specific fine-tuning"
+    prohibited_use: "commercial use requires per-image license filtering first -- do not bulk-assume CC-BY 4.0 covers every image in the set"
+    preprocessing_needed: "filter to hospital-relevant classes; verify per-image commercial licensing before any production training run"
+    target_model: "object detector pretraining baseline"
+    evaluation_metric: "map_50_95"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: ""
+
+  open_images_v7:
+    name: "Open Images V7"
+    source_url: "https://storage.googleapis.com/openimages/web/index.html"
+    capability: object_detection
+    domain: general_objects
+    license: "CC-BY 4.0 (majority); some images carry other licenses"
+    commercial_allowed: "unknown"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "supplementary pretraining data for object classes underrepresented in COCO"
+    prohibited_use: "same per-image licensing caveat as coco_2017"
+    preprocessing_needed: "filter to hospital-relevant classes; verify per-image licensing"
+    target_model: "object detector pretraining baseline"
+    evaluation_metric: "map_50_95"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: ""
+
+  bonbon_hospital_images:
+    name: "BonBon hospital custom-class images"
+    source_url: "internal -- BonBon deployment sites"
+    capability: object_detection
+    domain: hospital_specific_objects
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: contains_raw_video
+    download_allowed: false
+    intended_use: "fine-tuning for hospital-specific object classes (wheelchairs, IV stands, hospital signage, ward carts)"
+    prohibited_use: "must be curated to exclude identifiable patients/staff faces before use, or processed through privacy_guard face-blur first"
+    preprocessing_needed: "manual/automated review for incidental faces, then face-anonymization pass (reuse bonbon_vision.face.privacy_guard's blur/pixelate) before labeling"
+    target_model: "yolov8n / yolov5s (fine-tune)"
+    evaluation_metric: "map_50_95"
+    edge_export_format: hailo_hef
+    status: NEEDS_REVIEW
+    notes: "privacy_risk is contains_raw_video, not none -- hospital corridor footage can incidentally capture people even when the labeling target is an object."
+
+  synthetic_hospital_objects:
+    name: "Synthetic hospital object renders"
+    source_url: "internal -- procedurally generated / simulation renders (bonbon_simulation)"
+    capability: object_detection
+    domain: hospital_specific_objects
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: true
+    intended_use: "augment bonbon_hospital_images for rare classes/viewpoints/lighting conditions"
+    prohibited_use: "not a substitute for real hospital images -- must be blended, not used alone, per docs/TRAINING_AND_FINE_TUNING_PLAN.md"
+    preprocessing_needed: "domain-randomization check before mixing with real data"
+    target_model: "yolov8n / yolov5s (fine-tune, augmentation)"
+    evaluation_metric: "map_50_95"
+    edge_export_format: hailo_hef
+    status: APPROVED
+    notes: "Fully synthetic, internally generated -- no external rights question, safe default APPROVED."
+
+  # ── 4. Gesture Recognition ─────────────────────────────────────────────
+  mediapipe_landmark_extraction:
+    name: "MediaPipe Hands/Pose landmark extraction (Python, offline)"
+    source_url: "https://github.com/google-ai-edge/mediapipe"
+    capability: gesture_recognition
+    domain: hand_pose_landmarks
+    license: "Apache-2.0"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: true
+    intended_use: "offline, workstation-side landmark extraction from BonBon camera gesture clips -- output is landmark coordinates, not raw video, once extracted"
+    prohibited_use: "none beyond standard Apache-2.0 terms"
+    preprocessing_needed: "run extraction on bonbon_camera_gesture_samples before this becomes a training input"
+    target_model: "gesture landmark classifier"
+    evaluation_metric: "f1_score"
+    edge_export_format: tflite
+    status: APPROVED
+    notes: "Distinct from the @mediapipe/hands NPM package quarantined in the 2026-08-14 cleanup (docs/cleanup/FINAL_QUARANTINED_FILES_LIST.md) -- that was an unused BROWSER-side hand-tracking dependency in the operator dashboard frontend. This entry is the Python-side MediaPipe library used offline on a workstation to preprocess training clips; unrelated code paths, no conflict."
+
+  public_gesture_dataset_jester:
+    name: "20BN-Jester hand gesture dataset"
+    source_url: "https://developer.qualcomm.com/software/ai-datasets/jester"
+    capability: gesture_recognition
+    domain: hand_gestures_general
+    license: "CC BY-NC-SA 4.0"
+    commercial_allowed: "false"
+    privacy_risk: contains_raw_video
+    download_allowed: false
+    intended_use: "non-commercial research benchmarking of gesture classifier architectures only"
+    prohibited_use: "MUST NOT be used to train or fine-tune BonBon's production gesture model -- license is non-commercial (NC), and BonBon is a commercial deployment"
+    preprocessing_needed: "n/a -- blocked from production use regardless of preprocessing"
+    target_model: "none -- research benchmarking only"
+    evaluation_metric: "f1_score"
+    edge_export_format: tflite
+    status: BLOCKED
+    notes: "Deliberately BLOCKED: real example of rule 2 (commercial_allowed=false blocks production training) firing correctly, not a placeholder."
+
+  bonbon_camera_gesture_samples:
+    name: "BonBon OAK-D camera gesture recordings"
+    source_url: "internal -- BonBon deployment sites"
+    capability: gesture_recognition
+    domain: hospital_gestures
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: contains_raw_video
+    download_allowed: false
+    intended_use: "gesture classifier fine-tuning, hospital-specific gesture vocabulary"
+    prohibited_use: "raw clips must not leave the training pipeline as raw video -- convert to landmarks (mediapipe_landmark_extraction) before storage/export per rule 3"
+    preprocessing_needed: "landmark extraction, then discard raw video per privacy_guard default (raw video storage disabled by default)"
+    target_model: "gesture landmark classifier"
+    evaluation_metric: "f1_score"
+    edge_export_format: tflite
+    status: NEEDS_REVIEW
+    notes: ""
+
+  synthetic_gesture_variations:
+    name: "Synthetic/recorded gesture variation augmentation"
+    source_url: "internal -- procedurally varied landmark sequences"
+    capability: gesture_recognition
+    domain: hospital_gestures
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: true
+    intended_use: "augment bonbon_camera_gesture_samples for rare gesture/angle/speed variations"
+    prohibited_use: "not a substitute for real recorded samples"
+    preprocessing_needed: "none -- already landmark-space"
+    target_model: "gesture landmark classifier"
+    evaluation_metric: "f1_score"
+    edge_export_format: tflite
+    status: APPROVED
+    notes: "Fully synthetic, internally generated."
+
+  # ── 5. Face Recognition ─────────────────────────────────────────────────
+  bonbon_staff_face_enrollment:
+    name: "BonBon staff face enrollment (consent-based, on-device)"
+    source_url: "internal -- on-device only, never uploaded externally"
+    capability: face_recognition
+    domain: staff_identity
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: contains_raw_face_images
+    download_allowed: false
+    intended_use: "local staff identification only, ONLY after bonbon_data_pipeline.privacy_guard.PrivacyGuard.enroll_face has recorded valid, unrevoked, in-scope consent for that specific staff member"
+    prohibited_use: "no patient enrollment, no public face scraping, no distribution off-device, no use without a matching ConsentRecord"
+    preprocessing_needed: "consent verification (privacy_guard.enroll_face) is a hard prerequisite, not preprocessing -- there is no preprocessing path that substitutes for it"
+    target_model: "on-device face embedding matcher (not yet built -- see docs/DATASET_REGISTRY_REPORT.md)"
+    evaluation_metric: "identification_accuracy"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: "No public face-scraping dataset is or will be registered here -- enforced by omission, not a placeholder BLOCKED row. Face recognition/identification is not yet implemented in ros2_ws/src (BonBon currently does detection/tracking/emotion, not identity matching); this entry documents the policy for when it is."
+
+  # ── 6. Emotion / Affective AI ───────────────────────────────────────────
+  ravdess_voice_emotion:
+    name: "RAVDESS (Ryerson Audio-Visual Database of Emotional Speech and Song)"
+    source_url: "https://zenodo.org/record/1188976"
+    capability: voice_emotion
+    domain: emotional_speech
+    license: "CC BY-NC-SA 4.0"
+    commercial_allowed: "false"
+    privacy_risk: contains_raw_audio
+    download_allowed: false
+    intended_use: "non-commercial research benchmarking of voice-emotion weak-signal classifiers only"
+    prohibited_use: "MUST NOT train or fine-tune BonBon's production voice-emotion model -- non-commercial license"
+    preprocessing_needed: "n/a -- blocked from production use regardless of preprocessing"
+    target_model: "none -- research benchmarking only"
+    evaluation_metric: "weighted_f1"
+    edge_export_format: onnx
+    status: BLOCKED
+    notes: "Deliberately BLOCKED -- second real example of rule 2 firing (see public_gesture_dataset_jester)."
+
+  fer2013_face_emotion:
+    name: "FER-2013 facial expression dataset"
+    source_url: "https://www.kaggle.com/datasets/msambare/fer2013"
+    capability: face_emotion
+    domain: facial_expression
+    license: "unclear -- distributed via Kaggle without an explicit open commercial-use license"
+    commercial_allowed: "unknown"
+    privacy_risk: contains_raw_face_images
+    download_allowed: false
+    intended_use: "not yet cleared for any use -- would require a confirmed commercial license before even research use, given the raw face content"
+    prohibited_use: "no production training until commercial_allowed is resolved from 'unknown'"
+    preprocessing_needed: "license clarification is the blocking step, not preprocessing"
+    target_model: "none until license resolved"
+    evaluation_metric: "weighted_f1"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: "Real example of rule 1 (unknown license blocks) rather than a hypothetical -- FER-2013's redistribution terms are genuinely ambiguous."
+
+  bonbon_field_emotion_signals:
+    name: "BonBon field-collected emotion signals (anonymized)"
+    source_url: "internal -- bonbon_field_learning anonymized event store"
+    capability: voice_emotion
+    domain: hospital_interactions
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: true
+    intended_use: "weak-signal fusion rule tuning and uncertainty calibration, NOT full retraining of the underlying emotion model"
+    prohibited_use: "must stay within AnonymizedEvent's structural no-raw-media contract -- see bonbon_field_learning.anonymized_event_store"
+    preprocessing_needed: "already anonymized at capture time; no further preprocessing needed"
+    target_model: "human_state_fusion weighting rules"
+    evaluation_metric: "uncertainty_calibration_error"
+    edge_export_format: onnx
+    status: APPROVED
+    notes: "privacy_risk is 'none' because this is the already-anonymized event log, distinct from any raw audio/face dataset above."
+
+  # ── 7. Navigation ───────────────────────────────────────────────────────
+  bonbon_lidar_maps:
+    name: "BonBon deployment-site LiDAR maps"
+    source_url: "internal -- BonBon deployment sites"
+    capability: navigation
+    domain: hospital_floorplans
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "navigation model/policy evaluation against real deployment-site geometry"
+    prohibited_use: "training a production navigation decision requires safety_verified=true per rule 5 -- see dataset_license_checker._SAFETY_RELEVANT_CAPABILITIES"
+    preprocessing_needed: "map anonymization not required (geometry only, no personal data) but must be reviewed for site-confidentiality before any external sharing"
+    target_model: "Nav2 costmap tuning / learned local planner (if any)"
+    evaluation_metric: "path_success_rate"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: ""
+
+  bonbon_nav2_logs:
+    name: "BonBon Nav2 run logs"
+    source_url: "internal -- BonBon deployment sites"
+    capability: navigation
+    domain: navigation_behavior
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "navigation behavior evaluation and regression-test generation for blocked-path/failure scenarios"
+    prohibited_use: "same rule 5 safety-verification requirement as bonbon_lidar_maps for any production training use"
+    preprocessing_needed: "strip any embedded timestamps/site identifiers before cross-site aggregation"
+    target_model: "Nav2 costmap tuning / learned local planner (if any)"
+    evaluation_metric: "path_success_rate"
+    edge_export_format: onnx
+    status: NEEDS_REVIEW
+    notes: ""
+
+  simulated_hospital_maps:
+    name: "Simulated hospital floorplan maps (bonbon_simulation)"
+    source_url: "internal -- bonbon_simulation"
+    capability: navigation
+    domain: hospital_floorplans
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: true
+    intended_use: "safe, repeatable navigation evaluation before any real-site data is trusted"
+    prohibited_use: "not a substitute for real deployment-site validation before go-live"
+    preprocessing_needed: "none"
+    target_model: "Nav2 costmap tuning / learned local planner (if any)"
+    evaluation_metric: "path_success_rate"
+    edge_export_format: onnx
+    status: APPROVED
+    notes: "Fully synthetic simulation data."
+
+  bonbon_blocked_path_failure_logs:
+    name: "BonBon blocked-path / navigation failure field logs"
+    source_url: "internal -- bonbon_field_learning anonymized event store (NAVIGATION_FAILURE category)"
+    capability: navigation
+    domain: navigation_failures
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: true
+    intended_use: "regression-test generation (bonbon_field_learning.regression_test_generator) and failure-pattern analysis, NOT direct policy training without rule 5 safety verification"
+    prohibited_use: "must not bypass safety verification just because the source is 'only logs'"
+    preprocessing_needed: "already anonymized at capture time"
+    target_model: "regression test catalog / navigation failure-pattern review"
+    evaluation_metric: "regression_pass_rate"
+    edge_export_format: onnx
+    status: APPROVED
+    notes: ""
+
+  # ── 8. RAG / Hospital Knowledge ─────────────────────────────────────────
+  hospital_approved_documents:
+    name: "Hospital-approved policy/informational documents"
+    source_url: "internal -- provided by partner hospital administration"
+    capability: hospital_knowledge_rag
+    domain: hospital_policy_and_info
+    license: "internal, hospital-approved for BonBon use only"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "RAG grounding corpus for hospital FAQ/wayfinding assistant responses"
+    prohibited_use: "no patient medical records, no PII of any kind -- policy/informational documents only"
+    preprocessing_needed: "chunking + embedding via bonbon_data_stores.rag before indexing"
+    target_model: "bonbon_data_stores RAG vector index"
+    evaluation_metric: "retrieval_precision_at_k"
+    edge_export_format: sqlite_vector
+    status: NEEDS_REVIEW
+    notes: "No partner hospital has supplied a reviewed document set to this repo yet -- stated plainly, not fabricated as complete."
+
+  hospital_directory_data:
+    name: "Doctor / department / room directory data"
+    source_url: "internal -- provided by partner hospital administration"
+    capability: hospital_knowledge_rag
+    domain: hospital_directory
+    license: "internal, hospital-approved for BonBon use only"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "wayfinding and staff-lookup RAG grounding"
+    prohibited_use: "doctor/staff contact details must stay internal to the deployment, not exported off-device without hospital sign-off"
+    preprocessing_needed: "structure into the semantic map format bonbon_patient_kiosk's navigation-request API expects"
+    target_model: "semantic map / RAG vector index"
+    evaluation_metric: "retrieval_precision_at_k"
+    edge_export_format: sqlite_vector
+    status: NEEDS_REVIEW
+    notes: ""
+
+  semantic_map_manual_labels:
+    name: "Manually-labelled semantic map (rooms, wards, landmarks)"
+    source_url: "internal -- BonBon deployment site walkthrough"
+    capability: hospital_knowledge_rag
+    domain: hospital_wayfinding
+    license: "internal, BonBon-owned"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "semantic location resolution for navigation requests ('take me to radiology')"
+    prohibited_use: "none beyond standard internal-data handling"
+    preprocessing_needed: "cross-check against bonbon_lidar_maps geometry before use"
+    target_model: "semantic location resolver"
+    evaluation_metric: "semantic_location_accuracy"
+    edge_export_format: sqlite_vector
+    status: NEEDS_REVIEW
+    notes: ""
+
+  hospital_faq_table:
+    name: "Hospital FAQ table"
+    source_url: "internal -- provided by partner hospital administration"
+    capability: hospital_knowledge_rag
+    domain: hospital_faq
+    license: "internal, hospital-approved for BonBon use only"
+    commercial_allowed: "true"
+    privacy_risk: none
+    download_allowed: false
+    intended_use: "exact-match-first RAG retrieval step (see docs/EDGE_AI ... task_router exact-match, GAP-E14 fix)"
+    prohibited_use: "no patient-specific Q&A -- general hospital information only"
+    preprocessing_needed: "structure as question/answer pairs for the exact-match-first retrieval step before falling back to vector search"
+    target_model: "RAG exact-match table + vector index"
+    evaluation_metric: "retrieval_precision_at_k"
+    edge_export_format: sqlite_vector
+    status: NEEDS_REVIEW
+    notes: ""

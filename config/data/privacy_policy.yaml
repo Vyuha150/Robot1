@@ -1,0 +1,26 @@
+# config/data/privacy_policy.yaml
+#
+# Loaded by bonbon_data_pipeline.privacy_guard.PrivacyPolicy. Rule 3: do
+# not store raw face/audio/video BY DEFAULT. All three raw-storage flags
+# below start false; a deployment site enables one only when that site has
+# an explicit, documented reason (debug-mode field investigation, a
+# specific consented data-collection campaign) -- flipping one of these to
+# true is a deployment decision, not something this pipeline defaults on.
+#
+# Note: face_enrollment_requires_consent is NOT a field in this file. It
+# is a fixed property on PrivacyGuard itself (rule 4), deliberately not
+# configurable here, so this file can never be edited to silently disable
+# consent enforcement.
+
+raw_face_storage_enabled: false
+raw_audio_storage_enabled: false
+raw_video_storage_enabled: false
+
+# Retention ceiling once a raw-storage flag IS enabled for a site -- an
+# enabled flag does not mean "keep forever." Consumed by whichever debug-
+# snapshot store is active for that media type (e.g.
+# bonbon_field_learning.failure_case_logger.DebugSnapshotStore).
+retention_days:
+  face: 7
+  audio: 30
+  video: 7
