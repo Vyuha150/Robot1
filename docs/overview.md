@@ -17,7 +17,7 @@ Primary software goals:
 - Hardware and sensor abstraction: `bonbon_hal`
 - Safety: `bonbon_safety`
 - Navigation: `bonbon_navigation`
-- Perception and vision: `bonbon_perception`, `bonbon_vision`, `bonbon_perception_ai`
+- Perception and vision: `bonbon_vision`, `bonbon_perception_ai` (`bonbon_perception`, an earlier duplicate pipeline, was quarantined 2026-08-14 — see `docs/cleanup/QUARANTINE_REPORT.md`)
 - Speech and audio: `bonbon_speech`, `bonbon_tts`
 - LLM and behavior orchestration: `bonbon_llm`
 - Data stores: `bonbon_data_stores`

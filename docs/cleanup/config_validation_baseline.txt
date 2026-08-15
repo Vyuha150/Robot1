@@ -1,0 +1,11 @@
+Config validation passed for local_dev
+Config validation passed for simulation
+Config validation passed for lab_robot
+Config validation passed for staging_robot
+Config validation passed for production_robot
+==> validate_config --env local_dev
+==> validate_config --env simulation
+==> validate_config --env lab_robot
+==> validate_config --env staging_robot
+==> validate_config --env production_robot
+config validation OK for all environments

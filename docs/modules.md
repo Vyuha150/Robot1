@@ -110,9 +110,15 @@ Important command path:
 NavigationNode -> SafetyStopBridge -> /bonbon/safety_gate/cmd_vel -> SafetyGateNode -> /cmd_vel
 ```
 
-## bonbon_perception and bonbon_vision
+## bonbon_vision
 
-Vision and perception packages.
+`bonbon_perception` (an earlier, fully duplicate camera/detection/face
+pipeline reprocessing the same raw camera feed) was quarantined during the
+2026-08-14 cleanup audit — see `docs/cleanup/QUARANTINE_REPORT.md` — and
+moved to `_archive/quarantine_cleanup_20260814/bonbon_perception/`. It was
+already disabled (launch file `.disabled`, empty `console_scripts`) with
+zero repo-wide imports before the move. `bonbon_vision` below is, and has
+been, the sole live camera/vision pipeline.
 
 Responsibilities:
 
