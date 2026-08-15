@@ -26,6 +26,11 @@ Subscribed topics
                                           GesturePersonAssigner to attribute
                                           each landmark set to the right person
                                           when multiple people are in frame)
+  /bonbon/vision/objects                 bonbon_msgs/DetectedObjectArray (used
+                                          only to fuse pointing_left/right/
+                                          forward with a specific nearby
+                                          object -> pointing_at_object; see
+                                          logic/object_pointing_fusion.py)
   /bonbon/safety/state                   bonbon_msgs/SafetyState
 
 Published topics
@@ -53,7 +58,13 @@ from pathlib import Path
 
 import numpy as np
 import rclpy
-from bonbon_msgs.msg import GestureEvent, PersonStateArray, PersonTrack, SafetyState
+from bonbon_msgs.msg import (
+    DetectedObjectArray,
+    GestureEvent,
+    PersonStateArray,
+    PersonTrack,
+    SafetyState,
+)
 from bonbon_srvs.srv import HealthCheck, SetMode
 from geometry_msgs.msg import Point, Vector3
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
@@ -72,6 +83,7 @@ from ..health.health_monitor import GestureHealthMonitor
 from ..logic.body_part_classifier import classify_body_part
 from ..logic.frame_gate import should_process_frame
 from ..logic.intent_mapper import GestureIntentMapper
+from ..logic.object_pointing_fusion import PointableObject, PointingObjectFusion
 from ..logic.person_assigner import (
     GesturePersonAssigner,
     LandmarkCandidate,
@@ -117,6 +129,12 @@ _BLOCKING_SAFETY_STATES = frozenset(
 NODE_NAME = "gesture_node"
 SOURCE_MODULE = "bonbon_gesture"
 
+# Cached /bonbon/vision/objects older than this is treated as absent for
+# pointing_at_object fusion -- a stalled/degraded vision pipeline must never
+# fuse against objects that are no longer actually there (DetectedObjectArray
+# publishes at 10 Hz -- ~100ms per frame -- so this gives a generous margin).
+_OBJECTS_STALE_SEC = 1.0
+
 
 class GestureNode(LifecycleNode):
     """ROS2 LifecycleNode for BonBon gesture recognition.
@@ -147,6 +165,7 @@ class GestureNode(LifecycleNode):
         self._safety_cls: GestureSafetyClassifier | None = None
         self._health: GestureHealthMonitor | None = None
         self._assigner: GesturePersonAssigner | None = None
+        self._pointing_fusion: PointingObjectFusion | None = None
 
         # State
         self._frame_counter: int = 0
@@ -156,6 +175,8 @@ class GestureNode(LifecycleNode):
         self._lock: threading.Lock = threading.Lock()
         self._executor: ThreadPoolExecutor | None = None
         self._person_positions: dict[str, Point] = {}  # person_id → position
+        self._latest_objects: list = []  # DetectedObjectArray.objects, cached for pointing fusion
+        self._latest_objects_stamp: float = 0.0  # monotonic time of last object cache update
         self._persons_topic_ever_received: bool = (
             False  # GAP-E12: distinguishes startup race from genuine absence
         )
@@ -174,6 +195,7 @@ class GestureNode(LifecycleNode):
         self._sub_image = None
         self._sub_persons = None
         self._sub_person_tracks = None
+        self._sub_objects = None
         self._sub_safety = None
         self._srv_health = None
         self._srv_set_enabled = None
@@ -200,6 +222,9 @@ class GestureNode(LifecycleNode):
             self._assigner = GesturePersonAssigner(
                 camera_hfov_deg=self._config.camera_hfov_deg,
                 max_x_norm_delta=self._config.person_assign_max_x_norm_delta,
+            )
+            self._pointing_fusion = PointingObjectFusion(
+                angle_tolerance_deg=self._config.pointing_object_angle_tolerance_deg
             )
 
             # Backend selection
@@ -300,6 +325,12 @@ class GestureNode(LifecycleNode):
                 self._cb_person_track,
                 _RELIABLE_D10,
             )
+            self._sub_objects = self.create_subscription(
+                DetectedObjectArray,
+                "/bonbon/vision/objects",
+                self._cb_objects,
+                _BEST_EFFORT_D2,
+            )
             self._sub_safety = self.create_subscription(
                 SafetyState,
                 "/bonbon/safety/state",
@@ -344,6 +375,9 @@ class GestureNode(LifecycleNode):
         if self._sub_person_tracks:
             self.destroy_subscription(self._sub_person_tracks)
             self._sub_person_tracks = None
+        if self._sub_objects:
+            self.destroy_subscription(self._sub_objects)
+            self._sub_objects = None
         if self._sub_safety:
             self.destroy_subscription(self._sub_safety)
             self._sub_safety = None
@@ -454,6 +488,21 @@ class GestureNode(LifecycleNode):
         with self._lock:
             self._person_positions = {p.track_id: p.position for p in msg.persons}
             self._persons_topic_ever_received = True
+
+    def _cb_objects(self, msg: DetectedObjectArray) -> None:
+        """Cache the latest detected objects for pointing_at_object fusion.
+
+        Only the current frame's objects are kept -- _process_frame_async
+        checks _latest_objects_stamp for staleness before using them, so a
+        stopped/degraded vision pipeline never causes a fusion match against
+        objects that are no longer really there.
+
+        Args:
+            msg: Incoming DetectedObjectArray message.
+        """
+        with self._lock:
+            self._latest_objects = list(msg.objects)
+            self._latest_objects_stamp = time.monotonic()
 
     def _cb_person_track(self, msg: PersonTrack) -> None:
         """Cache the latest PersonTrack from bonbon_multi_person_tracker.
@@ -646,13 +695,52 @@ class GestureNode(LifecycleNode):
 
         smoothed_gesture, smoothed_conf, just_started, is_held, just_ended, stability = result
 
-        # ── Compute pointing direction vector ────────────────────────────────
+        # ── Compute pointing direction vector, then try object fusion ─────────
+        pointed_object_id = ""
+        pointed_object_class = ""
         if "pointing" in smoothed_gesture and lm.pose and len(lm.pose) >= 33:
             from ..processors.pose_landmark_processor import PoseLandmarkProcessor
 
             proc = PoseLandmarkProcessor(self._config)
             dx, dy, dz = proc.compute_pointing_direction(lm.pose, use_right=pointing_is_right)
             pointing_dir = Vector3(x=float(dx), y=float(dy), z=float(dz))
+
+            # pointing_left/right/forward -> pointing_at_object when a
+            # detected object lies within the pointing cone (Phase 5
+            # remainder, docs/GESTURE_RECOGNITION_FAILURE_ANALYSIS.md item 2
+            # -- previously deferred). Honest fallback: with no fresh
+            # objects, no visible wrist, or no in-cone match, the existing
+            # directional classification is left unchanged, never guessed.
+            if self._config.pointing_object_fusion_enabled and self._pointing_fusion is not None:
+                wrist_idx = 16 if pointing_is_right else 15
+                wrist_lm = lm.pose[wrist_idx]
+                with self._lock:
+                    objects_fresh = (
+                        time.monotonic() - self._latest_objects_stamp
+                    ) < _OBJECTS_STALE_SEC
+                    candidate_objects = list(self._latest_objects) if objects_fresh else []
+
+                if wrist_lm[3] > self._config.min_visibility_threshold and candidate_objects:
+                    pointable = [
+                        PointableObject(
+                            track_id=obj.track_id or obj.class_name,
+                            class_name=obj.class_name,
+                            bbox_x=float(obj.bbox_x),
+                            bbox_y=float(obj.bbox_y),
+                            bbox_w=float(obj.bbox_w),
+                            bbox_h=float(obj.bbox_h),
+                        )
+                        for obj in candidate_objects
+                    ]
+                    matched = self._pointing_fusion.find_pointed_object(
+                        wrist_px=(wrist_lm[0], wrist_lm[1]),
+                        direction_px=(dx, dy),
+                        objects=pointable,
+                    )
+                    if matched is not None:
+                        smoothed_gesture = "pointing_at_object"
+                        pointed_object_id = matched.track_id
+                        pointed_object_class = matched.class_name
 
         hand_side = ""
         if (
@@ -675,6 +763,8 @@ class GestureNode(LifecycleNode):
             hand_side=hand_side,
             body_part=classify_body_part(smoothed_gesture, hand_gesture),
             pointing_dir=pointing_dir,
+            pointed_object_id=pointed_object_id,
+            pointed_object_class=pointed_object_class,
             stamp=stamp,
         )
 
@@ -693,6 +783,8 @@ class GestureNode(LifecycleNode):
         body_part: str,
         pointing_dir: Vector3,
         stamp,
+        pointed_object_id: str = "",
+        pointed_object_class: str = "",
     ) -> None:
         """Build and publish one GestureEvent. Shared by the per-frame
         classification path and the "person left while holding a gesture"
@@ -717,6 +809,8 @@ class GestureNode(LifecycleNode):
         event.recommended_intent = self._intent_mapper.get_intent(gesture)
         event.person_position_map = person_pos
         event.pointing_direction = pointing_dir
+        event.pointed_object_id = pointed_object_id
+        event.pointed_object_class = pointed_object_class
         event.safety_relevant = safety_relevant
         event.safety_class = safety_class
         event.requires_immediate_response = requires_immediate

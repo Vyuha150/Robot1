@@ -320,6 +320,61 @@ class TestEmotionFusionEngine(unittest.TestCase):
         msg = self._fuse()
         self.assertGreater(msg.interaction_patience_multiplier, 0.0)
 
+    # ── Uncertain state (Phase 4 remainder: conflicting signals) ──────────────
+    # See docs/MULTI_HUMAN_EMOTION_FAILURE_ANALYSIS.md's Phase 4 fix scope --
+    # "uncertain" was never emitted anywhere; a person with genuinely mixed
+    # signals was always forced into one of the other states with unwarranted
+    # confidence.
+
+    def test_conflicting_face_and_voice_gives_uncertain(self) -> None:
+        """A happy face and a near-equally-weighted distressed voice, with
+        no other tie-breaking signal, produce 'uncertain' rather than an
+        arbitrary pick of the marginally-higher vote."""
+        happy_face = _make_happy_face()
+        happy_face.dominant_confidence = 0.70
+        from bonbon_msgs.msg import VoiceEmotion  # type: ignore[import]
+
+        distressed_voice = VoiceEmotion()
+        distressed_voice.dominant_emotion = "sadness"
+        distressed_voice.dominant_confidence = 0.75
+        distressed_voice.model_failed = False
+
+        msg = self._fuse(face=happy_face, voice=distressed_voice)
+        self.assertEqual(msg.dominant_state, "uncertain")
+
+    def test_uncertain_state_gives_calm_supportive_style(self) -> None:
+        """'uncertain' maps to a defined, sensible response style, not a
+        silently-defaulted empty value."""
+        happy_face = _make_happy_face()
+        happy_face.dominant_confidence = 0.70
+        from bonbon_msgs.msg import VoiceEmotion  # type: ignore[import]
+
+        distressed_voice = VoiceEmotion()
+        distressed_voice.dominant_emotion = "sadness"
+        distressed_voice.dominant_confidence = 0.75
+        distressed_voice.model_failed = False
+
+        msg = self._fuse(face=happy_face, voice=distressed_voice)
+        self.assertEqual(msg.recommended_response_style, "calm_supportive")
+
+    def test_single_modality_is_never_uncertain(self) -> None:
+        """A single, unopposed modality is never marked 'uncertain', even
+        at low confidence -- there is no second signal to conflict with."""
+        happy_face = _make_happy_face()
+        happy_face.dominant_confidence = 0.15
+        msg = self._fuse(face=happy_face)
+        self.assertNotEqual(msg.dominant_state, "uncertain")
+
+    def test_angry_triple_is_not_uncertain(self) -> None:
+        """Regression: three modalities agreeing on 'angry' is a clear
+        signal, not a conflict -- unaffected by the uncertainty handler."""
+        msg = self._fuse(
+            face=_make_angry_face(),
+            voice=_make_angry_voice(),
+            text=_make_complaint_text(),
+        )
+        self.assertEqual(msg.dominant_state, "angry")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -331,6 +331,68 @@ class TestDanger:
         assert level == SafetyLevel.SAFE_STOP
 
 
+# ── Gesture / human-urgency defense-in-depth (Phase 6 remainder) ──────────────
+
+
+class TestGestureAndHumanUrgencyDefenseInDepth:
+    def test_gesture_emergency_triggers_danger(self):
+        """stop_palm/fallen_posture (requires_immediate_response) escalates
+        to DANGER, same tier as bumper contact -- independent of the
+        Behavior Engine's own handling of the same gesture event."""
+        fsm = _make_fsm()
+        _startup_complete(fsm)
+        fsm.update(_nominal())
+        snap = _nominal()
+        snap.gesture_emergency_detected = True
+        level, trans = fsm.update(snap)
+        assert level == SafetyLevel.DANGER
+        assert "gesture" in trans.reason.lower()
+
+    def test_gesture_emergency_clears_like_other_danger_triggers(self):
+        fsm = _make_fsm()
+        _startup_complete(fsm)
+        fsm.update(_nominal())
+        snap = _nominal()
+        snap.gesture_emergency_detected = True
+        fsm.update(snap)
+        assert fsm.state == SafetyLevel.DANGER
+        level = SafetyLevel.DANGER
+        for _ in range(20):
+            level, _ = fsm.update(_nominal())
+            if level != SafetyLevel.DANGER:
+                break
+        assert level in (SafetyLevel.CAUTION, SafetyLevel.NORMAL)
+
+    def test_human_urgency_at_threshold_triggers_caution(self):
+        fsm = _make_fsm()
+        _startup_complete(fsm)
+        fsm.update(_nominal())
+        snap = _nominal()
+        snap.human_urgency_level = 0.8  # default human_urgency_caution threshold
+        level, _ = fsm.update(snap)
+        assert level == SafetyLevel.CAUTION
+
+    def test_human_urgency_below_threshold_stays_normal(self):
+        fsm = _make_fsm()
+        _startup_complete(fsm)
+        fsm.update(_nominal())
+        snap = _nominal()
+        snap.human_urgency_level = 0.5
+        level, _ = fsm.update(snap)
+        assert level == SafetyLevel.NORMAL
+
+    def test_human_urgency_does_not_escalate_to_danger_alone(self):
+        """Elevated urgency alone is a softer signal than a physical stop
+        request -- it must not, by itself, trigger a full stop."""
+        fsm = _make_fsm()
+        _startup_complete(fsm)
+        fsm.update(_nominal())
+        snap = _nominal()
+        snap.human_urgency_level = 1.0
+        level, _ = fsm.update(snap)
+        assert level == SafetyLevel.CAUTION
+
+
 # ── SAFE_STOP ─────────────────────────────────────────────────────────────────
 
 

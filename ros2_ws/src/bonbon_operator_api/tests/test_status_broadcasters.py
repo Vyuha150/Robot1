@@ -80,6 +80,13 @@ def test_all_channel_snapshots_registered():
         "edge-ai-cache",
         # bonbon_hardware_telemetry -- see websocket/hardware_telemetry_snapshots.py
         "hardware-telemetry",
+        # Dashboard Perception Gap Report Phase 8 -- see websocket/perception_snapshots.py
+        "perception-objects",
+        "perception-people",
+        "perception-gestures",
+        "perception-affective",
+        "perception-human-state",
+        "perception-efficiency",
     }
 
 

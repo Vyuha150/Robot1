@@ -248,6 +248,64 @@ class TestTransientFlags:
         snap2 = ta.build_snapshot()
         assert snap2.navigation_timeout is False
 
+    def test_gesture_emergency_is_transient(self):
+        ta = _assessor()
+        ta.update_gesture_safety(requires_immediate_response=True)
+        snap1 = ta.build_snapshot()
+        assert snap1.gesture_emergency_detected is True
+        ta.reset_transient_flags()
+        snap2 = ta.build_snapshot()
+        assert snap2.gesture_emergency_detected is False
+
+
+# ── Gesture / human-urgency updates (Phase 6 remainder -- defense-in-depth) ────
+
+
+class TestGestureSafetyUpdates:
+    def test_immediate_response_sets_flag(self):
+        ta = _assessor()
+        ta.update_gesture_safety(requires_immediate_response=True)
+        snap = ta.build_snapshot()
+        assert snap.gesture_emergency_detected is True
+
+    def test_non_immediate_gesture_does_not_set_flag(self):
+        ta = _assessor()
+        ta.update_gesture_safety(requires_immediate_response=False)
+        snap = ta.build_snapshot()
+        assert snap.gesture_emergency_detected is False
+
+    def test_default_no_gesture_emergency(self):
+        ta = _assessor()
+        snap = ta.build_snapshot()
+        assert snap.gesture_emergency_detected is False
+
+
+class TestHumanUrgencyUpdates:
+    def test_urgency_level_propagates(self):
+        ta = _assessor()
+        ta.update_human_urgency(0.9)
+        snap = ta.build_snapshot()
+        assert snap.human_urgency_level == pytest.approx(0.9)
+
+    def test_urgency_level_clamped_to_0_1(self):
+        ta = _assessor()
+        ta.update_human_urgency(1.5)
+        assert ta.build_snapshot().human_urgency_level == pytest.approx(1.0)
+        ta.update_human_urgency(-0.5)
+        assert ta.build_snapshot().human_urgency_level == pytest.approx(0.0)
+
+    def test_default_urgency_is_zero(self):
+        ta = _assessor()
+        snap = ta.build_snapshot()
+        assert snap.human_urgency_level == pytest.approx(0.0)
+
+    def test_urgency_not_cleared_by_reset_transient_flags(self):
+        ta = _assessor()
+        ta.update_human_urgency(0.9)
+        ta.reset_transient_flags()
+        snap = ta.build_snapshot()
+        assert snap.human_urgency_level == pytest.approx(0.9)
+
 
 # ── Node health ───────────────────────────────────────────────────────────────
 

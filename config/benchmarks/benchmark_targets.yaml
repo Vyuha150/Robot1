@@ -1,0 +1,56 @@
+# config/benchmarks/benchmark_targets.yaml
+#
+# Which board/module/scenario combinations bonbon_benchmarks measures.
+# Loaded for documentation/dashboard-listing purposes by
+# bonbon_benchmarks.benchmark_reporter; the actual measurement code lives
+# in each bonbon_benchmarks/*.py module (this file does not drive
+# execution, it is the catalogue of what those modules cover).
+
+categories:
+  - name: resource
+    board: all
+    modules: [cpu, memory, disk, temperature, throttling]
+    module_file: bonbon_benchmarks/resource_monitor.py
+
+  - name: ros2_latency
+    board: all
+    modules: [topic_pub_sub, queue_size, dropped_frames]
+    module_file: bonbon_benchmarks/ros2_latency_probe.py
+    note: "HARDWARE_BLOCKED without rclpy -- confirmed absent in the dev sandbox."
+
+  - name: speech_ai
+    board: ai_pi
+    modules: [vad, asr, tts_generated, tts_cached]
+    module_file: bonbon_benchmarks/speech_benchmark.py
+
+  - name: vision
+    board: ai_pi
+    modules: [object_detection, person_detection, gesture_recognition, face_recognition, face_emotion]
+    module_file: bonbon_benchmarks/vision_benchmark.py
+    note: "HARDWARE_BLOCKED without a camera/cv2 -- confirmed absent in the dev sandbox."
+
+  - name: llm
+    board: ai_pi
+    modules: [qwen25_05b_short_answer]
+    module_file: bonbon_benchmarks/llm_benchmark.py
+
+  - name: cache_efficiency
+    board: ai_pi
+    modules: [rag_cache, llm_response_cache, tts_phrase_cache, faq_cache]
+    module_file: bonbon_benchmarks/rag_cache_benchmark.py
+
+  - name: safety_under_load
+    board: nav_pi
+    modules: [safety_classification, emergency_stop_reaction]
+    module_file: bonbon_benchmarks/safety_latency_benchmark.py
+
+  - name: dashboard
+    board: ui_pi
+    modules: [api_latency, websocket_connect]
+    module_file: bonbon_benchmarks/dashboard_benchmark.py
+
+  - name: three_pi_network
+    board: all
+    modules: [ui_ai_latency, ai_nav_latency, ui_nav_latency]
+    module_file: bonbon_benchmarks/three_pi_network_benchmark.py
+    note: "HARDWARE_BLOCKED without a real multi-Pi network -- this is a single-machine dev sandbox."

@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 
 from bonbon_operator_api.api.ai_model_status_api import ai_model_status_router
 from bonbon_operator_api.api.auth_api import auth_router
+from bonbon_operator_api.api.benchmark_api import benchmark_router
 from bonbon_operator_api.api.command_api import cmd_router
 from bonbon_operator_api.api.config_api import _ConfigStore, config_router
 from bonbon_operator_api.api.data_api import data_router
@@ -35,6 +36,7 @@ from bonbon_operator_api.api.edge_ai_status_api import edge_ai_status_router
 from bonbon_operator_api.api.hardware_telemetry_api import hardware_telemetry_router
 from bonbon_operator_api.api.llm_test_api import llm_router
 from bonbon_operator_api.api.memory_api import memory_router
+from bonbon_operator_api.api.perception_api import perception_router
 from bonbon_operator_api.api.project_status_api import project_status_router
 from bonbon_operator_api.api.robot_status_api import status_router
 from bonbon_operator_api.api.testbench_api import testbench_router
@@ -189,6 +191,8 @@ def _build_app(cfg: OperatorAPIConfig) -> FastAPI:
     app.include_router(edge_ai_status_router, prefix="/api/v1")
     app.include_router(hardware_telemetry_router, prefix="/api/v1")
     app.include_router(data_router, prefix="/api/v1")
+    app.include_router(benchmark_router, prefix="/api/v1")
+    app.include_router(perception_router, prefix="/api/v1")
     app.include_router(ws_router)
 
     # ------------------------------------------------------------------ #

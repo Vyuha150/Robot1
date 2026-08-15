@@ -1,0 +1,16 @@
+# config/benchmarks/pi_resource_limits.yaml
+#
+# Phase 3 "System" targets. cpu_percent_sustained_max mirrors
+# bonbon_edge_ai_runtime.resource_guard.DEFAULT_THERMAL_FAULT_C (90.0) for
+# the thermal figure -- not redefined independently, to avoid two numbers
+# silently drifting apart.
+
+resource_limits:
+  cpu_percent_sustained_max: 80.0
+  thermal_fault_c: 90.0  # matches bonbon_edge_ai_runtime.resource_guard.DEFAULT_THERMAL_FAULT_C
+  thermal_throttle_warning_c: 80.0
+  memory_pressure_percent: 85.0  # matches bonbon_safety.core.resource_monitor.ResourceSnapshot.memory_pressure
+  disk_free_min_percent: 10.0  # matches bonbon_safety.core.resource_monitor.ResourceSnapshot.disk_low
+  queue_growth_max_factor: 2.0  # a queue that grows past 2x its configured bound over an endurance run is unbounded growth, not noise
+  camera_queue_size_max_frames: 2
+  swap_usage_max_mb: 0  # BonBon boards should never need swap in normal operation; any non-zero sustained swap is a signal

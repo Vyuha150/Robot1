@@ -5,7 +5,7 @@
   `ros2.discovery.mode: unicast` / `ros2.discovery.peers` (192.168.10.11/12/13).
 
   Referenced by robot_network.yaml but did not exist as a real file before
-  this change. The network bootstrap script (scripts/bootstrap_pi_network.sh)
+  this change. The network bootstrap script (devops/scripts/bootstrap_pi_network.py)
   installs this at /etc/bonbon/cyclonedds_ethernet_profile.xml and exports
   CYCLONEDDS_URI to point at it.
 

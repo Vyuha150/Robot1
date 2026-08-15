@@ -1,0 +1,30 @@
+# config/benchmarks/model_latency_targets.yaml
+#
+# Phase 3 "AI Pi" + "Vision" targets. Where a target already exists in the
+# canonical bonbon_safety.core.perf_targets catalogue (rag_query,
+# dashboard_status), this file notes that rather than redefining the
+# number -- one source of truth for those, this file for the ones that
+# catalogue doesn't cover (ASR/TTS/LLM/vision/gesture/fusion rates).
+
+targets:
+  vad_decision_ms: {target: 100, stat: p95}
+  asr_start_after_vad_ms: {target: 300, stat: p95}
+  asr_final_short_phrase_ms: {target: 2000, stat: p95}
+  llm_qwen25_05b_short_answer_ms: {target: 2000, stat: p95, notes: "target band 1000-2000ms; 2000ms is the enforced ceiling"}
+  rag_exact_answer_ms: {target: 300, stat: p95, notes: "distinct from perf_targets.rag_query (500ms) -- that budget covers full retrieval; this is the exact-match-first fast path (GAP-E14)"}
+  tts_cached_phrase_ms: {target: 200, stat: p95}
+  tts_generated_phrase_ms: {target: null, stat: p95, notes: "benchmark and report per brief Phase 3 -- no fixed target"}
+  gesture_update_fps: {target_min: 5, target_max: 10, higher_is_better: true}
+  face_emotion_update_hz: {target: 1, higher_is_better: true, notes: "active person only"}
+  human_state_fusion_hz: {target_min: 2, target_max: 5, higher_is_better: true, notes: "matches perf_targets.human_state_fusion's 100ms budget (10 Hz ceiling); brief's 2-5Hz is the intended steady-state rate, not the hard ceiling"}
+  hailo_object_detection_fps: {target: null, higher_is_better: true, notes: "benchmark actual FPS -- no fixed target, HARDWARE_BLOCKED without a Hailo device"}
+  cpu_fallback_object_detection_fps: {target_min: 5, target_max: 10, higher_is_better: true}
+  camera_queue_size_frames: {target: 2, stat: max}
+
+# Already defined once in bonbon_safety.core.perf_targets -- referenced
+# here for documentation completeness, not redefined:
+#   safety_validation: 50ms p95 (critical)
+#   emergency_stop_reaction: 300ms p99 (critical)
+#   dashboard_status: 100ms p95
+#   rag_query: 500ms p95 (full retrieval, distinct from rag_exact_answer_ms above)
+#   tts_emergency: 500ms p99 (critical)

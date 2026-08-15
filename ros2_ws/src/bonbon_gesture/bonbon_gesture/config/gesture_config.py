@@ -77,6 +77,8 @@ class GestureConfig:
     person_assign_max_x_norm_delta: float = 0.35
     gate_on_person_presence: bool = True
     pi_efficiency_profile_path: str = ""
+    pointing_object_fusion_enabled: bool = True
+    pointing_object_angle_tolerance_deg: float = 25.0
 
     @classmethod
     def from_ros_params(cls, node: "rclpy.node.Node") -> GestureConfig:  # noqa: F821, UP037
@@ -128,5 +130,14 @@ class GestureConfig:
             ),
             pi_efficiency_profile_path=_get(
                 "pi_efficiency_profile_path", defaults.pi_efficiency_profile_path
+            ),
+            pointing_object_fusion_enabled=_get(
+                "pointing_object_fusion_enabled", defaults.pointing_object_fusion_enabled
+            ),
+            pointing_object_angle_tolerance_deg=float(
+                _get(
+                    "pointing_object_angle_tolerance_deg",
+                    defaults.pointing_object_angle_tolerance_deg,
+                )
             ),
         )

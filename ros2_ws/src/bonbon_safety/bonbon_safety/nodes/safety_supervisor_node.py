@@ -33,6 +33,8 @@ import rclpy
 import rclpy.logging
 from bonbon_msgs.msg import (
     BumperState,
+    GestureEvent,
+    HumanState,
     ModuleHealth,
     PersonStateArray,
     ResourceUsage,
@@ -326,6 +328,12 @@ class SafetySupervisorNode(LifecycleNode):
         )
         sub(Bool, "/bonbon/safety/unsafe_command", self._cb_unsafe_command, RELIABLE_D5)
         sub(Bool, "/bonbon/nav/timeout", self._cb_nav_timeout, RELIABLE_D5)
+        # Defense-in-depth (Phase 6 remainder): safety-relevant gestures and
+        # elevated human urgency now reach the Safety Supervisor directly,
+        # independent of bonbon_behavior_engine's own handling of the same
+        # topics -- see docs/PERCEPTION_AI_CURRENT_AUDIT.md item 25.
+        sub(GestureEvent, "/bonbon/gesture/events", self._cb_gesture, RELIABLE_D5)
+        sub(HumanState, "/bonbon/human/state", self._cb_human_state, RELIABLE_D5)
 
     def _create_service_servers(self) -> None:
         self._srv_reset = self.create_service(
@@ -729,6 +737,33 @@ class SafetySupervisorNode(LifecycleNode):
             tx = self._fsm.clear_module_degraded(msg.module_name)
             if tx:
                 self._log_and_notify(tx, trigger="TRIGGER_STARTUP")
+
+    def _cb_gesture(self, msg: GestureEvent) -> None:
+        """Defense-in-depth: feed safety-relevant gestures straight to the
+        Safety Supervisor, independent of bonbon_behavior_engine's own
+        handling of the same /bonbon/gesture/events topic.
+
+        msg.requires_immediate_response is already computed by
+        GestureSafetyClassifier (stop_palm/fallen_posture only) -- reused
+        here, not re-derived.
+        """
+        if self._assessor is None:
+            return
+        self._assessor.update_gesture_safety(msg.requires_immediate_response)
+        # A stop_palm/fallen_posture gesture must be processed immediately,
+        # same as a hardware e-stop or bumper contact -- do not wait for the
+        # next 10 Hz cycle.
+        if msg.requires_immediate_response:
+            with self._lock:
+                self._supervisor_cycle()
+
+    def _cb_human_state(self, msg: HumanState) -> None:
+        """Defense-in-depth: elevated human urgency reaches the Safety
+        Supervisor directly (CAUTION tier — see
+        docs/PERCEPTION_AI_CURRENT_AUDIT.md item 25)."""
+        if self._assessor is None:
+            return
+        self._assessor.update_human_urgency(msg.urgency_level)
 
     def _cb_unsafe_command(self, msg: Bool) -> None:
         if self._assessor:

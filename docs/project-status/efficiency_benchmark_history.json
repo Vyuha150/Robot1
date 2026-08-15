@@ -1,0 +1,38 @@
+{
+  "runs": [
+    {
+      "generatedAt": "2026-08-15T08:28:27.324355+00:00",
+      "hostname": "Kalyan150",
+      "elapsedSec": 0.19,
+      "summary": {
+        "PASS": 2,
+        "FAIL": 0,
+        "BLOCKED": 1
+      },
+      "categories": [
+        "safety_under_load"
+      ]
+    },
+    {
+      "generatedAt": "2026-08-15T08:29:37.226685+00:00",
+      "hostname": "Kalyan150",
+      "elapsedSec": 39.38,
+      "summary": {
+        "PASS": 13,
+        "FAIL": 2,
+        "BLOCKED": 20
+      },
+      "categories": [
+        "resource",
+        "ros2_latency",
+        "speech_ai",
+        "vision",
+        "llm",
+        "cache_efficiency",
+        "safety_under_load",
+        "dashboard",
+        "three_pi_network"
+      ]
+    }
+  ]
+}

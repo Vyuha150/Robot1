@@ -7,7 +7,7 @@ string person_id
 int32 tracking_id
 
 # Dominant state
-string dominant_state       # neutral,happy,confused,frustrated,angry,distressed,fearful,urgent,tired,engaged,disengaged
+string dominant_state       # neutral,happy,confused,frustrated,angry,distressed,fearful,urgent,tired,engaged,disengaged,uncertain
 float32 dominant_confidence
 bool is_stable              # consistent across recent frames
 

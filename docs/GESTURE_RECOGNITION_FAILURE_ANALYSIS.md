@@ -88,10 +88,20 @@ safety-routing) is solid.
    proxy for what's fundamentally a motion-based gesture, pending field
    validation this dev sandbox has no camera/dataset access to provide.
    5 new tests in `test_body_classifier.py`.
-2. **Deferred, not fabricated.** `pointing_at_object` genuinely needs
-   cross-package fusion with `bonbon_object_intelligence`'s tracked-
-   object bearings -- a larger, separately-scoped change. Not attempted
-   here rather than faked with an ungrounded heuristic.
+2. **Done** (was deferred in the earlier pass of this fix; completed in the
+   Phase 3-10 perception follow-up). `pointing_at_object` fusion added in
+   `logic/object_pointing_fusion.py` (`PointingObjectFusion`, pure
+   geometry, no ROS dependency): the elbow->wrist pointing direction and
+   `bonbon_vision`'s `DetectedObject.bbox_x/y/w/h` are already expressed
+   in the same 2D camera pixel space, so a `pointing_left/right/forward`
+   result is upgraded to `pointing_at_object` when a detected object's
+   bounding-box center falls within an angular tolerance cone (default
+   25 degrees) ahead of the wrist -- and left unchanged (never guessed)
+   when no object qualifies, the wrist isn't visible, or
+   `/bonbon/vision/objects` hasn't published recently
+   (`_OBJECTS_STALE_SEC`, 1.0s). `GestureEvent.msg` gained
+   `pointed_object_id`/`pointed_object_class` fields. 7 new tests in
+   `test_object_pointing_fusion.py`.
 3. **Done.** `folded_hands`/`namaste` added as
    `HandGestureClassifier.classify_folded_hands()` -- a deliberately
    separate two-hand method (both palms open and pressed close

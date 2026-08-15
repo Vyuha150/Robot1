@@ -1,0 +1,54 @@
+# config/benchmarks/production_acceptance_thresholds.yaml
+#
+# The full Phase 3 target table, consolidated across safety/AI-Pi/vision/
+# UI-Pi/navigation-Pi/system, for the final production-readiness verdict.
+# Numeric values are NOT redefined here where a canonical source already
+# exists (bonbon_safety.core.perf_targets, pi_resource_limits.yaml,
+# model_latency_targets.yaml) -- this file is the consolidated INDEX plus
+# the targets that don't fit cleanly into those (duplicate-pipeline check,
+# stale-frame rejection, degraded-mode behavior).
+
+safety:
+  emergency_stop_reaction_ms: {target: 300, stat: p99, source: "bonbon_safety.core.perf_targets", critical: true}
+  safety_validation_ms: {target: 50, stat: p95, source: "bonbon_safety.core.perf_targets", critical: true}
+  safety_heartbeat_stable: {target: true, source: "bonbon_distributed_safety heartbeat monitor"}
+  ai_load_must_not_delay_safety: {target: true, source: "bonbon_benchmarks.safety_latency_benchmark -- baseline vs under-load comparison"}
+
+ai_pi:
+  vad_decision_ms: {target: 100, stat: p95, source: "model_latency_targets.yaml"}
+  asr_start_after_vad_ms: {target: 300, stat: p95, source: "model_latency_targets.yaml"}
+  asr_final_short_phrase_ms: {target: 2000, stat: p95, source: "model_latency_targets.yaml"}
+  llm_short_answer_ms: {target: 2000, stat: p95, source: "model_latency_targets.yaml"}
+  rag_exact_answer_ms: {target: 300, stat: p95, source: "model_latency_targets.yaml"}
+  tts_cached_phrase_ms: {target: 200, stat: p95, source: "model_latency_targets.yaml"}
+  tts_generated_phrase_ms: {target: null, source: "benchmark and report, no fixed target"}
+  gesture_update_fps: {target_min: 5, target_max: 10, source: "model_latency_targets.yaml"}
+  face_emotion_hz: {target: 1, source: "model_latency_targets.yaml"}
+  human_state_fusion_hz: {target_min: 2, target_max: 5, source: "model_latency_targets.yaml"}
+
+vision:
+  hailo_object_detection_fps: {target: null, source: "benchmark actual FPS, HARDWARE_BLOCKED without Hailo"}
+  cpu_fallback_object_detection_fps: {target_min: 5, target_max: 10, source: "model_latency_targets.yaml"}
+  stale_frame_rejection_works: {target: true, source: "bonbon_vision frame-age gate -- see docs/PERCEPTION_BENCHMARK_REPORT.md"}
+  camera_queue_size_frames: {target_max: 2, source: "pi_resource_limits.yaml"}
+
+ui_pi:
+  dashboard_api_response_ms: {target: 100, target_max: 200, stat: p95, source: "bonbon_safety.core.perf_targets (dashboard_status)"}
+  websocket_health_update_hz: {target_min: 1, target_max: 2, source: "normal-operation rate"}
+  critical_safety_update: {target: "immediate", source: "safety-events channel, no polling delay"}
+  no_stale_fake_ok_status: {target: true, source: "docs/cleanup/DASHBOARD_FIX_REPORT.md -- already enforced repo-wide"}
+
+navigation_pi:
+  lidar_stream_stable: {target: true, source: "bonbon_hal lidar_node liveness"}
+  nav2_responsive: {target: true, source: "requires real Nav2 + LiDAR hardware"}
+  motor_command_stale_timeout_enforced: {target: true, source: "bonbon_motion_approval_gateway"}
+  safety_gateway_always_active: {target: true, source: "bonbon_motion_approval_gateway singleton, verified in cleanup Phase 3/5"}
+  movement_unavailable_if_nav_pi_unhealthy: {target: true, source: "distributed safety heartbeat -> degraded mode"}
+
+system:
+  cpu_percent_sustained_max: {target: 80.0, source: "pi_resource_limits.yaml"}
+  no_thermal_throttling_normal_operation: {target: true, source: "pi_resource_limits.yaml (thermal_fault_c: 90.0)"}
+  no_unbounded_queue_growth: {target: true, source: "pi_resource_limits.yaml (queue_growth_max_factor: 2.0)"}
+  no_uncontrolled_swap_usage: {target: true, source: "pi_resource_limits.yaml (swap_usage_max_mb: 0)"}
+  no_memory_leak_endurance: {target: true, source: "bonbon_benchmarks endurance test -- see docs/benchmarks/ENDURANCE_STABILITY_REPORT.md"}
+  no_duplicate_safety_camera_mic_lidar_motor_pipeline: {target: true, source: "docs/cleanup/DUPLICATE_PIPELINE_REPORT.md -- already verified in the 2026-08-14 cleanup, re-checked here not re-derived"}

@@ -77,6 +77,11 @@ class AffectiveConfig:
     state_stability_window: int = 3
     """Number of consecutive fused estimates required for a state to be 'stable'."""
 
+    uncertainty_conflict_margin: float = 0.75
+    """Second-highest candidate state's vote weight must be at least this
+    fraction of the top state's weight for the fused result to be reported
+    as 'uncertain' instead of committing to the marginally-higher state."""
+
     # ── Privacy ──────────────────────────────────────────────────────────────
     privacy_mode: bool = False
     """Master privacy toggle."""
@@ -125,6 +130,7 @@ class AffectiveConfig:
             ("fusion_gesture_weight", defaults.fusion_gesture_weight),
             ("fusion_update_hz", defaults.fusion_update_hz),
             ("state_stability_window", defaults.state_stability_window),
+            ("uncertainty_conflict_margin", defaults.uncertainty_conflict_margin),
             ("privacy_mode", defaults.privacy_mode),
             ("privacy_level", defaults.privacy_level),
             ("max_faces", defaults.max_faces),
@@ -160,6 +166,7 @@ class AffectiveConfig:
             fusion_gesture_weight=float(_get("fusion_gesture_weight")),
             fusion_update_hz=float(_get("fusion_update_hz")),
             state_stability_window=int(_get("state_stability_window")),
+            uncertainty_conflict_margin=float(_get("uncertainty_conflict_margin")),
             privacy_mode=bool(_get("privacy_mode")),
             privacy_level=_get("privacy_level"),
             max_faces=int(_get("max_faces")),

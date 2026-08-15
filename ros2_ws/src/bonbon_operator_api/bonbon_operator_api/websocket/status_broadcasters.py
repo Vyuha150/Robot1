@@ -263,3 +263,11 @@ from bonbon_operator_api.websocket.hardware_telemetry_snapshots import (  # noqa
 )
 
 CHANNEL_SNAPSHOTS.update(HARDWARE_TELEMETRY_CHANNEL_SNAPSHOTS)
+
+# Dashboard Perception Gap Report Phase 8 -- same "kept in its own module,
+# merged here" reasoning -- see websocket/perception_snapshots.py.
+from bonbon_operator_api.websocket.perception_snapshots import (  # noqa: E402
+    PERCEPTION_CHANNEL_SNAPSHOTS,
+)
+
+CHANNEL_SNAPSHOTS.update(PERCEPTION_CHANNEL_SNAPSHOTS)

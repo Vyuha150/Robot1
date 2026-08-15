@@ -181,6 +181,15 @@ class SensorSnapshot:
     unsafe_command_detected: bool = False  # LLM safety filter raised alarm
     navigation_timeout: bool = False  # nav2 goal timed out without arrival
 
+    # Defense-in-depth: gesture/human-state, independent of bonbon_behavior_engine
+    # (Phase 6 remainder, docs/PERCEPTION_AI_CURRENT_AUDIT.md item 25 -- previously
+    # safety-relevant gestures reached the Behavior Engine only, never the Safety
+    # Supervisor). requires_immediate_response is computed once upstream by
+    # GestureSafetyClassifier (stop_palm/fallen_posture) -- reused here, not
+    # re-derived.
+    gesture_emergency_detected: bool = False
+    human_urgency_level: float = 0.0  # bonbon_msgs/HumanState.urgency_level, 0.0-1.0
+
     # Node health (populated by watchdog)
     critical_node_crashed: bool = False  # CLASS A node missing heartbeat
     important_node_crashed: bool = False  # CLASS B node missing heartbeat
@@ -239,6 +248,10 @@ class SafetyStateMachine:
         CPU temperature that triggers CAUTION (throttle AI inference).
     cpu_temp_fault_c:
         CPU temperature that triggers FAULT (risk of hardware damage).
+    human_urgency_caution:
+        bonbon_msgs/HumanState.urgency_level (0.0-1.0) at or above which
+        CAUTION is triggered -- a softer, non-full-stop signal distinct from
+        gesture_emergency_detected.
     """
 
     def __init__(
@@ -253,6 +266,7 @@ class SafetyStateMachine:
         lidar_stale_danger: bool = True,
         cpu_temp_caution_c: float = 75.0,
         cpu_temp_fault_c: float = 90.0,
+        human_urgency_caution: float = 0.8,
     ) -> None:
         self._state: SafetyLevel = SafetyLevel.INITIALIZING
         self._state_entry_time: float = time.monotonic()
@@ -271,6 +285,7 @@ class SafetyStateMachine:
         self.lidar_stale_danger = lidar_stale_danger
         self.cpu_temp_caution_c = cpu_temp_caution_c
         self.cpu_temp_fault_c = cpu_temp_fault_c
+        self.human_urgency_caution = human_urgency_caution
 
         # Transition history (last 100)
         self._history: list[StateTransition] = []
@@ -579,6 +594,7 @@ class SafetyStateMachine:
                 human_danger,
                 lidar_danger,
                 s.imu_drift_detected,
+                s.gesture_emergency_detected,
             ]
         )
 
@@ -593,6 +609,8 @@ class SafetyStateMachine:
             return "LIDAR data stale — navigation unsafe"
         if s.imu_drift_detected:
             return "IMU drift detected — localization unreliable"
+        if s.gesture_emergency_detected:
+            return "Safety-relevant gesture detected (stop_palm/fallen_posture)"
         return "Danger condition"
 
     def _is_degraded_condition(self, s: SensorSnapshot) -> bool:
@@ -622,6 +640,7 @@ class SafetyStateMachine:
                 s.cpu_temp_c >= self.cpu_temp_caution_c,
                 s.unsafe_command_detected,
                 s.navigation_timeout,
+                s.human_urgency_level >= self.human_urgency_caution,
             ]
         )
 
@@ -644,6 +663,8 @@ class SafetyStateMachine:
             return "Unsafe LLM command detected and rejected"
         if s.navigation_timeout:
             return "Navigation goal timed out"
+        if s.human_urgency_level >= self.human_urgency_caution:
+            return f"Human urgency elevated ({s.human_urgency_level:.2f})"
         return "Caution condition"
 
     def _any_caution_condition(self, s: SensorSnapshot) -> bool:

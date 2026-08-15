@@ -8,7 +8,7 @@ int32 tracking_id           # legacy per-frame track index (kept for back-compat
 string person_track_id      # bonbon_multi_person_tracker lifecycle ID — PREFER THIS
                             # for any new consumer; "" only if the tracker is offline
 
-string gesture_type         # wave,raised_hand,stop_palm,pointing_left,pointing_right,pointing_forward,come_here,go_away,thumbs_up,thumbs_down,head_nod_yes,head_shake_no,fallen_or_bent_posture,unknown
+string gesture_type         # wave,raised_hand,stop_palm,pointing_left,pointing_right,pointing_forward,pointing_at_object,come_here,go_away,thumbs_up,thumbs_down,folded_hands,head_nod_yes,head_shake_no,fallen_or_bent_posture,unknown
 float32 confidence
 
 # Which limb/body-part produced the gesture
@@ -21,6 +21,8 @@ string recommended_intent   # e.g. 'stop_robot','greet','request_attention','ind
 # Spatial context
 geometry_msgs/Point person_position_map  # in map frame
 geometry_msgs/Vector3 pointing_direction # for pointing gestures
+string pointed_object_id    # bonbon_vision DetectedObject.track_id; "" unless gesture_type=='pointing_at_object'
+string pointed_object_class # e.g. "chair", "wheelchair"; "" unless gesture_type=='pointing_at_object'
 
 # Safety classification
 bool safety_relevant

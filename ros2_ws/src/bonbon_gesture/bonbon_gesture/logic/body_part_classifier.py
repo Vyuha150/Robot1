@@ -23,6 +23,7 @@ _ARM_GESTURES = frozenset(
         "pointing_left",
         "pointing_right",
         "pointing_forward",
+        "pointing_at_object",
     }
 )
 

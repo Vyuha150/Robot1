@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-04T18:10:55.321406+00:00",
+  "generated_at": "2026-08-15T08:29:43.212151+00:00",
   "environment": {
     "hostname": "Kalyan150",
     "platform": "Windows-11-10.0.26200-SP0",
@@ -12,10 +12,10 @@
     "vision"
   ],
   "summary": {
-    "pass": 6,
-    "fail": 6,
+    "pass": 0,
+    "fail": 14,
     "timeout": 0,
-    "blocked": 6
+    "blocked": 4
   },
   "results": [
     {
@@ -52,99 +52,99 @@
     },
     {
       "case_id": "asr_english_hospital_phrase",
-      "model_id": "asr_faster_whisper",
-      "status": "pass",
-      "latency_ms": 5750.250799988862,
-      "detail": "ok",
-      "fallback_triggered": false
+      "model_id": "asr_degraded_template",
+      "status": "fail",
+      "latency_ms": null,
+      "detail": "no invoker wired for ASR entry 'asr_degraded_template'",
+      "fallback_triggered": true
     },
     {
       "case_id": "asr_telugu_hospital_phrase",
-      "model_id": "asr_faster_whisper",
+      "model_id": "asr_degraded_template",
       "status": "fail",
       "latency_ms": null,
-      "detail": "[Errno 2] No such file or directory: 'samples/asr/te_hospital_phrase.wav'",
-      "fallback_triggered": false
+      "detail": "no invoker wired for ASR entry 'asr_degraded_template'",
+      "fallback_triggered": true
     },
     {
       "case_id": "asr_hindi_hospital_phrase",
-      "model_id": "asr_faster_whisper",
+      "model_id": "asr_degraded_template",
       "status": "fail",
       "latency_ms": null,
-      "detail": "[Errno 2] No such file or directory: 'samples/asr/hi_hospital_phrase.wav'",
-      "fallback_triggered": false
+      "detail": "no invoker wired for ASR entry 'asr_degraded_template'",
+      "fallback_triggered": true
     },
     {
       "case_id": "asr_code_mixed",
-      "model_id": "asr_faster_whisper",
+      "model_id": "asr_degraded_template",
       "status": "fail",
       "latency_ms": null,
-      "detail": "[Errno 2] No such file or directory: 'samples/asr/code_mixed.wav'",
-      "fallback_triggered": false
+      "detail": "no invoker wired for ASR entry 'asr_degraded_template'",
+      "fallback_triggered": true
     },
     {
       "case_id": "asr_doctor_room_entity",
-      "model_id": "asr_faster_whisper",
-      "status": "pass",
-      "latency_ms": 2969.607899984112,
-      "detail": "ok",
-      "fallback_triggered": false
+      "model_id": "asr_degraded_template",
+      "status": "fail",
+      "latency_ms": null,
+      "detail": "no invoker wired for ASR entry 'asr_degraded_template'",
+      "fallback_triggered": true
     },
     {
       "case_id": "tts_english_greeting",
-      "model_id": "tts_piper_en",
-      "status": "pass",
-      "latency_ms": 2554.8990999814123,
-      "detail": "ok",
-      "fallback_triggered": false
+      "model_id": "tts_cached_phrase",
+      "status": "fail",
+      "latency_ms": null,
+      "detail": "no invoker wired for TTS entry 'tts_cached_phrase'",
+      "fallback_triggered": true
     },
     {
       "case_id": "tts_emergency_alert",
-      "model_id": "tts_piper_en",
-      "status": "pass",
-      "latency_ms": 2551.083300000755,
-      "detail": "ok",
-      "fallback_triggered": false
+      "model_id": "tts_cached_phrase",
+      "status": "fail",
+      "latency_ms": null,
+      "detail": "no invoker wired for TTS entry 'tts_cached_phrase'",
+      "fallback_triggered": true
     },
     {
       "case_id": "tts_navigation_instruction",
-      "model_id": "tts_piper_en",
-      "status": "pass",
-      "latency_ms": 2542.832899984205,
-      "detail": "ok",
-      "fallback_triggered": false
+      "model_id": "tts_cached_phrase",
+      "status": "fail",
+      "latency_ms": null,
+      "detail": "no invoker wired for TTS entry 'tts_cached_phrase'",
+      "fallback_triggered": true
     },
     {
       "case_id": "tts_token_announcement",
-      "model_id": "tts_piper_en",
-      "status": "pass",
-      "latency_ms": 2600.927599996794,
-      "detail": "ok",
-      "fallback_triggered": false
+      "model_id": "tts_cached_phrase",
+      "status": "fail",
+      "latency_ms": null,
+      "detail": "no invoker wired for TTS entry 'tts_cached_phrase'",
+      "fallback_triggered": true
     },
     {
       "case_id": "vision_object_fps",
-      "model_id": "",
-      "status": "blocked",
+      "model_id": "vision_mock",
+      "status": "fail",
       "latency_ms": null,
-      "detail": "no registered default for capability 'object_detection'",
-      "fallback_triggered": false
+      "detail": "vision invoker for 'vision_mock' requires a real camera frame + bonbon_ai_runtime wired in -- not exercised by this standalone script; see bonbon_ai_runtime's own bench CLI for vision-specific benchmarking",
+      "fallback_triggered": true
     },
     {
       "case_id": "vision_person_fps",
-      "model_id": "",
-      "status": "blocked",
+      "model_id": "vision_mock",
+      "status": "fail",
       "latency_ms": null,
-      "detail": "no registered default for capability 'person_detection'",
-      "fallback_triggered": false
+      "detail": "vision invoker for 'vision_mock' requires a real camera frame + bonbon_ai_runtime wired in -- not exercised by this standalone script; see bonbon_ai_runtime's own bench CLI for vision-specific benchmarking",
+      "fallback_triggered": true
     },
     {
       "case_id": "vision_gesture_fps",
-      "model_id": "gesture_mediapipe_holistic",
+      "model_id": "gesture_mock",
       "status": "fail",
       "latency_ms": null,
-      "detail": "vision invoker for 'gesture_mediapipe_holistic' requires a real camera frame + bonbon_ai_runtime wired in -- not exercised by this standalone script; see bonbon_ai_runtime's own bench CLI for vision-specific benchmarking",
-      "fallback_triggered": false
+      "detail": "vision invoker for 'gesture_mock' requires a real camera frame + bonbon_ai_runtime wired in -- not exercised by this standalone script; see bonbon_ai_runtime's own bench CLI for vision-specific benchmarking",
+      "fallback_triggered": true
     },
     {
       "case_id": "vision_face_latency",

@@ -17,14 +17,20 @@ core/offset_evaluator.py, and:
      bonbon_msgs/HalFault on /bonbon/hal/fault -- the ALREADY-EXISTING
      ingestion topic bonbon_fault_manager.nodes.fault_manager_node
      subscribes to, so this node does not build a second, competing
-     alerting mechanism.
+     alerting mechanism;
+  3. (3-Pi Phase 7 remainder) on the same tick, TCP-connect-probes every
+     OTHER Pi listed in robot_network.yaml's `pis` section (via
+     core/rtt_probe.py) and evaluates RTT/packet-loss against
+     network_quality thresholds (core/quality_evaluator.py) -- the
+     genuine gap confirmed against this repo: heartbeat/chrony answer "is
+     the peer alive" and "is my clock right," neither measures link
+     quality, so a degraded-but-not-dead link (rising latency,
+     intermittent loss) could look fully healthy on both.
 
-Deliberately does NOT touch peer-Pi liveness/heartbeat -- that is
-bonbon_distributed_safety.nodes.distributed_safety_node's job already
-(real, tested, deployed). This node answers a different question a
-heartbeat cannot: "is THIS Pi's own clock still within tolerance of the
-other two," which can silently drift wrong even while heartbeats stay
-perfectly on time.
+Deliberately does NOT touch peer-Pi liveness/heartbeat state machine --
+that is bonbon_distributed_safety.nodes.distributed_safety_node's job
+already (real, tested, deployed); this node's RTT probe is a
+complementary, independent signal, not a replacement for heartbeat.
 """
 
 from __future__ import annotations
@@ -72,11 +78,20 @@ def main(
         parse_chronyc_tracking,
         unavailable_result,
     )
-    from bonbon_distributed_network_monitor.core.network_thresholds import TimeSyncThresholds
+    from bonbon_distributed_network_monitor.core.network_thresholds import (
+        NetworkQualityThresholds,
+        TimeSyncThresholds,
+        load_peer_targets,
+    )
     from bonbon_distributed_network_monitor.core.offset_evaluator import (
         compute_offset_metrics,
         offset_triggers,
     )
+    from bonbon_distributed_network_monitor.core.quality_evaluator import (
+        compute_quality_metrics,
+        quality_triggers,
+    )
+    from bonbon_distributed_network_monitor.core.rtt_probe import probe_host
     from bonbon_distributed_network_monitor.core.trigger import TelemetryTrigger
 
     _QOS_RELIABLE_D10 = QoSProfile(
@@ -96,6 +111,8 @@ def main(
             self._pi_role = str(self.get_parameter("pi_role").value)
             config_path = str(self.get_parameter("robot_network_config_path").value) or None
             self._thresholds = TimeSyncThresholds.load(config_path)
+            self._quality_thresholds = NetworkQualityThresholds.load(config_path)
+            self._peers = load_peer_targets(self._pi_role, config_path)
 
             self._pub_fault = self.create_publisher(
                 HalFault, "/bonbon/hal/fault", _QOS_RELIABLE_D10
@@ -132,6 +149,29 @@ def main(
             for trigger in offset_triggers(metrics):
                 self._publish_trigger(trigger)
 
+            quality_status = []
+            for peer in self._peers:
+                probe_result = probe_host(
+                    peer.hostname,
+                    self._quality_thresholds.probe_port,
+                    self._quality_thresholds.probes_per_check,
+                )
+                q_metrics = compute_quality_metrics(
+                    self._pi_role, peer.role, probe_result, self._quality_thresholds
+                )
+                for trigger in quality_triggers(q_metrics):
+                    self._publish_trigger(trigger)
+                quality_status.append(
+                    {
+                        "peer_role": q_metrics.peer_role,
+                        "peer_host": q_metrics.peer_host,
+                        "reachable": q_metrics.reachable,
+                        "avg_rtt_ms": q_metrics.avg_rtt_ms,
+                        "max_rtt_ms": q_metrics.max_rtt_ms,
+                        "packet_loss_pct": q_metrics.packet_loss_pct,
+                    }
+                )
+
             status = String()
             status.data = json.dumps(
                 {
@@ -144,6 +184,7 @@ def main(
                     "alert_offset_ms": self._thresholds.alert_offset_ms,
                     "max_offset_exceeded": metrics.max_offset_exceeded,
                     "alert_offset_exceeded": metrics.alert_offset_exceeded,
+                    "peer_link_quality": quality_status,
                 }
             )
             self._pub_status.publish(status)

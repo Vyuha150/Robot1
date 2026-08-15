@@ -51,6 +51,7 @@ from __future__ import annotations
 import math
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
 import rclpy
@@ -80,6 +81,9 @@ from ..detectors import DetectionResult, MockDetector, ObjectDetection
 from ..face import FacePipeline, FaceResult, PrivacyGuard
 from ..models import ModelManager, ModelState
 from ..preprocessing import FrameProcessor, FrameThrottler
+
+_REPO_ROOT = Path(__file__).resolve().parents[5]
+_DEFAULT_PI_EFFICIENCY_PROFILE_PATH = _REPO_ROOT / "config" / "pi_efficiency_profile.yaml"
 
 # ── QoS profiles ──────────────────────────────────────────────────────────────
 
@@ -420,7 +424,19 @@ class VisionNode(LifecycleNode):
         )
 
         # Timers
-        det_period = 1.0 / max(1.0, self._cfg.detection_rate_hz)
+        # config/pi_efficiency_profile.yaml's fps_limits.object_detection is a
+        # second, independent ceiling on top of detection_rate_hz/the live
+        # PerceptionBudget throttle above -- Phase 7 remainder,
+        # docs/PERCEPTION_AI_CURRENT_AUDIT.md item 30 (declared in shared
+        # config but never read by this module). Never raises the rate above
+        # what's already configured, only caps it lower if the profile says so.
+        pi_wide_fps = self._load_pi_wide_fps_cap()
+        effective_hz = (
+            min(self._cfg.detection_rate_hz, pi_wide_fps)
+            if pi_wide_fps and pi_wide_fps > 0.0
+            else self._cfg.detection_rate_hz
+        )
+        det_period = 1.0 / max(1.0, effective_hz)
         self._detect_timer = self.create_timer(det_period, self._detection_cycle)
 
         health_period = 1.0 / max(0.1, self._cfg.health_rate_hz)
@@ -491,6 +507,32 @@ class VisionNode(LifecycleNode):
         except Exception as exc:
             self._errors += 1
             self.get_logger().debug(f"[{NODE_NAME}] depth decode error: {exc}")
+
+    def _load_pi_wide_fps_cap(self) -> float:
+        """Returns config/pi_efficiency_profile.yaml's fps_limits.object_detection,
+        or 0.0 (disabled) if that file/key is missing or unreadable -- never a
+        guessed number (Phase 7 remainder,
+        docs/PERCEPTION_AI_CURRENT_AUDIT.md item 30)."""
+        try:
+            from bonbon_perception_efficiency.core.pi_efficiency_profile import (
+                PiEfficiencyProfile,
+            )
+
+            profile = PiEfficiencyProfile.load(_DEFAULT_PI_EFFICIENCY_PROFILE_PATH)
+            fps = profile.fps_limit("object_detection")
+            if fps and fps > 0.0:
+                self.get_logger().info(
+                    f"[{NODE_NAME}] Pi-wide FPS cap loaded from "
+                    f"{_DEFAULT_PI_EFFICIENCY_PROFILE_PATH} -> {fps} FPS"
+                )
+                return float(fps)
+            return 0.0
+        except Exception as exc:
+            self.get_logger().warning(
+                f"[{NODE_NAME}] could not load pi_efficiency_profile ({exc}) -- "
+                "Pi-wide FPS cap disabled, detection_rate_hz still applies."
+            )
+            return 0.0
 
     def _on_perception_budget(self, msg: PerceptionBudget) -> None:
         """Advisory dynamic FPS control. Looks up this node's own consumer

@@ -8,6 +8,7 @@ from collections import defaultdict, deque
 from typing import Deque, Dict, Tuple
 
 from ..config.affective_config import AffectiveConfig
+from .uncertainty_handler import EmotionUncertaintyHandler
 
 # ── Mapping tables ────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ STATE_TO_RESPONSE_STYLE: dict[str, str] = {
     "tired": "concise",
     "engaged": "normal",
     "disengaged": "cheerful",
+    "uncertain": "calm_supportive",
 }
 
 STATE_TO_DISTANCE: dict[str, float] = {
@@ -64,6 +66,7 @@ STATE_TO_DISTANCE: dict[str, float] = {
     "tired": 1.0,
     "engaged": 0.8,
     "disengaged": 1.0,
+    "uncertain": 1.0,
 }
 
 STATE_TO_TTS_EMOTION: dict[str, str] = {
@@ -78,6 +81,7 @@ STATE_TO_TTS_EMOTION: dict[str, str] = {
     "tired": "gentle",
     "engaged": "friendly",
     "disengaged": "friendly",
+    "uncertain": "gentle",
 }
 
 STATE_TO_PATIENCE: dict[str, float] = {
@@ -92,6 +96,7 @@ STATE_TO_PATIENCE: dict[str, float] = {
     "tired": 2.0,
     "engaged": 1.0,
     "disengaged": 1.0,
+    "uncertain": 2.0,
 }
 
 
@@ -127,6 +132,9 @@ class EmotionFusionEngine:
         self._previous_state: Dict[str, str] = {}
         self._state_change_count: Dict[str, int] = defaultdict(int)
         self._state_change_window: Dict[str, Deque[float]] = defaultdict(lambda: deque())
+        self._uncertainty_handler = EmotionUncertaintyHandler(
+            conflict_margin=config.uncertainty_conflict_margin
+        )
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -181,9 +189,14 @@ class EmotionFusionEngine:
             dominant_state = "urgent"
             dominant_conf = 1.0
         else:
-            dominant_state, dominant_conf = self._compute_weighted_state(
+            dominant_state, dominant_conf, state_votes = self._compute_weighted_state(
                 face, voice, text, gesture_state
             )
+            # Two or more modalities genuinely disagree (no fabricated
+            # confidence in a coin-flip result) -- report "uncertain"
+            # rather than silently picking the marginally-higher vote.
+            if self._uncertainty_handler.is_conflicting(state_votes):
+                dominant_state = "uncertain"
 
         # ── Stability ─────────────────────────────────────────────────────────
         history = self._state_history[person_id]
@@ -255,7 +268,7 @@ class EmotionFusionEngine:
         voice,
         text,
         gesture_state: str,
-    ) -> Tuple[str, float]:
+    ) -> Tuple[str, float, Dict[str, float]]:
         """Compute dominant state via weighted voting across modalities.
 
         Args:
@@ -265,7 +278,9 @@ class EmotionFusionEngine:
             gesture_state: Gesture category string.
 
         Returns:
-            Tuple[str, float]: (dominant_state_label, confidence_in_0_1).
+            Tuple[str, float, Dict[str, float]]: (dominant_state_label,
+                confidence_in_0_1, per-state total vote weight -- the latter
+                is what ``EmotionUncertaintyHandler`` inspects for conflict).
         """
         cfg = self._config
         state_votes: Dict[str, float] = defaultdict(float)
@@ -297,12 +312,12 @@ class EmotionFusionEngine:
             state_votes[g_state] += cfg.fusion_gesture_weight * 0.8
 
         if not state_votes:
-            return "neutral", 0.0
+            return "neutral", 0.0, dict(state_votes)
 
         dominant = max(state_votes, key=lambda s: state_votes[s])
         total_weight = sum(state_votes.values())
         confidence = state_votes[dominant] / total_weight if total_weight > 0 else 0.0
-        return dominant, min(confidence, 1.0)
+        return dominant, min(confidence, 1.0), dict(state_votes)
 
     def _contribution_scores(
         self,

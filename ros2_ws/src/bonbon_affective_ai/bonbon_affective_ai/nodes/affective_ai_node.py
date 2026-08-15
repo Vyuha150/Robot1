@@ -9,10 +9,14 @@ import uuid
 from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 from bonbon_perception_efficiency.core.bounded_inference_queue import BoundedInferenceQueue
+
+_REPO_ROOT = Path(__file__).resolve().parents[5]
+_DEFAULT_PI_EFFICIENCY_PROFILE_PATH = _REPO_ROOT / "config" / "pi_efficiency_profile.yaml"
 
 
 @dataclass(frozen=True)
@@ -246,6 +250,38 @@ class AffectiveAINode(LifecycleNode):
 
     # ── Configuration helpers ─────────────────────────────────────────────────
 
+    def _apply_pi_wide_face_fps_cap(self, config: "AffectiveConfig") -> None:  # type: ignore[name-defined] # noqa: F821
+        """Raises config.face_sample_interval_sec (never lowers it) so the
+        effective face-emotion rate never exceeds
+        config/pi_efficiency_profile.yaml's fps_limits.face_emotion --
+        Phase 7 remainder, docs/PERCEPTION_AI_CURRENT_AUDIT.md item 30
+        (declared in shared config but never read by this module).
+        voice_emotion's yaml value is 0 (event-gated by design, not a
+        steady rate per the file's own comment) -- no cap applies there.
+        """
+        try:
+            from bonbon_perception_efficiency.core.pi_efficiency_profile import (
+                PiEfficiencyProfile,
+            )
+
+            profile = PiEfficiencyProfile.load(_DEFAULT_PI_EFFICIENCY_PROFILE_PATH)
+            fps = profile.fps_limit("face_emotion")
+            if fps and fps > 0.0:
+                min_interval = 1.0 / fps
+                if min_interval > config.face_sample_interval_sec:
+                    self.get_logger().info(
+                        f"AffectiveAINode: Pi-wide FPS cap loaded from "
+                        f"{_DEFAULT_PI_EFFICIENCY_PROFILE_PATH} -> {fps} FPS "
+                        f"(face_sample_interval_sec {config.face_sample_interval_sec:.3f} -> "
+                        f"{min_interval:.3f})"
+                    )
+                    config.face_sample_interval_sec = min_interval
+        except Exception as exc:
+            self.get_logger().warning(
+                f"AffectiveAINode: could not load pi_efficiency_profile ({exc}) -- "
+                "Pi-wide FPS cap disabled, face_sample_interval_sec unchanged."
+            )
+
     def _do_configure(self) -> None:
         """Internal: create all sub-systems and I/O handles."""
         from ..analyzers.face_emotion_analyzer import FaceEmotionAnalyzer
@@ -258,6 +294,7 @@ class AffectiveAINode(LifecycleNode):
 
         # ── Parameters & config ───────────────────────────────────────────────
         self._config = AffectiveConfig.from_node(self)
+        self._apply_pi_wide_face_fps_cap(self._config)
         self._privacy_gate = PrivacyGate(self._config)
         self._health_monitor = AffectiveAIHealthMonitor()
         self._fusion_engine = EmotionFusionEngine(self._config)

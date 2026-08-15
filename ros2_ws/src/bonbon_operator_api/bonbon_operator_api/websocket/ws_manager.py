@@ -66,6 +66,15 @@ VALID_CHANNELS: set[str] = {
     "edge-ai-cache",
     # hardware_telemetry_node -- see websocket/hardware_telemetry_snapshots.py
     "hardware-telemetry",
+    # Efficiency benchmarking dashboard integration -- see api/benchmark_api.py
+    "benchmarks",
+    # Dashboard Perception Gap Report Phase 8 -- see websocket/perception_snapshots.py
+    "perception-objects",
+    "perception-people",
+    "perception-gestures",
+    "perception-affective",
+    "perception-human-state",
+    "perception-efficiency",
 }
 
 

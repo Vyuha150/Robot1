@@ -35,6 +35,7 @@ import logging
 import threading
 import time
 import uuid
+from collections import deque
 from collections.abc import Callable
 from typing import Any
 
@@ -52,7 +53,11 @@ try:
         BehaviorProposal,
         ComponentFaultArray,
         DegradedModeStatus,
+        DetectedObjectArray,
+        FaceEmotion,
+        GestureEvent,
         HumanEmotionState,
+        HumanState,
         LLMResponse,
         ModuleHealth,
         NavigationStatus,
@@ -62,6 +67,7 @@ try:
         SafetyState,
         SpeechTranscription,
         TTSRequest,
+        VoiceEmotion,
     )
     from bonbon_srvs.srv import CancelNavigation, GetNearestCharger, NavigateTo
     from geometry_msgs.msg import PoseStamped
@@ -94,6 +100,15 @@ _TOPIC_LLM_RESPONSE = "/llm/response"  # bonbon_llm/llm_orchestrator_node
 _TOPIC_HUMAN_EMOTION_STATE = (
     "/bonbon/affective/human_state"  # bonbon_human_state_fusion/human_state_fusion_node
 )
+
+# Dashboard Perception Gap Report Phase 8 -- previously the ROS2 bridge
+# subscribed only to PersonTrack and PerceptionEfficiencyMetrics; every one
+# of these was invisible to an operator. See docs/DASHBOARD_PERCEPTION_GAP_REPORT.md.
+_TOPIC_DETECTED_OBJECTS = "/bonbon/vision/objects"  # bonbon_vision/vision_node, DetectedObjectArray
+_TOPIC_GESTURE_EVENTS = "/bonbon/gesture/events"  # bonbon_gesture/gesture_node, GestureEvent
+_TOPIC_FACE_EMOTION = "/bonbon/affective/face_emotion"  # bonbon_affective_ai, FaceEmotion
+_TOPIC_VOICE_EMOTION = "/bonbon/affective/voice_emotion"  # bonbon_affective_ai, VoiceEmotion
+_TOPIC_HUMAN_STATE = "/bonbon/human/state"  # bonbon_human_state_fusion/human_state_fusion_node, HumanState
 
 # bonbon_msgs/ComponentFault.msg's uint8 fault_level constants -> name,
 # for the dashboard-facing string field (ComponentFaultData.fault_level).
@@ -435,6 +450,48 @@ class ROS2DashboardBridge:
             return None
         return self._node._hardware_telemetry_status
 
+    def get_perception_objects(self) -> tuple[dict[str, dict], dict | None]:
+        """Dashboard Perception Gap Report Phase 8. (track_id -> object dict,
+        last DetectedObjectArray meta or None if never received)."""
+        if not self._ready():
+            return {}, None
+        return dict(self._node._perception_objects), self._node._perception_objects_meta
+
+    def get_perception_people(self) -> dict[str, dict]:
+        """person_track_id -> latest PersonTrack dict for everyone currently
+        present (left_scene entries are removed, not just marked)."""
+        if not self._ready():
+            return {}
+        return dict(self._node._perception_people)
+
+    def get_perception_gestures(self, limit: int = 20) -> list[dict]:
+        """Most recent GestureEvents, newest last, bounded to the last 50
+        received regardless of `limit`."""
+        if not self._ready():
+            return []
+        events = list(self._node._perception_gestures)
+        return events[-limit:] if limit else events
+
+    def get_perception_affective(self) -> dict[str, dict]:
+        """person_id -> {'face': ..., 'voice': ..., 'fused': ...}, each key
+        present only once that modality has published at least one message
+        for that person."""
+        if not self._ready():
+            return {}
+        return {k: dict(v) for k, v in self._node._perception_affective.items()}
+
+    def get_perception_human_state(self) -> dict[str, dict]:
+        """person_track_id -> latest HumanState dict (bonbon_human_state_fusion)."""
+        if not self._ready():
+            return {}
+        return dict(self._node._perception_human_state)
+
+    def get_perception_efficiency(self) -> dict[str, Any] | None:
+        """Latest PerceptionEfficiencyMetrics dict, or None if never received."""
+        if not self._ready():
+            return None
+        return self._node._perception_efficiency
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -501,6 +558,20 @@ if _ROS2_AVAILABLE:
             # _edge_ai_status above.
             self._hardware_telemetry_status: dict | None = None
 
+            # Dashboard Perception Gap Report Phase 8 -- previously invisible
+            # to the dashboard entirely (see docs/DASHBOARD_PERCEPTION_GAP_REPORT.md).
+            # None until the first real message for that category has been
+            # received -- same honesty rule as _edge_ai_status: never
+            # defaulted, so callers can tell "no message yet" from
+            # "received, empty".
+            self._perception_objects: dict[str, dict] = {}  # track_id -> latest DetectedObject dict
+            self._perception_objects_meta: dict | None = None  # DetectedObjectArray-level fields
+            self._perception_people: dict[str, dict] = {}  # person_track_id -> latest PersonTrack dict
+            self._perception_gestures: deque = deque(maxlen=50)  # most recent GestureEvents
+            self._perception_affective: dict[str, dict] = {}  # person_id -> latest fused affective dict
+            self._perception_human_state: dict[str, dict] = {}  # person_track_id -> latest HumanState dict
+            self._perception_efficiency: dict | None = None  # latest PerceptionEfficiencyMetrics
+
             _best_effort = QoSProfile(
                 depth=10,
                 reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -536,6 +607,25 @@ if _ROS2_AVAILABLE:
                 _TOPIC_PERCEPTION_METRICS,
                 self._on_perception_metrics,
                 _best_effort,
+            )
+            # Dashboard Perception Gap Report Phase 8
+            self.create_subscription(
+                DetectedObjectArray,
+                _TOPIC_DETECTED_OBJECTS,
+                self._on_detected_objects,
+                _best_effort,
+            )
+            self.create_subscription(
+                GestureEvent, _TOPIC_GESTURE_EVENTS, self._on_gesture_event, _best_effort
+            )
+            self.create_subscription(
+                FaceEmotion, _TOPIC_FACE_EMOTION, self._on_face_emotion, _best_effort
+            )
+            self.create_subscription(
+                VoiceEmotion, _TOPIC_VOICE_EMOTION, self._on_voice_emotion, _best_effort
+            )
+            self.create_subscription(
+                HumanState, _TOPIC_HUMAN_STATE, self._on_human_state, _best_effort
             )
             self.create_subscription(
                 ComponentFaultArray,
@@ -709,6 +799,22 @@ if _ROS2_AVAILABLE:
             self._agg.update_emotion(data)
             self._emit("robot-status", "emotion_state_updated", data)
 
+            entry = self._perception_affective.setdefault(msg.person_id, {})
+            entry["fused"] = {
+                "person_id": msg.person_id,
+                "dominant_state": msg.dominant_state,
+                "dominant_confidence": msg.dominant_confidence,
+                "is_stable": msg.is_stable,
+                "face_available": msg.face_available,
+                "voice_available": msg.voice_available,
+                "text_available": msg.text_available,
+                "gesture_available": msg.gesture_available,
+                "recommended_response_style": msg.recommended_response_style,
+                "recommended_distance_m": msg.recommended_distance_m,
+                "requires_operator_alert": msg.requires_operator_alert,
+                "received_at": time.time(),
+            }
+
         def _on_battery(self, msg: BatteryState) -> None:
             # sensor_msgs/BatteryState.percentage is a 0.0-1.0 fraction (or
             # NaN if unknown); BatteryData.percentage is 0-100.
@@ -788,8 +894,23 @@ if _ROS2_AVAILABLE:
         def _on_person_track(self, msg: PersonTrack) -> None:
             if msg.lifecycle_state == "left_scene":
                 self._person_track_ids.discard(msg.person_track_id)
+                self._perception_people.pop(msg.person_track_id, None)
             else:
                 self._person_track_ids.add(msg.person_track_id)
+                self._perception_people[msg.person_track_id] = {
+                    "person_track_id": msg.person_track_id,
+                    "temporary_person_id": msg.temporary_person_id,
+                    "known_person_id": msg.known_person_id,
+                    "lifecycle_state": msg.lifecycle_state,
+                    "position_3d": {
+                        "x": msg.position_3d.x,
+                        "y": msg.position_3d.y,
+                        "z": msg.position_3d.z,
+                    },
+                    "time_since_last_seen_sec": msg.time_since_last_seen_sec,
+                    "confidence": msg.confidence,
+                    "received_at": time.time(),
+                }
             self._agg.update_perception(
                 {
                     "camera_active": True,  # we are receiving PersonTrack updates at all
@@ -828,6 +949,137 @@ if _ROS2_AVAILABLE:
                     "total_module_errors": msg.total_errors,
                 }
             )
+            self._perception_efficiency = {
+                "cpu_percent": msg.cpu_percent,
+                "memory_percent": msg.memory_percent,
+                "load_level": msg.load_level,
+                "degraded_mode_active": msg.degraded_mode_active,
+                "recommended_load_shed": msg.recommended_load_shed,
+                "avg_module_latency_ms": msg.avg_latency_ms,
+                "max_module_latency_ms": msg.max_latency_ms,
+                "total_module_errors": msg.total_errors,
+                "received_at": time.time(),
+            }
+
+        # ── Dashboard Perception Gap Report Phase 8 ─────────────────────────
+
+        def _on_detected_objects(self, msg: DetectedObjectArray) -> None:
+            """Replaces the entire object set each frame -- a per-frame
+            detection array, not an accumulate-forever log. An object with
+            no track_id (untracked/mock backend) is keyed by its own index
+            so it's still visible rather than silently dropped."""
+            objects: dict[str, dict] = {}
+            for i, obj in enumerate(msg.objects):
+                key = obj.track_id or f"untracked_{i}"
+                objects[key] = {
+                    "track_id": obj.track_id,
+                    "class_name": obj.class_name,
+                    "confidence": obj.confidence,
+                    "bbox": {"x": obj.bbox_x, "y": obj.bbox_y, "w": obj.bbox_w, "h": obj.bbox_h},
+                    "depth_m": obj.depth_m,
+                    "bearing_deg": obj.bearing_deg,
+                    "tracking_status": obj.tracking_status,
+                }
+            self._perception_objects = objects
+            self._perception_objects_meta = {
+                "total_count": msg.total_count,
+                "is_degraded": msg.is_degraded,
+                "privacy_mode_active": msg.privacy_mode_active,
+                "inference_ms": msg.inference_ms,
+                "detector_backend": msg.detector_backend,
+                "received_at": time.time(),
+            }
+
+        def _on_gesture_event(self, msg: GestureEvent) -> None:
+            self._perception_gestures.append(
+                {
+                    "event_id": msg.event_id,
+                    "person_id": msg.person_id,
+                    "person_track_id": msg.person_track_id,
+                    "gesture_type": msg.gesture_type,
+                    "confidence": msg.confidence,
+                    "hand_side": msg.hand_side,
+                    "body_part": msg.body_part,
+                    "recommended_intent": msg.recommended_intent,
+                    "pointed_object_id": msg.pointed_object_id,
+                    "pointed_object_class": msg.pointed_object_class,
+                    "safety_relevant": msg.safety_relevant,
+                    "safety_class": msg.safety_class,
+                    "requires_immediate_response": msg.requires_immediate_response,
+                    "is_held": msg.is_held,
+                    "received_at": time.time(),
+                }
+            )
+            if msg.safety_relevant:
+                self._emit(
+                    "safety-events",
+                    "safety_relevant_gesture",
+                    {
+                        "person_track_id": msg.person_track_id,
+                        "gesture_type": msg.gesture_type,
+                        "safety_class": msg.safety_class,
+                    },
+                )
+
+        def _on_face_emotion(self, msg: FaceEmotion) -> None:
+            entry = self._perception_affective.setdefault(msg.person_id, {})
+            entry["face"] = {
+                "person_id": msg.person_id,
+                "dominant_emotion": msg.dominant_emotion,
+                "dominant_confidence": msg.dominant_confidence,
+                "is_ambiguous": msg.is_ambiguous,
+                "low_quality_input": msg.low_quality_input,
+                "privacy_suppressed": msg.privacy_suppressed,
+                "received_at": time.time(),
+            }
+
+        def _on_voice_emotion(self, msg: VoiceEmotion) -> None:
+            entry = self._perception_affective.setdefault(msg.person_id or "_global", {})
+            entry["voice"] = {
+                "person_id": msg.person_id,
+                "dominant_emotion": msg.dominant_emotion,
+                "dominant_confidence": msg.dominant_confidence,
+                "arousal": msg.arousal if msg.arousal_valid else None,
+                "valence": msg.valence if msg.valence_valid else None,
+                "noisy_audio": msg.noisy_audio,
+                "model_failed": msg.model_failed,
+                "backend_used": msg.backend_used,
+                "received_at": time.time(),
+            }
+
+        def _on_human_state(self, msg: HumanState) -> None:
+            if msg.lifecycle_state == "left_scene":
+                self._perception_human_state.pop(msg.person_track_id, None)
+                return
+            self._perception_human_state[msg.person_track_id] = {
+                "person_track_id": msg.person_track_id,
+                "known_person_id": msg.known_person_id,
+                "lifecycle_state": msg.lifecycle_state,
+                "active_speaker_status": msg.active_speaker_status,
+                "current_gesture": msg.current_gesture,
+                "face_expression": msg.face_expression,
+                "voice_emotion": msg.voice_emotion,
+                "emotional_state": msg.emotional_state,
+                "proximity_zone": msg.proximity_zone,
+                "engagement_level": msg.engagement_level,
+                "urgency_level": msg.urgency_level,
+                "confidence": msg.confidence,
+                "recommended_robot_response_style": msg.recommended_robot_response_style,
+                "recommended_robot_distance_m": msg.recommended_robot_distance_m,
+                "requires_operator_alert": msg.requires_operator_alert,
+                "evidence_summary": msg.evidence_summary,
+                "received_at": time.time(),
+            }
+            if msg.requires_operator_alert:
+                self._emit(
+                    "safety-events",
+                    "human_state_operator_alert",
+                    {
+                        "person_track_id": msg.person_track_id,
+                        "urgency_level": msg.urgency_level,
+                        "evidence_summary": msg.evidence_summary,
+                    },
+                )
 
         def _on_module_health(self, module_key: str, msg: ModuleHealth) -> None:
             data = {

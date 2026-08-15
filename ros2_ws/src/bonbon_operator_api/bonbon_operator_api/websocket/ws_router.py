@@ -55,6 +55,13 @@ _CHANNEL_MIN_PERMISSION = {
     "edge-ai-safety": "diagnostics:read",
     "edge-ai-cache": "diagnostics:read",
     "hardware-telemetry": "diagnostics:read",
+    "benchmarks": "diagnostics:read",
+    "perception-objects": "diagnostics:read",
+    "perception-people": "diagnostics:read",
+    "perception-gestures": "diagnostics:read",
+    "perception-affective": "diagnostics:read",
+    "perception-human-state": "diagnostics:read",
+    "perception-efficiency": "diagnostics:read",
 }
 
 ws_router = APIRouter(prefix="/ws", tags=["websocket"])

@@ -61,3 +61,20 @@ heartbeat:
   publish_rate_hz: 2.0
   stale_after_sec: 1.5     # 3 missed beats
   lost_after_sec: 5.0      # declare the Pi unreachable
+
+# ── Network quality (3-Pi Phase 7 remainder) ──────────────────────────────────
+# Heartbeat/chrony above answer "is the peer alive" and "is my clock right" --
+# neither measures link quality directly, so a degraded-but-not-dead link
+# (rising latency, intermittent loss) can look fully healthy on both. This
+# section is consumed by bonbon_distributed_network_monitor's RTT probe.
+network_quality:
+  probe_port: 22        # SSH -- the one TCP service guaranteed to be
+                         # listening on every deployed Pi; used only to time
+                         # a connect-and-close, never to open an actual
+                         # SSH session.
+  probes_per_check: 5
+  rtt_warn_ms: 50
+  rtt_alert_ms: 200
+  packet_loss_warn_pct: 10.0
+  packet_loss_alert_pct: 30.0
+  poll_interval_sec: 30.0

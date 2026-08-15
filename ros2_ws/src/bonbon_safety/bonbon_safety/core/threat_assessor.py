@@ -85,6 +85,8 @@ class ThreatAssessor:
         self._navigation_timeout: bool = False
         self._critical_node_crashed: bool = False
         self._important_node_crashed: bool = False
+        self._gesture_emergency_detected: bool = False
+        self._human_urgency_level: float = 0.0
 
         # Last-update timestamps (0 = never received)
         self._t_lidar: float = 0.0
@@ -262,6 +264,20 @@ class ThreatAssessor:
         self._critical_node_crashed = critical_crashed
         self._important_node_crashed = important_crashed
 
+    def update_gesture_safety(self, requires_immediate_response: bool) -> None:
+        """Called from /bonbon/gesture/events. requires_immediate_response is
+        computed upstream by GestureSafetyClassifier (stop_palm/fallen_posture
+        only) -- reused as-is, not re-derived. Defense-in-depth: this reaches
+        the Safety Supervisor's DANGER path independently of the Behavior
+        Engine's own gesture handling."""
+        if requires_immediate_response and not self._gesture_emergency_detected:
+            logger.warning("Safety-relevant gesture detected (immediate response required)")
+        self._gesture_emergency_detected = requires_immediate_response
+
+    def update_human_urgency(self, urgency_level: float) -> None:
+        """Called from /bonbon/human/state (bonbon_human_state_fusion)."""
+        self._human_urgency_level = max(0.0, min(1.0, urgency_level))
+
     # ── Snapshot builder ─────────────────────────────────────────────────────
 
     def build_snapshot(self) -> SensorSnapshot:
@@ -327,6 +343,8 @@ class ThreatAssessor:
             navigation_timeout=self._navigation_timeout,
             critical_node_crashed=self._critical_node_crashed,
             important_node_crashed=self._important_node_crashed,
+            gesture_emergency_detected=self._gesture_emergency_detected,
+            human_urgency_level=self._human_urgency_level,
             timestamp=now,
         )
 
@@ -341,5 +359,6 @@ class ThreatAssessor:
         """
         self._unsafe_command = False
         self._navigation_timeout = False
-        # Note: bumpers and e-stop are NOT cleared here — they hold their
-        # state until the next hardware message updates them.
+        self._gesture_emergency_detected = False
+        # Note: bumpers, e-stop, and human_urgency_level are NOT cleared here
+        # — they hold their state until the next message updates them.

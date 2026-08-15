@@ -32,6 +32,7 @@ from rclpy.lifecycle import Publisher as LifecyclePublisher
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Bool
 
+from bonbon_distributed_safety.core.flap_detector import FlapConfig, FlapDetector
 from bonbon_distributed_safety.core.heartbeat_monitor import (
     HeartbeatConfig,
     HeartbeatMonitor,
@@ -103,6 +104,7 @@ class DistributedSafetyNode(LifecycleNode):
             lost_after_sec=float(gp("lost_after_sec").get_parameter_value().double_value),
         )
         self._monitor = HeartbeatMonitor(self._self_id, config=cfg)
+        self._flap_detector = FlapDetector(self._monitor.peers, config=FlapConfig())
 
         self._pub_heartbeat = self.create_lifecycle_publisher(
             ModuleHealth, f"/bonbon/{self_id_str}/heartbeat", _QOS_HEARTBEAT
@@ -141,6 +143,7 @@ class DistributedSafetyNode(LifecycleNode):
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         self._monitor = None
+        self._flap_detector = None
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
@@ -181,7 +184,9 @@ class DistributedSafetyNode(LifecycleNode):
     def _cb_evaluate(self) -> None:
         if self._monitor is None or self._pub_failure_events is None:
             return
-        transitions = self._monitor.evaluate(now=time.monotonic())
+        now = time.monotonic()
+        transitions = self._monitor.evaluate(now=now)
+        newly_flapping: set = set()
         for t in transitions:
             evt = SafetyEvent()
             evt.severity = (
@@ -194,6 +199,33 @@ class DistributedSafetyNode(LifecycleNode):
             evt.description = (
                 f"{self._self_id.value} observed {t.pi.value}: "
                 f"{t.previous_state.value} -> {t.new_state.value}"
+            )
+            self._pub_failure_events.publish(evt)
+            self.get_logger().warning(evt.description)
+
+            if self._flap_detector is not None:
+                was_flapping = self._flap_detector.is_flapping(t.pi, now)
+                self._flap_detector.record_transition(t)
+                if not was_flapping and self._flap_detector.is_flapping(t.pi, now):
+                    newly_flapping.add(t.pi)
+
+        # 3-Pi Phase 7 remainder: a peer that is flapping (repeated
+        # ONLINE<->STALE/LOST transitions) is a distinct, worse condition
+        # than a single clean transition -- a flapping link is far more
+        # disruptive to cross-Pi coordination than either a stable-online
+        # or a stable-lost one, so it gets its own SafetyEvent rather than
+        # being silently indistinguishable from the last transition alone.
+        for pi in newly_flapping:
+            evt = SafetyEvent()
+            evt.severity = SafetyEvent.WARNING
+            evt.trigger_name = "pi_link_flapping"
+            evt.module_name = _SOURCE_MODULE
+            evt.prior_state_name = ""
+            evt.new_state_name = ""
+            evt.description = (
+                f"{self._self_id.value} observed {pi.value}: link is flapping "
+                f"({self._flap_detector.flap_count(pi, now)} transitions in the last "
+                f"{self._flap_detector.window_sec:.0f}s)"
             )
             self._pub_failure_events.publish(evt)
             self.get_logger().warning(evt.description)

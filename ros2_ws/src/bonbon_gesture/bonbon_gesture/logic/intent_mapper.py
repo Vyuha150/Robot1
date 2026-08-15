@@ -23,6 +23,7 @@ GESTURE_TO_INTENT: Dict[str, str] = {
     "pointing_left": "direction_left",
     "pointing_right": "direction_right",
     "pointing_forward": "direction_forward",
+    "pointing_at_object": "indicate_object",
     "thumbs_up": "positive_confirmation",
     "thumbs_down": "negative_confirmation",
     "come_here": "approach_request",
